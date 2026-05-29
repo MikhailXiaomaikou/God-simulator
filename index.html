@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>God Simulator · 第一天</title>
+<title>God Simulator</title>
 <style>
   html, body {
     margin: 0; padding: 0; height: 100%;
@@ -16,36 +16,55 @@
   #scripture {
     position: fixed; left: 0; right: 0; bottom: 7vh;
     text-align: center;
-    color: rgba(250, 246, 236, 0);     /* 默认隐没，随 .show 淡入 */
+    color: rgba(250, 246, 236, 0.97);
     font-family: "Songti SC", "STSong", "SimSun", serif;
     font-size: clamp(14px, 2.3vw, 21px);
     line-height: 1.9; letter-spacing: 0.12em;
     pointer-events: none; user-select: none;
     -webkit-text-stroke: 0.4px rgba(0, 0, 0, 0.55);
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.92), 0 0 6px rgba(0, 0, 0, 0.55);
-    transition: color 2.4s ease;
+    opacity: 0;                        /* 默认整体隐没（连描边/投影一起），随 .show 淡入 */
+    transition: opacity 2.4s ease;
   }
-  #scripture.show { color: rgba(250, 246, 236, 0.97); }
+  #scripture.show { opacity: 1; }
   #scripture .ref {
     display: block; margin-top: 0.8em;
     font-size: 0.8em; letter-spacing: 0.2em;
-    color: rgba(240, 234, 218, 0);
-    transition: color 2.4s ease;
+    color: rgba(240, 234, 218, 0.85);
   }
-  #scripture.show .ref { color: rgba(240, 234, 218, 0.85); }
 
   #hint {
     position: fixed; left: 0; right: 0; bottom: 3vh;
     text-align: center;
-    color: rgba(246, 242, 232, 0);
+    color: rgba(246, 242, 232, 0.85);
     font-family: -apple-system, system-ui, sans-serif;
     font-size: 13px; letter-spacing: 0.2em;
     pointer-events: none; user-select: none;
     -webkit-text-stroke: 0.3px rgba(0, 0, 0, 0.5);
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9), 0 0 5px rgba(0, 0, 0, 0.5);
-    transition: color 2.4s ease;
+    opacity: 0;                        /* 默认整体隐没；开场淡入，言说后彻底消失不留残影 */
+    transition: opacity 2.4s ease;
   }
-  #hint.show { color: rgba(246, 242, 232, 0.85); }
+  #hint.show { opacity: 1; }
+
+  /* 「天」之名：称穹苍为天时，名字在穹苍中浮现、停驻、再完全淡出（不留残影） */
+  #skyname {
+    position: fixed; left: 0; right: 0; top: 33%;
+    text-align: center;
+    color: rgba(234, 244, 255, 0.95);
+    font-family: "Songti SC", "STSong", "SimSun", serif;
+    font-size: clamp(56px, 14vw, 168px);
+    pointer-events: none; user-select: none;
+    text-shadow: 0 0 32px rgba(150, 200, 255, 0.55), 0 2px 10px rgba(0, 0, 0, 0.5);
+    opacity: 0;
+  }
+  #skyname.reveal { animation: skyreveal 7.5s ease forwards; }
+  @keyframes skyreveal {
+    0%   { opacity: 0;    transform: translateY(16px) scale(0.96); }
+    22%  { opacity: 0.92; }
+    62%  { opacity: 0.92; transform: translateY(0) scale(1); }
+    100% { opacity: 0;    transform: translateY(-8px) scale(1.03); }
+  }
 </style>
 </head>
 <body>
@@ -56,6 +75,7 @@
     <span class="ref">创世记 1:1–2</span>
   </p>
   <p id="hint">轻触画面，或按空格键 —— 说「要有光」</p>
+  <p id="skyname">天</p>
 
 <script>
 (() => {
@@ -65,6 +85,7 @@
   const ctx = canvas.getContext('2d', { alpha: false });
   const scripture = document.getElementById('scripture');
   const hint = document.getElementById('hint');
+  const skyname = document.getElementById('skyname');
 
   // 低分辨率离屏缓冲：在粗网格上计算"深渊之水"的明暗，再放大铺满全屏，
   // 平滑插值让水面显得弥散、柔和。
@@ -84,13 +105,17 @@
   let lightTarget = 0;           // 目标值（言说后置 1）
   let separation = 0;            // 光暗分离度 0→1
   let separationTarget = 0;      // 目标值（分开后置 1）
-  let stage = 0;                 // 创世进度：0 黑暗 · 1 有光 · 2 光暗分开 · 3 昼夜（头一日）
+  let stage = 0;                 // 创世进度：0 黑暗 · 1 有光 · 2 光暗分开 · 3 昼夜（头一日）· 4 立穹苍 · 5 称天 · 6 第二日
   let dayProgress = 0;           // 第一日的昼夜进程 0→1（晚上→早晨）
   let dayTimer = 0;              // 第二段经文的计时器
   let burstActive = false;       // 光迸发动画是否进行中
   let burstT = 0;                // 光迸发计时
   let burstX = 0, burstY = 0;    // 光迸发的源点（神的灵所在）
   let narrTimer = 0;             // 旁白经文淡出计时器
+
+  // 穹苍（创 1:6-7）：诸水之间立起的空，将水分为上下两层。
+  let vault = 0;                 // 穹苍开展度 0→1
+  let vaultTarget = 0;           // 目标值（立穹苍后置 1）
 
   function resize() {
     const w = window.innerWidth;
@@ -155,6 +180,24 @@
       clearTimeout(dayTimer);
       dayTimer = setTimeout(
         () => narrate('有晚上，有早晨，这是头一日。', '创世记 1:5'), 5200);
+    } else if (stage === 3) {                // 立穹苍：诸水之间张开空，将水分为上下
+      stage = 4;
+      vaultTarget = 1;
+      narrate('神说：诸水之间要有穹苍，将水与水分开。', '创世记 1:6');
+      clearTimeout(dayTimer);
+      dayTimer = setTimeout(
+        () => narrate('神就造出穹苍，将穹苍以上的水、穹苍以下的水分开了。事就这样成了。', '创世记 1:7'), 5200);
+    } else if (stage === 4) {                // 称穹苍为天：名字在穹苍中浮现，旋即淡去
+      stage = 5;
+      clearTimeout(dayTimer);                // 取消立穹苍尚未触发的 1:7 旁白，免得盖掉 1:8
+      skyname.classList.remove('reveal');
+      void skyname.offsetWidth;              // 触发 reflow，确保动画从头播放
+      skyname.classList.add('reveal');
+      narrate('神称穹苍为天。', '创世记 1:8');
+    } else if (stage === 5) {                // 第二日的晚上与早晨：再走一轮昼夜
+      stage = 6;
+      dayProgress = 0;                       // 重置昼夜进程，世界再经一次「晚上→早晨」
+      narrate('有晚上，有早晨，是第二日。', '创世记 1:8');
     }
   }
   window.addEventListener('mousemove', e => moveTo(e.clientX, e.clientY));
@@ -182,6 +225,7 @@
     // 光渐渐充盈、光暗缓缓分离，迸发动画各自推进
     light += (lightTarget - light) * 0.04;
     separation += (separationTarget - separation) * 0.03;
+    vault += (vaultTarget - vault) * 0.02;
     if (burstActive) burstT += 0.016;
 
     // 第一日的昼夜：全局明暗走一次「晚上→早晨」循环（昼暖夜冷），走完即定格于昼
@@ -243,9 +287,30 @@
         const kr = 0.35 + lightHere * 0.70 + glow * 0.40;
         const kg = 0.55 + lightHere * 0.43 + glow * 0.35;
         const kb = 0.85 + lightHere * 0.01 + glow * 0.15;
-        d[i++] = Math.min(255, lum * kr * 255);
-        d[i++] = Math.min(255, lum * kg * 255);
-        d[i++] = Math.min(255, lum * kb * 255);
+        let R = lum * kr, G = lum * kg, B = lum * kb;
+
+        // 穹苍：诸水之间张开一片空。带内由水渐隐为澄澈的天空（昼蓝夜暗，
+        // 随左右昼夜之分明灭），上下两侧仍是水；分界处泛起新生水膜的微光。
+        if (vault > 0.001) {
+          const dv = Math.abs(y / LH - 0.5);
+          const half = vault * 0.20;
+          let skyAmt = (half - dv) / 0.05;
+          skyAmt = skyAmt < 0 ? 0 : (skyAmt > 1 ? 1 : skyAmt);
+          skyAmt = skyAmt * skyAmt * (3 - 2 * skyAmt);
+          if (skyAmt > 0) {
+            const grad = half > 1e-4 ? dv / half : 0;     // 0 居中 → 1 近水面
+            const sl = (0.05 + 0.80 * lightHere) * (0.80 + 0.35 * grad);
+            R = R * (1 - skyAmt) + sl * 0.50 * skyAmt;
+            G = G * (1 - skyAmt) + sl * 0.66 * skyAmt;
+            B = B * (1 - skyAmt) + sl * 1.00 * skyAmt;
+          }
+          const seam = vault * Math.exp(-((dv - half) * (dv - half)) / 0.0012) * lightHere;
+          R += seam * 0.55; G += seam * 0.62; B += seam * 0.70;
+        }
+
+        d[i++] = Math.min(255, R * 255);
+        d[i++] = Math.min(255, G * 255);
+        d[i++] = Math.min(255, B * 255);
         d[i++] = 255;
       }
     }
