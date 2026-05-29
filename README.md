@@ -15,5 +15,5 @@ God is the first vibecoder.
 - **第一天**（创世记 1:1–5）
   - add 天 add 地
   - add 光
-  - seperate light and darkness
+  - separate light and darkness
   - name 光 as 昼， name 暗 as 夜
