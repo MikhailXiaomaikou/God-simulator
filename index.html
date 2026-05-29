@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>God Simulator · 第一天</title>
+<style>
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: #000; overflow: hidden;
+    cursor: none;                      /* 灵体取代光标 */
+  }
+  #deep { display: block; width: 100vw; height: 100vh; }
+
+  /* 经文：暖白字 + 锐利深描边 + 深投影，无论昼夜明暗都清晰锐利（不用模糊光晕） */
+  #scripture {
+    position: fixed; left: 0; right: 0; bottom: 7vh;
+    text-align: center;
+    color: rgba(250, 246, 236, 0);     /* 默认隐没，随 .show 淡入 */
+    font-family: "Songti SC", "STSong", "SimSun", serif;
+    font-size: clamp(14px, 2.3vw, 21px);
+    line-height: 1.9; letter-spacing: 0.12em;
+    pointer-events: none; user-select: none;
+    -webkit-text-stroke: 0.4px rgba(0, 0, 0, 0.55);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.92), 0 0 6px rgba(0, 0, 0, 0.55);
+    transition: color 2.4s ease;
+  }
+  #scripture.show { color: rgba(250, 246, 236, 0.97); }
+  #scripture .ref {
+    display: block; margin-top: 0.8em;
+    font-size: 0.8em; letter-spacing: 0.2em;
+    color: rgba(240, 234, 218, 0);
+    transition: color 2.4s ease;
+  }
+  #scripture.show .ref { color: rgba(240, 234, 218, 0.85); }
+
+  #hint {
+    position: fixed; left: 0; right: 0; bottom: 3vh;
+    text-align: center;
+    color: rgba(246, 242, 232, 0);
+    font-family: -apple-system, system-ui, sans-serif;
+    font-size: 13px; letter-spacing: 0.2em;
+    pointer-events: none; user-select: none;
+    -webkit-text-stroke: 0.3px rgba(0, 0, 0, 0.5);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9), 0 0 5px rgba(0, 0, 0, 0.5);
+    transition: color 2.4s ease;
+  }
+  #hint.show { color: rgba(246, 242, 232, 0.85); }
+</style>
+</head>
+<body>
+  <canvas id="deep"></canvas>
+  <p id="scripture">
+    起初，神创造天地。<br>
+    地是空虚混沌，渊面黑暗；神的灵运行在水面上。
+    <span class="ref">创世记 1:1–2</span>
+  </p>
+  <p id="hint">轻触画面，或按空格键 —— 说「要有光」</p>
+
+<script>
+(() => {
+  'use strict';
+
+  const canvas = document.getElementById('deep');
+  const ctx = canvas.getContext('2d', { alpha: false });
+  const scripture = document.getElementById('scripture');
+  const hint = document.getElementById('hint');
+
+  // 低分辨率离屏缓冲：在粗网格上计算"深渊之水"的明暗，再放大铺满全屏，
+  // 平滑插值让水面显得弥散、柔和。
+  const buf = document.createElement('canvas');
+  const bctx = buf.getContext('2d');
+  let img;                       // 持久 ImageData
+  let LW = 0, LH = 0;            // 低分辨率宽高
+  let scaleX = 1, scaleY = 1;    // 屏幕像素 / 低分辨率像素
+
+  // 灵体（神的灵）：以惯性飘移的方式运行在水面上。
+  const spirit = { x: 0, y: 0, tx: 0, ty: 0 };
+  let hasInput = false;          // user 是否已亲自引领灵体
+  let t = 0;                     // 世界时间
+
+  // 光（创 1:3）：黑暗中尚无光，待 user 言说「要有光」方才迸发、充满世界。
+  let light = 0;                 // 当前光照充盈度 0→1
+  let lightTarget = 0;           // 目标值（言说后置 1）
+  let separation = 0;            // 光暗分离度 0→1
+  let separationTarget = 0;      // 目标值（分开后置 1）
+  let stage = 0;                 // 创世进度：0 黑暗 · 1 有光 · 2 光暗分开 · 3 昼夜（头一日）
+  let dayProgress = 0;           // 第一日的昼夜进程 0→1（晚上→早晨）
+  let dayTimer = 0;              // 第二段经文的计时器
+  let burstActive = false;       // 光迸发动画是否进行中
+  let burstT = 0;                // 光迸发计时
+  let burstX = 0, burstY = 0;    // 光迸发的源点（神的灵所在）
+  let narrTimer = 0;             // 旁白经文淡出计时器
+
+  function resize() {
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.floor(w * dpr);
+    canvas.height = Math.floor(h * dpr);
+    canvas.style.width = w + 'px';
+    canvas.style.height = h + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    LW = Math.max(80, Math.round(w / 6));
+    LH = Math.max(50, Math.round(h / 6));
+    scaleX = w / LW;
+    scaleY = h / LH;
+    buf.width = LW;
+    buf.height = LH;
+    img = bctx.createImageData(LW, LH);
+
+    if (spirit.x === 0 && spirit.y === 0) {
+      spirit.x = spirit.tx = w / 2;
+      spirit.y = spirit.ty = h / 2;
+    }
+  }
+  window.addEventListener('resize', resize);
+
+  function moveTo(x, y) {
+    spirit.tx = x;
+    spirit.ty = y;
+    if (!hasInput) {                     // user 一动，开场经文缓缓隐去（提示仍引向「要有光」）
+      hasInput = true;
+      scripture.classList.remove('show');
+    }
+  }
+
+  // 旁白：浮现一句经文，几秒后隐去
+  function narrate(text, ref) {
+    scripture.innerHTML = text + '<span class="ref">' + ref + '</span>';
+    scripture.classList.add('show');
+    hint.classList.remove('show');
+    clearTimeout(narrTimer);
+    narrTimer = setTimeout(() => scripture.classList.remove('show'), 5000);
+  }
+
+  // user 言说，推进创世。每道命令只执行其一步，绝不擅自越过上帝。
+  function speak() {
+    if (stage === 0) {                       // 要有光：光自神的灵迸发，充满黑暗
+      stage = 1;
+      lightTarget = 1;
+      burstActive = true;
+      burstT = 0;
+      burstX = spirit.x;
+      burstY = spirit.y;
+      narrate('神说：要有光，就有了光。', '创世记 1:3');
+    } else if (stage === 1) {                // 分开光暗：光收拢一侧，暗归另一侧
+      stage = 2;
+      separationTarget = 1;
+      narrate('神看光是好的，就把光暗分开了。', '创世记 1:4');
+    } else if (stage === 2) {                // 称昼夜，并经历第一日的晚上与早晨
+      stage = 3;
+      narrate('神称光为昼，称暗为夜。', '创世记 1:5');
+      clearTimeout(dayTimer);
+      dayTimer = setTimeout(
+        () => narrate('有晚上，有早晨，这是头一日。', '创世记 1:5'), 5200);
+    }
+  }
+  window.addEventListener('mousemove', e => moveTo(e.clientX, e.clientY));
+  window.addEventListener('touchmove', e => {
+    const tch = e.touches[0];
+    if (tch) moveTo(tch.clientX, tch.clientY);
+    e.preventDefault();
+  }, { passive: false });
+
+  // user 言说（推进创世）：点击、轻触，或按 空格 / 回车。
+  window.addEventListener('click', speak);
+  window.addEventListener('touchstart', speak, { passive: true });
+  window.addEventListener('keydown', e => {
+    if (e.code === 'Space' || e.code === 'Enter') {
+      e.preventDefault();
+      speak();
+    }
+  });
+
+  function frame() {
+    t += 0.016;
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+
+    // 光渐渐充盈、光暗缓缓分离，迸发动画各自推进
+    light += (lightTarget - light) * 0.04;
+    separation += (separationTarget - separation) * 0.03;
+    if (burstActive) burstT += 0.016;
+
+    // 第一日的昼夜：全局明暗走一次「晚上→早晨」循环（昼暖夜冷），走完即定格于昼
+    if (stage >= 3 && dayProgress < 1) {
+      dayProgress += 0.0024;
+      if (dayProgress > 1) dayProgress = 1;
+    }
+    const dayFactor = stage >= 3
+      ? 0.12 + 0.88 * (0.5 + 0.5 * Math.cos(dayProgress * 6.2832))
+      : 1;
+    const effLight = light * dayFactor;
+
+    // 灵体运行：未受 user 指引时，自行在水面缓缓盘旋（神的灵主动运行在水面上）。
+    if (!hasInput) {
+      spirit.tx = w / 2 + Math.cos(t * 0.23) * w * 0.22 + Math.cos(t * 0.07) * w * 0.06;
+      spirit.ty = h / 2 + Math.sin(t * 0.19) * h * 0.18 + Math.sin(t * 0.11) * h * 0.05;
+    }
+    spirit.x += (spirit.tx - spirit.x) * 0.06;
+    spirit.y += (spirit.ty - spirit.y) * 0.06;
+
+    const slx = spirit.x / scaleX;       // 灵体在低分辨率网格上的坐标
+    const sly = spirit.y / scaleY;
+
+    // 深渊之水：黑暗中混沌涌动，灵体所临之处泛起涟漪与微光。
+    const d = img.data;
+    let i = 0;
+    for (let y = 0; y < LH; y++) {
+      for (let x = 0; x < LW; x++) {
+        // 几层漂移的正弦叠加 = 无形混沌的水面起伏
+        let height =
+            Math.sin(x * 0.07 + t * 0.6) +
+            Math.sin(y * 0.085 - t * 0.45) +
+            Math.sin((x + y) * 0.05 + t * 0.9) +
+            Math.sin((x - y) * 0.04 - t * 0.3);
+        height *= 0.25;
+
+        const dx = x - slx, dy = y - sly;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        // 灵体激起的同心涟漪，随距离衰减
+        height += Math.sin(dist * 0.5 - t * 5) * Math.exp(-dist * 0.07) * 0.8;
+
+        // 灵体微光（黑暗中的预兆），近处亮，远处归于黑暗
+        const glow = Math.exp(-dist * 0.05);
+
+        // 光暗分开：光收拢到一侧（右），另一侧（左）归于黑暗，中间柔和过渡
+        let s = (x / LW - 0.30) / 0.40;           // 0.30→暗端 0.70→亮端
+        s = s < 0 ? 0 : (s > 1 ? 1 : s);
+        s = s * s * (3 - 2 * s);                   // smoothstep 过渡带
+        const lightHere = effLight * (1 - separation * (1 - s));
+
+        // 黑暗为底；光所在处环境被照亮、水的涌动显出形态、灵体相对照亮减弱
+        const ambient = 0.015 + lightHere * 0.45;
+        let lum = ambient + Math.max(0, height) * (0.06 + lightHere * 0.22)
+                          + glow * 0.85 * (1 - 0.45 * lightHere);
+        if (lum > 1) lum = 1;
+
+        // 色温系数：黑暗中冷蓝 → 有光处暖白；灵体处更青白
+        const kr = 0.35 + lightHere * 0.70 + glow * 0.40;
+        const kg = 0.55 + lightHere * 0.43 + glow * 0.35;
+        const kb = 0.85 + lightHere * 0.01 + glow * 0.15;
+        d[i++] = Math.min(255, lum * kr * 255);
+        d[i++] = Math.min(255, lum * kg * 255);
+        d[i++] = Math.min(255, lum * kb * 255);
+        d[i++] = 255;
+      }
+    }
+    bctx.putImageData(img, 0, 0);
+
+    // 放大铺满全屏（同时清屏）
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(buf, 0, 0, LW, LH, 0, 0, w, h);
+
+    // 灵体本体：叠加一团更亮更柔的光晕
+    const grad = ctx.createRadialGradient(spirit.x, spirit.y, 0, spirit.x, spirit.y, 140);
+    grad.addColorStop(0, 'rgba(220, 235, 255, 0.90)');
+    grad.addColorStop(0.2, 'rgba(150, 195, 255, 0.45)');
+    grad.addColorStop(1, 'rgba(40, 80, 160, 0)');
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(spirit.x, spirit.y, 140, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 「要有光」的迸发：一道光自神的灵处膨胀、扫过全地，随即归于充盈的光中
+    if (burstActive) {
+      const DUR = 1.3;
+      const p = burstT / DUR;
+      if (p >= 1) {
+        burstActive = false;
+      } else {
+        const maxR = Math.hypot(w, h) * 1.1;
+        const R = (1 - Math.pow(1 - p, 3)) * maxR;      // easeOutCubic 膨胀
+        const a = Math.pow(1 - p, 0.6) * 0.9;            // 渐隐
+        const bg = ctx.createRadialGradient(burstX, burstY, 0, burstX, burstY, R);
+        bg.addColorStop(0, 'rgba(255, 250, 235, ' + a + ')');
+        bg.addColorStop(0.6, 'rgba(220, 235, 255, ' + (a * 0.5) + ')');
+        bg.addColorStop(1, 'rgba(255, 255, 255, 0)');
+        ctx.fillStyle = bg;
+        ctx.fillRect(0, 0, w, h);
+      }
+    }
+    ctx.globalCompositeOperation = 'source-over';
+
+    requestAnimationFrame(frame);
+  }
+
+  resize();
+  setTimeout(() => {                    // 开场经文与提示浮现；若 user 已抢先言说则跳过
+    if (stage !== 0) return;
+    scripture.classList.add('show');
+    hint.classList.add('show');
+  }, 600);
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
