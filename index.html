@@ -12,7 +12,20 @@
   }
   #deep { display: block; width: 100vw; height: 100vh; }
 
-  /* 经文：暖白字 + 锐利深描边 + 深投影，无论昼夜明暗都清晰锐利（不用模糊光晕） */
+  /* 神谕：按住言说时，话语逐字浮现于世界中央 */
+  #utter {
+    position: fixed; left: 0; right: 0; top: 40%;
+    text-align: center;
+    color: rgba(250, 246, 236, 0.97);
+    font-family: "Songti SC", "STSong", "SimSun", serif;
+    font-size: clamp(24px, 4.6vw, 54px);
+    letter-spacing: 0.3em;
+    pointer-events: none; user-select: none;
+    text-shadow: 0 0 34px rgba(190, 215, 255, 0.55), 0 2px 12px rgba(0, 0, 0, 0.75);
+    opacity: 0;
+  }
+
+  /* 经文：暖白字 + 锐利深描边 + 深投影；整体 opacity 控制显隐（不留残影） */
   #scripture {
     position: fixed; left: 0; right: 0; bottom: 7vh;
     text-align: center;
@@ -23,7 +36,7 @@
     pointer-events: none; user-select: none;
     -webkit-text-stroke: 0.4px rgba(0, 0, 0, 0.55);
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.92), 0 0 6px rgba(0, 0, 0, 0.55);
-    opacity: 0;                        /* 默认整体隐没（连描边/投影一起），随 .show 淡入 */
+    opacity: 0;
     transition: opacity 2.4s ease;
   }
   #scripture.show { opacity: 1; }
@@ -42,64 +55,23 @@
     pointer-events: none; user-select: none;
     -webkit-text-stroke: 0.3px rgba(0, 0, 0, 0.5);
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9), 0 0 5px rgba(0, 0, 0, 0.5);
-    opacity: 0;                        /* 默认整体隐没；开场淡入，言说后彻底消失不留残影 */
+    opacity: 0;
     transition: opacity 2.4s ease;
   }
   #hint.show { opacity: 1; }
 
-  /* 「天」之名：称穹苍为天时，名字在穹苍中浮现、停驻、再完全淡出（不留残影） */
-  #skyname {
-    position: fixed; left: 0; right: 0; top: 33%;
-    text-align: center;
-    color: rgba(234, 244, 255, 0.95);
-    font-family: "Songti SC", "STSong", "SimSun", serif;
-    font-size: clamp(56px, 14vw, 168px);
-    pointer-events: none; user-select: none;
-    text-shadow: 0 0 32px rgba(150, 200, 255, 0.55), 0 2px 10px rgba(0, 0, 0, 0.5);
-    opacity: 0;
-  }
-  #skyname.reveal { animation: skyreveal 7.5s ease forwards; }
-  @keyframes skyreveal {
-    0%   { opacity: 0;    transform: translateY(16px) scale(0.96); }
-    22%  { opacity: 0.92; }
-    62%  { opacity: 0.92; transform: translateY(0) scale(1); }
-    100% { opacity: 0;    transform: translateY(-8px) scale(1.03); }
-  }
-
-  /* 「地」「海」之名：称旱地为地、水聚处为海时，二名一同在聚拢的海与新地之上浮现、再淡出 */
-  #landname, #seaname {
-    position: fixed; left: 0; right: 0; margin: 0;
-    text-align: center;
-    color: rgba(244, 238, 226, 0.95);
-    font-family: "Songti SC", "STSong", "SimSun", serif;
-    font-size: clamp(36px, 8vw, 96px);
-    pointer-events: none; user-select: none;
-    text-shadow: 0 0 28px rgba(120, 160, 210, 0.5), 0 2px 10px rgba(0, 0, 0, 0.6);
-    opacity: 0;
-  }
-  /* 海、地各自端正居中落在自己的疆域上（海浮于水面、地落在旱地）；先后浮现、绝不同框连读 */
-  #seaname  { top: 68%; }
-  #landname { top: 84%; }
-  #landname.reveal, #seaname.reveal { animation: nameReveal 4s ease forwards; }
-  @keyframes nameReveal {
-    0%   { opacity: 0;    transform: translateY(12px) scale(0.97); }
-    22%  { opacity: 0.95; }
-    60%  { opacity: 0.95; transform: translateY(0) scale(1); }
-    100% { opacity: 0;    transform: translateY(-6px) scale(1.02); }
-  }
+  /* 名字不再是贴在屏幕上的字——由 canvas 粒子聚成（万物以其自身的质料聚成其名） */
 </style>
 </head>
 <body>
   <canvas id="deep"></canvas>
+  <p id="utter"></p>
   <p id="scripture">
     起初，神创造天地。<br>
     地是空虚混沌，渊面黑暗；神的灵运行在水面上。
     <span class="ref">创世记 1:1–2</span>
   </p>
-  <p id="hint">轻触画面，或按空格键 —— 说「要有光」</p>
-  <p id="skyname">天</p>
-  <p id="landname">地</p>
-  <p id="seaname">海</p>
+  <p id="hint">按住画面，或按住空格 —— 直到话语成就</p>
 
 <script>
 (() => {
@@ -109,44 +81,179 @@
   const ctx = canvas.getContext('2d', { alpha: false });
   const scripture = document.getElementById('scripture');
   const hint = document.getElementById('hint');
-  const skyname = document.getElementById('skyname');
-  const landname = document.getElementById('landname');
-  const seaname = document.getElementById('seaname');
+  const utter = document.getElementById('utter');
 
-  // 低分辨率离屏缓冲：在粗网格上计算"深渊之水"的明暗，再放大铺满全屏，
-  // 平滑插值让水面显得弥散、柔和。
+  // ── 舞台常数 ────────────────────────────────────────────────
+  const HZ = 0.62;               // 地平线（画面高度比例）：以上是穹苍，以下是海
+
+  // 低分辨率离屏缓冲：粗网格上计算天与海的光色，放大铺满全屏，
+  // 平滑插值让世界弥散柔和；每像素叠一点噪声抖动消除色阶断层。
   const buf = document.createElement('canvas');
   const bctx = buf.getContext('2d');
   let img;                       // 持久 ImageData
   let LW = 0, LH = 0;            // 低分辨率宽高
   let scaleX = 1, scaleY = 1;    // 屏幕像素 / 低分辨率像素
+  const NZ = new Float32Array(2048);          // 抖动噪声表
+  for (let i = 0; i < 2048; i++) NZ[i] = (Math.random() - 0.5) * (2.4 / 255);
 
   // 灵体（神的灵）：以惯性飘移的方式运行在水面上。
-  const spirit = { x: 0, y: 0, tx: 0, ty: 0 };
+  const spirit = { x: 0, y: 0, tx: 0, ty: 0, px: 0, py: 0 };
   let hasInput = false;          // user 是否已亲自引领灵体
   let t = 0;                     // 世界时间
 
-  // 光（创 1:3）：黑暗中尚无光，待 user 言说「要有光」方才迸发、充满世界。
-  let light = 0;                 // 当前光照充盈度 0→1
-  let lightTarget = 0;           // 目标值（言说后置 1）
-  let separation = 0;            // 光暗分离度 0→1
-  let separationTarget = 0;      // 目标值（分开后置 1）
-  let stage = 0;                 // 创世进度：0 黑暗 · 1 有光 · 2 光暗分开 · 3 昼夜（头一日）· 4 立穹苍 · 5 称天 · 6 第二日 · 7 聚水现旱地 · 8 称地称海
-  let dayProgress = 0;           // 第一日的昼夜进程 0→1（晚上→早晨）
+  // ── 创世状态 ────────────────────────────────────────────────
+  let light = 0;                 // 有光（创 1:3）0→1
+  let lightTarget = 0;
+  let gather = 0;                // 光暗分开（创 1:4）：光凝聚为无源的光核，暗归四境
+  let gatherTarget = 0;
+  let stage = 0;                 // 0 黑暗 · 1 有光 · 2 光暗分开 · 3 昼夜（头一日）· 4 立穹苍 · 5 称天 · 6 第二日 · 7 聚水现旱地 · 8 称地称海
+  let dayProgress = 0;           // 昼夜进程 0→1（晚上→早晨），光核随之横过穹苍
   let dayTimer = 0;              // 第二段经文的计时器
-  let burstActive = false;       // 光迸发动画是否进行中
-  let burstT = 0;                // 光迸发计时
-  let burstX = 0, burstY = 0;    // 光迸发的源点（神的灵所在）
+  let vault = 0;                 // 穹苍（创 1:6-7）0→1：穹顶张开，上方的水悬于其外
+  let vaultTarget = 0;
+  let land = 0;                  // 旱地（创 1:9）0→1：旱地自海中升起为前景
+  let landTarget = 0;
+  let burstActive = false;       // 光迸发动画
+  let burstT = 0;
+  let burstX = 0, burstY = 0;
   let narrTimer = 0;             // 旁白经文淡出计时器
+  let shake = 0;                 // 大地震颤（言说成就时）
 
-  // 穹苍（创 1:6-7）：诸水之间立起的空，将水分为上下两层。
-  let vault = 0;                 // 穹苍开展度 0→1
-  let vaultTarget = 0;           // 目标值（立穹苍后置 1）
+  // ── 言说仪式：按住 —— 神谕逐字浮现、低鸣渐强；松手 —— 话语成就 ──
+  const UTTER = [
+    '要有光',
+    '把光暗分开',
+    '称光为昼，称暗为夜',
+    '诸水之间要有穹苍',
+    '称穹苍为天',
+    '有晚上，有早晨',
+    '天下的水要聚在一处，使旱地露出来',
+    '称旱地为地，称水的聚处为海',
+  ];
+  let holding = false;           // 正在言说
+  let charge = 0;                // 言说充盈度 0→1
+  let holdNeed = 1;              // 说完当前神谕所需秒数
+  let holdSrc = '';              // 'key' | 'pointer'（防止两种输入互相打断）
+  let utterFade = 0;             // 松手后神谕的余晖
 
-  // 旱地（创 1:9）：穹苍以下的水聚拢成海，旱地从下方升起、露出来。
-  let land = 0;                  // 旱地显露度 0→1
-  let landTarget = 0;            // 目标值（聚水现旱地后置 1）
+  // ── 旱地轮廓（两层剪影，归一化高度场，resize 无关）────────────
+  const LANDN = 96;
+  const landBack = new Float32Array(LANDN);
+  const landFront = new Float32Array(LANDN);
+  for (let i = 0; i < LANDN; i++) {
+    const u = i / (LANDN - 1);
+    landBack[i]  = 0.775 + 0.042 * Math.sin(u * 8.6 + 2.2) + 0.024 * Math.sin(u * 19.7 + 0.5);
+    landFront[i] = 0.845 + 0.048 * Math.sin(u * 7.3 + 0.9) + 0.026 * Math.sin(u * 17.1 + 3.1);
+  }
 
+  // ── 名字：万物以其自身的质料聚成其名（粒子 聚—驻—散）──────────
+  const glyphCache = {};
+  function glyphPoints(ch) {             // 离屏采样字形 → 归一化点集（以 200px 字号为基准）
+    if (glyphCache[ch]) return glyphCache[ch];
+    const S = 240;
+    const c = document.createElement('canvas');
+    c.width = S; c.height = S;
+    const g = c.getContext('2d');
+    g.font = '900 200px "Songti SC", "STSong", "SimSun", serif';
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.fillStyle = '#fff';
+    g.fillText(ch, S / 2, S / 2 + 8);
+    const data = g.getImageData(0, 0, S, S).data;
+    const pts = [];
+    for (let y = 2; y < S; y += 3)
+      for (let x = 2; x < S; x += 3)
+        if (data[(y * S + x) * 4 + 3] > 120) pts.push([(x - S / 2) / 200, (y - S / 2) / 200]);
+    glyphCache[ch] = pts;
+    return pts;
+  }
+  const names = [];                      // 进行中的名字
+  let pendingLand = 0;                   // 「地」的浮现时刻（世界时间，待「海」散尽）
+  const NAME_GATHER = 1.7, NAME_HOLD = 2.6, NAME_FADE = 1.9;
+  function nameReveal(ch, cx, cy, size, r, g, b, startFn) {
+    names.push({
+      born: t, r, g, b,
+      pts: glyphPoints(ch).map(([ox, oy]) => {
+        const s = startFn();             // 每粒微尘自其疆域而来
+        return { tx: cx + ox * size, ty: cy + oy * size, sx: s[0], sy: s[1], seed: Math.random() * 6.28 };
+      }),
+    });
+  }
+
+  // ── 声音（WebAudio，全程序生成，零素材）────────────────────────
+  let AC = null;                 // null=未初始化 false=不可用
+  let aMaster, aDrone, aWaterGain, aChargeGain, aChargeLP, aNoiseBuf;
+  function initAudio() {
+    if (AC !== null) { if (AC && AC.state === 'suspended') AC.resume(); return; }
+    try {
+      AC = new (window.AudioContext || window.webkitAudioContext)();
+      aMaster = AC.createGain(); aMaster.gain.value = 0.55; aMaster.connect(AC.destination);
+      // 渊面的低鸣：两支失谐低频正弦 + 低通，极缓的呼吸起伏
+      const lp = AC.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 130;
+      aDrone = AC.createGain(); aDrone.gain.value = 0.05;
+      lp.connect(aDrone); aDrone.connect(aMaster);
+      [[36, 0.9], [54.5, 0.55]].forEach(([f, g]) => {
+        const o = AC.createOscillator(); o.type = 'sine'; o.frequency.value = f;
+        const og = AC.createGain(); og.gain.value = g;
+        o.connect(og); og.connect(lp); o.start();
+      });
+      const lfo = AC.createOscillator(); lfo.frequency.value = 0.05;
+      const lg = AC.createGain(); lg.gain.value = 0.02;
+      lfo.connect(lg); lg.connect(aDrone.gain); lfo.start();
+      // 水声：循环噪声 + 带通，随灵体运行起伏
+      aNoiseBuf = AC.createBuffer(1, AC.sampleRate * 2, AC.sampleRate);
+      const nd = aNoiseBuf.getChannelData(0);
+      for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
+      const ns = AC.createBufferSource(); ns.buffer = aNoiseBuf; ns.loop = true;
+      const bp = AC.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 620; bp.Q.value = 0.7;
+      aWaterGain = AC.createGain(); aWaterGain.gain.value = 0.012;
+      ns.connect(bp); bp.connect(aWaterGain); aWaterGain.connect(aMaster); ns.start();
+      // 言说的低鸣：大地的隆隆（低通滤噪，如远雷）+ 同根的轻哼（55Hz，即成就和鸣的根音）
+      // 只增其势、不升其调——按得越满，隆隆越沉越开
+      aChargeGain = AC.createGain(); aChargeGain.gain.value = 0;
+      aChargeGain.connect(aMaster);
+      aChargeLP = AC.createBiquadFilter(); aChargeLP.type = 'lowpass'; aChargeLP.frequency.value = 60;
+      const rns = AC.createBufferSource(); rns.buffer = aNoiseBuf; rns.loop = true;
+      const rg = AC.createGain(); rg.gain.value = 0.5;
+      rns.connect(aChargeLP); aChargeLP.connect(rg); rg.connect(aChargeGain); rns.start();
+      const hum = AC.createOscillator(); hum.type = 'sine'; hum.frequency.value = 55;
+      const hg = AC.createGain(); hg.gain.value = 0.16;
+      hum.connect(hg); hg.connect(aChargeGain); hum.start();
+    } catch (e) { AC = false; }
+  }
+  function soundFulfill() {      // 话语成就：一声深沉的和鸣，缓起长收
+    if (!AC) return;
+    const now = AC.currentTime;
+    [[55, 0.10], [82.41, 0.07], [110, 0.06], [164.81, 0.035]].forEach(([f, g]) => {
+      const o = AC.createOscillator(); o.type = 'sine'; o.frequency.value = f;
+      const og = AC.createGain();
+      og.gain.setValueAtTime(0.0001, now);
+      og.gain.exponentialRampToValueAtTime(g, now + 0.45);
+      og.gain.exponentialRampToValueAtTime(0.0001, now + 4.5);
+      o.connect(og); og.connect(aMaster); o.start(now); o.stop(now + 4.6);
+    });
+    const ns = AC.createBufferSource(); ns.buffer = aNoiseBuf;      // 一阵掠过全地的风
+    const bp = AC.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 0.8;
+    bp.frequency.setValueAtTime(1800, now);
+    bp.frequency.exponentialRampToValueAtTime(300, now + 1.4);
+    const g = AC.createGain();
+    g.gain.setValueAtTime(0.05, now);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + 1.4);
+    ns.connect(bp); bp.connect(g); g.connect(aMaster); ns.start(now); ns.stop(now + 1.5);
+  }
+  function soundBell() {         // 经文浮现：一缕微光似的泛音
+    if (!AC) return;
+    const now = AC.currentTime;
+    [[660, 0.035], [1318, 0.012]].forEach(([f, g0]) => {
+      const o = AC.createOscillator(); o.type = 'sine'; o.frequency.value = f;
+      const g = AC.createGain();
+      g.gain.setValueAtTime(g0, now);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + 2.4);
+      o.connect(g); g.connect(aMaster); o.start(now); o.stop(now + 2.5);
+    });
+  }
+
+  // ── 布局 ────────────────────────────────────────────────────
   function resize() {
     const w = window.innerWidth;
     const h = window.innerHeight;
@@ -157,8 +264,8 @@
     canvas.style.height = h + 'px';
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-    LW = Math.max(80, Math.round(w / 6));
-    LH = Math.max(50, Math.round(h / 6));
+    LW = Math.max(96, Math.round(w / 5));
+    LH = Math.max(60, Math.round(h / 5));
     scaleX = w / LW;
     scaleY = h / LH;
     buf.width = LW;
@@ -167,7 +274,7 @@
 
     if (spirit.x === 0 && spirit.y === 0) {
       spirit.x = spirit.tx = w / 2;
-      spirit.y = spirit.ty = h / 2;
+      spirit.y = spirit.ty = h * 0.5;
     }
   }
   window.addEventListener('resize', resize);
@@ -175,7 +282,7 @@
   function moveTo(x, y) {
     spirit.tx = x;
     spirit.ty = y;
-    if (!hasInput) {                     // user 一动，开场经文缓缓隐去（提示仍引向「要有光」）
+    if (!hasInput) {                     // user 一动，开场经文缓缓隐去
       hasInput = true;
       scripture.classList.remove('show');
     }
@@ -186,12 +293,13 @@
     scripture.innerHTML = text + '<span class="ref">' + ref + '</span>';
     scripture.classList.add('show');
     hint.classList.remove('show');
+    soundBell();
     clearTimeout(narrTimer);
     narrTimer = setTimeout(() => scripture.classList.remove('show'), 5000);
   }
 
-  // user 言说，推进创世。每道命令只执行其一步，绝不擅自越过上帝。
-  function speak() {
+  // ── 话语成就：推进创世。每道命令只执行其一步，绝不擅自越过上帝。──
+  function fulfill() {
     if (stage === 0) {                       // 要有光：光自神的灵迸发，充满黑暗
       stage = 1;
       lightTarget = 1;
@@ -200,54 +308,81 @@
       burstX = spirit.x;
       burstY = spirit.y;
       narrate('神说：要有光，就有了光。', '创世记 1:3');
-    } else if (stage === 1) {                // 分开光暗：光收拢一侧，暗归另一侧
+    } else if (stage === 1) {                // 分开光暗：光凝聚为无源的光核，暗归四境
       stage = 2;
-      separationTarget = 1;
+      gatherTarget = 1;
       narrate('神看光是好的，就把光暗分开了。', '创世记 1:4');
-    } else if (stage === 2) {                // 称昼夜，并经历第一日的晚上与早晨
+    } else if (stage === 2) {                // 称昼夜：光核开始横过穹苍，经历晚上与早晨
       stage = 3;
       narrate('神称光为昼，称暗为夜。', '创世记 1:5');
       clearTimeout(dayTimer);
       dayTimer = setTimeout(
         () => narrate('有晚上，有早晨，这是头一日。', '创世记 1:5'), 5200);
-    } else if (stage === 3) {                // 立穹苍：诸水之间张开空，将水分为上下
+    } else if (stage === 3) {                // 立穹苍：穹顶张开，上方的水悬于其外
       stage = 4;
       vaultTarget = 1;
       narrate('神说：诸水之间要有穹苍，将水与水分开。', '创世记 1:6');
       clearTimeout(dayTimer);
       dayTimer = setTimeout(
         () => narrate('神就造出穹苍，将穹苍以上的水、穹苍以下的水分开了。事就这样成了。', '创世记 1:7'), 5200);
-    } else if (stage === 4) {                // 称穹苍为天：名字在穹苍中浮现，旋即淡去
+    } else if (stage === 4) {                // 称穹苍为天：穹苍的雾霭自穹顶飘聚，凝成其名
       stage = 5;
-      clearTimeout(dayTimer);                // 取消立穹苍尚未触发的 1:7 旁白，免得盖掉 1:8
-      skyname.classList.remove('reveal');
-      void skyname.offsetWidth;              // 触发 reflow，确保动画从头播放
-      skyname.classList.add('reveal');
+      clearTimeout(dayTimer);                // 取消未触发的 1:7 旁白，免得盖掉 1:8
+      const w4 = window.innerWidth, h4 = window.innerHeight;
+      nameReveal('天', w4 * 0.5, h4 * 0.27, Math.min(w4, h4) * 0.28, 205, 228, 255, () => {
+        const nx = Math.random();          // 自穹顶弧线各处而来
+        return [nx * w4, (0.15 + 0.55 * (nx - 0.5) * (nx - 0.5)) * h4 + (Math.random() - 0.5) * 50];
+      });
       narrate('神称穹苍为天。', '创世记 1:8');
-    } else if (stage === 5) {                // 第二日的晚上与早晨：再走一轮昼夜
+    } else if (stage === 5) {                // 第二日的晚上与早晨：光核再走一轮
       stage = 6;
-      dayProgress = 0;                       // 重置昼夜进程，世界再经一次「晚上→早晨」
+      dayProgress = 0;
       narrate('有晚上，有早晨，是第二日。', '创世记 1:8');
-    } else if (stage === 6) {                // 聚水现旱地：穹苍以下的水聚拢，旱地升起
+    } else if (stage === 6) {                // 聚水现旱地：海退聚，旱地自下方升起
       stage = 7;
       landTarget = 1;
       narrate('神说：天下的水要聚在一处，使旱地露出来。', '创世记 1:9');
       clearTimeout(dayTimer);
       dayTimer = setTimeout(() => narrate('事就这样成了。', '创世记 1:9'), 3800);
-    } else if (stage === 7) {                // 称旱地为地、水的聚处为海：二名各自端正落在水与地之上
+    } else if (stage === 7) {                // 称地称海：海与地各以自身聚成其名，先后浮现、绝不同框
       stage = 8;
-      clearTimeout(dayTimer);                // 取消聚水尚未触发的「事就这样成了」
-      clearTimeout(narrTimer);               // 收起底部经文，把整片疆域让给「海」「地」二名
+      clearTimeout(dayTimer);
+      clearTimeout(narrTimer);
       scripture.classList.remove('show');
-      seaname.classList.remove('reveal');
-      void seaname.offsetWidth;              // 先：海浮于水面
-      seaname.classList.add('reveal');
-      dayTimer = setTimeout(() => {          // 后：海淡尽，地浮于旱地（先后出现，绝不同框）
-        landname.classList.remove('reveal');
-        void landname.offsetWidth;
-        landname.classList.add('reveal');
-      }, 4000);
+      const w7 = window.innerWidth, h7 = window.innerHeight;
+      nameReveal('海', w7 * 0.5, h7 * 0.685, Math.min(w7, h7) * 0.12, 175, 215, 255, () =>
+        [Math.random() * w7, (HZ + Math.random() * 0.13) * h7]);   // 自海面的粼光升起
+      pendingLand = t + 6.6;                 // 「海」散尽后，「地」自旱地的尘土升腾（世界时间）
     }
+    soundFulfill();
+    shake = 1;
+  }
+
+  // ── 言说的把持与松开 ────────────────────────────────────────
+  function holdStart(src) {
+    initAudio();
+    if (holding || stage >= UTTER.length) return;
+    holding = true;
+    holdSrc = src;
+    charge = 0;
+    holdNeed = 0.35 + UTTER[stage].length * 0.11;
+    hint.classList.remove('show');
+  }
+  function holdEnd(src) {
+    if (!holding || src !== holdSrc) return;
+    holding = false;
+    if (charge >= 1) {
+      utterFade = 1.4;                     // 神谕的余晖，随后淡尽
+      fulfill();
+    } else {
+      utterFade = Math.min(0.4, charge);   // 话未说完，声息散去
+      if (stage === 0) {                   // 只在最初轻声提醒
+        hint.classList.add('show');
+        clearTimeout(narrTimer);
+        narrTimer = setTimeout(() => hint.classList.remove('show'), 2600);
+      }
+    }
+    charge = 0;
   }
   window.addEventListener('mousemove', e => moveTo(e.clientX, e.clientY));
   window.addEventListener('touchmove', e => {
@@ -255,157 +390,295 @@
     if (tch) moveTo(tch.clientX, tch.clientY);
     e.preventDefault();
   }, { passive: false });
-
-  // user 言说（推进创世）：点击、轻触，或按 空格 / 回车。
-  window.addEventListener('click', speak);
-  window.addEventListener('touchstart', speak, { passive: true });
+  window.addEventListener('mousedown', () => holdStart('pointer'));
+  window.addEventListener('mouseup', () => holdEnd('pointer'));
+  window.addEventListener('touchstart', e => {
+    const tch = e.touches[0];
+    if (tch) moveTo(tch.clientX, tch.clientY);
+    holdStart('pointer');
+    e.preventDefault();
+  }, { passive: false });
+  window.addEventListener('touchend', () => holdEnd('pointer'));
   window.addEventListener('keydown', e => {
-    if (e.code === 'Space' || e.code === 'Enter') {
+    if ((e.code === 'Space' || e.code === 'Enter') && !e.repeat) {
       e.preventDefault();
-      speak();
+      holdStart('key');
     }
   });
+  window.addEventListener('keyup', e => {
+    if (e.code === 'Space' || e.code === 'Enter') holdEnd('key');
+  });
 
+  // ── 每帧 ────────────────────────────────────────────────────
   function frame() {
     t += 0.016;
     const w = window.innerWidth;
     const h = window.innerHeight;
 
-    // 光渐渐充盈、光暗缓缓分离，迸发动画各自推进
+    // 状态渐变
     light += (lightTarget - light) * 0.04;
-    separation += (separationTarget - separation) * 0.03;
+    gather += (gatherTarget - gather) * 0.03;
     vault += (vaultTarget - vault) * 0.02;
     land += (landTarget - land) * 0.013;
     if (burstActive) burstT += 0.016;
+    if (shake > 0) shake = Math.max(0, shake - 0.03);
 
-    // 第一日的昼夜：全局明暗走一次「晚上→早晨」循环（昼暖夜冷），走完即定格于昼
+    // 昼夜：光核横过穹苍走一轮「晚上→早晨」，走完定格于昼
     if (stage >= 3 && dayProgress < 1) {
       dayProgress += 0.0024;
       if (dayProgress > 1) dayProgress = 1;
     }
-    const dayFactor = stage >= 3
-      ? 0.12 + 0.88 * (0.5 + 0.5 * Math.cos(dayProgress * 6.2832))
-      : 1;
+    const elev = stage >= 3 ? 0.5 + 0.5 * Math.cos(dayProgress * 6.2832) : 1;
+    const dayFactor = stage >= 3 ? 0.12 + 0.88 * elev : 1;
     const effLight = light * dayFactor;
 
-    // 灵体运行：未受 user 指引时，自行在水面缓缓盘旋（神的灵主动运行在水面上）。
+    // 无源之光的光核（日月未造，光自行运行）：分开光暗前是弥漫的光，之后凝聚、随昼夜横过天穹
+    let lx = 0.5, ly = 0.30;
+    if (stage >= 3) {
+      lx = 0.5 + 0.4 * Math.sin(dayProgress * 6.2832);
+      ly = HZ - 0.02 - 0.40 * elev;
+    }
+
+    // 言说：充盈度、神谕逐字浮现、大地震颤
+    if (holding) {
+      charge = Math.min(1, charge + 0.016 / holdNeed);
+      const full = UTTER[stage] || '';
+      const n = Math.min(full.length, Math.ceil(charge / 0.85 * full.length));
+      utter.textContent = full.substring(0, n);
+      utter.style.opacity = Math.min(1, charge * 4) * 0.97;
+      utter.style.transform = 'scale(' + (0.96 + 0.07 * charge) + ')';
+    } else if (utterFade > 0) {
+      utterFade = Math.max(0, utterFade - 0.016);
+      utter.style.opacity = Math.min(1, utterFade) * 0.97;
+    } else if (utter.style.opacity !== '0') {
+      utter.style.opacity = '0';
+    }
+    const tremor = holding ? charge * charge * 2.2 : shake * shake * 5;
+
+    // 声音随世界起伏
+    if (AC) {
+      if (aChargeGain) {
+        aChargeGain.gain.value = holding ? Math.pow(charge, 1.5) * 0.30 : aChargeGain.gain.value * 0.86;
+        aChargeLP.frequency.value = 60 + charge * 160;    // 越满，隆隆越开阔
+      }
+      if (aWaterGain) {
+        const sp = Math.hypot(spirit.x - spirit.px, spirit.y - spirit.py);
+        const target = 0.008 + Math.min(0.045, sp * 0.0006) + effLight * 0.004;
+        aWaterGain.gain.value += (target - aWaterGain.gain.value) * 0.05;
+      }
+    }
+    spirit.px = spirit.x; spirit.py = spirit.y;
+
+    // 灵体运行：未受指引时自行盘旋于水面之上
     if (!hasInput) {
       spirit.tx = w / 2 + Math.cos(t * 0.23) * w * 0.22 + Math.cos(t * 0.07) * w * 0.06;
-      spirit.ty = h / 2 + Math.sin(t * 0.19) * h * 0.18 + Math.sin(t * 0.11) * h * 0.05;
+      spirit.ty = h * 0.52 + Math.sin(t * 0.19) * h * 0.13 + Math.sin(t * 0.11) * h * 0.04;
     }
     spirit.x += (spirit.tx - spirit.x) * 0.06;
     spirit.y += (spirit.ty - spirit.y) * 0.06;
 
     const slx = spirit.x / scaleX;       // 灵体在低分辨率网格上的坐标
     const sly = spirit.y / scaleY;
+    const sxn = spirit.x / w;            // 灵体的归一化坐标
+    const syn = spirit.y / h;
 
-    // 深渊之水：黑暗中混沌涌动，灵体所临之处泛起涟漪与微光。
+    // ── 天与海：逐像素光色 ──────────────────────────────────
     const d = img.data;
+    const conc = 2.5 + gather * 26;      // 光的凝聚度：弥漫 → 光核
+    const glintLow = 0.35 + 0.65 * (1 - elev);   // 光核低垂时，海上光路更长
     let i = 0;
+    const fi = (t * 60) | 0;
     for (let y = 0; y < LH; y++) {
+      const ny = y / LH;
+      const isSky = ny < HZ;
+      const dep = isSky ? 0 : (ny - HZ) / (1 - HZ) + 1e-4;   // 海的纵深 0(地平线)→1(脚下)
+      const per = 0.32 + dep * 2.8;                          // 波形透视尺度
       for (let x = 0; x < LW; x++) {
-        // 几层漂移的正弦叠加 = 无形混沌的水面起伏
-        let height =
-            Math.sin(x * 0.07 + t * 0.6) +
-            Math.sin(y * 0.085 - t * 0.45) +
-            Math.sin((x + y) * 0.05 + t * 0.9) +
-            Math.sin((x - y) * 0.04 - t * 0.3);
-        height *= 0.25;
+        const nx = x / LW;
 
-        const dx = x - slx, dy = y - sly;
-        const dist = Math.sqrt(dx * dx + dy * dy);
+        // 灵体微光与涟漪
+        const dxp = x - slx, dyp = y - sly;
+        const ds2 = dxp * dxp + dyp * dyp;
+        const glow = 1 / (1 + ds2 * 0.012);
 
-        // 灵体激起的同心涟漪，随距离衰减
-        height += Math.sin(dist * 0.5 - t * 5) * Math.exp(-dist * 0.07) * 0.8;
+        // 光核
+        const dLx = nx - lx, dLy = (ny - ly) * 1.35;
+        const q = dLx * dLx + dLy * dLy;
+        const core = 1 / (1 + q * conc * 9);
+        const gl = effLight * (0.22 + 0.78 * core);
 
-        // 灵体微光（黑暗中的预兆），近处亮，远处归于黑暗
-        const glow = Math.exp(-dist * 0.05);
-
-        // 光暗分开：光收拢到一侧（右），另一侧（左）归于黑暗，中间柔和过渡
-        let s = (x / LW - 0.30) / 0.40;           // 0.30→暗端 0.70→亮端
-        s = s < 0 ? 0 : (s > 1 ? 1 : s);
-        s = s * s * (3 - 2 * s);                   // smoothstep 过渡带
-        const lightHere = effLight * (1 - separation * (1 - s));
-
-        // 黑暗为底；光所在处环境被照亮、水的涌动显出形态、灵体相对照亮减弱
-        const ambient = 0.015 + lightHere * 0.45;
-        let lum = ambient + Math.max(0, height) * (0.06 + lightHere * 0.22)
-                          + glow * 0.85 * (1 - 0.45 * lightHere);
-        if (lum > 1) lum = 1;
-
-        // 色温系数：黑暗中冷蓝 → 有光处暖白；灵体处更青白
-        const kr = 0.35 + lightHere * 0.70 + glow * 0.40;
-        const kg = 0.55 + lightHere * 0.43 + glow * 0.35;
-        const kb = 0.85 + lightHere * 0.01 + glow * 0.15;
-        let R = lum * kr, G = lum * kg, B = lum * kb;
-
-        // 穹苍：诸水之间张开一片空。带内由水渐隐为澄澈的天空（昼蓝夜暗，
-        // 随左右昼夜之分明灭），上下两侧仍是水；分界处泛起新生水膜的微光。
-        if (vault > 0.001) {
-          const dv = Math.abs(y / LH - 0.5);
-          const half = vault * 0.20;
-          let skyAmt = (half - dv) / 0.05;
-          skyAmt = skyAmt < 0 ? 0 : (skyAmt > 1 ? 1 : skyAmt);
-          skyAmt = skyAmt * skyAmt * (3 - 2 * skyAmt);
-          if (skyAmt > 0) {
-            const grad = half > 1e-4 ? dv / half : 0;     // 0 居中 → 1 近水面
-            const sl = (0.05 + 0.80 * lightHere) * (0.80 + 0.35 * grad);
-            R = R * (1 - skyAmt) + sl * 0.50 * skyAmt;
-            G = G * (1 - skyAmt) + sl * 0.66 * skyAmt;
-            B = B * (1 - skyAmt) + sl * 1.00 * skyAmt;
+        let lum, kr, kg, kb;
+        if (isSky) {
+          // 穹苍：底色 + 光核辉光 + 缓慢流动的雾霭
+          lum = 0.012 + effLight * 0.09 + gl * 0.62;
+          lum *= 1 + 0.09 * Math.sin(nx * 8.5 + t * 0.13 + Math.sin(ny * 6.5 - t * 0.11) * 1.3);
+          // 穹顶与其上的水（创 1:7）
+          if (vault > 0.001) {
+            const domeY = 0.15 + 0.55 * (nx - 0.5) * (nx - 0.5);
+            const dv = ny - domeY;
+            if (dv < 0) {                 // 穹苍以上的水：幽暗、缓缓涌动
+              const swell = 0.5 + 0.5 * Math.sin(nx * 21 + t * 0.5 + ny * 26 - t * 0.3);
+              lum = lum * (1 - vault * 0.55) + vault * (0.015 + effLight * 0.055 * swell);
+            }
+            lum += vault * effLight * 0.55 * Math.exp(-dv * dv / 0.0006);   // 穹顶的水膜微光
           }
-          const seam = vault * Math.exp(-((dv - half) * (dv - half)) / 0.0012) * lightHere;
-          R += seam * 0.55; G += seam * 0.62; B += seam * 0.70;
+          lum += glow * 0.85 * (1 - 0.40 * effLight);
+          if (lum > 1) lum = 1;
+          const warm = gl > 1 ? 1 : gl;
+          kr = 0.30 + warm * 0.72 + glow * 0.40;
+          kg = 0.48 + warm * 0.50 + glow * 0.35;
+          kb = 0.85 + warm * 0.10 + glow * 0.15;
+        } else {
+          // 海：透视波纹 + 光核的粼光长路 + 灵体的倒影与涟漪
+          let wave =
+              Math.sin(nx * 46 / per + t * 1.25 + Math.sin(ny * 34 - t * 0.7) * 0.9) * 0.6 +
+              Math.sin(nx * 21 / per - t * 0.85 + dep * 18) * 0.4;
+          wave += Math.sin(Math.sqrt(ds2) * 0.55 - t * 5) * (1 / (1 + ds2 * 0.018)) * 0.9;  // 涟漪
+          const amb = 0.018 + effLight * (0.16 * (1 - dep * 0.45) + (1 - dep) * (1 - dep) * 0.10);
+          lum = amb + Math.max(0, wave) * (0.028 + effLight * 0.11) * (0.3 + dep);
+          // 光核在海上的粼光
+          const gw = 0.0012 + 0.016 * dep * dep;
+          const gi = Math.exp(-dLx * dLx / gw) * effLight * glintLow * (0.30 + 0.70 * Math.max(0, wave));
+          lum += gi * 0.55;
+          // 灵体倒影：一道随波摇曳的光柱
+          let ri = 0;
+          if (ny > syn) {
+            const rx = nx - sxn + Math.sin(ny * 40 + t * 1.6) * 0.004 * dep;
+            ri = Math.exp(-rx * rx / 0.0010) * Math.exp(-(ny - Math.max(HZ, syn)) * 6.5) * 0.4;
+            lum += ri;
+          }
+          lum += glow * 0.8 * (1 - 0.40 * effLight);
+          if (lum > 1) lum = 1;
+          const warm2 = gi > 1 ? 1 : gi;
+          kr = 0.32 + effLight * 0.30 + warm2 * 0.55 + (glow + ri) * 0.35;
+          kg = 0.50 + effLight * 0.26 + warm2 * 0.42 + (glow + ri) * 0.32;
+          kb = 0.88 + effLight * 0.06 + warm2 * 0.12 + (glow + ri) * 0.15;
         }
 
-        // 旱地（创 1:9）：穹苍以下的水聚拢成海，旱地自下方升起、露出暖棕土壤。
-        if (land > 0.001) {
-          const ny = y / LH;
-          // 不规则海岸线：旱地随 land 由屏底升起（chNow 从 1 降到 chTarget）
-          const chTarget = 0.80 + 0.06 * Math.sin(x * 0.045 + 0.7)
-                                + 0.035 * Math.sin(x * 0.11 + 2.3);
-          const chNow = 1 + (chTarget - 1) * land;
-          if (ny > chNow) {
-            const dl = ny - chNow;                 // 入地深度（海岸 0 → 内陆增大）
-            const tex = 0.5 + 0.5 * Math.sin(x * 0.3 + Math.sin(x * 0.07) * 3 + ny * 8);
-            const soil = 0.22 + dl * 0.7 + tex * 0.12;
-            const lit = 0.12 + lightHere * 0.85;   // 沿用昼夜 / 左右光照
-            let er = soil * lit * 1.00;            // 暖棕土
-            let eg = soil * lit * 0.72;
-            let eb = soil * lit * 0.46;
-            const shore = Math.exp(-dl * 40) * lightHere * 0.5;   // 湿润海岸线微光
-            er += shore * 0.55; eg += shore * 0.50; eb += shore * 0.38;
-            const blend = dl * 25 < 1 ? dl * 25 : 1;              // 贴海岸的窄过渡带
-            R = R * (1 - blend) + er * blend;
-            G = G * (1 - blend) + eg * blend;
-            B = B * (1 - blend) + eb * blend;
-          }
-        }
-
-        d[i++] = Math.min(255, R * 255);
-        d[i++] = Math.min(255, G * 255);
-        d[i++] = Math.min(255, B * 255);
+        const nz = NZ[(x * 7 + y * 13 + fi) & 2047];   // 抖动：消除色阶断层
+        d[i++] = Math.min(255, Math.max(0, (lum * kr + nz) * 255));
+        d[i++] = Math.min(255, Math.max(0, (lum * kg + nz) * 255));
+        d[i++] = Math.min(255, Math.max(0, (lum * kb + nz) * 255));
         d[i++] = 255;
       }
     }
     bctx.putImageData(img, 0, 0);
 
+    // 大地震颤
+    const jx = tremor > 0 ? Math.sin(t * 91.3) * tremor : 0;
+    const jy = tremor > 0 ? Math.cos(t * 77.7) * tremor : 0;
+    ctx.save();
+    ctx.translate(jx, jy);
+
     // 放大铺满全屏（同时清屏）
     ctx.imageSmoothingEnabled = true;
-    ctx.drawImage(buf, 0, 0, LW, LH, 0, 0, w, h);
+    ctx.drawImage(buf, 0, 0, LW, LH, -4, -4, w + 8, h + 8);
 
-    // 灵体本体：叠加一团更亮更柔的光晕
-    const grad = ctx.createRadialGradient(spirit.x, spirit.y, 0, spirit.x, spirit.y, 140);
+    // 光柱：光核穿透雾霭洒向海面
+    if (effLight > 0.06 && gather > 0.15 && elev > 0.08) {
+      const lpx = lx * w, lpy = ly * h;
+      ctx.globalCompositeOperation = 'lighter';
+      for (let k = 0; k < 3; k++) {
+        const ang = Math.PI / 2 + Math.sin(t * 0.07 + k * 2.1) * 0.42 + (k - 1) * 0.30;
+        const len = h * 0.9;
+        const hw = 14 + k * 10;
+        const ex = lpx + Math.cos(ang) * len, ey = lpy + Math.sin(ang) * len;
+        const px = Math.cos(ang + Math.PI / 2), py = Math.sin(ang + Math.PI / 2);
+        ctx.fillStyle = 'rgba(255,242,214,' + (0.05 * effLight * gather).toFixed(3) + ')';
+        ctx.beginPath();
+        ctx.moveTo(lpx, lpy);
+        ctx.lineTo(ex + px * hw * 3, ey + py * hw * 3);
+        ctx.lineTo(ex - px * hw * 3, ey - py * hw * 3);
+        ctx.closePath();
+        ctx.fill();
+      }
+      ctx.globalCompositeOperation = 'source-over';
+    }
+
+    // 旱地：两层剪影自海中升起，海岸线泛起白沫
+    if (land > 0.001) {
+      const le = land * land * (3 - 2 * land);          // smoothstep 升起
+      const off = (1 - le) * h * 0.32;
+      const lit = 0.10 + effLight * 0.85;
+      const drawLayer = (hf, r0, g0, b0) => {
+        ctx.beginPath();
+        ctx.moveTo(-12, hf[0] * h + off);
+        for (let k = 1; k < LANDN; k++) ctx.lineTo((k / (LANDN - 1)) * w, hf[k] * h + off);
+        ctx.lineTo(w + 12, h + 12); ctx.lineTo(-12, h + 12); ctx.closePath();
+        ctx.fillStyle = 'rgb(' + ((r0 * lit) | 0) + ',' + ((g0 * lit) | 0) + ',' + ((b0 * lit) | 0) + ')';
+        ctx.fill();
+      };
+      drawLayer(landBack, 128, 98, 64);
+      drawLayer(landFront, 84, 60, 36);
+      // 白沫线：沿前层海岸起伏、微微呼吸
+      ctx.beginPath();
+      for (let k = 0; k < LANDN; k++) {
+        const X = (k / (LANDN - 1)) * w;
+        const Y = landFront[k] * h + off + Math.sin(k * 0.9 + t * 2.1) * 1.6;
+        if (k === 0) ctx.moveTo(X, Y); else ctx.lineTo(X, Y);
+      }
+      ctx.strokeStyle = 'rgba(224,238,252,' + (le * (0.16 + 0.30 * effLight * (0.6 + 0.4 * Math.sin(t * 1.4)))).toFixed(3) + ')';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+
+    // 「地」待「海」散尽方才升腾（按世界时间，切走标签页也不会同框）
+    if (pendingLand && t >= pendingLand) {
+      pendingLand = 0;
+      nameReveal('地', w * 0.5, h * 0.875, Math.min(w, h) * 0.17, 255, 205, 150, () => {
+        const k = (Math.random() * LANDN) | 0;
+        const topY = landFront[k] * h;
+        return [(k / (LANDN - 1)) * w, topY + Math.random() * (h - topY)];
+      });
+    }
+
+    // 名字的粒子：聚 —— 驻（微微呼吸）—— 散归其疆域之上
+    if (names.length) {
+      ctx.globalCompositeOperation = 'lighter';
+      for (let ni = names.length - 1; ni >= 0; ni--) {
+        const nm = names[ni];
+        const age = t - nm.born;
+        if (age > NAME_GATHER + NAME_HOLD + NAME_FADE) { names.splice(ni, 1); continue; }
+        const rgb = nm.r + ',' + nm.g + ',' + nm.b + ',';
+        const pts = nm.pts;
+        for (let k = 0; k < pts.length; k++) {
+          const p = pts[k];
+          let X, Y, A;
+          if (age < NAME_GATHER) {           // 聚：自其疆域而来
+            const e = age / NAME_GATHER;
+            const q = 1 - Math.pow(1 - e, 3);
+            X = p.sx + (p.tx - p.sx) * q;
+            Y = p.sy + (p.ty - p.sy) * q;
+            A = e * 0.8;
+          } else if (age < NAME_GATHER + NAME_HOLD) {   // 驻：微微呼吸、闪烁
+            X = p.tx + Math.sin(t * 2.1 + p.seed) * 0.8;
+            Y = p.ty + Math.cos(t * 1.7 + p.seed * 2) * 0.8;
+            A = 0.65 + 0.3 * Math.sin(t * 3 + p.seed * 3);
+          } else {                            // 散：轻扬而去，归于世界
+            const e = (age - NAME_GATHER - NAME_HOLD) / NAME_FADE;
+            X = p.tx + Math.sin(p.seed) * 70 * e * e;
+            Y = p.ty - 50 * e * e + Math.cos(p.seed * 2) * 24 * e;
+            A = (1 - e) * (1 - e) * 0.8;
+          }
+          ctx.fillStyle = 'rgba(' + rgb + A.toFixed(2) + ')';
+          ctx.fillRect(X - 1.2, Y - 1.2, 2.4, 2.4);
+        }
+      }
+      ctx.globalCompositeOperation = 'source-over';
+    }
+
+    // 灵体本体：一团更亮更柔的光晕
+    const grad = ctx.createRadialGradient(spirit.x, spirit.y, 0, spirit.x, spirit.y, 120);
     grad.addColorStop(0, 'rgba(220, 235, 255, 0.90)');
     grad.addColorStop(0.2, 'rgba(150, 195, 255, 0.45)');
     grad.addColorStop(1, 'rgba(40, 80, 160, 0)');
     ctx.globalCompositeOperation = 'lighter';
     ctx.fillStyle = grad;
     ctx.beginPath();
-    ctx.arc(spirit.x, spirit.y, 140, 0, Math.PI * 2);
+    ctx.arc(spirit.x, spirit.y, 120, 0, Math.PI * 2);
     ctx.fill();
 
-    // 「要有光」的迸发：一道光自神的灵处膨胀、扫过全地，随即归于充盈的光中
+    // 「要有光」的迸发：一道光自神的灵处膨胀、扫过全地
     if (burstActive) {
       const DUR = 1.3;
       const p = burstT / DUR;
@@ -413,24 +686,25 @@
         burstActive = false;
       } else {
         const maxR = Math.hypot(w, h) * 1.1;
-        const R = (1 - Math.pow(1 - p, 3)) * maxR;      // easeOutCubic 膨胀
-        const a = Math.pow(1 - p, 0.6) * 0.9;            // 渐隐
+        const R = (1 - Math.pow(1 - p, 3)) * maxR;
+        const a = Math.pow(1 - p, 0.6) * 0.9;
         const bg = ctx.createRadialGradient(burstX, burstY, 0, burstX, burstY, R);
         bg.addColorStop(0, 'rgba(255, 250, 235, ' + a + ')');
         bg.addColorStop(0.6, 'rgba(220, 235, 255, ' + (a * 0.5) + ')');
         bg.addColorStop(1, 'rgba(255, 255, 255, 0)');
         ctx.fillStyle = bg;
-        ctx.fillRect(0, 0, w, h);
+        ctx.fillRect(-jx, -jy, w, h);
       }
     }
     ctx.globalCompositeOperation = 'source-over';
+    ctx.restore();
 
     requestAnimationFrame(frame);
   }
 
   resize();
   setTimeout(() => {                    // 开场经文与提示浮现；若 user 已抢先言说则跳过
-    if (stage !== 0) return;
+    if (stage !== 0 || holding) return;
     scripture.classList.add('show');
     hint.classList.add('show');
   }, 600);
