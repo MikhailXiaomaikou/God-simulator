@@ -19,7 +19,7 @@
     // 第一日：没有空气的光——无源的珍珠色（没有蓝）
     pearlTop: hx('#6c6a70'), pearlMid: hx('#b0aca6'), pearlHz: hx('#e6e0d4'),
     pearlNTop: hx('#030304'), pearlNMid: hx('#060608'), pearlNHz: hx('#0c0c0f'),
-    pearlDTop: hx('#2b2731'), pearlDMid: hx('#6e5a5f'), pearlDHz: hx('#b8927e'),
+    pearlDTop: hx('#2d2833'), pearlDMid: hx('#7a6067'), pearlDHz: hx('#c89a80'),
     // 穹苍之后：有了空气，天才是蓝的
     dayTop: hx('#2f5e9e'), dayMid: hx('#6f9fd0'), dayHz: hx('#d6e6f0'),
     nightTop: hx('#050a18'), nightMid: hx('#0a1226'), nightHz: hx('#121c33'),
@@ -34,7 +34,7 @@
     // 云
     clDayLit: hx('#f4f6fa'), clDaySh: hx('#8c9bb0'),
     clPearlLit: hx('#efece6'), clPearlSh: hx('#9a9ca4'),
-    clDuskLit: hx('#ffb27a'), clDuskSh: hx('#6a4a66'),
+    clDuskLit: hx('#ffa468'), clDuskSh: hx('#5c4064'),
     clNightLit: hx('#1f2a40'), clNightSh: hx('#070d1a'),
     // 光
     core: hx('#fff4dc'), coreLow: hx('#ffc890'),
@@ -324,7 +324,7 @@ vec3 sky(vec2 px, vec2 n, float lm) {
       float t = TIME * 0.2;
       float sw = fbm(Pc * vec2(1.1, 1.6) + vec2(t * 0.16, t * 0.4), 2.0);
       // 与穹顶平行的长涌，缓缓向膜线推进
-      float swell = 0.5 + 0.5 * sin(Pc.y * 3.4 - t * 1.3 + sw * 4.0);
+      float swell = 0.5 + 0.5 * sin(Pc.y * 3.4 - t * 1.3 + sw * 5.0) * (0.4 + 0.6 * sw);
       float nearF = exp(-above * 26.0);
       float farF = smoothstep(0.02, 0.3, above);
       vec3 wc = WA_COL * (0.5 + 0.75 * sw + 0.18 * swell) * (1.0 - 0.3 * farF);
@@ -410,21 +410,28 @@ vec3 sky(vec2 px, vec2 n, float lm) {
     float band = smoothstep(top, top + 0.12, n.y) * sst(bot, bot - 0.1, n.y);
     if (band > 0.001) {
       // 云的空间：横向随距离压缩，纵向取对数（近地平处扁而不碎）
-      float h = HZ - n.y;
-      vec2 P = vec2((n.x - 0.5) * ASPECT * 1.25 / (h + 0.12) + CDRIFT, 2.6 * log(h + 0.02));
+      // 以 min(w,h) 为单位：竖屏上云不会大得失了比例
+      float h = (HZ * RES.y - px.y) / MPX;
+      vec2 P = vec2((px.x - 0.5 * RES.x) / MPX * 1.25 / (h + 0.12) + CDRIFT, 2.6 * log(h + 0.02));
       vec2 wq = vec2(vnoise(P * 0.6 + vec2(3.1, 1.3)), vnoise(P * 0.6 + vec2(8.3, 5.7)));
       P += (wq - 0.5) * 0.9;
       float d0 = fbm(P * 1.3, OCT);
-      float cov = 0.53 + 0.34 * (1.0 - band);
-      float den = smoothstep(cov, cov + 0.11, d0) * CLOUDS;
+      // 云自水汽中凝出：先是零星的小团，再长成整片（覆盖随 lv.clouds 增长，而非整体淡入）
+      float cov = 0.53 + 0.34 * (1.0 - band) + 0.3 * (1.0 - CLOUDS);
+      float den = smoothstep(cov, cov + 0.11, d0) * smoothstep(0.0, 0.25, CLOUDS);
       if (den > 0.002) {
         vec2 kd = vec2(KEYX, KEYY) - px;
         vec2 ld = kd / (length(kd) + 1.0);
         // 朝向主光（与天光自上而下）偏移取样：迎光的边缘更亮，厚处的云底更暗
-        float d1 = fbm((P + vec2(ld.x, -ld.y) * 0.2 + vec2(0.0, 0.07)) * 1.3, 2.0);
+        float d1 = fbm((P + vec2(ld.x, -ld.y) * 0.22 + vec2(0.0, 0.07 * (1.0 - DUSK))) * 1.3, 2.0);
         float lit = clamp(0.6 + (d0 - d1) * 4.8, 0.0, 1.0);
         float thick = smoothstep(cov + 0.05, cov + 0.3, d0);
         vec3 cc = mix(CL_SH, CL_LIT, lit * (1.0 - 0.4 * thick));
+        // 黄昏：背日一侧的云沉入紫灰
+        if (DUSK > 0.01) {
+          float sunSide = exp(-sq((px.x - KEYX) / RES.y) * 1.3);
+          cc = mix(cc, CL_SH * 1.1, DUSK * (1.0 - sunSide) * 0.5);
+        }
         cc += gl * (1.0 - den) * 1.3;         // 边缘透光（银边）
         col = mix(col, cc * max(lm, 0.02), den * (0.94 - 0.4 * NIGHTW));
         cden = den;
@@ -439,7 +446,8 @@ vec3 sky(vec2 px, vec2 n, float lm) {
     float r = length(ds) / SUN_R;
     float disc = clamp((1.0 - r) * SUN_R / CSSPX.x * 0.9 + 0.5, 0.0, 1.0);
     float limb = 1.0 - 0.22 * r * r;
-    col = mix(col, SUN_COL * limb * 1.9, disc * SUN_DISC * (1.0 - cden * 0.8));
+    vec3 sc = SUN_COL * limb * 1.9;
+    col = mix(col, max(sc, col + sc * 0.5), disc * SUN_DISC * (1.0 - cden * 0.8));   // 日轮总比它自己的光晕更亮
   }
 
   // 流星
@@ -497,7 +505,7 @@ vec3 sea(vec2 px, vec2 n, float lm) {
   float tw = 0.5 + 0.5 * sin(TIME * (1.5 + 2.6 * gh.z) + gh.x * 40.0);
   float dash = exp(-(gf.x * gf.x * 10.0 + gf.y * gf.y * 14.0)) * step(0.4, gh.z) * tw * tw;
   float rowPx = (1.0 - HZ) * RES.y / (40.0 * Z) / CSSPX.y;
-  spk += dash * 1.1 * smoothstep(1.6, 4.0, rowPx);
+  spk += dash * 0.95 * smoothstep(1.6, 4.0, rowPx);
   spk = mix(spk, 0.1, smoothstep(0.012, 0.06, fp.y));
 
   // 渊面（光之前）：几乎看不见的暗水
@@ -716,8 +724,10 @@ void main() {
     // 地平雾（黎明多一层）
     const dawn = dn * Math.exp(-Math.pow((W.tod - 0.27) / 0.05, 2));
     F.mist = L * (0.3 + 0.22 * dusk + 0.35 * dawn);
+    // 雾色取自世界（W.haze），但穹苍之前没有空气——雾也只是珍珠色，不带蓝
     const hz = W.haze || [0, 0, 0];
-    F.haze = [hz[0] / 255, hz[1] / 255, hz[2] / 255];
+    const hr = hz[0] / 255, hg = hz[1] / 255, hb = hz[2] / 255, hl = 0.3 * hr + 0.59 * hg + 0.11 * hb;
+    F.haze = mix3([hl * 1.03, hl, hl * 0.95], [hr, hg, hb], V);
     F.pearl = L * (1 - V);
 
     // 神的灵
@@ -1073,7 +1083,7 @@ void main() {
     // 光核 / 日晕 / 月晕
     if (F.coreAmt > 0.002) {
       tintGlow(g, W.core.x, W.core.y, M * (0.9 - 0.35 * F.G), F.coreCol, F.coreAmt * (0.25 + 0.45 * F.G));
-      glowAt(g, W.core.x, W.core.y, M * 0.28, F.coreCol, F.coreAmt * F.G * 0.8);
+      glowAt(g, W.core.x, W.core.y, M * 0.34, F.coreCol, F.coreAmt * F.G * 0.42);
     }
     if (F.sunAmt > 0.002) {
       tintGlow(g, W.sun.x, W.sun.y, M * 0.75, F.sunGlow, F.sunAmt * 0.22);
@@ -1154,11 +1164,12 @@ void main() {
       const hzR = mix3(F.cHz, F.dHz, F.dusk * 0.62);
       const gr = g.createLinearGradient(0, HZy, 0, h);
       const deep = [0.012, 0.02, 0.036].map(v => v * W.lv.deep);
-      const m = (a, b) => mix3(deep, mix3(a, b, 1), lm);
-      gr.addColorStop(0, css(m(mix3(F.wFar, hzR, 0.85), hzR)));
-      gr.addColorStop(0.18, css(m(mix3(F.wFar, hzR, 0.4), hzR)));
-      gr.addColorStop(0.55, css(m(F.wFar, F.wFar)));
-      gr.addColorStop(1, css(m(F.wNear, F.wNear)));
+      const m = c => mix3(deep, c, lm);
+      gr.addColorStop(0, css(m(mix3(F.wFar, hzR, 0.8))));
+      gr.addColorStop(0.05, css(m(mix3(F.wFar, hzR, 0.42))));
+      gr.addColorStop(0.22, css(m(mix3(F.wFar, hzR, 0.14))));
+      gr.addColorStop(0.5, css(m(F.wFar)));
+      gr.addColorStop(1, css(m(F.wNear)));
       g.fillStyle = gr;
       g.fillRect(-20, HZy, w + 40, seaH + 20);
     }
