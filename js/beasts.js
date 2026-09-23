@@ -31,7 +31,6 @@
   const fxOK = () => GS.fx && typeof GS.fx.add === 'function';
   const fastK = () => Math.max(0.1, W.fast || 1);
   const approach = (cur, tg, rate, dt) => cur + (tg - cur) * (1 - Math.exp(-rate * dt));
-  function angApproach(cur, tg, rate, dt) { return approach(cur, tg, rate, dt); }
 
   // ── 色板 ────────────────────────────────────────────────────
   const hex = U.hexRGB;
@@ -280,18 +279,31 @@
   // 路径的分组：按次序填色；描光时把全部合并成一条路径，向光偏移后先填一遍
   const OPS_P = [], OPS_K = [];
   let nOps = 0;
-  const HAS_ADD = typeof Path2D !== 'undefined' && !!Path2D.prototype.addPath;
   function op(key) { const p = new Path2D(); OPS_P[nOps] = p; OPS_K[nOps] = key; nOps++; CP = p; }
   const COLS = { body: '', far: '', dark: '', darkF: '', head: '', acc: '', hair: '' };
+  const CRGB = { body: [0, 0, 0], far: [0, 0, 0], dark: [0, 0, 0], darkF: [0, 0, 0], head: [0, 0, 0], acc: [0, 0, 0], hair: [0, 0, 0] };
+  const RIMC = {};
+  function setCol(key, rgb, depth, extra, k) {
+    const c = W.shade(rgb, depth, extra);
+    if (k != null) { c[0] *= k; c[1] *= k; c[2] *= k; }
+    CRGB[key] = c; COLS[key] = U.rgb(c[0], c[1], c[2]);
+  }
+  // 描光：每一部分先以"被照亮的边"之色向光偏移填一遍，再在原位填本色
   function flush(ctx, rim) {
-    if (rim && rim.a > 0.02) {
-      ctx.fillStyle = U.rgba(rim.c[0], rim.c[1], rim.c[2], rim.a);
+    if (rim && rim.a > 0.03) {
+      const a = Math.min(1, rim.a), rc = rim.c;
+      for (const k in RIMC) RIMC[k] = null;
       ctx.translate(rim.dx, rim.dy);
-      if (HAS_ADD && nOps > 1) {
-        const all = new Path2D();
-        for (let i = 0; i < nOps; i++) all.addPath(OPS_P[i]);
-        ctx.fill(all);
-      } else for (let i = 0; i < nOps; i++) ctx.fill(OPS_P[i]);
+      for (let i = 0; i < nOps; i++) {
+        const k = OPS_K[i];
+        let st = RIMC[k];
+        if (!st) {
+          const c = CRGB[k];
+          st = RIMC[k] = U.rgb(c[0] + (rc[0] - c[0]) * a, c[1] + (rc[1] - c[1]) * a, c[2] + (rc[2] - c[2]) * a);
+        }
+        ctx.fillStyle = st;
+        ctx.fill(OPS_P[i]);
+      }
       ctx.translate(-rim.dx, -rim.dy);
     }
     for (let i = 0; i < nOps; i++) { ctx.fillStyle = COLS[OPS_K[i]]; ctx.fill(OPS_P[i]); }
@@ -345,6 +357,7 @@
         SP_[2 * i] = t0x - k * (3 + 3 * g + run * 5) + Math.sin(k * 2 + sway) * 1.2 * k - k * k * 1.5;
         SP_[2 * i + 1] = t0y + k * (bh * 0.95 + M.leg * 0.45) * (1 - run * 0.35);
       }
+      for (let i = 0; i < n; i++) { const over = SP_[2 * i + 1] + 0.8; if (over > 0) { SP_[2 * i + 1] = -0.8; SP_[2 * i] -= over; } }
       strand(SP_, n, 3.2, 1.2);
     } else if (M.tail === 'lion' || M.tail === 'tuft') {
       op(M.tail === 'lion' ? 'body' : 'far');
@@ -355,8 +368,10 @@
         SP_[2 * i] = t0x + cx + sway * k * 1.6;
         SP_[2 * i + 1] = t0y + k * len * (M.tail === 'lion' ? 0.8 - k * k * 0.55 : 0.95);
       }
+      // 卧下时尾巴顺着地面，不钻进土里
+      for (let i = 0; i < n; i++) { const over = SP_[2 * i + 1] + 0.6; if (over > 0) { SP_[2 * i + 1] = -0.6; SP_[2 * i] -= over * 0.9; } }
       strand(SP_, n, 1.3, 0.8);
-      a._tuftX = SP_[2 * (n - 1)]; a._tuftY = SP_[2 * (n - 1) + 1];
+      a._tuftX = SP_[2 * (n - 1)]; a._tuftY = Math.min(SP_[2 * (n - 1) + 1], -1.2);
     }
     // 近侧的腿
     op(M.wool ? 'dark' : 'body');
@@ -610,17 +625,18 @@
 
   // ── 缓存的光晕贴图（萤火、胸中的光）──────────────────────────
   let GLOW = null, FGLOW = null;
-  function mkGlow(c, a0) {
+  function mkGlow(c, a0, S) {
+    S = S || 64;
     const cv = document.createElement('canvas');
-    cv.width = cv.height = 64;
-    const g = cv.getContext('2d');
-    const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+    cv.width = cv.height = S;
+    const g = cv.getContext('2d'), h = S / 2;
+    const gr = g.createRadialGradient(h, h, 0, h, h, h);
     gr.addColorStop(0, U.rgba(c[0], c[1], c[2], a0));
     gr.addColorStop(0.25, U.rgba(c[0], c[1], c[2], a0 * 0.45));
     gr.addColorStop(0.6, U.rgba(c[0], c[1], c[2], a0 * 0.1));
     gr.addColorStop(1, U.rgba(c[0], c[1], c[2], 0));
     g.fillStyle = gr;
-    g.fillRect(0, 0, 64, 64);
+    g.fillRect(0, 0, S, S);
     return cv;
   }
 
@@ -983,7 +999,7 @@
     const sp = W.spirit, u = cu() * LK[a.layer];
     const cx = a.x, cy = a.y - M.top * a.S * 0.5;
     const dxs = sp.x - cx, dys = sp.y - cy, ds = Math.hypot(dxs, dys);
-    const night = W.night > 0.62;
+    const night = W.night > 0.5;
     let mode = '';
     if (W.ritual.holding || awe()) mode = 'listen';
     else if (a.fleeT > 0) mode = 'flee';
@@ -1389,7 +1405,7 @@
   function speakName(a) {
     if (!GS.fx || !GS.fx.name) return;
     const label = a.M.cn, chars = Array.from(label);
-    const size = Math.max(15, 26 * uu());
+    const size = Math.max(16, 28 * uu());
     const gap = size * 1.08, x0 = a.x - (gap * (chars.length - 1)) / 2;
     const cy = a.y - a.M.top * a.S - size * 0.9;
     const base = mix(a.col, [255, 250, 240], 0.3);
@@ -1412,15 +1428,21 @@
     h.tv = lead.v + 0.012;
     h.v = approach(h.v, h.tv, 1.5, dt);
     const d = h.tx - h.x;
-    if (Math.abs(d) > 1.5 && (lp === 'walk' || Math.abs(d) > 4 * u)) {
+    if (lp === 'walk' && Math.abs(d) < 60 * u) {
+      // 并肩同行：按落后的距离调整步速，赶上后牵起手
+      const dir = lead.dir;
+      const ahead = d * dir;
+      h.dir = dir; r.pose = 'walk'; r.face = dir;
+      r.spd = clamp(lead.spd + (ahead / (u * h.S / cu())) * 1.6, 0, W_ * 1.7);
+      if (r.spd < 0.5) r.pose = 'stand';
+    } else if (Math.abs(d) > 1.5 && (lp === 'walk' || Math.abs(d) > 4 * u)) {
       h.dir = sgn(d); r.pose = 'walk'; r.spd = Math.abs(d) > 20 * u ? W_ * 1.3 : W_ * (lp === 'walk' ? 1 : 0.8); r.face = h.dir;
-      if (lp === 'walk' && Math.abs(d) < 6 * u) { r.spd = lead.spd; r.face = lead.face > 0 ? 1 : -1; h.dir = r.face; }
     } else {
       r.pose = lp === 'walk' ? 'stand' : lp;
       r.face = lead.face > 0 ? 1 : -1;
       if (lp === 'lie') r.face = -r.face;
     }
-    if (lp === 'walk' && r.pose === 'walk' && Math.abs(Math.abs(h.x - lead.x) - gap) < 3 * u) h.holding = true;
+    if (lp === 'walk' && r.pose === 'walk' && Math.abs(Math.abs(h.x - lead.x) - gap) < 3.5 * u && sgn(lead.x - h.x) === lead.dir) h.holding = true;
     if (lead.act === 'sunset' || lead.act === 'wake' || lead.act === 'sea') h.lookT = lead.lookT;
     if (lead.act === 'fruit' && lead.fruit && lead.fruit.t >= 1) h.reachT = 0;
     return r;
@@ -1536,10 +1558,15 @@
   // ════════════════════════════════════════════════════════════
   //  昆虫
   // ════════════════════════════════════════════════════════════
-  let FLW = [];
+  let FLW = [], FLWf = -1;
+  function flowers() {
+    if (FLWf !== W.frame) { FLWf = W.frame; FLW = GS.land && GS.land.flowerSpots ? (GS.land.flowerSpots() || []) : []; }
+    return FLW;
+  }
   const bfVis = () => (1 - sstep(0.22, 0.5, W.night)) * c01(W.lv.light * 1.5) * (1 - W.dusk * 0.35);
   const ffVis = () => sstep(0.28, 0.68, W.night + W.dusk * 0.25);
   function flowerNear(x, y, R) {
+    const FLW = flowers();
     if (!FLW.length) return null;
     let best = null, bs = -1;
     for (let k = 0; k < 7; k++) {
@@ -1653,7 +1680,6 @@
       const h = HU[i];
       updHuman(h, dt, i === 0, i === 1 ? (L && L.eT >= EMH ? L : null) : L);
     }
-    FLW = GS.land && GS.land.flowerSpots ? (GS.land.flowerSpots() || []) : [];
     const bv = bfVis(), fv = ffVis();
     for (let i = 0; i < CR.length; i++) {
       const c = CR[i];
@@ -1743,10 +1769,10 @@
       const cy = a.y - M.top * s * 0.5;
       const rim = rimAt(a.x, cy, false);
       const ex = RIM.extra;
-      COLS.body = shc(a.col, depth, ex); COLS.head = COLS.body;
-      COLS.far = shc(a.col, depth, ex, 0.74);
-      COLS.dark = shc(a.col2, depth, ex); COLS.darkF = shc(a.col2, depth, ex, 0.72);
-      COLS.acc = shc(a.acc, depth, ex + 0.05);
+      setCol('body', a.col, depth, ex); COLS.head = COLS.body; CRGB.head = CRGB.body;
+      setCol('far', a.col, depth, ex, 0.74);
+      setCol('dark', a.col2, depth, ex); setCol('darkF', a.col2, depth, ex, 0.72);
+      setCol('acc', a.acc, depth, ex + 0.05);
       if (emerging) {
         ctx.save();
         ctx.globalAlpha = alpha;
@@ -1759,7 +1785,8 @@
       } else {
         const r = rim;
         if (a.layer === 1) r.a *= 0.7;
-        flush(ctx, r);
+        // 低画质：远处与极小的生灵不描光
+        flush(ctx, (W.quality || 1) < 0.75 && (a.layer === 1 || a.type === 'r') ? null : r);
       }
     } else nOps = 0;
     if (emerging) drawMotes(ctx, a, c01((a.eT / EM - 0.08) / 0.7), a.x, a.y, s, a.face, DUST);
@@ -1780,10 +1807,10 @@
       buildHuman(h, P);
       const rim = rimAt(h.x, h.y - 16 * s, true);
       const ex = RIM.extra;
-      COLS.body = shc(HUMAN, 0, ex); COLS.head = COLS.body;
-      COLS.far = shc(HUMAN, 0, ex, 0.72);
-      COLS.hair = shc(HUMAN_HAIR, 0, ex);
-      rim.a = Math.min(1, rim.a * 1.15);
+      setCol('body', HUMAN, 0, ex); COLS.head = COLS.body; CRGB.head = CRGB.body;
+      setCol('far', HUMAN, 0, ex, 0.72);
+      setCol('hair', HUMAN_HAIR, 0, ex);
+      rim.a = Math.min(1, rim.a * 0.85);
       if (emerging) {
         ctx.save();
         ctx.globalAlpha = alpha;
@@ -2024,7 +2051,7 @@
   function init() {
     if (ready) return;
     ready = true;
-    try { GLOW = mkGlow(INNER, 0.95); FGLOW = mkGlow(FIREFLY, 1.0); } catch (e) { GLOW = FGLOW = null; }
+    try { GLOW = mkGlow(INNER, 0.95, 48); FGLOW = mkGlow(FIREFLY, 1.0, 32); } catch (e) { GLOW = FGLOW = null; }
     lastW = W.w; lastH = W.h;
     nameNext = W.t + 20;
     if (GS.bus) {
