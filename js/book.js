@@ -84,7 +84,8 @@
   }
   // 引擎自己的定时（落幕、卷首……）：同样按世界时间，但不随下一句话被"补完"
   const timers = [];
-  function after(sec, fn) { timers.push({ at: W.t + Math.max(0, sec) / (W.fast || 1), fn }); timers.sort((a, b) => a.at - b.at); }
+  function after(sec, fn) { const h = { at: W.t + Math.max(0, sec) / (W.fast || 1), fn }; timers.push(h); timers.sort((a, b) => a.at - b.at); return h; }
+  function cancel(h) { const i = timers.indexOf(h); if (i >= 0) timers.splice(i, 1); }
   function tick() {
     let guard = 50;
     while (pending.length && pending[0].at <= W.t && guard--) run(pending[0], false);
@@ -149,5 +150,5 @@
   const ACT_DEFAULTS = { bare: 0, bloom: 1 };
   function resetActLevels() { for (const k in ACT_DEFAULTS) if (W.hasLevel(k)) W.set(k, ACT_DEFAULTS[k], true); }
 
-  GS.book = { ACTS, act, actOf, timeline, flush, busy, after, resync, current, resetActLevels, ACT_DEFAULTS, CN_NUM, scenes };
+  GS.book = { ACTS, act, actOf, timeline, flush, busy, after, cancel, resync, current, resetActLevels, ACT_DEFAULTS, CN_NUM, scenes };
 })(window.GS);

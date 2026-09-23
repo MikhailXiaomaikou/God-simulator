@@ -8,6 +8,9 @@
 
   let el = {};
   let narrQueue = [], narrTimer = 0, narrShowing = false;
+  // 经文的节拍按世界时间（与情节同步；慢设备、切走标签页时一同停住）
+  const later = (ms, fn) => (GS.book && GS.book.after ? GS.book.after(ms / 1000, fn) : setTimeout(fn, ms / (W.fast || 1)));
+  const cancel = h => { if (!h) return; if (typeof h === 'object') { if (GS.book && GS.book.cancel) GS.book.cancel(h); } else clearTimeout(h); };
   let hintTimer = 0;
   let utterText = '', utterShown = 0, utterFadeT = 0, utterState = 'idle';
 
@@ -96,12 +99,12 @@
   function narrate(lines, opts) {
     opts = opts || {};
     if (!Array.isArray(lines)) lines = [lines];
-    if (opts.replace !== false) { narrQueue = []; clearTimeout(narrTimer); }
+    if (opts.replace !== false) { narrQueue = []; cancel(narrTimer); }
     narrQueue.push(...lines);
     if (opts.replace !== false || !narrShowing) nextLine(opts.delay || 0);
   }
   function nextLine(delay) {
-    clearTimeout(narrTimer);
+    cancel(narrTimer);
     const line = narrQueue.shift();
     if (!line) {
       narrShowing = false;
@@ -115,24 +118,25 @@
       el.scripture.classList.add('show');
       hideHint();
       if (!line.silent) GS.bus.emit('scripture', line);
-      const hold = (line.hold || Math.max(4.2, 1.6 + line.text.length * 0.2)) * 1000 / (W.fast || 1);
-      narrTimer = setTimeout(() => {
+      const hold = (line.hold || Math.max(4.2, 1.6 + line.text.length * 0.2)) * 1000;
+      narrTimer = later(hold, () => {
         if (narrQueue.length) {
           el.scripture.classList.remove('show');
-          narrTimer = setTimeout(() => nextLine(0), 1300 / (W.fast || 1));
+          narrTimer = later(1300, () => nextLine(0));
         } else {
           el.scripture.classList.remove('show');
           narrShowing = false;
         }
-      }, hold);
+      });
     };
-    if (el.scripture.classList.contains('show') || delay) {
+    const wasShown = el.scripture.classList.contains('show');
+    if (wasShown || delay) {
       el.scripture.classList.remove('show');
-      narrTimer = setTimeout(show, Math.max(delay * 1000, el.scripture.classList.contains('show') ? 900 : 0) / (W.fast || 1));
+      narrTimer = later(Math.max(delay * 1000, wasShown ? 900 : 0), show);
     } else show();
   }
   function clearNarration() {
-    narrQueue = []; clearTimeout(narrTimer); narrShowing = false;
+    narrQueue = []; cancel(narrTimer); narrShowing = false;
     el.scripture.classList.remove('show');
   }
   const narrating = () => narrShowing || narrQueue.length > 0;
