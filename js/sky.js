@@ -114,7 +114,6 @@ uniform vec4 U[${NU}];
 #define W_FAR    U[18].rgb
 #define GLIT     U[18].w
 #define W_NEAR   U[19].rgb
-#define DAWN     U[19].w
 #define HAZE     U[20].rgb
 #define PEARL    U[20].w
 #define CORE_COL U[21].rgb
@@ -603,8 +602,9 @@ void main() {
   // 甚好：温暖而明亮的金色空气（不是发灰的暖滤镜）
   if (GOOD > 0.001) {
     float hzW = exp(-abs(n.y - HZ) * 3.2);
-    col += vec3(1.0, 0.72, 0.4) * GOOD * lm * (0.02 + 0.1 * hzW) * (0.3 + 0.7 * DAYF);
-    col *= mix(vec3(1.0), vec3(1.05, 1.01, 0.95), GOOD);
+    float gd = GOOD * (0.08 + 0.92 * DAYF);          // 夜里只留一点暖意，不把夜空洗灰
+    col += vec3(1.0, 0.72, 0.4) * gd * lm * (0.02 + 0.1 * hzW);
+    col *= mix(vec3(1.0), vec3(1.05, 1.01, 0.95), gd);
   }
   // 安息：柔和、温暖、高调——暗部被轻轻托起，对比降一成
   if (SABBATH > 0.001) {
