@@ -175,7 +175,7 @@
     }
     const dx = LT.spx - x, dy = LT.spy - y, d = Math.hypot(dx, dy) || 1;
     const f = c01(1 - d / LT.spR), ff = f * f;
-    RIM.extra = LT.spA * ff * 0.5;
+    RIM.extra = LT.spA * ff * 0.5 + LT.moonA * 0.12;
     const sa = LT.spA * ff * 1.7;
     if (sa > 0.004) {
       const c = warm ? mix(RIM_SPIRIT, INNER, 0.5) : RIM_SPIRIT;
@@ -183,10 +183,10 @@
     }
     if (ws < 0.004) { RIM.a = 0; RIM.dx = 0; RIM.dy = -1; return RIM; }
     const L = Math.hypot(wx, wy) || 1;
-    const k = clamp(cu() * (warm ? 0.7 : 0.85), 0.65, 1.15);
+    const k = clamp(cu() * (warm ? 0.7 : 0.85), 0.65, 1.15) * (1 + 0.45 * W.night);
     RIM.dx = wx / L * k; RIM.dy = wy / L * k;
     RIM.c[0] = r / ws; RIM.c[1] = g / ws; RIM.c[2] = b / ws;
-    RIM.a = Math.min(1, ws) * (warm ? 1 : 0.85);
+    RIM.a = Math.min(1, ws * (1 + 0.6 * W.night)) * (warm ? 1 : 0.85);
     return RIM;
   }
   function shc(rgb, depth, extra, k) {
@@ -1616,8 +1616,8 @@
     const a = t * (0.5 + c.seed * 0.5) + c.seed * TAU, R = (22 + c.seed * 46) * Math.max(0.6, uu());
     const ox = sp.x + Math.cos(a) * R, oy = sp.y + Math.sin(a) * R * 0.7;
     c.fx = lerp(x, ox, c.att * 0.75); c.fy = lerp(y, oy, c.att * 0.75);
-    const b = Math.pow(Math.max(0, Math.sin(t * TAU / c.bp + c.bph)), 6);
-    c.fa = vis * (0.1 + 0.9 * b);
+    const b = Math.pow(Math.max(0, Math.sin(t * TAU / c.bp + c.bph)), 4);
+    c.fa = vis * (0.24 + 0.76 * b);
     c.fb = b;
   }
   function updBeetle(c, dt) {
@@ -1797,8 +1797,8 @@
         tp(h._chest[0], h._chest[1]);
         const cx = PX, cy = PY;
         const on = h.breathed || !emerging ? 1 : 0;
-        let a = on * alpha * (0.2 + 0.32 * W.night + 0.1 * W.dusk);
-        let r = 7.5 * s;
+        let a = on * alpha * (0.2 + 0.4 * W.night + 0.12 * W.dusk);
+        let r = (7.5 + 3.5 * W.night) * s;
         if (h.flash >= 0) { const k = h.flash / 1.4; r = lerp(40, 10, eOut(k)) * cu(); a = Math.max(a, (1 - k) * 0.9); }
         if (a > 0.01) {
           ctx.globalCompositeOperation = 'lighter';
@@ -1906,14 +1906,14 @@
       if (c.kind === 'beetle') continue;
       if (++n > lim) break;
       if (c.fa < 0.015) continue;
-      const r = (5 + 7 * c.fb) * u;
+      const r = (6 + 8 * c.fb) * u;
       ctx.globalAlpha = Math.min(1, c.fa);
       ctx.drawImage(FGLOW, c.fx - r, c.fy - r, r * 2, r * 2);
     }
     ctx.globalAlpha = 1;
     ctx.fillStyle = U.rgba(240, 255, 200, 0.9 * vis);
     for (const c of CR) {
-      if (c.kind === 'beetle' || c.fb < 0.25) continue;
+      if (c.kind === 'beetle' || c.fa < 0.05 || c.fb < 0.2) continue;
       ctx.fillRect(c.fx - 0.7, c.fy - 0.7, 1.4, 1.4);
     }
     ctx.globalCompositeOperation = 'source-over';
