@@ -64,9 +64,12 @@
   const lvlOr = (k, d) => { const v = W.lv[k]; return fin(v) ? v : d; };
   // 当前的卷
   const ACT_IDS = ['eden', 'cain', 'flood', 'babel', 'abraham', 'jacob', 'joseph'];
+  // 本幕尚无自己的乐垫时，借用它指定的那一幕（act.music）的乐色
   function actId() {
     const A = GS.book && GS.book.ACTS, a = A && A[W.act | 0];
-    return a && a.id ? a.id : (W.act | 0) > 0 ? ACT_IDS[Math.min(ACT_IDS.length, W.act | 0) - 1] : 'seven';
+    if (!a || !a.id) return (W.act | 0) > 0 ? ACT_IDS[Math.min(ACT_IDS.length, W.act | 0) - 1] : 'seven';
+    if (a.id === 'seven' || PAD[a.id] || ACT_MUS[a.id]) return a.id;
+    return a.music && (PAD[a.music] || ACT_MUS[a.music]) ? a.music : 'abraham';
   }
   const bookLen = () => (GS.story && GS.story.STAGES ? GS.story.STAGES.length : 1e9);
   // 此刻的音阶（随卷、随卷中的光景而变）

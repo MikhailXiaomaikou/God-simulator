@@ -420,6 +420,49 @@ body.acts #scripture { left: 4vw; right: auto; max-width: 44vw; top: 55vh; botto
 #finale .f2 { margin-top: 0.8em; font-family: var(--kai); font-size: clamp(15px, 2vw, 19px); letter-spacing: 0.3em; color: var(--ink-dim); text-shadow: 0 1px 3px rgba(0,0,0,0.9); }
 #finale .f3 { margin-top: 2.2em; padding: 0 6vw; font-family: var(--mono); font-size: 11.5px; line-height: 1.7; letter-spacing: 0.1em; color: rgba(240, 234, 218, 0.66); text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9), 0 0 10px rgba(0, 0, 0, 0.5); }
 
+/* ── 目录：三十九卷，一幕一行 ─────────────────────────────── */
+#toc {
+  top: 0; left: 0; bottom: 0;
+  width: min(380px, 92vw);
+  box-sizing: border-box;
+  padding: 58px 26px 28px 22px;
+  background: linear-gradient(270deg, rgba(4, 6, 12, 0.0), rgba(4, 6, 12, 0.8) 14%, rgba(4, 6, 12, 0.92));
+  color: rgba(226, 232, 240, 0.9);
+  font-family: var(--kai);
+  font-size: 14px; line-height: 1.6;
+  transform: translateX(-104%);
+  transition: transform 0.7s cubic-bezier(.2,.8,.2,1);
+  pointer-events: auto;
+  overflow-y: auto;
+  z-index: 26;
+  cursor: default;
+  scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.15) transparent;
+}
+#toc.open { transform: none; }
+#toc h2 { margin: 0 0 4px; font-family: var(--xing); font-weight: normal; font-size: 28px; letter-spacing: 0.2em; color: rgba(250, 244, 228, 0.95); }
+#toc .sub { color: rgba(170, 186, 210, 0.55); margin-bottom: 10px; font-size: 12px; letter-spacing: 0.08em; }
+#toc .grp { margin: 20px 0 2px; font-size: 11px; letter-spacing: 0.4em; color: rgba(170, 186, 210, 0.5); border-bottom: 1px solid rgba(240, 234, 218, 0.1); padding-bottom: 3px; }
+#toc .bk { margin: 12px 0 2px; font-family: var(--brush); font-size: 19px; letter-spacing: 0.16em; color: rgba(255, 226, 180, 0.95); }
+#toc .bk span { margin-left: 0.8em; font-family: var(--kai); font-size: 11px; letter-spacing: 0.1em; color: rgba(200, 206, 220, 0.45); }
+#toc .it {
+  display: flex; justify-content: space-between; align-items: baseline; width: 100%;
+  margin: 0; padding: 3px 8px 3px 14px; box-sizing: border-box;
+  background: none; border: 0; border-radius: 6px; cursor: pointer; text-align: left;
+  font-family: var(--kai); font-size: 15px; letter-spacing: 0.12em; color: rgba(236, 232, 222, 0.62);
+}
+#toc .it span { font-size: 11px; letter-spacing: 0.04em; color: rgba(200, 206, 220, 0.38); }
+#toc .it:hover { background: rgba(255, 255, 255, 0.06); color: #fff; }
+#toc .it.done { color: rgba(246, 240, 226, 0.9); }
+#toc .it.cur { color: #fff; background: rgba(255, 226, 180, 0.1); box-shadow: inset 2px 0 0 rgba(255, 222, 170, 0.8); }
+#ledger .bk { margin: 26px 0 0; color: rgba(255, 236, 200, 0.98); font-family: var(--brush); font-size: 18px; letter-spacing: 0.24em; border-top: 1px solid rgba(240, 234, 218, 0.12); padding-top: 8px; }
+#ledger .bk span { margin-left: 0.8em; font-family: var(--kai); font-size: 11px; letter-spacing: 0.1em; color: rgba(200, 206, 220, 0.45); }
+#actcard .e { margin-bottom: 1.4em; font-family: var(--kai); font-size: clamp(12px, 1.5vw, 15px); letter-spacing: 0.5em; text-indent: 0.5em; color: rgba(240, 234, 218, 0.45); }
+#actcard .t.long { font-size: clamp(54px, 10vw, 120px); letter-spacing: 0.1em; text-indent: 0.1em; }
+@media (max-width: 600px) {
+  #actcard .t.long { font-size: clamp(40px, 12vw, 64px); }
+  #act { max-width: calc(100vw - 236px); }
+}
+
 /* 无障碍：减少动态 */
 @media (prefers-reduced-motion: reduce) {
   #utter .ch { transition: opacity 0.2s ease; transform: none; filter: none; }

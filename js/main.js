@@ -12,7 +12,7 @@
 
   // 绘制次序：由远及近。每个模块在每一"层"画属于它的东西。
   const PASSES = ['sky', 'seaFar', 'far', 'seaMid', 'mid', 'seaNear', 'near', 'air', 'top'];
-  const MODS = ['land', 'scenes', 'sea', 'beasts', 'scenesOver', 'cast', 'air', 'fx'];
+  const MODS = ['land', 'weather', 'scenes', 'sea', 'beasts', 'scenesOver', 'cast', 'air', 'fx'];
   const LIVING = ['land', 'sea', 'beasts', 'air'];          // 按世界的目标"多退少补"的模块
 
   const canvas = document.getElementById('world');
@@ -55,16 +55,18 @@
       sv.stage = clamp(sv.stage | 0, 0, STAGES.length);
       if (!sv.choices || typeof sv.choices !== 'object' || Array.isArray(sv.choices)) sv.choices = {};
       sv.label = labelFor(sv.stage);                                                 // 进度名按句序重新算出
+      sv.max = clamp(Math.max(sv.stage, isFinite(sv.max) ? sv.max | 0 : 0), 0, STAGES.length);
       return sv;
     } catch (e) { return null; }
   }
   function save() {
     try {
-      localStorage.setItem(SAVE_KEY, JSON.stringify({ v: 2, stage: W.stage, day: currentDay(), label: labelFor(W.stage), muted: S.muted, choices: S.choices }));
+      S.max = Math.max(S.max || 0, W.stage);
+      localStorage.setItem(SAVE_KEY, JSON.stringify({ v: 2, stage: W.stage, max: S.max, day: currentDay(), label: labelFor(W.stage), muted: S.muted, choices: S.choices }));
     } catch (e) { /* 隐私模式：不存也无妨 */ }
   }
   function clearSave() {
-    try { const s = load(); localStorage.setItem(SAVE_KEY, JSON.stringify({ v: 2, stage: 0, day: 0, muted: s ? !!s.muted : false, choices: {} })); } catch (e) { /* */ }
+    try { const s = load(); localStorage.setItem(SAVE_KEY, JSON.stringify({ v: 2, stage: 0, max: s ? s.max || 0 : 0, day: 0, muted: s ? !!s.muted : false, choices: {} })); } catch (e) { /* */ }
   }
 
   // ── 日的记号 ────────────────────────────────────────────────
@@ -76,12 +78,12 @@
     for (let i = 0; i < W.stage; i++) if (STAGES[i].good) g[STAGES[i].day] += STAGES[i].good;
     return g;
   }
-  // 进度的名字：第一卷里是「第几日」，其后是「卷几 · 卷名」（按下一句所在之卷）
+  // 进度的名字：第一幕里是「第几日」，其后是「书名 · 幕名」（按下一句所在之幕）
   function labelFor(n) {
     if (n >= STAGES.length) return '终';
     const st = STAGES[n], a = ACTS[st.act] || ACTS[0];
     if (a.index === 0) return GS.ui.DAY_NAME[st.day] || '起初';
-    return a.numeral + ' · ' + a.title;
+    return a.book + ' · ' + a.title;
   }
   const progressLabel = () => labelFor(W.stage);
   function refreshHUD() {
@@ -94,6 +96,7 @@
       GS.ui.setDays(W.day, S.sealed, W.stage > ACTS[0].last, goods(), S.mode === 'play' && isRestStage() ? S.breaths : null);
     } else GS.ui.setAct(a);
     GS.ui.renderLedger(STAGES, W.stage, ACTS);
+    GS.ui.renderToc(ACTS, W.stage, Math.max(S.max || 0, W.stage), S.mode);
   }
 
   // ── 布局 ────────────────────────────────────────────────────
@@ -160,13 +163,18 @@
     }
     const a = ACTS[st.act] || ACTS[0];
     if (st.index === a.last) {
-      if (a.index === ACTS.length - 1) enterRest();                 // 全书终
+      if (a.index === ACTS.length - 1) enterRest();                 // 旧约终
       else {
+        const next = ACTS[a.index + 1];
         if (a.index === 0) actOneFinale();                          // 七日圆满：安息
-        scheduleAct(ACTS[a.index + 1], a.outro);
+        // 创世记五十章讲完：先在天上写下「创世记 · 终」，再落幕进入出埃及记
+        const fin = a.index > 0 && a.book === '创世记' && next.book !== a.book
+          ? { title: '创世记', sub: '全书五十章 · 终', foot: spokenUpTo(a.last) + ' 句话　—　下一卷：' + next.book } : null;
+        scheduleAct(next, a.outro, fin);
       }
     }
   }
+  const spokenUpTo = last => STAGES.slice(0, last + 1).filter(s => s.utter).length;
 
   // 七日的终幕：「安息」
   function actOneFinale() {
@@ -176,16 +184,22 @@
   }
 
   // 落幕，布置下一卷，卷名浮现，启幕（按世界时间计，慢设备上也与情节同步）
-  function scheduleAct(next, delay) {
+  function scheduleAct(next, delay, fin) {
     S.transition = true;
     const after = GS.book.after;
     let waited = 0;
     // 末一句话的故事与经文都尽了，幕才落下（最多再等一分钟）
     const fall = () => {
       if ((GS.book.busy() || GS.ui.narrating()) && waited++ < 60) { after(1, fall); return; }
-      after(waited ? 3 : 0, drop);
+      after(waited ? 3 : 0, fin ? bookEnd : drop);
     };
     after(delay, fall);
+    // 一卷书讲完：书名以毛笔写在天上，停一会儿，再落幕
+    function bookEnd() {
+      GS.ui.finale(true, fin);
+      safe('audio.finale', () => GS.audio.finale());
+      after(11, () => { GS.ui.finale(false); after(2, drop); });
+    }
     function drop() {
       W.set('curtain', 1);
       after(2.4, () => {
@@ -235,7 +249,7 @@
     refreshHUD();
     const spoken = STAGES.filter(s => s.utter).length;
     const outro = (ACTS[ACTS.length - 1] && ACTS[ACTS.length - 1].outro) || 16;
-    GS.book.after(outro, () => { GS.ui.finale(true, { title: '创世记', sub: '全书五十章 · 终', foot: spoken + ' 句话 · 0 个 bug　—　God is the first vibecoder.' }); safe('audio.finale', () => GS.audio.finale()); });
+    GS.book.after(outro, () => { GS.ui.finale(true, { title: '旧约', sub: '三十九卷 · 终', foot: spoken + ' 句话 · 0 个 bug　—　God is the first vibecoder.' }); safe('audio.finale', () => GS.audio.finale()); });
     GS.book.after(outro + 13, () => GS.ui.finale(false));
     GS.book.after(outro + 16, () => GS.ui.hint('灵经过之处，万物显出其名；按住，观看它被造时的话', 7));
   }
@@ -424,6 +438,23 @@
     safe('audio.behold', () => GS.audio.behold(b.kind));
   }
 
+  // 目录：跳到任何一幕的开端（上帝可以随意翻到任何一页）
+  function jumpTo(n) {
+    n = clamp(n | 0, 0, STAGES.length - 1);
+    GS.ui.toggleToc(false);
+    const keep = {};
+    for (const k in S.choices) if (+k < n) keep[k] = S.choices[k];
+    restore(n, keep);
+    if (n === 0) {
+      S.mode = 'title';
+      GS.ui.showDays(false); GS.ui.setAct(null); GS.ui.showTools(false);
+      GS.ui.showTitle(null, newCreation, () => {}, openToc);
+    }
+    save();
+    refreshHUD();
+  }
+  function openToc() { initAudio(); refreshHUD(); GS.ui.toggleToc(true); }
+
   function newCreation() {
     clearSave();
     location.replace(location.pathname);   // 最干净的重新创世：回到起初
@@ -464,12 +495,12 @@
       g.fillStyle = 'rgba(250,246,236,0.72)';
       g.shadowColor = 'rgba(0,0,0,0.8)'; g.shadowBlur = 4;
       const label = progressLabel();
-      g.fillText('创世记 · God Simulator · ' + label, W.w - 18, W.h - 16);
+      g.fillText('旧约 · God Simulator · ' + label, W.w - 18, W.h - 16);
       c.toBlob(b => {
         if (!b) return;
         const a = document.createElement('a');
         a.href = URL.createObjectURL(b);
-        a.download = '创世记-' + label.replace(/\s*·\s*/g, '-') + '.png';
+        a.download = '旧约-' + label.replace(/\s*·\s*/g, '-') + '.png';
         document.body.appendChild(a); a.click(); a.remove();
         setTimeout(() => URL.revokeObjectURL(a.href), 5000);
       }, 'image/png');
@@ -491,9 +522,9 @@
   window.addEventListener('pointermove', e => { S.pointerType = e.pointerType || 'mouse'; moveTo(e.clientX, e.clientY - touchLift(e)); }, { passive: true });
   window.addEventListener('pointerdown', e => {
     S.pointerType = e.pointerType || 'mouse';
-    if (e.target.closest && e.target.closest('button, #ledger, #help')) return;
+    if (e.target.closest && e.target.closest('button, #ledger, #help, #toc')) return;
     // 面板开着时，点世界即合上面板
-    if (GS.ui.panelOpen()) { GS.ui.toggleLedger(false); GS.ui.toggleHelp(false); return; }
+    if (GS.ui.panelOpen()) { GS.ui.toggleLedger(false); GS.ui.toggleHelp(false); GS.ui.toggleToc(false); return; }
     moveTo(e.clientX, e.clientY - touchLift(e));
     // 灵若已飘远（久未移动时它会自行盘旋），按下时回到指下：话语在所指之处成就
     const sp = W.spirit;
@@ -524,12 +555,13 @@
     if (e.repeat) return;
     S.still = 0;
     switch (e.code) {
-      case 'KeyL': initAudio(); GS.ui.toggleLedger(); break;
+      case 'KeyL': initAudio(); GS.ui.toggleToc(false); GS.ui.toggleLedger(); break;
+      case 'KeyB': initAudio(); GS.ui.toggleLedger(false); refreshHUD(); GS.ui.toggleToc(); break;
       case 'KeyM': toggleMute(); break;
       case 'KeyF': toggleFull(); break;
       case 'KeyP': snapshot(); break;
       case 'KeyH': case 'Slash': GS.ui.toggleHelp(); break;
-      case 'Escape': GS.ui.toggleLedger(false); GS.ui.toggleHelp(false); break;
+      case 'Escape': GS.ui.toggleLedger(false); GS.ui.toggleHelp(false); GS.ui.toggleToc(false); break;
       case 'KeyR':
         if (S.mode === 'rest') {
           if (S.restartArmed > 0) newCreation();
@@ -548,8 +580,13 @@
     const el = GS.ui.el;
     // 按钮不夺焦点：否则之后空格会去"点"按钮，而不是言说
     const stop = b => b && b.addEventListener('pointerdown', e => { e.stopPropagation(); e.preventDefault(); });
-    [el.bLedger, el.bSound, el.bFull, el.bHelp, el.bShot].forEach(stop);
-    el.bLedger.addEventListener('click', () => { initAudio(); GS.ui.toggleLedger(); });
+    [el.bLedger, el.bToc, el.bSound, el.bFull, el.bHelp, el.bShot].forEach(stop);
+    el.bLedger.addEventListener('click', () => { initAudio(); GS.ui.toggleToc(false); GS.ui.toggleLedger(); });
+    if (el.bToc) el.bToc.addEventListener('click', () => { initAudio(); GS.ui.toggleLedger(false); refreshHUD(); GS.ui.toggleToc(); });
+    if (el.toc) el.toc.addEventListener('click', e => {
+      const b = e.target && e.target.closest ? e.target.closest('[data-stage]') : null;
+      if (b) jumpTo(parseInt(b.dataset.stage, 10) || 0);
+    });
     el.bSound.addEventListener('click', toggleMute);
     el.bFull.addEventListener('click', toggleFull);
     el.bHelp.addEventListener('click', () => GS.ui.toggleHelp());
@@ -697,6 +734,7 @@
     W.jx = tremor > 0.01 ? Math.sin(W.t * 91.3) * tremor : 0;
     W.jy = tremor > 0.01 ? Math.cos(W.t * 77.7) * tremor : 0;
 
+    if (GS.debug.noDraw) { requestAnimationFrame(frame); return; }     // 测试：只推进世界，不画
     safe('sky.render', () => GS.sky.render());
 
     ctx.save();
@@ -723,6 +761,7 @@
 
     const sv = load();
     S.muted = !!(sv && sv.muted);
+    S.max = sv ? sv.max || sv.stage || 0 : 0;
     GS.ui.setSoundButton(S.muted);
     bus.on('scripture', line => {
       safe('audio.bell', () => GS.audio.bell());
@@ -735,9 +774,9 @@
     if (jump != null) {
       const n = parseInt(jump, 10) || 0;
       restore(n, sv && sv.stage === n ? sv.choices : null);
-      if (n === 0) GS.ui.showTitle(null);
+      if (n === 0) GS.ui.showTitle(null, newCreation, () => {}, openToc);
     } else {
-      GS.ui.showTitle(sv && sv.stage > 0 ? sv : null, newCreation, () => restore(sv.stage, sv.choices));
+      GS.ui.showTitle(sv && sv.stage > 0 ? sv : null, newCreation, () => restore(sv.stage, sv.choices), openToc);
     }
     refreshHUD();
     requestAnimationFrame(frame);
@@ -755,11 +794,13 @@
       return true;
     },
     jump: n => { restore(n); },
+    jumpTo: n => jumpTo(n),
+    noDraw: false,
     dawn: () => onDawn(),
     state: () => ({ stage: W.stage, day: W.day, mode: S.mode, sealed: S.sealed, breaths: S.breaths, lv: Object.assign({}, W.lv), tod: W.tod, quality: W.quality }),
     S,
   };
-  GS.main = { restore, fulfill, newCreation, snapshot, labelFor, PASSES, MODS };
+  GS.main = { restore, fulfill, newCreation, snapshot, labelFor, jumpTo, PASSES, MODS };
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();

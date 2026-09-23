@@ -22,8 +22,8 @@
       utter: $('utter'), scripture: $('scripture'), hint: $('hint'), days: $('days'),
       ledger: $('ledger'), title: $('title'), titleBtns: $('titleBtns'), titlePrompt: $('titlePrompt'),
       help: $('help'), tools: $('tools'), tag: $('tag'), finale: $('finale'),
-      act: $('act'), actcard: $('actcard'),
-      bLedger: $('bLedger'), bSound: $('bSound'), bFull: $('bFull'), bHelp: $('bHelp'), bShot: $('bShot'),
+      act: $('act'), actcard: $('actcard'), toc: $('toc'),
+      bLedger: $('bLedger'), bToc: $('bToc'), bSound: $('bSound'), bFull: $('bFull'), bHelp: $('bHelp'), bShot: $('bShot'),
     };
     el.days.innerHTML = DAY_CH.map(c => '<span><b>' + c + '</b><i class="g"></i></span>').join('');
   }
@@ -196,13 +196,15 @@
     if (done <= 0) {
       html += '<div class="ln"><span class="r"># 空虚混沌。按住画面，说出第一句话。</span></div>';
     }
-    let lastDay = -1, lastAct = 0;
+    let lastDay = -1, lastAct = 0, lastBook = acts && acts[0] ? acts[0].book : '';
+    if (done > 0 && acts && acts[0]) html += '<div class="bk">' + esc(acts[0].book) + '</div>';
     for (let i = 0; i < Math.min(done, stages.length); i++) {
       const s = stages[i];
       if (s.act > 0 && s.act !== lastAct && acts && acts[s.act]) {
         lastAct = s.act;
         const a = acts[s.act];
-        html += '<div class="act">' + a.numeral + ' · ' + a.title + '<span>' + esc(a.sub || '') + '</span></div>';
+        if (a.book !== lastBook) { lastBook = a.book; html += '<div class="bk">' + esc(a.book) + '<span>' + esc(a.ordinal || '') + '</span></div>'; }
+        html += '<div class="act">' + esc(a.title) + '<span>' + esc(a.sub || '') + '</span></div>';
         html += '<div class="ln"><span class="p">$ </span><span class="c">git checkout -b ' + esc(a.id) + '</span></div>';
       } else if (s.act === 0 && s.day !== lastDay && s.day > 0) {
         lastDay = s.day;
@@ -217,7 +219,7 @@
     }
     if (done >= stages.length) {
       const spoken = stages.filter(s => s.utter).length;
-      html += '<div class="ok">✓ build passed · 创世记 50 章</div>';
+      html += '<div class="ok">✓ build passed · 旧约 39 卷 · 929 章</div>';
       html += '<div class="ln"><span class="r">' + spoken + ' 句话 · 0 个 bug</span></div>';
       html += '<div class="ln"><span class="r">God is the first vibecoder.</span></div>';
       html += '<div class="ln" style="margin-top:14px"><span class="p">$ </span><span class="c cursor"></span></div>';
@@ -245,13 +247,58 @@
     document.body.classList.toggle('show-cursor', show || el.ledger.classList.contains('open'));
     return show;
   }
-  const panelOpen = () => el.ledger.classList.contains('open') || el.help.classList.contains('show');
+  const panelOpen = () => el.ledger.classList.contains('open') || el.help.classList.contains('show') || !!(el.toc && el.toc.classList.contains('open'));
+
+  // ── 目录：三十九卷，每一幕都可翻到 ──────────────────────────
+  let tocKey = '';
+  function renderToc(acts, stage, max, mode) {
+    if (!el.toc || !acts) return;
+    const cur = stage >= GS.story.STAGES.length ? -1 : (GS.story.STAGES[stage] ? GS.story.STAGES[stage].act : -1);
+    const key = cur + '/' + max + '/' + acts.length + '/' + mode;
+    if (key === tocKey) return;
+    tocKey = key;
+    const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+    const B = GS.book.BOOKS, G = GS.book.GROUPS;
+    let html = '<h2>目录</h2><div class="sub">旧约 · 三十九卷 · 点一幕便翻到那里</div>';
+    let lastGroup = -1, lastBook = '';
+    for (const a of acts) {
+      const bk = B[(a.books && a.books[0] ? a.books[0] : 1) - 1] || B[0];
+      if (bk.group !== lastGroup) { lastGroup = bk.group; html += '<div class="grp">' + G[bk.group] + '</div>'; }
+      if (a.book !== lastBook) {
+        lastBook = a.book;
+        const names = (a.books || []).map(n => B[n - 1] && B[n - 1].name).filter(Boolean);
+        const sub = names.length > 1 ? names.join(' · ') : (a.ordinal || '');
+        html += '<div class="bk">' + esc(a.book) + '<span>' + esc(sub) + '</span></div>';
+      }
+      const st = a.index === cur ? ' cur' : a.first <= max ? ' done' : '';
+      const ref = String(a.sub || '').replace(/^\S+\s+/, '');
+      html += '<button class="it' + st + '" data-stage="' + a.first + '">' + esc(a.title) + '<span>' + esc(ref) + '</span></button>';
+    }
+    el.toc.innerHTML = html;
+  }
+  function toggleToc(force) {
+    if (!el.toc) return false;
+    const open = force == null ? !el.toc.classList.contains('open') : force;
+    el.toc.classList.toggle('open', open);
+    document.body.classList.toggle('show-cursor', open || el.help.classList.contains('show') || el.ledger.classList.contains('open'));
+    if (open) { const c = el.toc.querySelector('.cur'); if (c) setTimeout(() => c.scrollIntoView({ block: 'center' }), 50); }
+    return open;
+  }
 
   // ── 标题 ────────────────────────────────────────────────────
-  function showTitle(saved, onNew, onContinue) {
-    el.title.classList.remove('gone');
+  function showTitle(saved, onNew, onContinue, onToc) {
+    el.title.classList.remove('gone', 'dim');
     el.title.style.display = '';
     el.titleBtns.innerHTML = '';
+    const tocBtn = () => {
+      if (!onToc) return;
+      const t = document.createElement('button');
+      t.textContent = '目录';
+      t.addEventListener('pointerdown', e => e.stopPropagation());
+      t.addEventListener('touchstart', e => e.stopPropagation(), { passive: true });
+      t.addEventListener('click', e => { e.stopPropagation(); onToc(); });
+      el.titleBtns.appendChild(t);
+    };
     if (saved && saved.stage > 0) {
       el.titlePrompt.textContent = '按住画面 · 继续创世';
       const cont = document.createElement('button');
@@ -266,8 +313,10 @@
       neo.addEventListener('click', e => { e.stopPropagation(); onNew(); });
       el.titleBtns.appendChild(cont);
       el.titleBtns.appendChild(neo);
+      tocBtn();
     } else {
       el.titlePrompt.textContent = '按住画面 · 说「起初」';
+      tocBtn();
     }
   }
   function hideTitle() {
@@ -308,7 +357,7 @@
     if (!el.act) return;
     if (!a) { el.act.classList.remove('show'); return; }
     showDays(false);
-    const html = '<b>' + a.numeral + '</b>' + a.title + '<span>' + (a.sub || '') + '</span>';
+    const html = '<b>' + (a.book || a.numeral) + '</b>' + a.title + '<span>' + (a.sub || '') + '</span>';
     if (el.act.dataset.id !== a.id) { el.act.innerHTML = html; el.act.dataset.id = a.id; }
     el.act.classList.add('show');
   }
@@ -316,7 +365,9 @@
     const c = el.actcard;
     if (!c) return;
     if (on) {
-      c.innerHTML = '<div class="n">' + a.numeral + '</div><div class="t">' +
+      const prev = GS.book.opensBook(a) ? GS.book.ACTS[a.index - 1] : null;
+      c.innerHTML = (prev ? '<div class="e">' + prev.book + ' · 终</div>' : '') +
+        '<div class="n">' + (a.ordinal ? a.ordinal + ' · ' : '') + a.book + '</div><div class="t' + (Array.from(a.title).length > 3 ? ' long' : '') + '">' +
         Array.from(a.title).map((ch, k) => '<span class="brush" style="--k:' + k + '">' + ch + '</span>').join('') +
         '</div><div class="s">' + (a.sub || '') + '</div>';
       c.classList.remove('show'); void c.offsetWidth;
@@ -329,7 +380,7 @@
   GS.ui = {
     init, utterBegin, utterProgress, utterFulfill, utterCancel,
     narrate, clearNarration, narrating, hint, hideHint, setUnfolding, setStage,
-    setDays, showDays, showTools, renderLedger, toggleLedger, toggleHelp, panelOpen,
+    setDays, showDays, showTools, renderLedger, toggleLedger, toggleHelp, panelOpen, renderToc, toggleToc,
     showTitle, hideTitle, setTitlePrompt, dimTitle, tag, finale, setSoundButton, setAct, actCard,
     DAY_NAME,
     get el() { return el; },

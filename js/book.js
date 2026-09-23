@@ -1,13 +1,16 @@
 /* ─────────────────────────────────────────────────────────────
- * book.js —— 创世记全书：卷的登记、情节的时间线、各卷布景的总调度
+ * book.js —— 旧约全书：书与幕的登记、情节的时间线、各幕布景的总调度
  *
- * 第一卷「七日」来自 story.js。其后各卷（伊甸、该隐、洪水、巴别、亚伯拉罕、雅各、约瑟）
- * 各自在 js/book/*.js 里用 GS.book.act({...}) 登记：它们的话语接在 STAGES 后面，
- * 于是整部书仍是一条线——每一句话只成就一步，存档仍只是一个数字。
+ * 旧约三十九卷，从创世记到玛拉基书，讲成一条线上的许多「幕」（act）：
+ * 第一幕「七日」来自 story.js；其后每一幕各在 js/book/*.js 里用 GS.book.act({...}) 登记，
+ * 按 index.html 里的先后接在 STAGES 后面——每一句话只成就一步，存档仍只是一个数字。
+ * 一卷书可分几幕（出埃及记：摩西、十灾、红海、西奈），几卷书也可合为一幕（十二小先知）。
  *
- * 卷的定义：
+ * 幕的定义：
  *   {
  *     id: 'eden', title: '伊甸', sub: '创世记 2:4 — 3:24', tint: [r,g,b], day: 8,
+ *     book: '创世记', books: [1],       // 所属之书的名（顶上显示）与卷序（1 … 39；几卷合为一幕时列出全部）
+ *     music: 'joseph',                 // 可选：借用哪一幕的乐色（声音模块尚未为本幕另写乐垫时）
  *     setup(c),          // 进入本卷时布置世界（c.instant 恒为 true：在幕布之后瞬间完成）
  *     stages: [ ... ],   // 与 story.js 的 stage 同形：{ kind, utter, cmd, ref, verse:[{text,ref,hold}], apply(c), hold?, after? }
  *     scene: { init, resize, update(dt), drawUnder(ctx,pass), draw(ctx,pass), reset, restore, pick(x,y,r) }  // 本卷的布景
@@ -27,21 +30,60 @@
 
   W.defineLevel('curtain', 'exp', 1.6);      // 卷与卷之间的幕布（黑）
 
-  // ── 卷 ──────────────────────────────────────────────────────
+  // ── 旧约三十九卷 ────────────────────────────────────────────
+  // [书名, 简称, 章数, 类]
+  const BOOKS = [
+    ['创世记', '创', 50, 0], ['出埃及记', '出', 40, 0], ['利未记', '利', 27, 0], ['民数记', '民', 36, 0], ['申命记', '申', 34, 0],
+    ['约书亚记', '书', 24, 1], ['士师记', '士', 21, 1], ['路得记', '得', 4, 1], ['撒母耳记上', '撒上', 31, 1], ['撒母耳记下', '撒下', 24, 1],
+    ['列王纪上', '王上', 22, 1], ['列王纪下', '王下', 25, 1], ['历代志上', '代上', 29, 1], ['历代志下', '代下', 36, 1], ['以斯拉记', '拉', 10, 1],
+    ['尼希米记', '尼', 13, 1], ['以斯帖记', '斯', 10, 1],
+    ['约伯记', '伯', 42, 2], ['诗篇', '诗', 150, 2], ['箴言', '箴', 31, 2], ['传道书', '传', 12, 2], ['雅歌', '歌', 8, 2],
+    ['以赛亚书', '赛', 66, 3], ['耶利米书', '耶', 52, 3], ['耶利米哀歌', '哀', 5, 3], ['以西结书', '结', 48, 3], ['但以理书', '但', 12, 3],
+    ['何西阿书', '何', 14, 4], ['约珥书', '珥', 3, 4], ['阿摩司书', '摩', 9, 4], ['俄巴底亚书', '俄', 1, 4], ['约拿书', '拿', 4, 4],
+    ['弥迦书', '弥', 7, 4], ['那鸿书', '鸿', 3, 4], ['哈巴谷书', '哈', 3, 4], ['西番雅书', '番', 3, 4], ['哈该书', '该', 2, 4],
+    ['撒迦利亚书', '亚', 14, 4], ['玛拉基书', '玛', 4, 4],
+  ].map((b, i) => ({ n: i + 1, name: b[0], abbr: b[1], chapters: b[2], group: b[3] }));
+  const GROUPS = ['律法书', '历史书', '诗歌智慧书', '大先知书', '小先知书'];
+
+  // 中文数字（1 … 199）
+  const DIG = ['零', '一', '二', '三', '四', '五', '六', '七', '八', '九'];
+  function cn(n) {
+    n = n | 0;
+    if (n < 10) return DIG[n];
+    if (n < 20) return '十' + (n % 10 ? DIG[n % 10] : '');
+    if (n < 100) return DIG[(n / 10) | 0] + '十' + (n % 10 ? DIG[n % 10] : '');
+    const r = n % 100;
+    return DIG[(n / 100) | 0] + '百' + (r ? (r < 10 ? '零' + DIG[r] : r < 20 ? '一' + cn(r) : cn(r)) : '');
+  }
+  const CN_NUM = Array.from({ length: 60 }, (_, i) => cn(i + 1));
+  // 「第二卷」「第十三—十四卷」「第二十八—三十三卷」
+  function bookOrdinal(nums) {
+    if (!nums || !nums.length) return '';
+    const a = Math.min(...nums), b = Math.max(...nums);
+    return a === b ? '第' + cn(a) + '卷' : '第' + cn(a) + '—' + cn(b) + '卷';
+  }
+
+  // ── 幕 ──────────────────────────────────────────────────────
   const ACTS = [];
   ACTS.push({
     id: 'seven', index: 0, title: '七日', sub: '创世记 1:1 — 2:3', tint: [255, 250, 240],
+    book: '创世记', books: [1], numeral: '创世记',
     first: 0, last: STAGES.length - 1, setup: null, outro: 30,
   });
   STAGES.forEach(s => { s.act = 0; });
-
-  const CN_NUM = ['一', '二', '三', '四', '五', '六', '七', '八', '九', '十', '十一', '十二'];
 
   function act(def) {
     const a = Object.assign({ outro: 16, tint: [255, 240, 210], day: 7 }, def);
     a.index = ACTS.length;
     a.first = STAGES.length;
-    a.numeral = '卷' + CN_NUM[a.index];
+    const prev = ACTS[ACTS.length - 1];
+    if (!a.book) a.book = def.books && BOOKS[def.books[0] - 1] ? BOOKS[def.books[0] - 1].name : prev.book;
+    if (!a.books || !a.books.length) {
+      const bk = BOOKS.find(b => b.name === a.book);
+      a.books = bk ? [bk.n] : prev.books.slice();
+    }
+    a.numeral = a.book;
+    a.ordinal = bookOrdinal(a.books);
     (def.stages || []).forEach(st => {
       st.act = a.index;
       st.index = STAGES.length;
@@ -113,19 +155,38 @@
     if (booted) { safe('scene.init', () => s.init && s.init()); safe('scene.resize', () => s.resize && s.resize()); }
   }
   const each = (m, ...args) => { for (let i = 0; i < scenes.length; i++) { const s = scenes[i]; if (s[m]) safe('scene.' + (s.act && s.act.id) + '.' + m, () => s[m](...args)); } };
+  // 每帧的更新与绘制只交给此刻这一幕（离场之后再给几秒，让它收拾自己）——幕再多，也不拖慢一帧
+  const GRACE = 8;
+  function eachLive(m, dt, ...args) {
+    for (let i = 0; i < scenes.length; i++) {
+      const s = scenes[i];
+      const cur = s.act && s.act.index === W.act;
+      if (cur) s._grace = GRACE;
+      else if (!(s._grace > 0)) continue;
+      else if (m === 'update') s._grace -= dt || 0;
+      if (s[m]) safe('scene.' + (s.act && s.act.id) + '.' + m, () => s[m](...args));
+    }
+  }
+  function eachCur(m, ...args) {
+    for (let i = 0; i < scenes.length; i++) {
+      const s = scenes[i];
+      if (!(s.act && s.act.index === W.act) || !s[m]) continue;
+      safe('scene.' + s.act.id + '.' + m, () => s[m](...args));
+    }
+  }
 
   // 在大地之后、生灵之前画（河流、祭坛、城……）
   GS.scenes = {
     init() { booted = true; each('init'); },
     resize() { each('resize'); },
-    update(dt) { tick(); each('update', dt); },
-    draw(ctx, pass) { each('drawUnder', ctx, pass); },
+    update(dt) { tick(); eachLive('update', dt, dt); },
+    draw(ctx, pass) { eachCur('drawUnder', ctx, pass); },
     reset() { each('reset'); flush(); },
     restore() { each('restore'); },
     pick(x, y, r) {
       let best = null;
       for (const s of scenes) {
-        if (!s.pick) continue;
+        if (!s.pick || !(s.act && s.act.index === W.act)) continue;
         const p = safe('scene.pick', () => s.pick(x, y, r));
         if (p && isFinite(p.d) && (!best || p.d < best.d)) best = p;
       }
@@ -136,7 +197,7 @@
   GS.scenesOver = {
     init() {}, resize() {}, update() {}, reset() {}, restore() {},
     draw(ctx, pass) {
-      each('draw', ctx, pass);
+      eachCur('draw', ctx, pass);
       if (pass === 'top') drawCurtain(ctx);
     },
   };
@@ -151,12 +212,16 @@
   function resync() {
     for (const m of ['land', 'sea', 'beasts', 'air']) safe(m + '.restore', () => GS[m] && GS[m].restore && GS[m].restore());
   }
-  // 本卷是否正在进行（布景只在自己的卷里画）
+  // 本幕是否正在进行（布景只在自己的幕里画）
   const current = id => ACTS[W.act] && ACTS[W.act].id === id;
+  const find = id => ACTS.find(a => a.id === id) || null;
+  // 这一幕是否开启一卷新书（前一幕属于别的书）
+  const opensBook = a => !!(a && a.index > 0 && ACTS[a.index - 1] && ACTS[a.index - 1].book !== a.book);
+  const closesBook = a => !!(a && (a.index === ACTS.length - 1 || (ACTS[a.index + 1] && ACTS[a.index + 1].book !== a.book)));
 
   // 每一卷开始时，这些"卷内"的程度先回到默认，再由该卷的 setup 自行设定（前一卷的枯黄、花隐等不会误带过来）
-  const ACT_DEFAULTS = { bare: 0, bloom: 1 };
+  const ACT_DEFAULTS = { bare: 0, bloom: 1, rain: 0, storm: 0, gale: 0, hail: 0, gloom: 0 };
   function resetActLevels() { for (const k in ACT_DEFAULTS) if (W.hasLevel(k)) W.set(k, ACT_DEFAULTS[k], true); W.beastAvoid = []; }
 
-  GS.book = { ACTS, act, actOf, timeline, flush, busy, after, cancel, reset, resync, current, resetActLevels, ACT_DEFAULTS, CN_NUM, scenes };
+  GS.book = { ACTS, BOOKS, GROUPS, act, actOf, find, opensBook, closesBook, bookOrdinal, cn, timeline, flush, busy, after, cancel, reset, resync, current, resetActLevels, ACT_DEFAULTS, CN_NUM, scenes };
 })(window.GS);
