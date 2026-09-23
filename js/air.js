@@ -34,7 +34,7 @@
 
   // ── 色板 ────────────────────────────────────────────────────
   const SWIFT = hex('#10141A'), GULL = hex('#F0F4F8'), GULL_TIP = [44, 48, 56], GULL_BACK = [168, 178, 190];
-  const SONG = [44, 36, 30], SONG_BREAST = [168, 104, 64], EAGLE = [60, 44, 32], EAGLE_HEAD = [222, 214, 196];
+  const SONG = [44, 36, 30], SONG_BREAST = [168, 104, 64], EAGLE = [40, 30, 23], EAGLE_HEAD = [222, 214, 196];
   const RIM_DAY = [255, 244, 222], RIM_WARM = [255, 178, 110], RIM_NIGHT = [168, 190, 240];
 
   // ── 类别 ────────────────────────────────────────────────────
@@ -82,7 +82,7 @@
     };
     if (k === 0) { const r = FLOCK_Z[b.fl]; b.z = rnd(r[0], r[1]); b.zt = b.z; }
     else if (k === 1) { b.z = 0.4; b.om = rnd(0.28, 0.42) * (Math.random() < 0.5 ? -1 : 1); b.R = rnd(60, 120); }
-    else if (k === 3) { b.z = rnd(0.32, 0.45); b.om = rnd(0.16, 0.24) * (Math.random() < 0.5 ? -1 : 1); b.R = rnd(90, 150); }
+    else if (k === 3) { b.z = rnd(0.26, 0.36); b.om = rnd(0.16, 0.24) * (Math.random() < 0.5 ? -1 : 1); b.R = rnd(90, 150); }
     else b.z = 0.12;
     return b;
   }
@@ -95,10 +95,12 @@
     return y;
   }
   const isSea = (x, y) => (GS.sea && GS.sea.isSea ? GS.sea.isSea(x, y) : W.isSea(x, y));
+  const SKB = [0, 0];
   function skyBand(z) {
     // 近处的鸟可以飞得低一些；远处的贴着地平线
     const top = W.h * 0.08, bot = W.horizonY - W.h * lerp(0.1, 0.03, z);
-    return [top, Math.max(top + 20, bot)];
+    SKB[0] = top; SKB[1] = Math.max(top + 20, bot);
+    return SKB;
   }
   function seaCenter() {
     for (let k = 0; k < 40; k++) {
@@ -146,6 +148,7 @@
   //  更新
   // ════════════════════════════════════════════════════════════
   const SP = { slow: false, fast: false, listen: false, R: 200 };
+  const ST = new Float64Array(4);          // 转向的暂存（免得每帧每只鸟都新建数组）
   function spiritCtx() {
     const sp = W.spirit;
     SP.R = 210 * Math.max(0.6, uu());
@@ -173,13 +176,21 @@
       }
     }
   }
-  function assignRoosts() {
+  function assignRoosts(only) {
     const L = GS.land;
     const P = (L && L.perches ? L.perches() : []) || [];
     const perches = [];
     for (const p of P) if (p && p.layer >= 1 && isFinite(p.x) && isFinite(p.y)) perches.push(p);
     const used = new Uint8Array(perches.length);
+    // 已有栖枝的鸟保留它的枝
+    if (only) {
+      for (const o of B) {
+        if (o === only || !o.perch || o.k === 1) continue;
+        for (let j = 0; j < perches.length; j++) if (!used[j] && Math.abs(perches[j].x - o.perch.x) < 4 && Math.abs(perches[j].y - o.perch.y) < 4) { used[j] = 1; break; }
+      }
+    }
     for (const b of B) {
+      if (only && b !== only) continue;
       if (b.mode === 'born' || b.mode === 'orbitS') continue;
       b.wake = 0;
       if (b.k === 1) {
@@ -266,7 +277,7 @@
     if (b.y > band[1]) ay -= (b.y - band[1]) * 3;
     if (b.x < -20) ax += 120 * sc; if (b.x > W.w + 20) ax -= 120 * sc;
     b.z = U.approach(b.z, b.zt, 0.2, dt);
-    return [ax, ay, 230 * sc, 95 * sc];
+    ST[0] = ax; ST[1] = ay; ST[2] = 230 * sc; ST[3] = 95 * sc; return ST;
   }
 
   function steerGull(b, dt) {
@@ -282,7 +293,7 @@
     b.ang += b.om * dt * (1 + 0.2 * Math.sin(W.t * 0.3 + b.seed * 9));
     const R = b.R * sc;
     const tx = b.cx + Math.cos(b.ang) * R, ty = b.cy + Math.sin(b.ang) * R * 0.34 + Math.sin(W.t * 0.7 + b.seed * 20) * 6 * sc;
-    return [(tx - b.x) * 2.2 - b.vx * 1.2, (ty - b.y) * 2.2 - b.vy * 1.2, 160 * sc, 0];
+    ST[0] = (tx - b.x) * 2.2 - b.vx * 1.2; ST[1] = (ty - b.y) * 2.2 - b.vy * 1.2; ST[2] = 160 * sc; ST[3] = 0; return ST;
   }
   function steerEagle(b, dt) {
     b.ct -= dt;
@@ -293,7 +304,7 @@
     b.ang += b.om * dt;
     const R = b.R * sc;
     const tx = b.cx + Math.cos(b.ang) * R, ty = b.cy + Math.sin(b.ang) * R * 0.4;
-    return [(tx - b.x) * 1.6 - b.vx * 1.0, (ty - b.y) * 1.6 - b.vy * 1.0, 130 * sc, 0];
+    ST[0] = (tx - b.x) * 1.6 - b.vx * 1.0; ST[1] = (ty - b.y) * 1.6 - b.vy * 1.0; ST[2] = 130 * sc; ST[3] = 0; return ST;
   }
 
   // 雀鸟：树与草之间短距跳飞
@@ -366,7 +377,11 @@
       // 黎明醒来
       if (b.wake && W.t >= b.wake) {
         b.wake = 0;
-        if (b.mode === 'away') { b.mode = 'free'; b.z = 0.98; b.a = 0; b.x = rnd(0.05, 0.4) * W.w; b.y = W.horizonY - W.h * 0.02; }
+        if (b.mode === 'away') {
+          b.mode = 'free'; b.z = 0.98; b.a = 0; b.x = rnd(0.05, 0.4) * W.w; b.y = W.horizonY - W.h * 0.02; b.vx = rnd(-20, 20); b.vy = -rnd(10, 30);
+          if (b.k === 2) { b.st = 'hoverFly'; b.T = 0; b.dur = rnd(2, 4); b.layer = 2; b.ground = false; }
+          if (b.k === 1 || b.k === 3) { b.cx = b.x; b.cy = b.y; b.ct = 0; }
+        }
         else if (b.mode !== 'free') {
           b.mode = 'free';
           b.vy = -rnd(60, 120) * cu(); b.vx = rnd(-1, 1) * 80 * cu();
@@ -383,8 +398,8 @@
           const dx = b.x - sp.x, dy = b.y - sp.y, r = Math.hypot(dx, dy) + 1e-3;
           const rr = b.orbR * Math.max(0.6, uu());
           const om = 2.4 * b.orbDir;
-          const tvx = -dy / r * om * rr - dx / r * (r - rr) * 2.2 + sp.vx * 0.6, tvy = dx / r * om * rr - dy / r * (r - rr) * 2.2 + sp.vy * 0.6;
-          ax = (tvx - b.vx) * 5; ay = (tvy - b.vy) * 5; vmax = 520 * u;
+          const tvx = -dy / r * om * rr - dx / r * (r - rr) * 4 + sp.vx * 0.8, tvy = dx / r * om * rr - dy / r * (r - rr) * 4 + sp.vy * 0.8;
+          ax = (tvx - b.vx) * 7; ay = (tvy - b.vy) * 7; vmax = 620 * u;
           const a = Math.atan2(dy, dx);
           b.orbAcc += Math.abs(angDiff(b.orbA, a)); b.orbA = a;
           b.z = U.approach(b.z, 0.1, 1, dt);
@@ -454,8 +469,8 @@
           b.circ = U.approach(b.circ, want, want ? 1.2 : 0.8, dt);
           if (b.circ > 0.01) {
             const rr = (60 + 30 * b.seed) * Math.max(0.6, uu());
-            const om = 1.6 * (b.seed < 0.5 ? 1 : -1) * (b.k === 1 ? 0.6 : 1);
-            const tvx = -dy / d * om * rr - dx / d * (d - rr) * 1.8 + sp.vx * 0.5, tvy = dx / d * om * rr - dy / d * (d - rr) * 1.8 + sp.vy * 0.5;
+            const om = 1.35 * (b.seed < 0.5 ? 1 : -1) * (b.k === 1 ? 0.6 : 1);
+            const tvx = -dy / d * om * rr - dx / d * (d - rr) * 3.4 + sp.vx * 0.5, tvy = dx / d * om * rr - dy / d * (d - rr) * 3.4 + sp.vy * 0.5;
             ax = lerp(ax, (tvx - b.vx) * 4, b.circ); ay = lerp(ay, (tvy - b.vy) * 4, b.circ);
             vmax = Math.max(vmax, 300 * u * b.circ);
             if (b.k === 0) b.z = U.approach(b.z, Math.min(b.zt, 0.3), 0.6 * b.circ, dt);
@@ -506,7 +521,7 @@
     else if (b.k === 1) { const c = seaCenter(); b.cx = b.x; b.cy = b.y; b.tcx = c[0]; b.tcy = c[1]; b.ct = rnd(14, 24); b.ang = Math.atan2(b.y - c[1], b.x - c[0]); }
     else if (b.k === 3) { const c = landCenter(); b.cx = b.x; b.cy = b.y; b.tcx = c[0]; b.tcy = c[1]; b.ct = rnd(25, 40); }
     else { songPlan(b); }
-    if (roostOn) assignRoosts();
+    if (roostOn) assignRoosts(b);
   }
 
   // 海鸥盘旋于喷气的鲸
@@ -631,44 +646,20 @@
     const sweep = S * (0.1 + 0.16 * (1 - b.flap)) * b.face;
     const tilt = clamp(b.vy / (Math.abs(b.vx) + 60), -0.6, 0.6) * 0.35 * b.face;
     const x = b.x, y = b.y;
-    const tipY = -w * S * 0.36, elY = -w * S * 0.12 - S * 0.07;
-    const c = Math.cos(tilt), s = Math.sin(tilt);
-    const P = (px, py) => [x + px * c - py * s, y + px * s + py * c];
-    const lt = P(-S * 0.5 - sweep, tipY + S * 0.04), le = P(-S * 0.2 - sweep * 0.4, elY), md = P(0, 0), re = P(S * 0.2 - sweep * 0.4, elY), rt = P(S * 0.5 - sweep, tipY + S * 0.04);
-    ctx.moveTo(lt[0], lt[1]);
-    ctx.quadraticCurveTo(le[0], le[1], md[0], md[1]);
-    ctx.quadraticCurveTo(re[0], re[1], rt[0], rt[1]);
-  }
-  function drawSwifts(ctx, pass, C) {
-    for (let bk = 0; bk < 4; bk++) {
-      ctx.beginPath();
-      let any = false, lw = 0, n = 0;
-      for (let i = 0; i < B.length; i++) {
-        const b = B[i];
-        if (b.k !== 0 || b.mode === 'perched' || passOf(b) !== pass) continue;
-        const z = b.z, k = z < 0.2 ? 0 : z < 0.45 ? 1 : z < 0.7 ? 2 : 3;
-        if (k !== bk) continue;
-        const S = 12 * sizeK(z) * (0.9 + 0.2 * b.seed);
-        mWing(ctx, b, S);
-        lw += S; n++;
-        any = true;
-      }
-      if (any) {
-        const avgS = lw / n;
-        ctx.strokeStyle = C.swift[bk];
-        ctx.lineWidth = Math.max(0.9, avgS * 0.13);
-        ctx.globalAlpha = bk === 3 ? 0.75 : 1;
-        ctx.stroke();
-        ctx.globalAlpha = 1;
-      }
-    }
-    // 渐显中的鸟（alpha < 1）逐只画
-    for (let i = 0; i < B.length; i++) {
-      const b = B[i];
-      if (b.k !== 0 || b.a >= 1 || b.mode === 'perched' || passOf(b) !== pass) continue;
-    }
+    const tipY = -w * S * 0.36 + S * 0.04, elY = -w * S * 0.12 - S * 0.07;
+    const c = 1 - tilt * tilt * 0.5, s = tilt;          // 小角度近似
+    let px = -S * 0.5 - sweep, py = tipY;
+    ctx.moveTo(x + px * c - py * s, y + px * s + py * c);
+    px = -S * 0.2 - sweep * 0.4; py = elY;
+    const ax = x + px * c - py * s, ay = y + px * s + py * c;
+    ctx.quadraticCurveTo(ax, ay, x, y);
+    px = S * 0.2 - sweep * 0.4;
+    const bx = x + px * c - py * s, by = y + px * s + py * c;
+    px = S * 0.5 - sweep; py = tipY;
+    ctx.quadraticCurveTo(bx, by, x + px * c - py * s, y + px * s + py * c);
   }
   // 海鸥：白色的弯翅（二次曲线围成的翼面），翼尖深色
+  const GP = new Float64Array(18);
   function drawGull(ctx, b, C) {
     const S = 24 * sizeK(b.z) * (0.9 + 0.2 * b.seed);
     const w = b.flap > 0.02 ? Math.sin(b.ph) * b.flap * 0.9 + 0.3 * (1 - b.flap) : 0.3;
@@ -681,26 +672,27 @@
     for (let side = -1; side <= 1; side += 2) {
       const ex = side * S * 0.22, ey = -S * (0.08 + 0.2 * w);
       const tx = side * S * 0.52 - b.face * S * 0.06, ty = -S * (0.02 + 0.34 * w) + S * 0.06;
-      const pts = [
-        [side * S * 0.03, -S * 0.02], [ex * 0.5, ey - S * 0.06], [ex, ey], [(ex + tx) * 0.5, (ey + ty) * 0.5 - S * 0.03], [tx, ty],
-        [(ex + tx) * 0.5 + side * S * 0.01, (ey + ty) * 0.5 + S * 0.04], [ex, ey + S * 0.07], [ex * 0.5, S * 0.03], [side * S * 0.03, S * 0.03],
-      ];
-      const T = pts.map(p => [x + p[0] * c - p[1] * s, y + p[0] * s + p[1] * c]);
+      const G = GP;
+      G[0] = side * S * 0.03; G[1] = -S * 0.02; G[2] = ex * 0.5; G[3] = ey - S * 0.06; G[4] = ex; G[5] = ey;
+      G[6] = (ex + tx) * 0.5; G[7] = (ey + ty) * 0.5 - S * 0.03; G[8] = tx; G[9] = ty;
+      G[10] = (ex + tx) * 0.5 + side * S * 0.01; G[11] = (ey + ty) * 0.5 + S * 0.04; G[12] = ex; G[13] = ey + S * 0.07;
+      G[14] = ex * 0.5; G[15] = S * 0.03; G[16] = side * S * 0.03; G[17] = S * 0.03;
+      for (let k = 0; k < 18; k += 2) { const px = G[k], py = G[k + 1]; G[k] = x + px * c - py * s; G[k + 1] = y + px * s + py * c; }
       ctx.beginPath();
-      ctx.moveTo(T[0][0], T[0][1]);
-      ctx.quadraticCurveTo(T[1][0], T[1][1], T[2][0], T[2][1]);
-      ctx.quadraticCurveTo(T[3][0], T[3][1], T[4][0], T[4][1]);
-      ctx.quadraticCurveTo(T[5][0], T[5][1], T[6][0], T[6][1]);
-      ctx.quadraticCurveTo(T[7][0], T[7][1], T[8][0], T[8][1]);
+      ctx.moveTo(G[0], G[1]);
+      ctx.quadraticCurveTo(G[2], G[3], G[4], G[5]);
+      ctx.quadraticCurveTo(G[6], G[7], G[8], G[9]);
+      ctx.quadraticCurveTo(G[10], G[11], G[12], G[13]);
+      ctx.quadraticCurveTo(G[14], G[15], G[16], G[17]);
       ctx.closePath();
       ctx.fillStyle = css(w > 0.5 ? back : body, 1);
       ctx.fill();
       // 翼尖
       ctx.beginPath();
-      ctx.moveTo(T[4][0], T[4][1]);
+      ctx.moveTo(G[8], G[9]);
       const k = 0.3;
-      ctx.lineTo(lerp(T[4][0], T[3][0], k), lerp(T[4][1], T[3][1], k));
-      ctx.lineTo(lerp(T[4][0], T[5][0], k * 1.4), lerp(T[4][1], T[5][1], k * 1.4));
+      ctx.lineTo(lerp(G[8], G[6], k), lerp(G[9], G[7], k));
+      ctx.lineTo(lerp(G[8], G[10], k * 1.4), lerp(G[9], G[11], k * 1.4));
       ctx.closePath();
       ctx.fillStyle = css(tip, 1);
       ctx.fill();
@@ -738,49 +730,56 @@
     ctx.lineWidth = Math.max(0.6, S * 0.06); ctx.stroke();
     ctx.globalAlpha = 1;
   }
-  // 鹰：宽阔的翅，指状的翼尖，扇形的尾；盘旋时微微倾侧
+  // 鹰：自下方远望的剪影——平直宽阔的翅，指状上翘的翼尖，小小的头，扇形的尾；盘旋时微微倾侧
   function drawEagle(ctx, b, C) {
-    const S = 46 * sizeK(b.z);
+    const S = 50 * sizeK(b.z);
     const x = b.x, y = b.y;
-    const col = W.shade(EAGLE, b.z * 0.7), head = W.shade(EAGLE_HEAD, b.z * 0.7, 0.05);
-    const side = Math.abs(Math.sin(b.ang));        // 横飞时看见身长，迎面时看见全展
-    const span = 0.45 + 0.55 * Math.abs(Math.cos(b.ang));
-    const bank = Math.cos(b.ang) * 0.22 * Math.sign(b.om || 1);
+    const col = W.shade(EAGLE, b.z * 0.55), under = W.shade([96, 74, 54], b.z * 0.55);
+    const span = 0.78 + 0.22 * Math.abs(Math.cos(b.ang));
+    const bank = Math.cos(b.ang) * 0.24 * Math.sign(b.om || 1) + clamp(b.vy / 200, -0.2, 0.2);
     const flap = b.flap > 0.02 ? Math.sin(b.ph) * b.flap : 0;
-    const dih = S * (0.05 + 0.1 * flap);
-    const fx = b.vx >= 0 ? 1 : -1;
+    const dih = S * (0.035 + 0.09 * flap);
     const c = Math.cos(bank), s = Math.sin(bank);
-    const T = (px, py) => [x + px * c - py * s, y + px * s + py * c];
     ctx.globalAlpha = b.a;
+    ctx.beginPath();
+    const P = (px, py, first) => { const X = x + px * c - py * s, Y = y + px * s + py * c; if (first) ctx.moveTo(X, Y); else ctx.lineTo(X, Y); };
+    for (let sd = -1; sd <= 1; sd += 2) {
+      const sp = S * 0.5 * span;
+      P(sd * S * 0.02, -S * 0.03, true);
+      P(sd * sp * 0.35, -S * 0.045 - dih * 0.35);            // 前缘
+      P(sd * sp * 0.78, -S * 0.05 - dih * 0.8);
+      // 指状的初级飞羽（五指，上翘）
+      P(sd * sp * 0.9, -S * 0.07 - dih);
+      P(sd * sp * 0.97, -S * 0.062 - dih * 1.05);
+      P(sd * sp * 0.92, -S * 0.045 - dih);
+      P(sd * sp * 1.0, -S * 0.04 - dih * 1.02);
+      P(sd * sp * 0.93, -S * 0.022 - dih * 0.95);
+      P(sd * sp * 0.98, -S * 0.012 - dih * 0.95);
+      P(sd * sp * 0.88, S * 0.004 - dih * 0.9);
+      // 后缘：次级飞羽鼓出
+      P(sd * sp * 0.6, S * 0.05 - dih * 0.6);
+      P(sd * sp * 0.3, S * 0.065 - dih * 0.3);
+      P(sd * S * 0.05, S * 0.05);
+      ctx.closePath();
+    }
+    // 头
+    P(-S * 0.028, -S * 0.03, true); P(-S * 0.018, -S * 0.075); P(S * 0.018, -S * 0.075); P(S * 0.028, -S * 0.03); ctx.closePath();
+    // 扇形的尾
+    P(-S * 0.035, S * 0.04, true); P(-S * 0.06, S * 0.13); P(S * 0.06, S * 0.13); P(S * 0.035, S * 0.04); ctx.closePath();
+    ctx.fillStyle = css(col, 1);
+    ctx.fill();
+    // 翼下一道稍浅的覆羽带
     ctx.beginPath();
     for (let sd = -1; sd <= 1; sd += 2) {
       const sp = S * 0.5 * span;
-      const pts = [
-        [sd * S * 0.03, -S * 0.035], [sd * sp * 0.45, -S * 0.07 - dih * 0.5], [sd * sp * 0.86, -S * 0.07 - dih],
-        [sd * sp * 1.0, -S * 0.05 - dih], [sd * sp * 0.93, -S * 0.03 - dih * 0.9], [sd * sp * 1.0, -S * 0.02 - dih * 0.9],
-        [sd * sp * 0.92, -S * 0.0 - dih * 0.8], [sd * sp * 0.97, S * 0.01 - dih * 0.8], [sd * sp * 0.84, S * 0.035 - dih * 0.7],
-        [sd * sp * 0.45, S * 0.07 - dih * 0.35], [sd * S * 0.04, S * 0.06],
-      ];
-      for (let k = 0; k < pts.length; k++) { const p = T(pts[k][0], pts[k][1]); if (k === 0) ctx.moveTo(p[0], p[1]); else ctx.lineTo(p[0], p[1]); }
+      P(sd * S * 0.05, -S * 0.012, true);
+      P(sd * sp * 0.72, -S * 0.03 - dih * 0.72);
+      P(sd * sp * 0.7, -S * 0.012 - dih * 0.7);
+      P(sd * S * 0.05, S * 0.006);
       ctx.closePath();
     }
-    // 身与尾
-    const bl = S * (0.1 + 0.16 * side);
-    const hx = fx * bl, tx = -fx * bl;
-    let p = T(hx, -S * 0.01); ctx.moveTo(p[0], p[1]);
-    p = T(0, -S * 0.04); ctx.lineTo(p[0], p[1]);
-    p = T(tx * 0.7, -S * 0.025); ctx.lineTo(p[0], p[1]);
-    p = T(tx * 1.25, -S * 0.05); ctx.lineTo(p[0], p[1]);
-    p = T(tx * 1.25, S * 0.05); ctx.lineTo(p[0], p[1]);
-    p = T(tx * 0.7, S * 0.03); ctx.lineTo(p[0], p[1]);
-    p = T(0, S * 0.045); ctx.lineTo(p[0], p[1]);
-    ctx.closePath();
-    ctx.fillStyle = css(col, 1);
+    ctx.fillStyle = css(under, 0.55);
     ctx.fill();
-    // 浅色的头
-    const hp = T(hx * 1.02, -S * 0.005);
-    ctx.beginPath(); ctx.arc(hp[0], hp[1], S * 0.035, 0, TAU);
-    ctx.fillStyle = css(head, 1); ctx.fill();
     ctx.globalAlpha = 1;
   }
   // 小鸟（栖着 / 在地上 / 飞）
@@ -856,9 +855,11 @@
     ctx.stroke();
   }
 
+  let passFrame = -1;
   function draw(ctx, pass) {
     if (!ready || !B.length) return;
     if (pass !== 'sky' && pass !== 'air' && pass !== 'mid' && pass !== 'near' && pass !== 'far' && pass[0] !== 's') return;
+    if (passFrame !== W.frame) { passFrame = W.frame; for (let i = 0; i < B.length; i++) B[i].pass = passOf(B[i]); }
     const C = colors();
     ctx.lineCap = 'round'; ctx.lineJoin = 'round';
     if (pass === 'sky' || pass === 'air') {
@@ -868,7 +869,7 @@
         let any = false, lw = 0, n = 0;
         for (let i = 0; i < B.length; i++) {
           const b = B[i];
-          if (b.k !== 0 || b.a < 1 || b.mode === 'perched' || b.mode === 'float' || passOf(b) !== pass) continue;
+          if (b.k !== 0 || b.a < 1 || b.mode === 'perched' || b.mode === 'float' || b.pass !== pass) continue;
           const z = b.z, k = z < 0.2 ? 0 : z < 0.45 ? 1 : z < 0.7 ? 2 : 3;
           if (k !== bk) continue;
           const S = 12 * sizeK(z) * (0.9 + 0.2 * b.seed);
@@ -883,7 +884,7 @@
       }
       for (let i = 0; i < B.length; i++) {
         const b = B[i];
-        if (passOf(b) !== pass) continue;
+        if (b.pass !== pass) continue;
         if (b.k === 0 && b.a < 1 && b.mode !== 'perched') drawFading(ctx, b, pass);
         else if (b.k === 1 && b.mode !== 'float' && b.mode !== 'perched') drawGull(ctx, b, C);
         else if (b.k === 3 && b.mode !== 'perched') drawEagle(ctx, b, C);
@@ -896,7 +897,7 @@
     }
     for (let i = 0; i < B.length; i++) {
       const b = B[i];
-      if (passOf(b) !== pass) continue;
+      if (b.pass !== pass) continue;
       if (b.mode === 'float') drawFloatGull(ctx, b);
       else if (b.k === 1 && b.mode === 'toFloat') drawGull(ctx, b, C);
       else if (b.k === 3 && b.mode !== 'perched') drawEagle(ctx, b, C);

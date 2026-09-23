@@ -302,6 +302,7 @@
   // ── 生灵的声音 ──────────────────────────────────────────
   // 鸟：FM 鸣啭；载波在 A 五声（1760–3520Hz），调制比 1.5，调制深度在每个音内 200→0
   function birdPhrase(at, pan, g) {
+    if (!(g > 0)) return;
     const v = voice(0);
     if (!v) return;
     const t0 = T() + (at || 0) + 0.02;
@@ -342,6 +343,7 @@
   }
   // 鲸歌：正弦 90→60→75Hz 的滑音，0.3Hz ±8Hz 颤音，经 800Hz 低通，上方五度叠一声
   function whaleSong(at, pan, g, bus) {
+    if (!(g > 0)) return;
     const v = voice(1);
     if (!v) return;
     const t = T() + (at || 0) + 0.02;
@@ -363,6 +365,7 @@
   }
   // 牛：锯齿 110→98Hz 经 500 / 900Hz 共振峰，1.2s
   function cow(at, pan, g, far) {
+    if (!(g > 0)) return;
     const v = voice(1);
     if (!v) return;
     const t = T() + (at || 0) + 0.02, f = rnd(104, 116);
@@ -377,6 +380,7 @@
   }
   // 羊：锯齿 220Hz，6Hz 颤音，共振峰 800 / 1200Hz，0.6s
   function sheep(at, pan, g, far) {
+    if (!(g > 0)) return;
     const v = voice(1);
     if (!v) return;
     const t = T() + (at || 0) + 0.02, f = rnd(210, 236);
@@ -422,7 +426,7 @@
   // 水花
   function splash(x, y, size, at) {
     const near = W.seaDepth ? W.seaDepth(y) : 0.5, s = clamp(size || 1, 0.2, 8);
-    burst({ buf: 'white', f: rnd(900, 2400) * (0.7 + 0.5 * near), q: 0.7, g: (0.02 + 0.03 * Math.sqrt(s)) * (0.35 + 0.65 * near),
+    burst({ buf: 'white', f: rnd(900, 2400) * (0.7 + 0.5 * near), q: 0.7, g: (0.03 + 0.04 * Math.sqrt(s)) * (0.35 + 0.65 * near),
       a: 0.004, d: 0.12 + 0.06 * s, at, pan: panX(x), rev: 0.25, bus: 'amb', prio: 0 });
   }
 
@@ -855,35 +859,35 @@
       h.lfo(0.22, 0.35, am.gain);
       n.connect(lp); lp.connect(am); am.connect(g); g.connect(h.out);
       const s = tone(h, PW.soft, F.A0), s2 = tone(h, 'sine', F.A1);
-      return c => { to(lp.frequency, 200 + 700 * c, 0.08); to(g.gain, 0.55 * c * c, 0.08); to(s.gain, 0.3 * c, 0.15); to(s2.gain, 0.12 * c, 0.15); };
+      return c => { to(lp.frequency, 200 + 700 * c, 0.08); to(g.gain, 0.26 * c * c, 0.08); to(s.gain, 0.15 * c, 0.15); to(s2.gain, 0.06 * c, 0.15); };
     },
     // 第一日：雷声般的地鸣与 55Hz 的嗡鸣
     thunder(h) {
-      const r = rumble(h, 60, 220, 1.5), hum = tone(h, PW.soft, F.A1);
-      return c => { r(c); to(hum.gain, 0.3 * Math.pow(c, 1.5), 0.1); };
+      const r = rumble(h, 60, 220, 0.6), hum = tone(h, PW.soft, F.A1);
+      return c => { r(c); to(hum.gain, 0.12 * Math.pow(c, 1.5), 0.1); };
     },
     // 第二日：地鸣变轻，风升起（带通 200→1200Hz）
     wind(h) {
-      const r = rumble(h, 50, 140, 0.8);
+      const r = rumble(h, 50, 140, 0.3);
       const n = h.nz('pink'), bp = h.f('bandpass', 200, 1.5), gust = h.g(1), g = h.g(0), pn = h.p(0);
       h.lfo(0.31, 0.35, gust.gain);
       if (hasPan) h.lfo(0.09, 0.6, pn.pan);
       n.connect(bp); bp.connect(gust); gust.connect(g); g.connect(pn); pn.connect(h.out);
-      return c => { r(c); to(bp.frequency, 200 + 1000 * c, 0.1); to(g.gain, 1.6 * c, 0.1); };
+      return c => { r(c); to(bp.frequency, 200 + 1000 * c, 0.1); to(g.gain, 0.65 * c, 0.1); };
     },
     // 第三日：地壳的研磨（低通 40→120Hz + A0 + 带通的碾磨）
     grind(h, k) {
       k = k || 1;
-      const r = rumble(h, 40, 120, 1.7 * k), a0 = tone(h, PW.soft, F.A0);
+      const r = rumble(h, 40, 120, 0.7 * k), a0 = tone(h, PW.soft, F.A0);
       const n = h.nz('pink'), bp = h.f('bandpass', 170, 3), am = h.g(0.5), g = h.g(0);
       h.lfo(5.3, 0.45, am.gain, 'sawtooth'); h.lfo(1.7, 0.2, am.gain);
       n.connect(bp); bp.connect(am); am.connect(g); g.connect(h.out);
-      return c => { r(c); to(a0.gain, 0.3 * c * k, 0.1); to(g.gain, 2.2 * Math.pow(c, 1.5) * k, 0.1); to(bp.frequency, 140 + 90 * c, 0.2); };
+      return c => { r(c); to(a0.gain, 0.12 * c * k, 0.1); to(g.gain, 0.9 * Math.pow(c, 1.5) * k, 0.1); to(bp.frequency, 140 + 90 * c, 0.2); };
     },
     names3(h) { return HOLD.grind(h, 0.55); },
     // 草：研磨柔化为沙沙（粉红噪声 3kHz 带通）与低低的嗡声
     rustle(h, woody) {
-      const r = rumble(h, 50, 90, 0.5);
+      const r = rumble(h, 50, 90, 0.25);
       const n = h.nz('pink'), bp = h.f('bandpass', 2000, 0.8), fl = h.g(0.7), g = h.g(0), pn = h.p(0.3);
       h.lfo(7.7, 0.18, fl.gain); h.lfo(11.3, 0.12, fl.gain); h.lfo(0.4, 0.15, fl.gain);
       n.connect(bp); bp.connect(fl); fl.connect(g); g.connect(pn); pn.connect(h.out);
@@ -895,14 +899,14 @@
         o1.connect(wlp); o2.connect(wlp); wlp.connect(wg); wg.connect(h.out);
       }
       return c => {
-        r(c); to(bp.frequency, 2000 + 1500 * c, 0.15); to(g.gain, 1.1 * c, 0.1); to(hum.gain, 0.16 * c, 0.15);
-        if (wg) { to(wlp.frequency, 200 + 700 * c, 0.15); to(wg.gain, 0.1 * c, 0.15); }
+        r(c); to(bp.frequency, 2000 + 1500 * c, 0.15); to(g.gain, 0.55 * c, 0.1); to(hum.gain, 0.08 * c, 0.15);
+        if (wg) { to(wlp.frequency, 200 + 700 * c, 0.15); to(wg.gain, 0.05 * c, 0.15); }
       };
     },
     growth(h) { return HOLD.rustle(h, true); },
     // 第四日：无声的光——A 的六个分音随充盈度渐次亮起，各自缓缓漂移
     shimmer(h) {
-      const G = [0.05, 0.04, 0.034, 0.028, 0.022, 0.018];
+      const G = [0.07, 0.056, 0.048, 0.04, 0.031, 0.025];
       const gs = G.map((_, i) => {
         const o = h.o('sine', F.A3 * (i + 1)); o.detune.value = rnd(-4, 4);
         const am = h.g(0.8), g = h.g(0), pn = h.p((i % 2 ? 1 : -1) * 0.12 * (i + 1));
@@ -914,12 +918,12 @@
     },
     // 月：清冷的微光 C#5 E5 A5 与潮的起伏
     moon(h) {
-      const fs = [F.Cs5, F.E5, F.A5], G = [0.03, 0.026, 0.018];
+      const fs = [F.Cs5, F.E5, F.A5], G = [0.026, 0.022, 0.015];
       const gs = fs.map((f, i) => { const g = tone(h, 'sine', f, (i - 1) * 0.3); return g; });
       const n = h.nz('pink'), lp = h.f('lowpass', 400, 0.7), am = h.g(0.5), g = h.g(0);
       h.lfo(0.1, 0.45, am.gain);
       n.connect(lp); lp.connect(am); am.connect(g); g.connect(h.out);
-      return c => { gs.forEach((x, i) => to(x.gain, G[i] * smoothstep(i * 0.15, i * 0.15 + 0.5, c), 0.12)); to(g.gain, 0.8 * c, 0.12); };
+      return c => { gs.forEach((x, i) => to(x.gain, G[i] * smoothstep(i * 0.15, i * 0.15 + 0.5, c), 0.12)); to(g.gain, 0.3 * c, 0.12); };
     },
     // 众星：高处的低语，随灵移动的快慢起伏
     stars(h) {
@@ -928,7 +932,7 @@
       const p1 = tone(h, 'sine', F.A6, -0.3), p2 = tone(h, 'sine', F.E7, 0.3);
       return c => {
         const sp = clamp(((W.spirit && W.spirit.speed) || 0) / 500, 0, 1);
-        to(g.gain, 0.4 * c * (0.2 + 0.8 * sp), 0.1);
+        to(g.gain, 0.24 * c * (0.2 + 0.8 * sp), 0.1);
         if (pn.pan && W.spirit) to(pn.pan, panX(W.spirit.x), 0.1);
         to(p1.gain, 0.008 * c, 0.2); to(p2.gain, 0.005 * c, 0.2);
       };
@@ -939,10 +943,10 @@
       n.connect(lp); lp.connect(g); g.connect(h.out);
       h.bub = T();
       return c => {
-        to(g.gain, 1.2 * Math.pow(c, 1.5), 0.1);
+        to(g.gain, 0.5 * Math.pow(c, 1.5), 0.1);
         const t = T(), rate = 1 + 11 * c;
         if (h.bub < t) h.bub = t;
-        while (h.bub < t + 0.15) { bubble(h.bub - t, rnd(-0.8, 0.8), 0.05 + 0.05 * c, h.out); h.bub += rnd(0.5, 1.5) / rate; }
+        while (h.bub < t + 0.15) { bubble(h.bub - t, rnd(-0.8, 0.8), 0.03 + 0.03 * c, h.out); h.bub += rnd(0.5, 1.5) / rate; }
       };
     },
     // 第五日（鸟）：风与翅膀的扑动（12–18Hz 调幅）
@@ -952,7 +956,7 @@
       n.connect(bp); bp.connect(am); am.connect(g); g.connect(h.out);
       const w = h.nz('pink'), wb = h.f('bandpass', 600, 1.2), wg = h.g(0);
       w.connect(wb); wb.connect(wg); wg.connect(h.out);
-      return c => { to(g.gain, 0.9 * c, 0.1); if (l) to(l.frequency, 12 + 6 * c, 0.2); to(wg.gain, 0.5 * c, 0.1); };
+      return c => { to(g.gain, 0.6 * c, 0.1); if (l) to(l.frequency, 12 + 6 * c, 0.2); to(wg.gain, 0.35 * c, 0.1); };
     },
     // 赐福之垫：五个锯齿声部（A2 E3 A3 C#4 E4），±6 音分，经低通
     bless(h) {
@@ -963,12 +967,12 @@
         o.connect(og); og.connect(pn); pn.connect(lp);
       }));
       lp.connect(g); g.connect(h.out);
-      return c => { to(lp.frequency, 600 + 800 * c, 0.15); to(g.gain, 0.055 * c, 0.12); };
+      return c => { to(lp.frequency, 600 + 800 * c, 0.15); to(g.gain, 0.07 * c, 0.12); };
     },
     // 第六日（活物）：大地的起伏，底下渐渐有了心跳（50→72bpm）
     heave(h) {
-      const r = rumble(h, 40, 100, 1.5);
-      const hb = heartbeats(h, [{ f: 52, g: 0.5 }]);
+      const r = rumble(h, 40, 100, 0.7);
+      const hb = heartbeats(h, [{ f: 52, g: 0.3 }]);
       return c => { r(c); hb(c, x => 50 + 22 * x); };
     },
     // 造人：世界屏息；灵自己的声音——正弦 A3 带 0.2Hz 的呼吸；两颗心，约 60bpm，略错开
@@ -978,13 +982,13 @@
       h.lfo(0.2, 0.15, sw.gain);
       const g2 = h.g(0.25);
       o.connect(sw); o2.connect(g2); g2.connect(sw); sw.connect(v1); v1.connect(h.out);
-      const hb = heartbeats(h, [{ f: 50, g: 0.45 }, { f: 46, g: 0.3, off: 0.37, mul: 0.97 }]);
-      return c => { to(v1.gain, 0.12 * smoothstep(0, 0.35, c), 0.2); hb(c, () => 60); };
+      const hb = heartbeats(h, [{ f: 50, g: 0.27 }, { f: 46, g: 0.18, off: 0.37, mul: 0.97 }]);
+      return c => { to(v1.gain, 0.08 * smoothstep(0, 0.35, c), 0.2); hb(c, () => 60); };
     },
     // 甚好：每一日的音依次亮起，堆成一个和弦
     behold(h) {
       const fs = [F.A1, F.E2, F.A2, F.Cs3, F.E3, F.B3, F.Cs4, F.E4, F.Fs4, F.A4];
-      const G = [0.09, 0.07, 0.06, 0.05, 0.045, 0.03, 0.03, 0.026, 0.022, 0.022];
+      const G = [0.08, 0.063, 0.054, 0.045, 0.04, 0.027, 0.027, 0.023, 0.02, 0.02];
       const gs = fs.map((f, i) => tone(h, i < 5 ? 'sine' : 'triangle', f, ((i % 2) ? 1 : -1) * (0.08 + 0.06 * i)));
       h.lit = 0;
       return c => {
@@ -1008,16 +1012,16 @@
       const g1 = tone(h, 'sine', F.A4, -0.1), g2 = tone(h, 'sine', F.A5, 0.1);
       return c => {
         to(lp.frequency, 1200 - 700 * c, 0.2);
-        to(g.gain, 0.055 * smoothstep(0, 0.25, c), 0.15);
+        to(g.gain, 0.075 * smoothstep(0, 0.25, c), 0.15);
         vs.forEach((og, i) => { if (TH[i]) to(og.gain, 0.7 * (1 - smoothstep(TH[i][0], TH[i][1], c)), 0.2); });
-        to(g1.gain, 0.07 * c * c, 0.2); to(g2.gain, 0.025 * c * c, 0.2);
+        to(g1.gain, 0.09 * c * c, 0.2); to(g2.gain, 0.032 * c * c, 0.2);
       };
     },
     // 叠句「有晚上，有早晨」：每浮现一字，敲一声低沉的钟；底下是黄昏的空气
     refrain(h) {
       const n = h.nz('brown'), lp = h.f('lowpass', 260, 0.7), g = h.g(0);
       n.connect(lp); lp.connect(g); g.connect(h.out);
-      return c => to(g.gain, 0.35 * c, 0.15);
+      return c => to(g.gain, 0.2 * c, 0.15);
     },
     // 安息后的观看：温暖的金色低吟
     sabbath(h) {
@@ -1056,27 +1060,27 @@
   const FUL = {
     // 起初：一声低沉的落下（45→28Hz），然后渊的底鸣缓缓浮起
     0() {
-      note({ f: 45, path: [[28, 2.5]], g: 0.9, a: 0.02, d: 3, prio: 2 });
-      note({ f: 90, path: [[56, 2.5]], g: 0.28, a: 0.02, d: 2.4, prio: 2 });
-      burst({ buf: 'brown', ft: 'lowpass', f: 300, q: 0.7, g: 0.5, a: 0.05, s: 0.3, r: 2.2, rev: 0.3 });
+      note({ f: 45, path: [[28, 2.5]], g: 0.42, a: 0.02, d: 3, prio: 2 });
+      note({ f: 90, path: [[56, 2.5]], g: 0.14, a: 0.02, d: 2.4, prio: 2 });
+      burst({ buf: 'brown', ft: 'lowpass', f: 300, q: 0.7, g: 0.25, a: 0.05, s: 0.3, r: 2.2, rev: 0.3 });
     },
     // 要有光：A1/E2/A2/E3 和弦，高处的微光，一阵风扫过
     1() {
-      chord([F.A1, F.E2, F.A2, F.E3], { gs: [0.3, 0.22, 0.15, 0.1], a: 0.45, s: 0.2, r: 4.5, rev: 0.4 });
+      chord([F.A1, F.E2, F.A2, F.E3], { gs: [0.17, 0.13, 0.09, 0.06], a: 0.45, s: 0.2, r: 4.5, rev: 0.4 });
       [880, 1320, 1760, 2640].forEach((f, i) => note({ f, det: rnd(-3, 3), g: 0.022, a: 0.3, s: 0.2, r: 5, pan: (i - 1.5) * 0.4, rev: 0.7, prio: 2 }));
-      burst({ buf: 'pink', f: 1800, f2: 300, sweep: 1.4, q: 0.8, g: 0.5, a: 0.1, s: 0.3, r: 1.2, pan: -0.5, pan2: 0.5, rev: 0.3 });
+      burst({ buf: 'pink', f: 1800, f2: 300, sweep: 1.4, q: 0.8, g: 0.3, a: 0.1, s: 0.3, r: 1.2, pan: -0.5, pan2: 0.5, rev: 0.3 });
     },
     // 光暗分开：220Hz 一分为二，一个升到 440（右），一个降到 110（左）
     2() {
-      note({ f: F.A3, path: [[F.A4, 2.2]], g: 0.1, a: 0.25, s: 1.8, r: 2.5, pan: 0.05, pan2: 0.45, rev: 0.5, prio: 2 });
-      note({ f: F.A3, path: [[F.A2, 2.2]], g: 0.13, a: 0.25, s: 1.8, r: 2.5, pan: -0.05, pan2: -0.45, rev: 0.5, prio: 2 });
+      note({ f: F.A3, path: [[F.A4, 2.2]], g: 0.085, a: 0.25, s: 1.8, r: 2.5, pan: 0.05, pan2: 0.45, rev: 0.5, prio: 2 });
+      note({ f: F.A3, path: [[F.A2, 2.2]], g: 0.11, a: 0.25, s: 1.8, r: 2.5, pan: -0.05, pan2: -0.45, rev: 0.5, prio: 2 });
     },
     // 昼夜已立：一口温暖的低音
-    3() { chord([F.A1, F.E2], { gs: [0.18, 0.12], a: 1, s: 0.5, r: 3, rev: 0.4 }); },
+    3() { chord([F.A1, F.E2], { gs: [0.11, 0.075], a: 1, s: 0.5, r: 3, rev: 0.4 }); },
     // 穹苍：A1 E2 B2——B 作为空气之音进入和声；高处的气声涌起
     5() {
-      chord([F.A1, F.E2, F.B2], { gs: [0.26, 0.2, 0.14], a: 1, s: 4, r: 3, rev: 0.5 });
-      burst({ buf: 'white', ft: 'highpass', f: 2000, q: 0.5, g: 0.1, a: 2.5, s: 0, r: 2.5, rev: 0.5, pan: -0.3, pan2: 0.3 });
+      chord([F.A1, F.E2, F.B2], { gs: [0.12, 0.09, 0.065], a: 1, s: 4, r: 3, rev: 0.5 });
+      burst({ buf: 'white', ft: 'highpass', f: 2000, q: 0.5, g: 0.06, a: 2.5, s: 0, r: 2.5, rev: 0.5, pan: -0.3, pan2: 0.3 });
     },
     // 称穹苍为天：高远的空气
     6() {
@@ -1085,12 +1089,12 @@
     },
     // 旱地：研磨的褐噪声涌起，水珠溅落，A1 E2 A2 C#3——C# 进入，和声有了根基
     8() {
-      burst({ buf: 'brown', ft: 'lowpass', f: 300, q: 0.9, g: 1.4, a: 1, s: 1, r: 1.5, am: [4.1, 0.3] });
-      grains({ buf: 'white', n: 30, dur: 3, f0: 800, f1: 2500, len: 0.06, q: 1.4, g: 0.16, spread: 0.85, at: 0.4, rev: 0.25 });
-      chord([F.A1, F.E2, F.A2, F.Cs3], { gs: [0.28, 0.2, 0.15, 0.13], a: 1.2, s: 3, r: 5, at: 2.2, rev: 0.45 });
+      burst({ buf: 'brown', ft: 'lowpass', f: 300, q: 0.9, g: 0.6, a: 1, s: 1, r: 1.5, am: [4.1, 0.3] });
+      grains({ buf: 'white', n: 30, dur: 3, f0: 800, f1: 2500, len: 0.06, q: 1.4, g: 0.1, spread: 0.85, at: 0.4, rev: 0.25 });
+      chord([F.A1, F.E2, F.A2, F.Cs3], { gs: [0.14, 0.1, 0.075, 0.065], a: 1.2, s: 3, r: 5, at: 2.2, rev: 0.45 });
     },
     // 海 / 地的名字已由 nameChime 奏出；成就本身只是一口潮声
-    9() { burst({ buf: 'pink', ft: 'lowpass', f: 500, q: 0.6, g: 0.35, a: 0.8, s: 0.4, r: 2, rev: 0.3, pan: -0.4 }); },
+    9() { burst({ buf: 'pink', ft: 'lowpass', f: 500, q: 0.6, g: 0.18, a: 0.8, s: 0.4, r: 2, rev: 0.3, pan: -0.4 }); },
     // 青草：沙沙声随绿色的前锋左→右扫过；五声的拨弦一路攀升，止于 A add9
     10() {
       const sx = GS.W.origin && GS.W.origin.grass ? panX(GS.W.origin.grass.x) : 0.3;
@@ -1107,8 +1111,8 @@
     // 光体：分音一齐亮起，然后收拢到 A3+E4+A4；一阵温热的涌起
     13() {
       for (let k = 1; k <= 6; k++) note({ f: F.A3 * k, det: rnd(-4, 4), g: 0.05 / Math.sqrt(k), a: 0.4, s: 0.1, r: 0.7, pan: (k % 2 ? -1 : 1) * 0.1 * k, rev: 0.5, prio: 2 });
-      chord([F.A3, F.E4, F.A4], { gs: [0.08, 0.06, 0.045], a: 0.6, s: 5, r: 3, at: 0.5, spread: 0.3, rev: 0.55 });
-      burst({ buf: 'brown', ft: 'lowpass', f: 500, q: 0.6, g: 0.4, a: 1.6, s: 0.6, r: 2, rev: 0.3 });
+      chord([F.A3, F.E4, F.A4], { gs: [0.065, 0.05, 0.036], a: 0.6, s: 5, r: 3, at: 0.5, spread: 0.3, rev: 0.55 });
+      burst({ buf: 'brown', ft: 'lowpass', f: 500, q: 0.6, g: 0.25, a: 1.6, s: 0.6, r: 2, rev: 0.3 });
     },
     // 月：玻璃琴般的 E5 + B5，5Hz 的轻颤
     14() {
@@ -1128,8 +1132,8 @@
     // 鱼与大鱼：闪烁的细响，然后第一声鲸歌，与跃出水面的浪花
     17() {
       grains({ buf: 'white', n: 16, dur: 1.4, f0: 4000, f1: 8000, len: 0.015, q: 3, g: 0.08, spread: 0.6, pan: -0.3, rev: 0.4 });
-      whaleSong(1.2, -0.4, 0.34, 'evt');
-      burst({ buf: 'white', f: 1500, q: 0.6, g: 0.3, a: 0.01, d: 0.8, at: 4.2, pan: -0.45, rev: 0.4 });
+      whaleSong(1.2, -0.4, 0.15, 'evt');
+      burst({ buf: 'white', f: 1500, q: 0.6, g: 0.15, a: 0.01, d: 0.8, at: 4.2, pan: -0.45, rev: 0.4 });
     },
     // 雀鸟：翅膀的一阵扑动，然后最初的歌
     18() {
@@ -1138,11 +1142,11 @@
       gull(2.2, -0.6, 0.06);
     },
     // 赐福（第五日）：光环经过之处，每一个生灵轻轻一拨
-    19() { for (let i = 0; i < 14; i++) pluck(pent(F.A5, rint(0, 6)), 0.3 + i * rnd(0.15, 0.25), 0.03, rnd(-0.9, 0.9), 0.6); },
+    19() { for (let i = 0; i < 14; i++) pluck(pent(F.A5, rint(0, 6)), 0.3 + i * rnd(0.15, 0.25), 0.08, rnd(-0.9, 0.9), 0.6); },
     // 活物：尘土扬起，最初的声音——牛、羊、远处的狮子、马的响鼻
     21() {
-      burst({ buf: 'white', f: 600, f2: 200, sweep: 2, q: 0.9, g: 0.4, a: 0.3, s: 0.8, r: 1.2, pan: 0.3, rev: 0.3 });
-      cow(1.0, 0.35, 0.22); sheep(1.8, 0.6, 0.12); lion(2.6, 0.75, 0.3); snort(3.4, 0.2, 0.2);
+      burst({ buf: 'white', f: 600, f2: 200, sweep: 2, q: 0.9, g: 0.25, a: 0.3, s: 0.8, r: 1.2, pan: 0.3, rev: 0.3 });
+      cow(1.0, 0.35, 0.13); sheep(1.8, 0.6, 0.075); lion(2.6, 0.75, 0.18); snort(3.4, 0.2, 0.12);
     },
     // 造人：一口长长的呼气；灵的 A3 分成两个声音——A3 与 C#4，形像的双音
     22() {
@@ -1153,13 +1157,13 @@
     },
     // 赐福（第六日）：人的主题——第一条有起伏的旋律
     23() {
-      for (let i = 0; i < 10; i++) pluck(pent(F.A5, rint(0, 6)), 0.3 + i * rnd(0.15, 0.25), 0.025, rnd(-0.9, 0.9), 0.6);
+      for (let i = 0; i < 10; i++) pluck(pent(F.A5, rint(0, 6)), 0.3 + i * rnd(0.15, 0.25), 0.06, rnd(-0.9, 0.9), 0.6);
       humanTheme(1.3, 0.07);
     },
     // 甚好：金色的绽放（和弦本身由 good(true) 奏出）
     24() {
-      for (let k = 2; k <= 8; k += 2) note({ f: F.A3 * k, det: rnd(-4, 4), g: 0.03, a: 0.5, s: 0.3, r: 3, pan: (k % 4 ? -1 : 1) * 0.4, rev: 0.7 });
-      note({ f: F.A1, g: 0.35, a: 0.03, d: 2.5, prio: 2 });
+      for (let k = 2; k <= 8; k += 2) note({ f: F.A3 * k, det: rnd(-4, 4), g: 0.02, a: 0.5, s: 0.3, r: 3, pan: (k % 4 ? -1 : 1) * 0.4, rev: 0.7 });
+      note({ f: F.A1, g: 0.2, a: 0.03, d: 2.5, prio: 2 });
     },
     // 圣日：一周的动机一齐轻轻响起，然后归于纯净的 A 大三和弦；「好」横跨三个八度
     26() {
@@ -1178,10 +1182,10 @@
       bells([F.A6, F.Cs7, F.E7], 0.14, 0.03, 2.4, 5.7);
     },
     // 第七日的最后一息：一个很轻的「好」，此后造物主不再出声
-    27() { bells([F.A5, F.Cs6, F.E6], 0.2, 0.025, 3.5, 0.6); },
+    27() { bells([F.A5, F.Cs6, F.E6], 0.2, 0.01, 3.5, 0.6); },
   };
   const FUL_KIND = {
-    refrain() { tollBell(55, 0.34, 6, 0.1, 0, 'evt', 0.6); tollBell(110, 0.14, 4.5, 0.1, 0, 'evt', 0.6); },
+    refrain() { tollBell(55, 0.17, 6, 0.1, 0, 'evt', 0.6); tollBell(110, 0.07, 4.5, 0.1, 0, 'evt', 0.6); },
     cmd() { chord([F.A1, F.E2, F.A2], { gs: [0.2, 0.15, 0.1], a: 0.5, s: 0.5, r: 3.5 }); },
     bless() { for (let i = 0; i < 10; i++) pluck(pent(F.A5, rint(0, 6)), 0.3 + i * 0.2, 0.03, rnd(-0.9, 0.9), 0.6); },
   };
@@ -1189,16 +1193,16 @@
   // 名字的音（聚成的一刻）
   const NAME_TONE = {
     '昼': at => { note({ f: F.E5, g: 0.1, a: 0.02, d: 3, at, rev: 0.5 }); note({ f: F.E6, type: 'triangle', g: 0.03, a: 0.02, d: 3, at, rev: 0.5 }); },
-    '夜': at => note({ f: F.A3, g: 0.16, a: 0.3, d: 4, at, trem: [0.5, 0.4], rev: 0.55 }),
+    '夜': at => note({ f: F.A3, g: 0.12, a: 0.3, d: 4, at, trem: [0.5, 0.4], rev: 0.55 }),
     '天': at => { note({ f: F.B4, g: 0.08, a: 0.05, d: 3.5, at, pan: -0.2, rev: 0.6 }); note({ f: F.E5, g: 0.07, a: 0.05, d: 3.5, at, pan: 0.2, rev: 0.6 }); },
     '海': at => { burst({ buf: 'pink', f: 500, q: 0.8, g: 0.35, a: 0.6, s: 0.6, r: 2, at, pan: -0.5, rev: 0.4 }); note({ f: F.A2, g: 0.12, a: 0.3, s: 0.5, r: 2.5, at, pan: -0.3, rev: 0.4 }); },
-    '地': at => { note({ f: F.A1, g: 0.5, a: 0.08, d: 1.5, at, prio: 2 }); note({ f: F.E3, type: 'triangle', g: 0.08, a: 0.05, d: 2.5, at, pan: 0.3, rev: 0.4 }); },
+    '地': at => { note({ f: F.A1, g: 0.25, a: 0.08, d: 1.5, at, prio: 2 }); note({ f: F.E3, type: 'triangle', g: 0.08, a: 0.05, d: 2.5, at, pan: 0.3, rev: 0.4 }); },
     '圣': at => chord([F.A4, F.Cs5, F.E5, F.A5], { gs: [0.05, 0.04, 0.035, 0.025], a: 0.8, s: 1.5, r: 4, at, spread: 0.5, rev: 0.7 }),
   };
 
   // 安息之后的观看：每一物各有它的动机，外加一圈金色的光之音
   const BEHOLD = {
-    sea: () => { whaleSong(0.2, -0.4, 0.18, 'evt'); bubble(0.1, -0.5, 0.06, 'evt'); bubble(0.4, -0.3, 0.05, 'evt'); },
+    sea: () => { whaleSong(0.2, -0.4, 0.08, 'evt'); bubble(0.1, -0.5, 0.06, 'evt'); bubble(0.4, -0.3, 0.05, 'evt'); },
     bird: () => birdPhrase(0.15, rnd(-0.4, 0.4), 0.08),
     cattle: () => (Math.random() < 0.5 ? cow(0.2, 0.3, 0.14, true) : sheep(0.2, 0.3, 0.09, true)),
     beast: () => (Math.random() < 0.5 ? lion(0.2, 0.3, 0.18) : snort(0.2, 0.3, 0.15)),
@@ -1216,9 +1220,9 @@
 
   // ── 声床的电平（混音在此校准）────────────────────────────
   const LV = {
-    drone: 0.5, light: 0.07, air: 0.05, earth: 0.05, human: 0.05, sunset: 0.012,
-    water: 0.2, stir: 0.3, wind: 0.2, leaves: 0.12, cricket: 0.02,
-    pluck: 0.05, star: 0.03, bird: 0.05, whale: 0.2, bubble: 0.03, graze: 0.02, herd: 0.05, theme: 0.02,
+    drone: 0.04, light: 0.035, air: 0.037, earth: 0.02, human: 0.032, sunset: 0.012,
+    water: 0.13, stir: 0.04, wind: 0.5, leaves: 0.2, cricket: 0.05,
+    pluck: 0.03, star: 0.03, bird: 0.025, whale: 0.05, bubble: 0.03, graze: 0.02, herd: 0.05, theme: 0.02,
   };
 
   // ── 对外的接口：未 init / 静音 / 无 WebAudio 时都是安全的空操作 ──
@@ -1289,8 +1293,8 @@
           const ch = h.chars[i];
           if (ch && PUNCT.test(ch)) continue;
           const last = i === h.chars.length - 1;
-          tollBell(F.A2, last ? 0.2 : 0.16, last ? 5 : 4, k * 0.05, (i / Math.max(1, h.chars.length - 1) - 0.5) * 0.5, 'rit', 0.55);
-          if (last) tollBell(F.A1, 0.12, 5, 0.05, 0, 'rit', 0.55);
+          tollBell(F.A2, last ? 0.11 : 0.09, last ? 5 : 4, k * 0.05, (i / Math.max(1, h.chars.length - 1) - 0.5) * 0.5, 'rit', 0.55);
+          if (last) tollBell(F.A1, 0.07, 5, 0.05, 0, 'rit', 0.55);
           k++;
         }
         h.shown = shown;
@@ -1307,7 +1311,7 @@
       releaseHold(!!fulfilled);
       // 话未说完：一口下落的气息
       if (!fulfilled && h.c > 0.04) {
-        burst({ buf: 'pink', f: 1100, f2: 220, sweep: 0.9, q: 0.9, g: 0.12 + 0.3 * h.c, a: 0.03, d: 0.9, rev: 0.35, bus: 'rit', prio: 2 });
+        burst({ buf: 'pink', f: 1100, f2: 220, sweep: 0.9, q: 0.9, g: 0.08 + 0.2 * h.c, a: 0.03, d: 0.9, rev: 0.35, bus: 'rit', prio: 2 });
       }
     }),
     fulfill: api('fulfill', (day, index, kind) => {
@@ -1322,14 +1326,14 @@
     bell: api('bell', () => {
       const pair = [[F.E6, F.A6], [F.Cs6, F.Fs6], [F.A5, F.E6], [F.B5, F.Fs6]][rint(0, 3)];
       const p = rnd(-0.4, 0.4);
-      note({ f: pair[0], g: 0.016, a: 0.004, d: 3, pan: p, rev: 0.75, prio: 0 });
-      note({ f: pair[1], g: 0.009, a: 0.004, d: 2.4, at: 0.09, pan: -p, rev: 0.75, prio: 0 });
+      note({ f: pair[0], g: 0.01, a: 0.004, d: 3, pan: p, rev: 0.75, prio: 0 });
+      note({ f: pair[1], g: 0.0055, a: 0.004, d: 2.4, at: 0.09, pan: -p, rev: 0.75, prio: 0 });
     }),
     // 「神看着是好的」：A5 → C#6 → E6；「甚好」：整周的和弦，动机先低八度缓奏，再原调
     good: api('good', big => {
       if (!big) { bells([F.A5, F.Cs6, F.E6], 0.16, 0.08, 2.8); return; }
       chord([F.A1, F.E2, F.A2, F.Cs3, F.E3, F.B3, F.Cs4, F.E4, F.Fs4, F.A4], {
-        gs: [0.2, 0.15, 0.12, 0.1, 0.085, 0.055, 0.05, 0.045, 0.04, 0.036],
+        gs: [0.12, 0.09, 0.075, 0.062, 0.052, 0.036, 0.033, 0.03, 0.026, 0.024],
         types: ['sine', 'sine', 'sine', 'sine', 'sine', 'triangle', 'triangle', 'triangle', 'triangle', 'triangle'],
         a: 1.2, s: 6, r: 8, spread: 0.6, rev: 0.55, det: 3,
       });
@@ -1346,8 +1350,8 @@
       } else {
         // 安息之后，生灵被灵认出时的名字：更短、更轻
         const h = String(ch || '').charCodeAt(0) || 0;
-        grains({ buf: 'white', n: 8, dur: 0.8, f0: 3500, f1: 6500, len: 0.018, q: 2.5, g: 0.03, rev: 0.4, prio: 0 });
-        note({ f: pent(F.A5, h % 8), g: 0.022, a: 0.01, d: 1.6, at: 0.8, rev: 0.6, prio: 0 });
+        grains({ buf: 'white', n: 8, dur: 0.8, f0: 3500, f1: 6500, len: 0.018, q: 2.5, g: 0.04, rev: 0.4, prio: 0 });
+        note({ f: pent(F.A5, h % 8), g: 0.03, a: 0.01, d: 1.6, at: 0.8, rev: 0.6, prio: 0 });
       }
     }),
     // 晚上来临：一口温暖的暮色和弦，低通缓缓合上
@@ -1356,16 +1360,16 @@
       if (day >= 2) fs.push(F.B3);
       if (day >= 3) fs.push(F.Cs4);
       if (day >= 6) fs.push(F.Fs4);
-      chord(fs, { type: PW.soft, g: 0.05, a: 3, s: 2, r: 7, lp: 1400, lp2: 280, lpT: 10, spread: 0.4, rev: 0.55 });
+      chord(fs, { type: PW.soft, g: 0.04, a: 3, s: 2, r: 7, lp: 1400, lp2: 280, lpT: 10, spread: 0.4, rev: 0.55 });
     }),
     // 黎明：A3→A4 的日出滑音，和这一日的和弦
     dawn: api('dawn', day => {
-      note({ f: F.A3, path: [[F.A4, 3]], g: 0.06, a: 1, s: 2, r: 3, rev: 0.6, prio: 2 });
+      note({ f: F.A3, path: [[F.A4, 3]], g: 0.05, a: 1, s: 2, r: 3, rev: 0.6, prio: 2 });
       let fs = [F.A3, F.E4];
       if (day === 2) fs = [F.A3, F.B3, F.E4];
       else if (day >= 3) fs = [F.A3, F.Cs4, F.E4];
       if (day >= 6) fs = [F.A3, F.Cs4, F.E4, F.A4];
-      chord(fs, { type: 'triangle', g: 0.045, a: 2, s: 1.5, r: 4, at: 0.6, spread: 0.45, rev: 0.6 });
+      chord(fs, { type: 'triangle', g: 0.038, a: 2, s: 1.5, r: 4, at: 0.6, spread: 0.45, rev: 0.6 });
       if (day === 3) [F.A4, F.Cs5, F.E5].forEach((f, i) => pluck(f, 2.4 + i * 0.22, 0.06, 0.2 + i * 0.2, 0.7));
       if (day === 4) for (let k = 1; k <= 6; k++) note({ f: F.A3 * k, g: 0.03 / Math.sqrt(k), a: 1.5, s: 0.5, r: 2.5, at: 1, pan: (k % 2 ? -1 : 1) * 0.1 * k, rev: 0.6 });
       if (day === 5) { for (let i = 0; i < 5; i++) birdPhrase(1 + i * 0.6, rnd(-0.8, 0.8), 0.06); gull(2, -0.6, 0.05); }
@@ -1423,11 +1427,11 @@
         const t = T(), pan = panX(e.x || 0);
         if (e.type === 'song') { if (t >= (nx.song || 0)) { nx.song = t + 15; whaleSong(0, pan, LV.whale); } }
         else if (e.type === 'breach') {
-          burst({ buf: 'white', f: 1500, q: 0.6, g: 0.12, a: 0.01, d: 0.6, at: 0.2, pan, rev: 0.35, bus: 'amb', prio: 0 });
-          burst({ buf: 'white', f: 1500, q: 0.6, g: 0.22, a: 0.01, d: 0.9, at: 1.5, pan, rev: 0.4, bus: 'amb', prio: 0 });
-          note({ f: 62, path: [[40, 0.6]], g: 0.25, a: 0.01, d: 0.8, at: 1.5, pan, bus: 'amb', prio: 0 });
+          burst({ buf: 'white', f: 1500, q: 0.6, g: 0.03, a: 0.01, d: 0.6, at: 0.2, pan, rev: 0.35, bus: 'amb', prio: 0 });
+          burst({ buf: 'white', f: 1500, q: 0.6, g: 0.055, a: 0.01, d: 0.9, at: 1.5, pan, rev: 0.4, bus: 'amb', prio: 0 });
+          note({ f: 62, path: [[40, 0.6]], g: 0.07, a: 0.01, d: 0.8, at: 1.5, pan, bus: 'amb', prio: 0 });
         } else if (e.type === 'spout') {
-          burst({ buf: 'pink', f: 1100, q: 0.7, g: 0.06, a: 0.05, d: 0.7, pan, rev: 0.3, bus: 'amb', prio: 0 });
+          burst({ buf: 'pink', f: 1100, q: 0.7, g: 0.035, a: 0.05, d: 0.7, pan, rev: 0.3, bus: 'amb', prio: 0 });
         }
       } catch (er) { err('whale', er); }
     });
