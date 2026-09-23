@@ -138,6 +138,8 @@
     safe('flood.say', () => ui().narrate(lines, { replace: false, delay: delay || 0 }));
   }
   function time(tod, dur, b) { W.goTo(tod, dur, inst(b)); }
+  // 地上的走兽绕开的区间（画面宽的比例；人与坛、方舟所在之处）
+  function avoid(r) { W.beastAvoid = r || []; }
   // 大地的沉与升：比默认的速率更慢更庄重（逐帧推动 land 的目标）；瞬间重演时立即到位
   function driveLand(goal, rate, b) {
     if (inst(b)) { S.drive = null; W.set('land', goal, true); }
@@ -1814,9 +1816,15 @@
     const d = S.drive;
     if (d) {
       let v = W.lt.land;
+      const sinking = d.goal < v;
       v = v < d.goal ? Math.min(d.goal, v + d.rate * k) : Math.max(d.goal, v - d.rate * k);
       W.set('land', v);
       if (v === d.goal) S.drive = null;
+      // 大地沉下时，树木也随之没入水中（不在仅剩的一线山脊上直立着"浮"在水面）
+      if (sinking) {
+        const tv = sstep(0.42, 0.86, Math.min(v, W.lv.land));
+        if (tv < W.lt.trees) W.set('trees', tv, true);
+      }
     }
     // 方舟停在山上的一刻
     const A = arkNow();
@@ -1993,7 +2001,28 @@
   GS.book.act({
     id: ACT, title: '洪水', sub: '创世记 6:1 — 9:29', tint: TINT,
     intro: [{ text: '当人在世上多起来，又生女儿的时候，<br>神的儿子们看见人的女子美貌，就随意挑选，娶来为妻。', ref: '创世记 6:1–2', hold: 8 }],
-    outro: 20,
+    outro: 34,
+    // 书成之后，按住本卷的人与物，显出它的经文
+    behold: {
+      '挪亚': { text: '挪亚是个义人，在当时的世代是个完全人。<br>挪亚与神同行。', ref: '创世记 6:9' },
+      '挪亚的妻子': { text: '挪亚就同他的妻和儿子、儿妇，都进入方舟，躲避洪水。', ref: '创世记 7:7' },
+      '闪': { text: '出方舟挪亚的儿子就是闪、含、雅弗。<br>含是迦南的父亲。', ref: '创世记 9:18' },
+      '含': { text: '出方舟挪亚的儿子就是闪、含、雅弗。<br>含是迦南的父亲。', ref: '创世记 9:18' },
+      '雅弗': { text: '出方舟挪亚的儿子就是闪、含、雅弗。<br>含是迦南的父亲。', ref: '创世记 9:18' },
+      '闪的妻子': { text: '挪亚就同他的妻和儿子、儿妇，都进入方舟，躲避洪水。', ref: '创世记 7:7' },
+      '含的妻子': { text: '挪亚就同他的妻和儿子、儿妇，都进入方舟，躲避洪水。', ref: '创世记 7:7' },
+      '雅弗的妻子': { text: '挪亚就同他的妻和儿子、儿妇，都进入方舟，躲避洪水。', ref: '创世记 7:7' },
+      '挪亚的子孙': { text: '这是挪亚的三个儿子，他们的后裔分散在全地。', ref: '创世记 9:19' },
+      '世人': { text: '世界在神面前败坏，地上满了强暴。', ref: '创世记 6:11' },
+      '方舟': { text: '你要用歌斐木造一只方舟，分一间一间地造，<br>里外抹上松香。', ref: '创世记 6:14' },
+      '亚拉腊山': { text: '七月十七日，方舟停在亚拉腊山上。', ref: '创世记 8:4' },
+      '祭坛': { text: '挪亚为耶和华筑了一座坛，<br>拿各类洁净的牲畜、飞鸟献在坛上为燔祭。', ref: '创世记 8:20' },
+      '虹': { text: '我把虹放在云彩中，<br>这就可作我与地立约的记号了。', ref: '创世记 9:13' },
+      '乌鸦': { text: '放出一只乌鸦去；<br>那乌鸦飞来飞去，直到地上的水都干了。', ref: '创世记 8:7' },
+      '鸽子': { text: '到了晚上，鸽子回到他那里，嘴里叼着一个新拧下来的橄榄叶子，<br>挪亚就知道地上的水退了。', ref: '创世记 8:11' },
+      '葡萄园': { text: '挪亚作起农夫来，栽了一个葡萄园。', ref: '创世记 9:20' },
+      '挪亚的坟': { text: '挪亚共活了九百五十岁就死了。', ref: '创世记 9:29' },
+    },
     setup() {
       // 洪水之前的地：尚存绿意，花已稀疏
       GS.W.set('bare', 0.2, true); GS.W.set('bloom', 0.35, true);
@@ -2017,6 +2046,7 @@
       for (const f of FAM) famAdd(f);
       cast().crowd('fl:men', { n: 10, x0: 0.72, x1: 0.98, layer: 2, label: '世人', from: 'none' });
       cast().crowd('fl:mob', { n: 6, x0: 0.54, x1: 0.68, layer: 2, label: '世人', from: 'none' });
+      avoid([[0.35, 0.53]]);
     },
     stages: [
       // ── 6:3–12 败坏与强暴 ──────────────────────────────────
@@ -2033,6 +2063,7 @@
             [0, b => {
               lv('flHaze', 1, b);
               time(0.64, 12, b);
+              avoid([[0.35, 0.53], [0.72, 0.97]]);
               const o = { layer: 2, label: '世人', from: 'fade' };
               cast().add('fl:w1a', Object.assign({}, o, { x: 0.79, facing: 1, pose: 'wrestle', robe: [120, 76, 58] }));
               cast().add('fl:w1b', Object.assign({}, o, { x: 0.808, facing: -1, pose: 'wrestle', robe: [98, 84, 74] }));
@@ -2107,6 +2138,7 @@
             [0, b => {
               S.arkX = x;
               setArk({ a: 'ground', x, s: 1 }, 0, b);
+              avoid([[x - arkHalf() - 0.1, x + arkHalf() + 0.03]]);
               lv('arkBuild', 1, b);
               lv('flGrace', 0, b);
               lv('flGrief', 0.45, b);
@@ -2130,6 +2162,7 @@
               // 夜里：地上的走兽散去（它们将一对一对地来到方舟）
               allPops(0, W.w * 0.8, W.h * 0.8, true);
               W.setPop('bird', 24, W.w * 0.6, W.h * 0.3, true);
+              avoid([]);
               GS.book.resync();
             }],
             [11, b => {
@@ -2313,11 +2346,11 @@
             }],
             [8, b => {
               const A = arkNow();
-              setArk({ a: 'sea', x: 0.42, y: A.vis ? A.y / W.h : 0.84, s: 1 }, 16, b);
+              setArk({ a: 'sea', x: 0.53, y: A.vis ? A.y / W.h : 0.84, s: 1 }, 16, b);
             }],
             [16.5, b => { W.set('grass', 0, true); W.set('herbs', 0, true); W.set('trees', 0, true); }],
             [18, b => { W.passDay(12, inst(b)); }],
-            [26, b => { const A = arkNow(); setArk({ a: 'sea', x: 0.52, y: A.vis ? A.y / W.h : 0.84, s: 1 }, 12, b); }],
+            [26, b => { const A = arkNow(); setArk({ a: 'sea', x: 0.64, y: A.vis ? A.y / W.h : 0.84, s: 1 }, 12, b); }],
             [31, b => { W.passDay(12, inst(b)); }],
           ]);
         },
@@ -2360,10 +2393,10 @@
       {
         kind: 'act', utter: '地上的水退了', cmd: 'ping -c 3 鸽子  # 橄榄叶 · 200 OK', ref: '8:6–12',
         verse: [
-          { text: '过了四十天，挪亚开了方舟的窗户，放出一只乌鸦去；<br>那乌鸦飞来飞去，直到地上的水都干了。', ref: '创世记 8:6–7', hold: 7 },
+          { text: '过了四十天，挪亚开了方舟的窗户，放出一只乌鸦去；<br>那乌鸦飞来飞去，直到地上的水都干了。', ref: '创世记 8:6–7', hold: 6.5 },
           { text: '他又放出一只鸽子去，要看看水从地上退了没有。<br>但遍地上都是水，鸽子找不着落脚之地，<br>就回到方舟挪亚那里，挪亚伸手把鸽子接进方舟来。', ref: '创世记 8:8–9', hold: 9 },
           { text: '他又等了七天，再把鸽子从方舟放出去。<br>到了晚上，鸽子回到他那里，嘴里叼着一个新拧下来的橄榄叶子，<br>挪亚就知道地上的水退了。', ref: '创世记 8:10–11', hold: 9.5 },
-          { text: '他又等了七天，放出鸽子去，鸽子就不再回来了。', ref: '创世记 8:12', hold: 6 },
+          { text: '他又等了七天，放出鸽子去，鸽子就不再回来了。', ref: '创世记 8:12', hold: 5.5 },
         ],
         apply(c) {
           TL(c, [
@@ -2376,7 +2409,7 @@
               time(0.45, 8, b);
               addFlight('raven', ['win', [0.62, 0.3], [0.3, 0.2], [0.46, 0.12], [0.16, 0.3], [0.3, 0.1], [-0.12, 0.22]], 9.5, b);
             }],
-            [9, b => { addFlight('dove', ['win', [0.5, 0.26], [0.2, 0.36], [0.1, 0.5], [0.3, 0.55], [0.5, 0.36], 'win'], 8.5, b); }],
+            [9, b => { addFlight('dove', ['win', [0.52, 0.26], [0.24, 0.3], [0.1, 0.42], [0.3, 0.46], [0.52, 0.36], 'win'], 8.5, b); }],
             [18.5, b => {
               time(0.745, 8, b);
               lv('ararat', 0.78, b);
@@ -2419,6 +2452,7 @@
               lv('arkWin', 0, b);
               S.noahWin = false;
               S.altarX = clamp(exitEndX() / W.w - 0.07, 0.47, 0.56);
+              avoid([[S.altarX - 0.13, S.altarX + 0.13]]);
             }],
             [2.5, b => {
               const xe = exitEndX(), ye = W.ridgeBaseY(2, xe);
@@ -2522,7 +2556,7 @@
           TL(c, [
             [0, b => {
               lv('clouds', 1, b); lv('storm', 0.2, b); lv('rain', 0.1, b); lv('flGold', 0, b); lv('flFire', 0.3, b);
-              time(0.63, 8, b);
+              time(0.69, 8, b);
             }],
             [3.5, b => {
               lv('rainbow', 1, b);
@@ -2551,6 +2585,7 @@
             [0, b => {
               lv('rainbow', 0, b); lv('clouds', 0.5, b); lv('storm', 0, b); lv('rain', 0, b); lv('flFire', 0, b); lv('flGold', 0, b);
               lv('flVine', 1, b);
+              avoid([[0.34, 0.6], [0.83, 0.95]]);
               S.tentT0 = inst(b) ? -1e9 : S.clock;
               for (const f of FAM) cast().pose(f.id, 'stand');
               cast().walk('noah', 0.7, { pose: 'kneel', speed: 0.035 });

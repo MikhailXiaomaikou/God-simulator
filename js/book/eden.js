@@ -1315,6 +1315,23 @@
       { text: '但有雾气从地上腾，滋润遍地。', ref: '创世记 2:6', hold: 5.5 },
       { text: '耶和华神用地上的尘土造人，将生气吹在他鼻孔里，<br>他就成了有灵的活人，名叫亚当。', ref: '创世记 2:7', hold: 8 },
     ],
+    // 全书终后，灵停在某人某物上按住：显出关于它的经文
+    behold: {
+      '亚当': { text: '耶和华神用地上的尘土造人，将生气吹在他鼻孔里，<br>他就成了有灵的活人，名叫亚当。', ref: '创世记 2:7' },
+      '女人': { text: '耶和华神就用那人身上所取的肋骨造成一个女人，<br>领她到那人跟前。', ref: '创世记 2:22' },
+      '夏娃': { text: '亚当给他妻子起名叫夏娃，因为她是众生之母。', ref: '创世记 3:20' },
+      '生命树': { text: '耶和华神说：「那人已经与我们相似，能知道善恶；<br>现在恐怕他伸手又摘生命树的果子吃，就永远活着。」', ref: '创世记 3:22' },
+      '分别善恶的树': { text: '耶和华神吩咐他说：「园中各样树上的果子，你可以随意吃，<br>只是分别善恶树上的果子，你不可吃，因为你吃的日子必定死！」', ref: '创世记 2:16–17' },
+      '蛇': { text: '耶和华神所造的，惟有蛇比田野一切的活物更狡猾。', ref: '创世记 3:1' },
+      '比逊河': { text: '第一道名叫比逊，就是环绕哈腓拉全地的。在那里有金子，<br>并且那地的金子是好的；在那里又有珍珠和红玛瑙。', ref: '创世记 2:11–12' },
+      '基训河': { text: '第二道河名叫基训，就是环绕古实全地的。', ref: '创世记 2:13' },
+      '希底结河': { text: '第三道河名叫希底结，流在亚述的东边。第四道河就是伯拉河。', ref: '创世记 2:14' },
+      '伯拉河': { text: '第三道河名叫希底结，流在亚述的东边。第四道河就是伯拉河。', ref: '创世记 2:14' },
+      '基路伯': { text: '于是把他赶出去了；又在伊甸园的东边安设基路伯<br>和四面转动发火焰的剑，要把守生命树的道路。', ref: '创世记 3:24' },
+      '发火焰的剑': { text: '于是把他赶出去了；又在伊甸园的东边安设基路伯<br>和四面转动发火焰的剑，要把守生命树的道路。', ref: '创世记 3:24' },
+      '荆棘': { text: '地必给你长出荆棘和蒺藜来；你也要吃田间的菜蔬。', ref: '创世记 3:18' },
+      '蒺藜': { text: '地必给你长出荆棘和蒺藜来；你也要吃田间的菜蔬。', ref: '创世记 3:18' },
+    },
 
     setup() {
       // 七日之后的世界（与上一卷怎样结束无关）
@@ -1340,6 +1357,7 @@
       cast().clear({ fade: false });
       // 亚当：在他被造的地方（园子以西），坐着，带着神吹进的气
       cast().add('adam', { label: '亚当', sex: 'm', age: 'adult', layer: 2, x: 0.9, facing: -1, pose: 'sit', robe: SKIN.m, glow: 0.55, from: 'none' });
+      avoid([0.86, 0.94]);
     },
 
     stages: [
@@ -1362,9 +1380,9 @@
               }
             }],
             [3, () => cast().pose('adam', 'stand')],
-            [4.2, () => walk('adam', layout().tl - 0.04, 0.028)],
+            [4.2, () => { const L = layout(); walk('adam', L.mA, 0.03); avoid([L.mA - 0.035, L.mA + 0.035]); }],   // 安置在园子当中
             [9, b => { if (!inst(b)) { const T0 = treeGeo(); fx().ring(T0.tlx, T0.tly - P.HL * 0.6, [255, 244, 214], P.HL * 1.4, 3.2, 1.5); } }],
-            [15, () => cast().face('adam', 1)],
+            [13, () => cast().face('adam', 1)],
           ]);
         },
       },
@@ -1401,11 +1419,15 @@
         ],
         apply(c) {
           T(c, [
-            [0.3, b => { S.fruitT0 = inst(b) ? -99 : W.t; if (!inst(b)) sfx('harp', b); }],
-            [1.2, () => { layout(); walk('adam', clamp(G ? G.fruitX + 0.006 : P.tl - 0.07, P.span[0] + 0.06, 0.95), 0.03); }],
-            [5, () => cast().pose('adam', 'raise')],
-            [8, () => cast().pose('adam', 'stand')],
-            [9.5, () => walk('adam', layout().tl - 0.03, 0.025, 'kneel')],
+            [0.3, b => {
+              S.fruitT0 = inst(b) ? -99 : W.t; if (!inst(b)) sfx('harp', b);
+              const L = layout(), fxr = clamp(G ? G.fruitX + 0.006 : L.tl - 0.09, L.span[0] + 0.06, 0.95);
+              avoid([fxr - 0.035, L.mA + 0.035]);
+            }],
+            [1.2, () => { const L = layout(); walk('adam', clamp(G ? G.fruitX + 0.006 : L.tl - 0.09, L.span[0] + 0.06, 0.95), 0.036); }],
+            [6.6, () => cast().pose('adam', 'raise')],
+            [9.4, () => cast().pose('adam', 'stand')],
+            [10.2, () => walk('adam', layout().mA, 0.032, 'kneel')],
           ]);
         },
       },
@@ -1420,11 +1442,12 @@
           T(c, [
             [0.2, b => {
               lv('edenForbid', 1, b);
+              const L = layout(); avoid([L.mA - 0.035, L.mE + 0.035]);
               if (!inst(b)) { const T0 = treeGeo(); fx().ring(T0.tkx, T0.tky - P.HK * 0.5, [255, 236, 206], P.HK * 1.1, 3.4, 1.2); }
             }],
             [1, () => { cast().pose('adam', 'stand', { stop: true }); cast().face('adam', layout().tk); }],
-            [2.4, () => walk('adam', layout().tk - 0.05, 0.02, 'bow')],
-            [9, () => walk('adam', layout().tl - 0.02, 0.022)],
+            [2.4, () => walk('adam', layout().mE, 0.02, 'bow')],
+            [9, () => walk('adam', layout().mA, 0.022)],
           ]);
         },
       },
@@ -1438,14 +1461,15 @@
           { text: '那人便给一切牲畜和空中飞鸟、野地走兽都起了名；<br>只是那人没有遇见配偶帮助他。', ref: '创世记 2:20', hold: 7.5 },
         ],
         apply(c) {
+          // 起名之前他须已走到（起名时"停步指着"，不能停在半路——否则与瞬间重演不同）
           const beats = [
-            [0.4, b => { S.named = {}; walk('adam', layout().gx - 0.08, 0.026); if (!inst(b)) sfx('harp', b); }],
+            [0.4, b => { S.named = {}; const L = layout(); walk('adam', L.mW, 0.045); avoid([L.mW - 0.02, L.mW + 0.02]); if (!inst(b)) sfx('harp', b); }],
           ];
           for (let i = 0; i < 8; i++) {
-            beats.push([4 + i * 1.9, b => nameCreature(b)]);
-            beats.push([5.1 + i * 1.9, () => cast().pose('adam', 'stand', { stop: true })]);
+            beats.push([6.2 + i * 1.8, b => nameCreature(b)]);
+            beats.push([7.2 + i * 1.8, () => cast().pose('adam', 'stand', { stop: true })]);
           }
-          beats.push([21, () => { cast().pose('adam', 'sit', { stop: true }); cast().face('adam', 1); }]);
+          beats.push([21.6, () => { cast().pose('adam', 'sit', { stop: true }); cast().face('adam', 1); }]);
           T(c, beats);
         },
       },
@@ -1460,25 +1484,31 @@
           { text: '因此，人要离开父母，与妻子连合，二人成为一体。<br>当时夫妻二人赤身露体，并不羞耻。', ref: '创世记 2:24–25', hold: 8 },
         ],
         apply(c) {
-          const A = () => layout().gx - 0.08;
+          const A = () => layout().mW;
           T(c, [
-            [0, b => { cast().place('adam', A()); cast().pose('adam', 'lie', { stop: true }); cast().face('adam', 1); lv('edenSleep', 1, b); if (!inst(b)) sfx('harp', b); }],
+            [0, b => {
+              const L = layout();
+              cast().place('adam', A()); cast().pose('adam', 'lie', { stop: true }); cast().face('adam', 1); lv('edenSleep', 1, b);
+              avoid([L.mW - 0.035, L.mA + 0.035]);
+              if (!inst(b)) sfx('harp', b);
+            }],
             [3.6, b => {
               if (inst(b)) return;
-              const p = personXY('adam'), ex = (layout().tl + 0.055) * W.w, ey = gY(ex);
+              const p = personXY('adam'), ex = layout().mA * W.w, ey = gY(ex);
               if (!p) return;
               const tg = [];
               for (let i = 0; i < 26; i++) tg.push([ex + rnd(-4, 4) * P.s, ey - rnd(0, 1) * personH(), rnd(1, 2)]);
               fx().sow(p[0] + 4 * P.s, p[1] - 3 * P.s, tg, [255, 238, 214], { stagger: 0.9, dur: 1.8, pass: 'air' });
             }],
             [5.6, b => {
-              cast().add('eve', { label: '女人', sex: 'f', age: 'adult', layer: 2, x: layout().tl + 0.055, facing: -1, pose: 'stand', robe: SKIN.f, glow: 0.6, from: 'light' });
+              // 她在园子当中（两棵树之间）成形，再被领到他跟前
+              cast().add('eve', { label: '女人', sex: 'f', age: 'adult', layer: 2, x: layout().mA, facing: -1, pose: 'stand', robe: SKIN.f, glow: 0.6, from: 'light' });
               if (!inst(b)) S.formT0 = W.t;
             }],
             [8.6, b => { lv('edenSleep', 0, b); cast().pose('adam', 'sit'); }],
             [10, () => { cast().pose('adam', 'stand'); cast().face('adam', 1); }],
-            [10.6, () => walk('eve', A() + 0.03, 0.018)],
-            [14.6, b => {
+            [10.6, () => walk('eve', layout().mW2, 0.02)],
+            [17.6, b => {
               cast().face('eve', -1); cast().face('adam', 1);
               if (!inst(b)) { const p = personXY('adam'); if (p) fx().ring(p[0] + 0.015 * W.w, p[1] - personH() * 0.5, [255, 226, 190], M() * 0.3, 2.6, 1.5); }
             }],
@@ -1486,37 +1516,49 @@
         },
       },
 
-      // ── 3:1–7 蛇；果子；眼睛明亮了 ───────────────────────────
+      // ── 3:1–5 蛇：「你们不一定死」 ──────────────────────────
       {
-        kind: 'cmd', utter: '你吃的日子必定死', cmd: 'assert 吃 → 死  # 蛇：不一定', ref: '3:1–7',
+        kind: 'cmd', utter: '你吃的日子必定死', cmd: 'assert 吃 → 死  # 3:4 蛇：不一定', ref: '2:17',
         verse: [
           { text: '耶和华神所造的，惟有蛇比田野一切的活物更狡猾。<br>蛇对女人说：「神岂是真说不许你们吃园中所有树上的果子吗？」', ref: '创世记 3:1', hold: 8.5 },
           { text: '女人对蛇说：「园中树上的果子，我们可以吃，<br>惟有园当中那棵树上的果子，神曾说：『你们不可吃，也不可摸，免得你们死。』」', ref: '创世记 3:2–3', hold: 8.5 },
           { text: '蛇对女人说：「你们不一定死；<br>因为神知道，你们吃的日子眼睛就明亮了，你们便如神能知道善恶。」', ref: '创世记 3:4–5', hold: 8 },
+        ],
+        apply(c) {
+          T(c, [
+            [0.5, b => { lv('edenSnake', 1, b); lv('edenSnakeSh', 0.45, b); const L = layout(); avoid([L.mA - 0.04, L.mE + 0.04]); }],
+            [1.5, () => walk('eve', layout().mE, 0.022)],
+            [2.6, () => walk('adam', layout().mA, 0.02)],
+            [11, () => cast().face('eve', layout().tk)],
+            [17.4, b => lv('edenSnakeSh', 1, b)],
+          ]);
+        },
+      },
+
+      // ── 3:6–7 果子；眼睛明亮了 ─────────────────────────────
+      {
+        kind: 'act', utter: '他们二人的眼睛就明亮了', cmd: 'diff 善 恶  # 无花果叶 → 裙子', ref: '3:6–7',
+        verse: [
           { text: '于是女人见那棵树的果子好作食物，也悦人的眼目，且是可喜爱的，能使人有智慧，<br>就摘下果子来吃了，又给她丈夫，她丈夫也吃了。', ref: '创世记 3:6', hold: 9 },
           { text: '他们二人的眼睛就明亮了，才知道自己是赤身露体，<br>便拿无花果树的叶子为自己编做裙子。', ref: '创世记 3:7', hold: 7.5 },
         ],
         apply(c) {
           T(c, [
-            [0.5, b => { lv('edenSnake', 1, b); lv('edenSnakeSh', 0.45, b); }],
-            [1.5, () => walk('eve', layout().tk - 0.032, 0.02)],
-            [2.6, () => walk('adam', layout().tk - 0.075, 0.018)],
-            [11, () => cast().face('eve', layout().tk)],
-            [20, b => lv('edenSnakeSh', 1, b)],
-            [29, () => cast().pose('eve', 'raise')],
-            [30.6, b => {
+            [0.3, () => { const L = layout(); walk('eve', L.mE, 0.03); walk('adam', L.mA, 0.03); avoid([L.mA - 0.04, L.mE + 0.04]); }],
+            [1.2, () => { cast().face('eve', layout().tk); cast().pose('eve', 'raise'); }],
+            [2.8, b => {
               S.taken = true;
               if (!inst(b)) { const f = knowFruitXY(); fruitMote(f[0], f[1], 'eve'); sfx('seal', b, { soft: true }); }
             }],
-            [31.6, b => {
+            [3.8, b => {
               lv('edenGlow', 0.3, b); W.set('good', 0, inst(b)); W.set('sabbath', 0.2, inst(b));
               cast().pose('eve', 'carry'); cast().face('eve', -1);
             }],
-            [33.2, b => {
+            [5.4, b => {
               cast().face('adam', 1); cast().pose('adam', 'carry');
-              if (!inst(b)) { const p = personXY('eve'); if (p) fruitMote(p[0], p[1] - personH() * 0.55, 'adam'); }
+              if (!inst(b)) { const p = personXY('eve'); if (p) fruitMote(p[0], p[1] - personH('eve') * 0.55, 'adam'); }
             }],
-            [39.6, b => {
+            [9.6, b => {
               cast().pose('adam', 'bow'); cast().pose('eve', 'bow');
               robe('adam', SHAME.m); robe('eve', SHAME.f); cast().glow('adam', 0.2); cast().glow('eve', 0.2);
               lv('edenSnakeSh', 0.25, b);
@@ -1533,7 +1575,10 @@
         ],
         apply(c) {
           T(c, [
-            [0, b => { W.goTo(0.715, 10, inst(b)); if (!inst(b)) { S.voiceT0 = W.t; sfx('wind', b); } }],
+            [0, b => {
+              W.goTo(0.715, 10, inst(b)); if (!inst(b)) { S.voiceT0 = W.t; sfx('wind', b); }
+              const L = layout(); avoid([L.tl - 0.04, L.hide + 0.08]);
+            }],
             [3, () => { const L = layout(); walk('adam', L.hide - 0.008, 0.04, 'kneel'); walk('eve', L.hide + 0.012, 0.04, 'kneel'); }],
           ]);
         },
@@ -1544,47 +1589,69 @@
         kind: 'ask', utter: '你在哪里？', cmd: 'find 园中 -name 亚当', ref: '3:9–13', hold: 2.8,
         verse: [
           { text: '耶和华神呼唤那人，对他说：「你在哪里？」', ref: '创世记 3:9', hold: 5.5 },
-          { text: '他说：「我在园中听见你的声音，我就害怕；<br>因为我赤身露体，我便藏了。」', ref: '创世记 3:10', hold: 7 },
+          { text: '他说：「我在园中听见你的声音，我就害怕；<br>因为我赤身露体，我便藏了。」', ref: '创世记 3:10', hold: 6.5 },
           { text: '耶和华说：「谁告诉你赤身露体呢？<br>莫非你吃了我吩咐你不可吃的那树上的果子吗？」', ref: '创世记 3:11', hold: 7.5 },
-          { text: '那人说：「你所赐给我、与我同居的女人，<br>她把那树上的果子给我，我就吃了。」', ref: '创世记 3:12', hold: 7 },
-          { text: '耶和华神对女人说：「你作的是什么事呢？」<br>女人说：「那蛇引诱我，我就吃了。」', ref: '创世记 3:13', hold: 7.5 },
+          { text: '那人说：「你所赐给我、与我同居的女人，<br>她把那树上的果子给我，我就吃了。」', ref: '创世记 3:12', hold: 6.5 },
+          { text: '耶和华神对女人说：「你作的是什么事呢？」<br>女人说：「那蛇引诱我，我就吃了。」', ref: '创世记 3:13', hold: 7 },
         ],
         apply(c) {
           T(c, [
-            [0, b => { if (!inst(b)) { fx().ring(W.spirit.x, W.spirit.y, [255, 246, 226], M() * 0.9, 3.4, 1.4); sfx('wind', b, { soft: true }); } }],
+            [0, b => {
+              const L = layout(); avoid([L.tl - 0.04, L.hide + 0.08]);
+              if (!inst(b)) { fx().ring(W.spirit.x, W.spirit.y, [255, 246, 226], M() * 0.9, 3.4, 1.4); sfx('wind', b, { soft: true }); }
+            }],
             [3, () => walk('adam', layout().hide - 0.062, 0.018, 'bow')],
             [4.2, () => walk('eve', layout().hide - 0.036, 0.016, 'bow')],
-            [23.8, () => { cast().face('adam', 'eve'); cast().pose('adam', 'point', { stop: true }); }],
-            [28.5, () => cast().pose('adam', 'bow', { stop: true })],
-            [32.5, () => { cast().face('eve', layout().tk); cast().pose('eve', 'point', { stop: true }); }],
-            [37, () => cast().pose('eve', 'bow', { stop: true })],
+            [21, () => { cast().face('adam', 'eve'); cast().pose('adam', 'point', { stop: true }); }],
+            [25.5, () => cast().pose('adam', 'bow', { stop: true })],
+            [28, () => { cast().face('eve', layout().tk); cast().pose('eve', 'point', { stop: true }); }],
+            [32, () => cast().pose('eve', 'bow', { stop: true })],
           ]);
         },
       },
 
-      // ── 3:14–19 咒诅；荆棘和蒺藜；归于尘土 ─────────────────
+      // ── 3:14–16 对蛇、对女人 ───────────────────────────────
       {
-        kind: 'judge', utter: '你本是尘土，仍要归于尘土', cmd: 'return 尘土', ref: '3:14–19',
+        kind: 'judge', utter: '你必用肚子行走，终身吃土', cmd: 'curse 蛇 --belly  # 伤你的头 · 伤他的脚跟', ref: '3:14–16',
         verse: [
           { text: '耶和华神对蛇说：「你既做了这事，就必受咒诅，<br>比一切的牲畜野兽更甚；你必用肚子行走，终身吃土。', ref: '创世记 3:14', hold: 8 },
           { text: '我又要叫你和女人彼此为仇；你的后裔和女人的后裔也彼此为仇。<br>女人的后裔要伤你的头；你要伤他的脚跟。」', ref: '创世记 3:15', hold: 9 },
           { text: '又对女人说：「我必多多加增你怀胎的苦楚；你生产儿女必多受苦楚。<br>你必恋慕你丈夫；你丈夫必管辖你。」', ref: '创世记 3:16', hold: 8.5 },
+        ],
+        apply(c) {
+          T(c, [
+            [0.5, b => {
+              lv('edenSnakeDown', 1, b); lv('edenSnakeSh', 0, b);
+              const L = layout(); avoid([L.tl - 0.04, L.hide + 0.08]);
+              if (!inst(b)) { W.flash = Math.max(W.flash, 0.22); sfx('thunder', b, { soft: true }); }
+            }],
+            [1.8, b => { if (!inst(b)) { const T0 = treeGeo(); fx().dust(T0.tkx - 10 * P.s, fY(T0.tkx - 10 * P.s, 0.06), 18, [170, 140, 100], 10 * P.s); } }],
+            [11, b => {
+              if (inst(b)) return;
+              const p = personXY('eve'), h = personH('eve');
+              if (p) { fx().sparkle(p[0], p[1] - h * 0.5, 24, [255, 232, 180], 6 * P.s, 'air'); fx().ring(p[0], p[1] - h * 0.5, [255, 226, 170], M() * 0.12, 2.2, 1); }
+            }],
+            [18, b => { cast().pose('eve', 'kneel', { stop: true }); W.goTo(0.765, 16, inst(b)); }],
+          ]);
+        },
+      },
+
+      // ── 3:17–19 对亚当：荆棘和蒺藜；归于尘土 ───────────────
+      {
+        kind: 'judge', utter: '你本是尘土，仍要归于尘土', cmd: 'return 尘土', ref: '3:17–19',
+        verse: [
           { text: '又对亚当说：「你既听从妻子的话，吃了我所吩咐你不可吃的那树上的果子，<br>地必为你的缘故受咒诅；你必终身劳苦才能从地里得吃的。', ref: '创世记 3:17', hold: 9 },
           { text: '地必给你长出荆棘和蒺藜来；你也要吃田间的菜蔬。', ref: '创世记 3:18', hold: 6.5 },
           { text: '你必汗流满面才得糊口，直到你归了土，因为你是从土而出的。<br>你本是尘土，仍要归于尘土。」', ref: '创世记 3:19', hold: 9 },
         ],
         apply(c) {
           T(c, [
-            [0.5, b => { lv('edenSnakeDown', 1, b); lv('edenSnakeSh', 0, b); if (!inst(b)) { W.flash = Math.max(W.flash, 0.22); sfx('thunder', b, { soft: true }); } }],
-            [1.8, b => { if (!inst(b)) { const T0 = treeGeo(); fx().dust(T0.tkx - 10 * P.s, fY(T0.tkx - 10 * P.s, 0.06), 18, [170, 140, 100], 10 * P.s); } }],
-            [10.5, b => {
-              if (inst(b)) return;
-              const p = personXY('eve');
-              if (p) { fx().sparkle(p[0], p[1] - personH() * 0.5, 24, [255, 232, 180], 6 * P.s, 'air'); fx().ring(p[0], p[1] - personH() * 0.5, [255, 226, 170], M() * 0.12, 2.2, 1); }
+            [0.5, b => {
+              W.goTo(0.765, 12, inst(b));
+              const L = layout(); avoid([L.tl - 0.04, L.hide + 0.08]);
             }],
-            [20.5, b => { cast().pose('eve', 'kneel', { stop: true }); W.goTo(0.765, 16, inst(b)); }],
-            [30, b => { lv('edenThorns', 1, b); cast().pose('adam', 'kneel', { stop: true }); lv('edenGlow', 0.2, b); }],
-            [48, b => { if (!inst(b)) { const p = personXY('adam'); if (p) fx().dust(p[0], p[1], 46, [196, 166, 124], 16 * P.s); } }],
+            [3.5, b => { lv('edenThorns', 1, b); cast().pose('adam', 'kneel', { stop: true }); lv('edenGlow', 0.2, b); }],
+            [19, b => { if (!inst(b)) { const p = personXY('adam'); if (p) fx().dust(p[0], p[1], 46, [196, 166, 124], 16 * P.s); } }],
           ]);
         },
       },
@@ -1600,11 +1667,14 @@
           T(c, [
             [0.6, b => {
               cast().add('eve', { label: '夏娃' });
+              const L = layout(); avoid([L.tl - 0.04, L.hide + 0.08]);
               if (!inst(b)) {
                 const p = personXY('eve');
                 if (p) {
-                  const size = Math.max(16, M() * 0.05), h = personH();
-                  fx().nameStr('夏娃', clamp(p[0], size * 1.4, W.w - size * 1.4), p[1] - h * 1.4 - size * 0.6, size, [255, 228, 196],
+                  const size = Math.max(16, M() * 0.05), h = personH('eve');
+                  let ny = p[1] - h * 1.4 - size * 0.6;
+                  if (inTextZone(p[0], ny)) ny = Math.max(ny, W.h * 0.37 + size);
+                  fx().nameStr('夏娃', clamp(p[0], size * 1.4, W.w - size * 1.4), ny, size, [255, 228, 196],
                     () => [p[0] + rnd(-1, 1) * h * 0.3, p[1] - rnd(0, 1) * h, [255, 222, 190]], { hold: 3.4 });
                   chime('夏');
                 }
@@ -1637,10 +1707,13 @@
         ],
         apply(c) {
           T(c, [
-            [0, b => { W.goTo(0.776, 14, inst(b)); if (!inst(b)) sfx('weep', b, { soft: true }); }],
-            [2, () => walk('adam', layout().exA, 0.018)],
-            [3.3, () => walk('eve', layout().exE, 0.018)],
-            [26, () => { cast().face('adam', 1); cast().face('eve', 1); }],
+            [0, b => {
+              W.goTo(0.772, 14, inst(b)); if (!inst(b)) sfx('weep', b, { soft: true });    // 仍在黄昏的余光里
+              const L = layout(); avoid([L.exA - 0.045, L.cx + L.sep + 0.06]);
+            }],
+            [2, () => walk('adam', layout().exA, 0.02)],
+            [3.3, () => walk('eve', layout().exE, 0.02)],
+            [24, () => { cast().face('adam', 1); cast().face('eve', 1); }],
           ]);
         },
       },
@@ -1655,11 +1728,12 @@
           T(c, [
             [0, b => {
               lv('edenCherub', 1, b);
+              const L = layout(); avoid([L.exA - 0.045, L.cx + L.sep + 0.06]);
               if (!inst(b)) { const sg = swordGeo(); W.flash = Math.max(W.flash, 0.3); fx().sparkle(sg.x, sg.y, 70, [255, 240, 206], 36 * P.s, 'top'); sfx('seal', b); }
             }],
             [1.8, b => { lv('edenSword', 1, b); if (!inst(b)) sfx('fire', b); }],
             [4.5, () => { cast().face('adam', 1); cast().face('eve', 1); cast().pose('eve', 'kneel'); }],
-            [11, b => W.goTo(0.97, 22, inst(b))],                     // 夜深，月从东方升起
+            [11, b => W.goTo(0.9, 22, inst(b))],                      // 入夜，月从东方升起
             [15, () => { cast().pose('eve', 'stand'); cast().face('adam', -1); cast().face('eve', -1); }],   // 转身向东，走向他所自出之土
             [19, () => { const L = layout(); walk('adam', L.exA - 0.012, 0.006); walk('eve', L.exE - 0.012, 0.006); }],
           ]);
