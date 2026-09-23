@@ -585,7 +585,7 @@
   const PLUME = [];
   function spout(x, y, s, band, k) {
     k = k || 1;
-    PLUME.push({ x, y, s, band, t: 0, dur: 2.8 * (0.7 + 0.3 * k), H: 64 * k, Wd: 17 * k, dx: rnd(-0.5, 0.5), kind: 0 });
+    PLUME.push({ x, y, s, band, t: 0, dur: 2.8 * (0.7 + 0.3 * k), H: 64 * k, Wd: 21 * k, dx: rnd(-0.5, 0.5), kind: 0 });
     if (PLUME.length > 10) PLUME.shift();
     const n = Math.round(26 * k * (W.quality || 1));
     if (fxOK()) {
@@ -1280,12 +1280,14 @@
       ctx.lineWidth = Math.max(0.7, s * 1.1);
       ctx.stroke();
       // 水线：露出处一道白，前端推起的浪与后端的漩，是柔白的水沫
-      ctx.beginPath();
-      ctx.moveTo(WBX[k0], WBY[k0] + sink * 0.5);
-      for (let k = k0 + 1; k <= k1; k++) ctx.lineTo(WBX[k], WBY[k] + sink * 0.5);
-      ctx.strokeStyle = css(C.foam, 0.3 * vis * dayK);
-      ctx.lineWidth = Math.max(0.7, s * 1.2);
-      ctx.stroke();
+      if (k1 - k0 >= 3) {
+        ctx.beginPath();
+        ctx.moveTo(WBX[k0 + 1], WBY[k0 + 1] + sink * 0.6);
+        for (let k = k0 + 2; k < k1; k++) ctx.lineTo(WBX[k], WBY[k] + sink * 0.6);
+        ctx.strokeStyle = css(C.foam, 0.16 * vis * dayK);
+        ctx.lineWidth = Math.max(0.7, s * 1.4);
+        ctx.stroke();
+      }
       if (PUFF) {
         const rx = Math.max(2, 0.07 * L * s), ry = Math.max(1, rx * fz * 0.7);
         ctx.globalAlpha = 0.34 * vis * dayK;
@@ -1304,13 +1306,13 @@
     const tk = -0.46;
     const X = w.x + s * (tk * L * c), Y = w.y + s * fz * (tk * L * sn);
     const hf = w.fluke * 0.25 * L * s;                       // 举起的高度
-    const wf = 0.165 * L * s * (0.45 + 0.55 * Math.abs(sn));  // 半翼展：侧对我们时变窄
+    const wf = 0.17 * L * s * (0.5 + 0.5 * Math.abs(sn));    // 半翼展：侧对我们时变窄
     const tilt = c * 0.12 * wf;
-    const st = 0.02 * L * s;
-    const yb = Y - hf * 0.64, yt = Y - hf;                    // 尾叶的根、尖
+    const st = 0.028 * L * s;
+    const yb = Y - hf * 0.56, yt = Y - hf;                    // 尾叶的根、尖
     ctx.beginPath();
-    ctx.moveTo(X - st * 1.6, Y);
-    ctx.quadraticCurveTo(X - st * 0.9, Y - hf * 0.3, X - st * 0.7, yb);
+    ctx.moveTo(X - st * 1.5, Y);
+    ctx.quadraticCurveTo(X - st * 0.75, Y - hf * 0.28, X - st * 0.8, yb);
     // 前缘（下）：自根部向外鼓出，扫向翼尖
     ctx.quadraticCurveTo(X - wf * 0.55, yb + hf * 0.02 - tilt * 0.5, X - wf, yt - hf * 0.06 - tilt);
     // 后缘（上）：自翼尖回到中央的缺刻，细细的锯齿
@@ -1325,8 +1327,8 @@
       ctx.lineTo(xx, yy);
     }
     ctx.lineTo(X + wf, yt - hf * 0.06 + tilt);
-    ctx.quadraticCurveTo(X + wf * 0.55, yb + hf * 0.02 + tilt * 0.5, X + st * 0.7, yb);
-    ctx.quadraticCurveTo(X + st * 0.9, Y - hf * 0.3, X + st * 1.6, Y);
+    ctx.quadraticCurveTo(X + wf * 0.55, yb + hf * 0.02 + tilt * 0.5, X + st * 0.8, yb);
+    ctx.quadraticCurveTo(X + st * 0.75, Y - hf * 0.28, X + st * 1.5, Y);
     ctx.closePath();
     ctx.fillStyle = css(col, 0.97 * vis);
     ctx.fill();
@@ -1437,11 +1439,13 @@
     let dx = -0.55 * g.ux - (0.62 + 0.4 * fa) * g.px, dy = -0.55 * g.uy - (0.62 + 0.4 * fa) * g.py;
     const dl = Math.hypot(dx, dy) || 1; dx /= dl; dy /= dl;
     const len = 0.32 * g.L, ex = r0[0] + dx * len, ey = r0[1] + dy * len;
-    const nx = -dy * 0.034 * g.L, ny = dx * 0.034 * g.L;
+    const nx = -dy * 0.03 * g.L, ny = dx * 0.03 * g.L;
+    // 弯如弯刀：中线向前缘一侧鼓出，末端尖细
+    const bx = r0[0] + dx * len * 0.55 + nx * 1.6, by = r0[1] + dy * len * 0.55 + ny * 1.6;
     ctx.beginPath();
     ctx.moveTo(r0[0] + nx, r0[1] + ny);
-    ctx.quadraticCurveTo(r0[0] + dx * len * 0.5 + nx * 1.3, r0[1] + dy * len * 0.5 + ny * 1.3, ex, ey);
-    ctx.quadraticCurveTo(r0[0] + dx * len * 0.5 - nx * 0.5, r0[1] + dy * len * 0.5 - ny * 0.5, r0[0] - nx * 0.6, r0[1] - ny * 0.6);
+    ctx.quadraticCurveTo(bx + nx * 0.9, by + ny * 0.9, ex, ey);
+    ctx.quadraticCurveTo(bx - nx * 0.7, by - ny * 0.7, r0[0] - nx * 0.8, r0[1] - ny * 0.8);
     ctx.closePath();
     ctx.fillStyle = ghost ? css(col, a) : css(U.mixRGB(C.belly, C.pale, 0.55), a);
     ctx.fill();

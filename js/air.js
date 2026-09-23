@@ -102,12 +102,19 @@
     SKB[0] = top; SKB[1] = Math.max(top + 20, bot);
     return SKB;
   }
+  // 海鸥盘旋的中心：先在海面上取一处（远近不一），再升到它上空；远近决定伪深度 z
+  const SC = [0, 0, 0];
   function seaCenter() {
     for (let k = 0; k < 40; k++) {
-      const x = rnd(0.04, 0.6) * W.w, D = rnd(0.12, 0.55), y = W.horizonY + D * (W.h - W.horizonY);
-      if (isSea(x, y) && isSea(x, y + (W.h - y) * 0.3)) return [x, y - W.h * rnd(0.06, 0.14)];
+      const D = rnd(0.1, 0.72), x = rnd(0.03, 0.6) * W.w, ys = W.horizonY + D * (W.h - W.horizonY);
+      if (isSea(x, ys) && isSea(x, ys + (W.h - ys) * 0.25)) {
+        const z = clamp(0.9 - D * 1.05, 0.14, 0.85);
+        SC[0] = x; SC[1] = ys - rnd(0.05, 0.15) * W.h * (1 - 0.62 * z); SC[2] = z;
+        return SC;
+      }
     }
-    return [W.w * 0.2, W.horizonY - W.h * 0.02];
+    SC[0] = W.w * 0.2; SC[1] = W.horizonY - W.h * 0.02; SC[2] = 0.7;
+    return SC;
   }
   function landCenter() {
     const sp = W.landSpan ? W.landSpan(1, 4) || W.landSpan(2, 4) : null;
@@ -284,11 +291,10 @@
     // 海鸥：绕一个中心滑翔盘旋；中心缓缓漂移，或去到喷气的鲸上空
     b.ct -= dt;
     if (b.whale >= 0 && b.ct <= 0) b.whale = -1;
-    if (b.ct <= 0) { const c = seaCenter(); b.tcx = c[0]; b.tcy = c[1]; b.ct = rnd(14, 28); b.R = rnd(60, 120); }
+    if (b.ct <= 0) { const c = seaCenter(); b.tcx = c[0]; b.tcy = c[1]; b.zc = c[2]; b.ct = rnd(14, 28); b.R = rnd(60, 120); }
     b.cx = U.approach(b.cx, b.tcx, 0.25, dt);
     b.cy = U.approach(b.cy, b.tcy, 0.25, dt);
-    const zt = c01(1 - (b.cy + W.h * 0.1 - W.horizonY) / Math.max(1, (W.h - W.horizonY)) * 1.2);
-    b.z = U.approach(b.z, clamp(b.whale >= 0 ? b.wz : zt * 0.8 + 0.1, 0.08, 0.95), 0.4, dt);
+    b.z = U.approach(b.z, clamp(b.whale >= 0 ? b.wz : (b.zc == null ? 0.5 : b.zc), 0.08, 0.95), 0.4, dt);
     const sc = sizeK(b.z);
     b.ang += b.om * dt * (1 + 0.2 * Math.sin(W.t * 0.3 + b.seed * 9));
     const R = b.R * sc;
@@ -518,7 +524,7 @@
   function release(b) {
     b.mode = 'free';
     if (b.k === 0) { const r = FLOCK_Z[b.fl]; b.zt = rnd(r[0], r[1]); b.vx += rnd(-1, 1) * 100; b.vy -= 60; }
-    else if (b.k === 1) { const c = seaCenter(); b.cx = b.x; b.cy = b.y; b.tcx = c[0]; b.tcy = c[1]; b.ct = rnd(14, 24); b.ang = Math.atan2(b.y - c[1], b.x - c[0]); }
+    else if (b.k === 1) { const c = seaCenter(); b.cx = b.x; b.cy = b.y; b.tcx = c[0]; b.tcy = c[1]; b.zc = c[2]; b.ct = rnd(14, 24); b.ang = Math.atan2(b.y - c[1], b.x - c[0]); }
     else if (b.k === 3) { const c = landCenter(); b.cx = b.x; b.cy = b.y; b.tcx = c[0]; b.tcy = c[1]; b.ct = rnd(25, 40); }
     else { songPlan(b); }
     if (roostOn) assignRoosts(b);
@@ -563,7 +569,7 @@
       b.x = F.px + rnd(-60, 60) * u; b.y = F.py + rnd(-30, 30) * u;
       b.vx = rnd(0.6, 1) * 120 * u; b.vy = rnd(-20, 20);
     } else if (b.k === 1) {
-      const c = seaCenter(); b.cx = b.tcx = c[0]; b.cy = b.tcy = c[1]; b.ct = rnd(10, 25);
+      const c = seaCenter(); b.cx = b.tcx = c[0]; b.cy = b.tcy = c[1]; b.zc = b.z = c[2]; b.ct = rnd(10, 25);
       b.x = c[0] + Math.cos(b.ang) * b.R * u; b.y = c[1] + Math.sin(b.ang) * b.R * 0.34 * u;
     } else if (b.k === 3) {
       const c = landCenter(); b.cx = b.tcx = c[0]; b.cy = b.tcy = c[1]; b.ct = rnd(20, 40);
@@ -658,6 +664,37 @@
     px = S * 0.5 - sweep; py = tipY;
     ctx.quadraticCurveTo(bx, by, x + px * c - py * s, y + px * s + py * c);
   }
+  // 近处的燕子：镰刀形的翅（前缘外凸、后缘内凹，翼尖尖细），一笔填满；短短的身子与叉尾
+  function scythe(ctx, b, S) {
+    const w = b.flap > 0.02 ? Math.sin(b.ph) * b.flap + 0.18 * (1 - b.flap) : 0.18;
+    const sweep = S * (0.1 + 0.18 * (1 - b.flap)), f = b.face;
+    const tilt = clamp(b.vy / (Math.abs(b.vx) + 60), -0.6, 0.6) * 0.35 * f;
+    const c = 1 - tilt * tilt * 0.5, s = tilt;
+    const x = b.x, y = b.y;
+    const P = (px, py) => { GX = x + px * c - py * s; GY = y + px * s + py * c; };
+    const tipY = -w * S * 0.36 + S * 0.05, elY = -w * S * 0.13 - S * 0.06;
+    for (let side = -1; side <= 1; side += 2) {
+      P(side * S * 0.05, -S * 0.02); ctx.moveTo(GX, GY);
+      P(side * S * 0.24 - sweep * 0.35 * f, elY - S * 0.05); const ax = GX, ay = GY;
+      P(side * S * 0.52 - sweep * f, tipY); const tx = GX, ty = GY;
+      ctx.quadraticCurveTo(ax, ay, tx, ty);
+      P(side * S * 0.22 - sweep * 0.55 * f, elY + S * 0.06); const bx = GX, by = GY;
+      P(-f * S * 0.04, S * 0.035);
+      ctx.quadraticCurveTo(bx, by, GX, GY);
+      ctx.closePath();
+    }
+    // 身子（沿飞行方向的短梭）与叉尾
+    P(f * S * 0.13, -S * 0.005); ctx.moveTo(GX, GY);
+    P(f * S * 0.02, -S * 0.035); ctx.lineTo(GX, GY);
+    P(-f * S * 0.12, -S * 0.01); ctx.lineTo(GX, GY);
+    P(-f * S * 0.2, -S * 0.03); ctx.lineTo(GX, GY);
+    P(-f * S * 0.15, S * 0.005); ctx.lineTo(GX, GY);
+    P(-f * S * 0.2, S * 0.03); ctx.lineTo(GX, GY);
+    P(-f * S * 0.1, S * 0.02); ctx.lineTo(GX, GY);
+    P(f * S * 0.03, S * 0.03); ctx.lineTo(GX, GY);
+    ctx.closePath();
+  }
+  let GX = 0, GY = 0;
   // 海鸥：白色的弯翅（二次曲线围成的翼面），翼尖深色
   const GP = new Float64Array(18);
   function drawGull(ctx, b, C) {
@@ -865,22 +902,28 @@
     ctx.lineCap = 'round'; ctx.lineJoin = 'round';
     if (pass === 'sky' || pass === 'air') {
       // 燕群（整群合一笔）
+      // 近而大的画成镰刀形的实心翅（一笔填满），远而小的仍是一笔「m」
       for (let bk = 0; bk < 4; bk++) {
-        ctx.beginPath();
-        let any = false, lw = 0, n = 0;
-        for (let i = 0; i < B.length; i++) {
-          const b = B[i];
-          if (b.k !== 0 || b.a < 1 || b.mode === 'perched' || b.mode === 'float' || b.pass !== pass) continue;
-          const z = b.z, k = z < 0.2 ? 0 : z < 0.45 ? 1 : z < 0.7 ? 2 : 3;
-          if (k !== bk) continue;
-          const S = 12 * sizeK(z) * (0.9 + 0.2 * b.seed);
-          mWing(ctx, b, S);
-          lw += S; n++; any = true;
-        }
-        if (any) {
-          ctx.strokeStyle = C.swift[bk];
-          ctx.lineWidth = Math.max(0.9, (lw / n) * 0.13);
-          ctx.stroke();
+        for (let solid = 0; solid < 2; solid++) {
+          ctx.beginPath();
+          let any = false, lw = 0, n = 0;
+          for (let i = 0; i < B.length; i++) {
+            const b = B[i];
+            if (b.k !== 0 || b.a < 1 || b.mode === 'perched' || b.mode === 'float' || b.pass !== pass) continue;
+            const z = b.z, k = z < 0.2 ? 0 : z < 0.45 ? 1 : z < 0.7 ? 2 : 3;
+            if (k !== bk) continue;
+            const S = 12 * sizeK(z) * (0.9 + 0.2 * b.seed);
+            if ((S >= 8.5 ? 1 : 0) !== solid) continue;
+            if (solid) scythe(ctx, b, S); else mWing(ctx, b, S);
+            lw += S; n++; any = true;
+          }
+          if (!any) continue;
+          if (solid) { ctx.fillStyle = C.swift[bk]; ctx.fill(); }
+          else {
+            ctx.strokeStyle = C.swift[bk];
+            ctx.lineWidth = Math.max(0.9, (lw / n) * 0.13);
+            ctx.stroke();
+          }
         }
       }
       for (let i = 0; i < B.length; i++) {

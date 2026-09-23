@@ -333,6 +333,17 @@
     sv.addColorStop(0, 'rgba(0,0,0,0)'); sv.addColorStop(0.7, 'rgba(0,0,0,0.6)'); sv.addColorStop(1, 'rgba(0,0,0,1)');
     sg.fillStyle = sv; sg.fillRect(0, 0, 64, 128);
     SP.band = s;
+    // 天梯的光柱：横向高斯，纵向两端柔和
+    const f = cnv(64, 256), fg = f.getContext('2d');
+    const fh = fg.createLinearGradient(0, 0, 64, 0);
+    fh.addColorStop(0, 'rgba(255,236,196,0)'); fh.addColorStop(0.3, 'rgba(255,238,200,0.35)'); fh.addColorStop(0.5, 'rgba(255,246,226,1)');
+    fh.addColorStop(0.7, 'rgba(255,238,200,0.35)'); fh.addColorStop(1, 'rgba(255,236,196,0)');
+    fg.fillStyle = fh; fg.fillRect(0, 0, 64, 256);
+    fg.globalCompositeOperation = 'destination-in';
+    const fv = fg.createLinearGradient(0, 0, 0, 256);
+    fv.addColorStop(0, 'rgba(0,0,0,0)'); fv.addColorStop(0.08, 'rgba(0,0,0,0.9)'); fv.addColorStop(0.5, 'rgba(0,0,0,0.55)'); fv.addColorStop(0.95, 'rgba(0,0,0,0.9)'); fv.addColorStop(1, 'rgba(0,0,0,0)');
+    fg.fillStyle = fv; fg.fillRect(0, 0, 64, 256);
+    SP.shaft = f;
     return SP;
   }
 
@@ -974,10 +985,10 @@
     const s = SU();
     LG.s = s;
     LG.bx = X.ladder * W.w; LG.by = gY(2, X.ladder) + 3 * LS(2);
-    LG.tx = LG.bx - W.w * 0.06 - W.h * 0.03; LG.ty = -W.h * 0.06;
+    LG.tx = LG.bx + W.w * 0.035; LG.ty = -W.h * 0.06;
     const dx = LG.tx - LG.bx, dy = LG.ty - LG.by, d = Math.hypot(dx, dy) || 1;
-    LG.ux = dx / d; LG.uy = dy / d; LG.nx = -LG.uy; LG.ny = LG.ux;
-    LG.w0 = 17 * s; LG.w1 = 2.2 * s;
+    LG.ux = dx / d; LG.uy = dy / d; LG.nx = -LG.uy; LG.ny = LG.ux; LG.len = d;
+    LG.w0 = 22 * s; LG.w1 = 2.6 * s;
     return LG;
   }
   const LP = [0, 0];
@@ -1010,12 +1021,24 @@
     const s = LG.s;
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
+    // 光柱：沿梯而上的一道柔光
+    {
+      const ang = Math.atan2(LG.ux, -LG.uy);
+      const L0 = LG.len * r0, L1 = LG.len * r1;
+      ctx.save();
+      ctx.translate(LG.bx, LG.by); ctx.rotate(ang);
+      ctx.globalAlpha = A * 0.34;
+      ctx.drawImage(SP.shaft, -LG.w0 * 3.2, -L1, LG.w0 * 6.4, L1 - L0);
+      ctx.globalAlpha = A * 0.5;
+      ctx.drawImage(SP.shaft, -LG.w0 * 1.3, -L1, LG.w0 * 2.6, L1 - L0);
+      ctx.restore();
+    }
     // 光雾：沿梯而上
     for (let i = 0; i < 18; i++) {
       const t = (i + 0.5) / 18;
       if (t < r0 || t > r1) continue;
-      const x = lerp(LG.bx, LG.tx, t), y = lerp(LG.by, LG.ty, t), r = lerp(92, 30, t) * s;
-      ctx.globalAlpha = A * 0.15 * (0.85 + 0.15 * Math.sin(W.t * 1.3 + i));
+      const x = lerp(LG.bx, LG.tx, t), y = lerp(LG.by, LG.ty, t), r = lerp(110, 34, t) * s;
+      ctx.globalAlpha = A * 0.16 * (0.85 + 0.15 * Math.sin(W.t * 1.3 + i));
       ctx.drawImage(SP.gold, x - r, y - r, 2 * r, 2 * r);
     }
     // 地上的一片光（雅各躺卧之处）
@@ -1041,9 +1064,12 @@
       if (t < r0 || t > r1) continue;
       const a0 = lad(t, -1), ax = a0[0], ay = a0[1], b0 = lad(t, 1);
       const flow = Math.pow(0.5 + 0.5 * Math.sin(t * 24 - W.t * 2.1), 3);
+      const wd = Math.max(0.8, lerp(2.4, 0.8, t) * s);
+      ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(b0[0], b0[1]);
+      ctx.globalAlpha = A * (0.12 + 0.2 * flow) * (1 - t * 0.4);
+      ctx.lineWidth = wd * 3.2; ctx.stroke();
       ctx.globalAlpha = A * (0.4 + 0.6 * flow) * (1 - t * 0.3);
-      ctx.lineWidth = Math.max(0.8, lerp(2.3, 0.8, t) * s);
-      ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(b0[0], b0[1]); ctx.stroke();
+      ctx.lineWidth = wd; ctx.stroke();
     }
     // 天的门：梯子的头顶着天
     if (r1 > 0.85) {
@@ -1078,7 +1104,7 @@
         t = Math.pow(q, 1.15);
         const side = up ? -0.42 : 0.42;
         const p = lad(t, side);
-        const hgt = h0 * lerp(1, 0.08, Math.pow(t, 0.62));
+        const hgt = h0 * lerp(1.05, 0.09, Math.pow(t, 0.62));
         const bob = Math.abs(Math.sin(W.t * 3.2 + k * 1.3)) * hgt * 0.04;
         const a = A * angels * smoothstep(0, 0.07, q) * (1 - smoothstep(0.86, 0.99, q));
         lightFigure(ctx, p[0], p[1] - bob, hgt, a, k);

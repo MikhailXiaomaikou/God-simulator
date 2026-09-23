@@ -844,8 +844,9 @@
     if (a < 0.01) return;
     const [x, y] = altarTop('A'), h = hNear();
     const k = clamp((W.t - S.acceptT0) / 2.4, 0, 1), e = U.easeOut(k);
-    const settle = clamp((W.t - S.acceptT0 - 3) / 7, 0, 1);
-    const al = a * lerp(0.55, 0.16, settle) * (0.9 + 0.1 * Math.sin(W.t * 1.3));
+    const settle = clamp((W.t - S.acceptT0 - 3) / 9, 0, 1);
+    const al = a * 0.55 * (1 - U.easeInOut(settle)) * (0.9 + 0.1 * Math.sin(W.t * 1.3));
+    if (al < 0.004) return;
     ctx.globalCompositeOperation = 'lighter';
     beam(ctx, 'gold', x, -4, lerp(0, y, e), h * 1.6, al);
     glow(ctx, 'gold', x, y, h * 1.2, h * 0.7, al * 0.9 * e);
@@ -860,8 +861,9 @@
     const x = lerp(xs, xa, e) + Math.sin(W.t * 0.6) * (1 - e) * W.w * 0.03;
     const g = gY(x), h = hNear();
     ctx.globalCompositeOperation = 'lighter';
-    beam(ctx, 'pale', x, -4, g + h * 0.1, h * 1.5, a * 0.16);
-    glow(ctx, 'pale', x, g + h * 0.05, h * 1.5, h * 0.35, a * 0.38);
+    beam(ctx, 'pale', x, -4, g + h * 0.1, h * 1.7, a * 0.3);
+    glow(ctx, 'pale', x, g + h * 0.02, h * 2, h * 0.45, a * 0.6);
+    glow(ctx, 'pale', x, g - h * 0.3, h * 0.9, h * 0.7, a * 0.18);
     ctx.globalCompositeOperation = 'source-over';
   }
   // 血的声音
@@ -871,8 +873,8 @@
     const x = at(SPOT.fall) * W.w, y = gY(x), h = hNear();
     const pulse = 0.72 + 0.28 * Math.sin(W.t * 1.7) * Math.sin(W.t * 0.53 + 1);
     ctx.globalCompositeOperation = 'lighter';
-    glow(ctx, 'blood', x, y + h * 0.04, h * 1.3, h * 0.3, 0.42 * b * pulse);
-    glow(ctx, 'blood', x, y - h * 0.8, h * 0.7, h * 1.4, 0.07 * b * pulse);
+    glow(ctx, 'blood', x, y + h * 0.04, h * 1.9, h * 0.45, 0.55 * b * pulse);
+    glow(ctx, 'blood', x, y - h * 0.9, h * 0.8, h * 1.6, 0.12 * b * pulse);
     ctx.globalCompositeOperation = 'source-over';
   }
   // 记号：该隐额上一点光，一圈淡淡的环护着他
@@ -1081,13 +1083,13 @@
       MOTES.length = 0;
       shadowX = null;
       // 园子之外的世界（与上一卷怎样结束无关）：地更硬，树少，只在西边（右）还有几棵
-      const L = { deep: 1, light: 1, gather: 1, dayNight: 1, vault: 1, clouds: 1, land: 1, grass: 1, herbs: 0.55, trees: 0.42,
+      const L = { deep: 1, light: 1, gather: 1, dayNight: 1, vault: 1, clouds: 1, land: 1, grass: 0.62, herbs: 0.5, trees: 0.42,
         lights: 1, moon: 1, stars: 1, life: 1, good: 0, sabbath: 0, given: 1 };
       for (const k in L) if (W.hasLevel(k)) W.set(k, L[k], true);
       for (const k of MY) W.set(k, 0, true);
       P.w = 0;
       layout();
-      const gx = W.w * 0.7, hx = W.w * 0.92, tx = W.w * 0.995;
+      const gx = W.w * 0.96, hx = W.w * 0.94, tx = W.w * 0.995;
       W.setOrigin('grass', gx, W.ridgeBaseY(2, gx));
       W.setOrigin('herbs', hx, W.ridgeBaseY(2, hx));
       W.setOrigin('trees', tx, W.ridgeBaseY(2, tx));
@@ -1097,9 +1099,9 @@
       W.setPop('fish', 140, W.w * 0.15, W.h * 0.8, true);
       W.setPop('whale', 3, W.w * 0.12, W.h * 0.78, true);
       W.setPop('bird', 40, W.w * 0.6, W.h * 0.3, true);
-      W.setPop('cattle', 4, lx, ly, true);
-      W.setPop('beast', 3, lx, ly, true);
-      W.setPop('creeper', 22, lx, ly, true);
+      W.setPop('cattle', 3, lx, ly, true);
+      W.setPop('beast', 1, lx, ly, true);
+      W.setPop('creeper', 16, lx, ly, true);
       W.setPop('human', 0, lx, ly, true);
       cast().clear({ fade: false });
       cast().add('adam', { label: '亚当', sex: 'm', age: 'adult', layer: 2, x: at(SPOT.adam), facing: 1, pose: 'stand', robe: HIDE.m, glow: 0.34, from: 'none' });
@@ -1228,7 +1230,7 @@
             }],
             [31.4, b => {
               cast().pose('abel', 'fall', { stop: true });
-              cast().crowdWalk('cain:flock', at(0.01), at(0.16), { run: true, pose: 'stand' });
+              cast().crowdWalk('cain:flock', at(0.05), at(0.2), { run: true, pose: 'stand' });
               if (!inst(b)) sfx('thunder', b, { soft: true, low: true, far: true });
             }],
             [33.6, b => { lv('cainShadow', 0, b); lv('cainDark', 0.32, b); lv('cainFireA', 0.12, b); }],
@@ -1589,6 +1591,7 @@
       reset() { MOTES.length = 0; shadowX = null; },
       restore() { MOTES.length = 0; shadowX = null; bloodAcc = callAcc = forgeAcc = 0; },
       pick,
+      _S: () => S,
       get debug() {
         return {
           P: Object.assign({}, P), S: JSON.parse(JSON.stringify(S)), motes: MOTES.length, shadowX,

@@ -58,6 +58,7 @@
   const actOf = stageIndex => ACTS[(STAGES[stageIndex] && STAGES[stageIndex].act) || 0];
 
   // ── 情节时间线 ──────────────────────────────────────────────
+  // 以世界时间（W.t，随帧推进）计时，而非墙上时钟：卡顿或切走标签页时，情节与画面始终同步
   const pending = [];
   function timeline(c, beats) {
     beats = beats.slice().sort((a, b) => a[0] - b[0]);
@@ -68,22 +69,22 @@
       W.replaying = prev;
       return;
     }
-    beats.forEach(b => {
-      const item = { fn: b[1], done: false, timer: 0 };
-      item.timer = setTimeout(() => run(item, false), Math.max(0, b[0]) * 1000 / (W.fast || 1));
-      pending.push(item);
-    });
+    beats.forEach(b => pending.push({ fn: b[1], done: false, at: W.t + Math.max(0, b[0]) / (W.fast || 1) }));
+    pending.sort((a, b) => a.at - b.at);
   }
   function run(item, instant) {
     if (item.done) return;
     item.done = true;
-    clearTimeout(item.timer);
     const i = pending.indexOf(item);
     if (i >= 0) pending.splice(i, 1);
     const prev = W.replaying;
     if (instant) W.replaying = true;
     safe('beat', () => item.fn({ instant: !!instant }));
     W.replaying = prev;
+  }
+  function tick() {
+    let guard = 50;
+    while (pending.length && pending[0].at <= W.t && guard--) run(pending[0], false);
   }
   // 把尚未发生的情节立即补完（按原先的先后）
   function flush() { let guard = 500; while (pending.length && guard--) run(pending[0], true); }
@@ -103,7 +104,7 @@
   GS.scenes = {
     init() { booted = true; each('init'); },
     resize() { each('resize'); },
-    update(dt) { each('update', dt); },
+    update(dt) { tick(); each('update', dt); },
     draw(ctx, pass) { each('drawUnder', ctx, pass); },
     reset() { each('reset'); flush(); },
     restore() { each('restore'); },
