@@ -36,6 +36,7 @@
     clPearlLit: hx('#efece6'), clPearlSh: hx('#9a9ca4'),
     clDuskLit: hx('#ffa468'), clDuskSh: hx('#5c4064'),
     clNightLit: hx('#1f2a40'), clNightSh: hx('#070d1a'),
+    clMoonLit: hx('#46536e'), clMoonSh: hx('#141c2e'),
     // 光
     core: hx('#fff4dc'), coreLow: hx('#ffc890'),
     sun: hx('#fff6e0'), sunLow: hx('#ff9a55'),
@@ -344,8 +345,28 @@ vec3 sky(vec2 px, vec2 n, float lm) {
     col += vec3(0.81, 0.90, 1.0) * film * FILM * shim;
   }
 
-  // 众星与银河
-  if (STAR_VIS > 0.002 && a > 0.004) {
+  // 云的密度：穹苍以下的水汽——透视压扁的一片团云（先算密度：浓云背后的星不必再算）
+  float cden = 0.0, cd0 = 0.0, ccov = 0.0;
+  vec2 cP = vec2(0.0);
+  if (CLOUDS > 0.002) {
+    float top = dy + 0.035;
+    float bot = HZ - 0.016;
+    float band = smoothstep(top, top + 0.12, n.y) * sst(bot, bot - 0.1, n.y);
+    if (band > 0.001) {
+      // 云的空间：横向随距离压缩，纵向取对数（近地平处扁而不碎）；以 min(w,h) 为单位，竖屏上不失比例
+      float h = (HZ * RES.y - px.y) / MPX;
+      cP = vec2((px.x - 0.5 * RES.x) / MPX * 1.25 / (h + 0.12) + CDRIFT, 2.6 * log(h + 0.02));
+      vec2 wq = vec2(vnoise(cP * 0.6 + vec2(3.1, 1.3)), vnoise(cP * 0.6 + vec2(8.3, 5.7)));
+      cP += (wq - 0.5) * 0.9;
+      cd0 = fbm(cP * 1.3, OCT);
+      // 云自水汽中凝出：先是零星的小团，再长成整片（覆盖随 lv.clouds 增长，而非整体淡入）
+      ccov = 0.53 + 0.34 * (1.0 - band) + 0.3 * (1.0 - CLOUDS);
+      cden = smoothstep(ccov, ccov + 0.11, cd0) * smoothstep(0.0, 0.25, CLOUDS);
+    }
+  }
+
+  // 众星与银河（被浓云遮住）
+  if (STAR_VIS > 0.002 && a > 0.004 && cden < 0.9) {
     vec2 sp = px;
     if (tremble > 0.0 && above > 0.0) {
       sp += vec2(sin(TIME * 0.83 + sp.y * 0.045), cos(TIME * 0.71 + sp.x * 0.037)) * 0.9 * tremble;
@@ -355,7 +376,7 @@ vec3 sky(vec2 px, vec2 n, float lm) {
     vec2 rp = sp - pole;
     rp = vec2(cr * rp.x - sr * rp.y, sr * rp.x + cr * rp.y) + pole;
     float rev = sst(STAR_R, STAR_R - 0.35, length(px - SOW) / MPX);
-    float vis = STAR_VIS * rev * smoothstep(0.0, 0.14, a) * (1.0 - 0.35 * waCover);
+    float vis = STAR_VIS * rev * smoothstep(0.0, 0.14, a) * (1.0 - 0.35 * waCover) * (1.0 - smoothstep(0.3, 0.9, cden));
     if (vis > 0.002) {
       vec3 mw = vec3(0.0);
       float dens = 0.0;
@@ -401,41 +422,22 @@ vec3 sky(vec2 px, vec2 n, float lm) {
     col += PAL_SPIRIT * SP_AMT * 0.045 / (1.0 + dot(ds, ds) * 22.0);
   }
 
-  // 云：穹苍以下的水汽——透视压扁的一片团云，向光的一面亮
-  float cden = 0.0;
-  if (CLOUDS > 0.002) {
-    float top = dy + 0.035;
-    float bot = HZ - 0.016;
-    float band = smoothstep(top, top + 0.12, n.y) * sst(bot, bot - 0.1, n.y);
-    if (band > 0.001) {
-      // 云的空间：横向随距离压缩，纵向取对数（近地平处扁而不碎）
-      // 以 min(w,h) 为单位：竖屏上云不会大得失了比例
-      float h = (HZ * RES.y - px.y) / MPX;
-      vec2 P = vec2((px.x - 0.5 * RES.x) / MPX * 1.25 / (h + 0.12) + CDRIFT, 2.6 * log(h + 0.02));
-      vec2 wq = vec2(vnoise(P * 0.6 + vec2(3.1, 1.3)), vnoise(P * 0.6 + vec2(8.3, 5.7)));
-      P += (wq - 0.5) * 0.9;
-      float d0 = fbm(P * 1.3, OCT);
-      // 云自水汽中凝出：先是零星的小团，再长成整片（覆盖随 lv.clouds 增长，而非整体淡入）
-      float cov = 0.53 + 0.34 * (1.0 - band) + 0.3 * (1.0 - CLOUDS);
-      float den = smoothstep(cov, cov + 0.11, d0) * smoothstep(0.0, 0.25, CLOUDS);
-      if (den > 0.002) {
-        vec2 kd = vec2(KEYX, KEYY) - px;
-        vec2 ld = kd / (length(kd) + 1.0);
-        // 朝向主光（与天光自上而下）偏移取样：迎光的边缘更亮，厚处的云底更暗
-        float d1 = fbm((P + vec2(ld.x, -ld.y) * 0.22 + vec2(0.0, 0.07 * (1.0 - DUSK))) * 1.3, 2.0);
-        float lit = clamp(0.6 + (d0 - d1) * 4.8, 0.0, 1.0);
-        float thick = smoothstep(cov + 0.05, cov + 0.3, d0);
-        vec3 cc = mix(CL_SH, CL_LIT, lit * (1.0 - 0.4 * thick));
-        // 黄昏：背日一侧的云沉入紫灰
-        if (DUSK > 0.01) {
-          float sunSide = exp(-sq((px.x - KEYX) / RES.y) * 1.3);
-          cc = mix(cc, CL_SH * 1.1, DUSK * (1.0 - sunSide) * 0.5);
-        }
-        cc += gl * (1.0 - den) * 1.3;         // 边缘透光（银边）
-        col = mix(col, cc * max(lm, 0.02), den * (0.94 - 0.4 * NIGHTW));
-        cden = den;
-      }
+  // 云的着色（密度已在前面算好）：迎光的边缘更亮，厚处的云底更暗
+  if (cden > 0.002) {
+    vec2 kd = vec2(KEYX, KEYY) - px;
+    vec2 ld = kd / (length(kd) + 1.0);
+    // 朝向主光（与天光自上而下）偏移取样
+    float d1 = fbm((cP + vec2(ld.x, -ld.y) * 0.22 + vec2(0.0, 0.07 * (1.0 - DUSK))) * 1.3, 2.0);
+    float lit = clamp(0.6 + (cd0 - d1) * 4.8, 0.0, 1.0);
+    float thick = smoothstep(ccov + 0.05, ccov + 0.3, cd0);
+    vec3 cc = mix(CL_SH, CL_LIT, lit * (1.0 - 0.4 * thick));
+    // 黄昏：背日一侧的云沉入紫灰
+    if (DUSK > 0.01) {
+      float sunSide = exp(-sq((px.x - KEYX) / RES.y) * 1.3);
+      cc = mix(cc, CL_SH * 1.1, DUSK * (1.0 - sunSide) * 0.5);
     }
+    cc += gl * (1.0 - cden) * 1.3;         // 边缘透光（银边）
+    col = mix(col, cc * max(lm, 0.02), cden * (0.94 - 0.4 * NIGHTW));
   }
 
   // 日轮
@@ -705,7 +707,10 @@ void main() {
     S.drift += dt * (0.012 + 0.02 * (W.wind || 0));
     F.drift = S.drift % 1000;
     let cLit = mix3(PAL.clPearlLit, PAL.clDayLit, LI), cSh = mix3(PAL.clPearlSh, PAL.clDaySh, LI);
-    cLit = mix3(PAL.clNightLit, cLit, df); cSh = mix3(PAL.clNightSh, cSh, df);
+    // 夜云：月亮在天时是银灰的（被月照亮），无月时只是暗影
+    const moonUp = lv.moon * smoothstep(-0.05, 0.15, W.moon.elev);
+    const nLit = mix3(PAL.clNightLit, PAL.clMoonLit, moonUp), nSh = mix3(PAL.clNightSh, PAL.clMoonSh, moonUp);
+    cLit = mix3(nLit, cLit, df); cSh = mix3(nSh, cSh, df);
     cLit = mix3(cLit, PAL.clDuskLit, dusk * 0.85); cSh = mix3(cSh, PAL.clDuskSh, dusk * 0.7);
     if (lv.good > 0.01) { cLit = mix3(cLit, [1, 0.86, 0.66], lv.good * 0.3); }
     F.clLit = cLit; F.clSh = cSh;
