@@ -9,7 +9,14 @@
  *         第七日把层一层层拿走；七息之后造物主的底鸣永远退去，只剩世界自己的声音；
  *         安息的世界里，唯有日落时分还有一缕「甚好」的和弦。
  * 言说：每一日的按住有它自己的声音；充盈度只推动音量与滤波的开合，从不推动音高。
- * 七日之后（其后各卷）：底鸣不再回来；言说用「话语」之声，世界的声音照常。
+ * 七日之后（其后各卷，W.act ≥ 1）：七息之后的底鸣只在第一卷里退去；每进入新的一卷，已调准的 A 以较轻的声量回来，
+ *         外加这一卷自己的乐垫与稀疏的乐句——仍是 A 上的同一首曲子：
+ *         伊甸 明亮的 A 加九与里拉（堕落后没有三音）· 该隐 低处的 A 小、弓弦的长音（求告主名后大三度回来）
+ *         · 洪水 忧伤 → 暴风雨（雨、风、雷的声床）→ 水退后的清澈，虹是高处的微光 · 巴别 同一的节律 → 变乱成各自的调
+ *         · 亚伯拉罕 旷野的苇笛、星夜的利底亚 · 雅各 牧笛、天梯上无字的合唱 · 约瑟 乌德与 Hijaz，末了归于纯净的 A 大；
+ *         全书终了（再一次 rest），乐声缓缓归于安息，只剩世界自己的声音与日落时的「甚好」。
+ *         话语按种类（护理 · 发问 · 审判 · 应许 · 呼唤 · 新名 · 命令 · 赐福）各有按住之声与成就的手势；
+ *         情节里的音效由 sfx(name, {soft, far, low, size, x}) 奏出（竖琴、风、建造、哀哭、雷、火、封、众人、水花、羊、门、雨、鸽、骆驼、笑、天使、众星……）。
  *
  * 链路：声部 → 各声部总线（干 + 送混响）→ 卷积混响（程序生成 2.8s 立体声衰减噪声）
  *       → 压缩 → 主音量 0.55 → 限幅 → 静音/可见 → 输出
@@ -578,7 +585,7 @@
       env.gain.setTargetAtTime(g * a, tt, i === 0 ? 0.05 : 0.03);
       vg.gain.setTargetAtTime(0, tt, 0.02);
       vg.gain.setTargetAtTime(o.vib == null ? 11 : o.vib, tt + Math.min(0.3, dur * 0.45), 0.15);  // 颤音（音分）迟到
-      bg.gain.setTargetAtTime(br * 2.2 * a, tt, 0.006);                                         // 起音的"气"
+      bg.gain.setTargetAtTime(br * 1.6 * a, tt, 0.008);                                         // 起音的"气"
       bg.gain.setTargetAtTime(br * 0.55 * a, tt + 0.04, 0.07);
       prev = f; tt += Math.max(0.05, dur); last = a;
     });
@@ -969,7 +976,7 @@
     } },
     // 该隐：低处的 A 小七（A E C G）；求告耶和华的名、以诺与神同行之后，大三度回来
     cain: { lp: 800, groups: {
-      dark: [[F.A1, 's', 0.55, 0], [F.E2, 'soft', 0.42, 0.1], [F.C3, 'soft', 0.22, -0.3], [F.G3, 's', 0.09, 0.35]],
+      dark: [[F.A1, 's', 0.5, 0], [F.E2, 'soft', 0.4, 0.1], [F.C3, 'soft', 0.3, -0.3], [F.E3, 'soft', 0.16, 0.25], [F.G3, 's', 0.12, 0.35]],
       hope: [[F.A2, 's', 0.42, 0], [F.E3, 'soft', 0.34, 0.2], [F.Cs4, 'soft', 0.19, -0.3], [F.E4, 's', 0.09, 0.4]],
     } },
     // 洪水：忧伤（A 小 b6）→ 暴风雨里只剩低处的挂四 → 水退之后清澈开阔的 A 加九
@@ -988,7 +995,7 @@
     abraham: { lp: 1500, groups: {
       day: [[F.A2, 's', 0.45, 0], [F.E3, 'soft', 0.37, -0.15], [F.B3, 'soft', 0.2, 0.3], [F.E4, 's', 0.11, -0.35], [F.Fs4, 's', 0.05, 0.45]],
       night: [[F.A2, 's', 0.42, 0], [F.E3, 'soft', 0.33, 0.15], [F.Cs4, 'soft', 0.17, -0.3], [F.Gs4, 's', 0.065, 0.35], [F.Ds5, 's', 0.032, -0.45]],
-      dark: [[F.A1, 's', 0.55, 0], [F.E2, 'soft', 0.3, 0.1], [F.C3, 's', 0.1, -0.2]],
+      dark: [[F.A1, 's', 0.4, 0], [F.E2, 'soft', 0.3, 0.1], [F.C3, 's', 0.13, -0.2]],
     } },
     // 雅各：牧场的 A6（A C# E F#）；夜里挂二；示剑的黑暗
     jacob: { lp: 1500, groups: {
@@ -999,8 +1006,8 @@
     // 约瑟：迦南的牧场 → 埃及（A 的低音持续，Bb 与 D 的 Hijaz 色彩）→ 歌珊（Bb 淡去）→ 平安（纯净的 A 大）
     joseph: { lp: 1500, groups: {
       canaan: [[F.A2, 's', 0.45, 0], [F.E3, 'soft', 0.35, -0.2], [F.Cs4, 'soft', 0.2, 0.3], [F.Fs4, 's', 0.09, -0.4]],
-      egypt: [[F.A1, 's', 0.42, 0], [F.A2, 'soft', 0.3, -0.1], [F.E3, 'soft', 0.28, 0.2], [F.Bb3, 's', 0.055, -0.4], [F.D4, 'soft', 0.1, 0.35]],
-      goshen: [[F.A1, 's', 0.4, 0], [F.A2, 'soft', 0.3, -0.1], [F.E3, 'soft', 0.28, 0.2], [F.Cs4, 'soft', 0.13, -0.35], [F.D4, 's', 0.05, 0.4]],
+      egypt: [[F.A1, 's', 0.34, 0], [F.A2, 'soft', 0.32, -0.1], [F.E3, 'soft', 0.28, 0.2], [F.Bb3, 's', 0.055, -0.4], [F.D4, 'soft', 0.1, 0.35]],
+      goshen: [[F.A1, 's', 0.34, 0], [F.A2, 'soft', 0.32, -0.1], [F.E3, 'soft', 0.28, 0.2], [F.Cs4, 'soft', 0.13, -0.35], [F.D4, 's', 0.05, 0.4]],
       peace: [[F.A2, 's', 0.45, 0], [F.E3, 'soft', 0.36, -0.2], [F.A3, 'soft', 0.25, 0.25], [F.Cs4, 'soft', 0.21, -0.35], [F.E4, 's', 0.13, 0.4]],
     } },
   };
@@ -1441,7 +1448,7 @@
       ns.push([deg(SC.maj, F.A3, last ? (Math.random() < 0.6 ? 5 : 8) : i), (last ? 1.4 : r[k % r.length] * 2) * beat, k % 2 ? 0.85 : 1]);
       i = clamp(i + (Math.random() < 0.7 ? (Math.random() < 0.5 ? 1 : -1) : (Math.random() < 0.5 ? 2 : -2)), 4, 11);
     }
-    pipe(ns, { g, pan, bright: 5, breath: 0.3, vib: 9, bus: 'mus', rev: 0.55 });
+    pipe(ns, { g: g * 0.5, pan, bright: 5, breath: 0.2, vib: 9, bus: 'mus', rev: 0.6 });
   }
   // 苇笛（旷野）：缓慢、滑入的长音，多是下行，收在 A 或 E
   function ney(g, pan) {
@@ -1452,7 +1459,7 @@
       ns.push([last ? (Math.random() < 0.5 ? F.A4 : F.E4) : deg(sc, F.A3, i), last ? rnd(1.6, 2.2) : rnd(0.7, 1.3), 1 - k * 0.06]);
       i += Math.random() < 0.65 ? -1 : 1;
     }
-    pipe(ns, { g: g * 0.9, pan, bend: true, bright: 3, breath: 0.65, vib: 14, vibHz: 4.8, bus: 'mus', rev: 0.7 });
+    pipe(ns, { g: g * 0.5, pan, bend: true, bright: 3, breath: 0.45, vib: 14, vibHz: 4.8, bus: 'mus', rev: 0.7 });
   }
   // 乌德（埃及）：Hijaz 上的一串拨弦——b2 与增二度，指滑入音，落在 A 或 E
   function oud(g, pan) {
@@ -1491,7 +1498,7 @@
       strings(ns, { bus: 'mus', prio: 0, pan: p, spread: 0, d: 1.6, bright: 5, rev: 0.55 });
     } else {
       for (let k = 0; k < n; k++) { ns.push([deg(SC.maj, base, i), rnd(0.15, 0.3)]); i += Math.random() < 0.5 ? 1 : -1; }
-      pipe(ns, { g: g * 0.8, pan: p, bright: 4, breath: 0.4, vib: 6, bus: 'mus', rev: 0.55 });
+      pipe(ns, { g: g * 0.5, pan: p, bright: 4, breath: 0.3, vib: 6, bus: 'mus', rev: 0.55 });
     }
   }
   // 天梯：天使上去下来——一串上行或下行的玻璃音
@@ -2125,6 +2132,7 @@
     act() {
       chord([F.A2, F.E3, semi(F.A3, thirdNow()), F.A3], { gs: [0.1, 0.07, 0.05, 0.035], a: 0.8, s: 0.8, r: 3.5, rev: 0.5, spread: 0.3 });
       harp({ soft: true, at: 0.35 });
+      harpJustPlayed();
     },
     // 发问：挂留的和弦不解决，最上面一声 E5 在末尾向上一扬（F#5）——问句的语调；一口上扬的空气
     ask() {
@@ -2144,6 +2152,7 @@
       chord([F.A2, F.E3, F.A3, F.Cs4, F.E4], { gs: [0.09, 0.07, 0.055, 0.045, 0.035], a: 1.5, s: 2.5, r: 5, spread: 0.5, rev: 0.55, at: 0.2,
         types: ['sine', 'sine', 'triangle', 'triangle', 'triangle'] });
       bells([F.A5, F.Cs6, F.E6], 0.18, 0.045, 3, 1.1);
+      harpJustPlayed();
     },
     // 呼唤：两声号角般的呼——E4，再 A4 长长地；远处回响
     call() {
@@ -2157,12 +2166,14 @@
       grains({ buf: 'white', n: 40, dur: 2.2, f0: 2500, f1: 7000, len: 0.018, q: 2.8, g: 0.07, spread: 0.9, rev: 0.45, prio: 2 });
       bells([F.A4, F.Cs5, F.E5, F.A5], 0.15, 0.06, 3.5, 2.0);
       chord([F.A2, F.E3, F.A3, F.Cs4], { gs: [0.09, 0.07, 0.05, 0.04], a: 1.2, s: 2, r: 4.5, at: 1.6, spread: 0.4, rev: 0.55 });
+      harpJustPlayed();
     },
     // 赐福：本卷音阶上的一阵轻拨，底下一口温暖的和弦
     bless() {
       const sc = scaleNow();
       for (let i = 0; i < 10; i++) pluck(deg(sc, F.A5, rint(0, sc.length + 1)), 0.3 + i * 0.2, 0.03, rnd(-0.9, 0.9), 0.6);
       chord([F.A2, F.E3, semi(F.A3, thirdNow())], { gs: [0.08, 0.06, 0.04], a: 1, s: 1.5, r: 4, rev: 0.5, spread: 0.3 });
+      harpJustPlayed();
     },
     // 命令：与第一卷同一口开阔的五度，稍轻
     cmd() { chord([F.A1, F.E2, F.A2, F.E3], { gs: [0.13, 0.095, 0.07, 0.035], a: 0.5, s: 0.5, r: 3.5, rev: 0.45 }); },
@@ -2293,7 +2304,7 @@
   // 坛上的火：火焰的身躯（低通的褐噪声）、一口"呼"、噼啪的火星
   function fireSfx(o) {
     const s = sopt(o, landPan()), k = s.k;
-    burst({ buf: 'brown', ft: 'lowpass', f: 420, q: 0.7, g: 0.13 * k, a: 0.7, s: 2.6, r: 2.2, pan: s.pan, rev: 0.3, am: [0.7, 0.25], at: s.at });
+    burst({ buf: 'brown', ft: 'lowpass', f: 420, q: 0.7, g: 0.085 * k, a: 0.7, s: 2.6, r: 2.2, pan: s.pan, rev: 0.3, am: [0.7, 0.25], at: s.at });
     burst({ buf: 'pink', f: 900, f2: 1600, sweep: 1.2, q: 0.9, g: 0.03 * k, a: 0.4, s: 2, r: 2.2, pan: s.pan, rev: 0.3, at: s.at });
     grains({ buf: 'white', n: s.soft ? 16 : 30, dur: 4.6, f0: 1100, f1: 4200, len: 0.01, q: 1.6, g: 0.05 * k, spread: 0.25, pan: s.pan, rev: 0.25, at: s.at + 0.2 });
     if (!s.soft) grains({ buf: 'pink', n: 8, dur: 4, f0: 350, f1: 900, len: 0.03, q: 1.3, g: 0.04 * k, spread: 0.2, pan: s.pan, rev: 0.3, at: s.at + 0.5 });
@@ -2306,7 +2317,7 @@
     burst({ buf: 'white', f: 900, q: 2, g: 0.03 * k, a: 0.002, d: 0.08, at: s.at });
     tollBell(F.A1, 0.08 * k, 7, s.at + 0.03, 0, 'evt', 0.7);
     tollBell(F.A2, 0.045 * k, 5.5, s.at + 0.06, 0.1, 'evt', 0.7);
-    chord([F.A1, F.E2, F.A2], { gs: [0.06 * k, 0.045 * k, 0.03 * k], a: 0.8, s: 1.2, r: 5, at: s.at + 0.2, rev: 0.6 });
+    chord([F.A1, F.E2, F.A2], { gs: [0.045 * k, 0.035 * k, 0.025 * k], a: 0.8, s: 1, r: 4, at: s.at + 0.2, rev: 0.6 });
   }
   // 众人的低语：几个声门般的声音（语调缓缓游移、音节一开一合）经元音的共振峰，外加一层气声
   function crowdSfx(o) {
@@ -2364,8 +2375,8 @@
       v.play(t, end);
     }
     const at = s.at + 1.0;
-    note({ f: 66, path: [[40, 0.25]], g: 0.1 * k, a: 0.004, d: 0.6, at, pan: s.pan, prio: 2 });
-    burst({ buf: 'brown', ft: 'lowpass', f: 320, q: 0.7, g: 0.17 * k, a: 0.004, d: 0.5, at, pan: s.pan, rev: 0.5 });
+    note({ f: 66, path: [[40, 0.25]], g: 0.07 * k, a: 0.004, d: 0.6, at, pan: s.pan, prio: 2 });
+    burst({ buf: 'brown', ft: 'lowpass', f: 320, q: 0.7, g: 0.13 * k, a: 0.004, d: 0.5, at, pan: s.pan, rev: 0.5 });
     burst({ buf: 'white', f: 750, q: 2.5, g: 0.045 * k, a: 0.002, d: 0.1, at, pan: s.pan });
   }
   // 一阵雨（持续的雨由 W.lv.rain 的声床奏出）
@@ -2473,6 +2484,8 @@
     gate: 0.8, rain: 1.5, dove: 1, camel: 0.8, donkey: 0.8, laugh: 1, angel: 2, stars: 0.6, cow: 1, bird: 0.4, raven: 0.8, wings: 0.4, chime: 0.3 };
   const sfxLast = {};
   let lastName = -1e9;
+  // 成就的手势里已有竖琴般的一句：紧接着（情节第 0 拍）再来的竖琴便不叠上去
+  function harpJustPlayed() { if (AC) sfxLast.harp = T(); }
 
   // ── 声床的电平（混音在此校准）────────────────────────────
   const LV = {
@@ -2480,7 +2493,7 @@
     water: 0.13, stir: 0.04, wind: 0.5, leaves: 0.42, cricket: 0.03,
     pluck: 0.03, star: 0.03, bird: 0.025, whale: 0.035, bubble: 0.03, graze: 0.02, herd: 0.05, theme: 0.02,
     // 其后各卷
-    pad: 0.03, work: 0.018, choir: 0.02, motif: 0.035, rain: 0.13, storm: 0.3, bow: 0.012,
+    pad: 0.034, work: 0.018, choir: 0.02, motif: 0.035, rain: 0.11, storm: 0.25, bow: 0.012,
   };
 
   // ── 对外的接口：未 init / 静音 / 无 WebAudio 时都是安全的空操作 ──
@@ -2702,7 +2715,8 @@
       beds: Object.keys(beds).filter(k => beds[k].x), breathN, LV, divine: divNow, act: actId(), actNow, scale: scaleNow().join(','), sfx: Object.keys(SFX),
       drone: beds.drone && beds.drone.x ? [beds.drone.x.c.chaos.v, beds.drone.x.c.sub.v] : null }),
     _t: { note, burst, grains, tollBell, bells, chord, whaleSong, birdPhrase, gull, cow, sheep, dove,     // 测试用：直接调用配方
-      strings, pipe, choir, knocks, vox, gust, roll, harp, lyre, shepherd, ney, oud, bowed, glass, tongues, angelRun, starPing, SFX, HOLD, FUL_LATE },
+      strings, pipe, choir, knocks, vox, gust, roll, harp, lyre, shepherd, ney, oud, bowed, glass, tongues, angelRun, starPing, SFX, HOLD, FUL_LATE,
+      tick: dt => { if (AC) tick(dt); }, offline: () => { resumeAt = 1e15; } },   // 离线渲染测试：直接推动一拍 / 视离线的环境为"在响" 
   };
 
   // 他处发出的声音事件
