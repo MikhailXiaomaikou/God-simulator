@@ -91,15 +91,16 @@
     const L = (x1, y1, x2, y2) => { g.moveTo(x1 * k, y1 * k); g.lineTo(x2 * k, y2 * k); };
     const dot = (x, y, rr) => { g.moveTo(x * k + rr * k, y * k); g.arc(x * k, y * k, rr * k, 0, TAU); };
     switch (s) {
-      case 0: {   // 同一的言语：一竖为干，顶上一环，旁生一弧——字字同源
+      case 0: {   // 同一的言语：一竖为干，顶上一道回钩，旁点一点——字字同源
         g.beginPath();
-        L(0, -0.3, 0, 0.9);
-        g.moveTo(0.3 * k, -0.6 * k); g.arc(0, -0.6 * k, 0.3 * k, 0, TAU);
+        L(0, -0.82, 0, 0.86);
+        g.moveTo(0, -0.82 * k); g.quadraticCurveTo(0.62 * k, -0.9 * k, 0.5 * k, -0.36 * k);
         const kind = Math.floor(r() * 3);
-        if (kind === 0) { g.moveTo(0, 0.05 * k); g.quadraticCurveTo(0.62 * k, 0.12 * k, 0.55 * k, 0.72 * k); }
-        else if (kind === 1) { g.moveTo(0, 0.2 * k); g.quadraticCurveTo(-0.62 * k, 0.26 * k, -0.55 * k, 0.78 * k); }
-        else { L(-0.48, 0.3, 0.48, 0.3); }
+        if (kind === 0) { g.moveTo(0, 0.25 * k); g.quadraticCurveTo(-0.55 * k, 0.3 * k, -0.5 * k, 0.8 * k); }
+        else if (kind === 1) { g.moveTo(0, 0.05 * k); g.quadraticCurveTo(0.5 * k, 0.12 * k, 0.55 * k, 0.6 * k); }
+        else { L(-0.42, 0.42, 0.3, 0.42); }
         g.stroke();
+        g.beginPath(); dot(-0.46, -0.3, 0.12); g.fill();
         break;
       }
       case 1: {   // 楔形
@@ -295,7 +296,7 @@
   //  布局：城、吾珥、哈兰（x 以画面比例存，尺寸以"人高"为单位——随屏幕缩放）
   // ════════════════════════════════════════════════════════════
   const TOWER_X = 0.72, N_TIER = 8, PLINTH = 0.035;
-  const CITY_X = [0.585, 0.87], UR_X = [0.497, 0.579], HARAN_X = [0.878, 0.995];
+  const CITY_X = [0.585, 0.87], CITY_WIDE = [0.5, 0.965], UR_X = [0.497, 0.579], HARAN_X = [0.878, 0.995];
   const KILNS = [0.535, 0.598], STACK_X = 0.567, PIT_X = 0.482, BRICKS_X = [0.628, 0.752];
   let LAY = null;
   function houses(seed, x0, x1, opt) {
@@ -315,7 +316,7 @@
     if (!W.w || !W.h) return;
     LAY = {
       w: W.w, h: W.h,
-      city: houses(71, CITY_X[0], CITY_X[1], { w0: 1.0, w1: 2.1, h0: 1.05, h1: 1.7 }),
+      city: houses(71, CITY_WIDE[0], CITY_WIDE[1], { w0: 1.0, w1: 2.1, h0: 1.05, h1: 1.7 }).map(hs => Object.assign(hs, { outer: hs.xf < CITY_X[0] || hs.xf > CITY_X[1] })),
       ur: houses(83, UR_X[0], UR_X[1], { w0: 0.9, w1: 1.6, h0: 0.9, h1: 1.35 }),
       haran: houses(97, HARAN_X[0] + 0.02, HARAN_X[1], { w0: 0.9, w1: 1.5, h0: 0.85, h1: 1.3 }),
     };
@@ -571,7 +572,7 @@
 
     // 未完工的塔顶：参差的砖、脚手架、吊杆
     const ftop = clamp(lv, 0, 1), wTop = wAt(B, ftop) * 0.97;
-    const tierH = Hf * 0.12;
+    const tierH = Hf * 0.12 * clamp(lv * 2.6, 0.45, 1);
     const r = U.mulberry32(4242 + Math.floor(lv * 40));
     ctx.fillStyle = gr;
     ctx.beginPath();
@@ -593,7 +594,7 @@
       for (const yy of [topY - tierH * 0.22, topY + tierH * 0.18]) { ctx.moveTo(xs[0], yy); ctx.lineTo(xs[xs.length - 1], yy); }
       for (let j = 0; j < xs.length - 1; j += 2) { ctx.moveTo(xs[j], topY + tierH * 0.18); ctx.lineTo(xs[j + 1], topY - tierH * 0.22); }
       // 吊杆
-      const px = cx + wTop * 0.18, py = topY - tierH * 1.35, bx = cx - wTop * 0.55, by = topY - tierH * 1.2;
+      const px = cx + wTop * 0.18, py = topY - tierH * 1.15, bx = cx - wTop * 0.5, by = topY - tierH * 1.0;
       ctx.moveTo(px, topY); ctx.lineTo(px, py); ctx.lineTo(bx, by);
       ctx.stroke();
       const ly = by + tierH * (0.5 + 0.35 * Math.sin(W.t * 0.45) * work);
@@ -642,7 +643,9 @@
       const x = hs.xf * W.w, w = hs.wk * hm;
       if (o.skip && Math.abs(x - o.skip[0]) < o.skip[1] + w * 0.5) continue;
       const g = groundY(1, x) + (row ? 0.05 : -0.2) * hm;
-      const h = hs.hk * hm * U.easeOut(v) * (1 - age * hs.ruin * 0.5);
+      // 岁月：城的外围归于尘土（后来的吾珥、哈兰立在那里），城心只剩残垣
+      const h = hs.hk * hm * U.easeOut(v) * (hs.outer ? 1 - age : 1 - age * hs.ruin * 0.5);
+      if (h < 0.5) continue;
       R.push([x - w / 2, g - h, w, h + 3 * W.unit, hs]);
     }
     if (!R.length) return;
@@ -882,9 +885,11 @@
   function drawGlyphs(ctx) {
     if (!glyphs.length) return;
     const A = buildAtlas();
-    ctx.globalCompositeOperation = 'lighter';
+    // 白昼里用覆盖（字在亮天上仍看得清），夜里用叠光
+    const add = W.night > 0.45;
+    ctx.globalCompositeOperation = add ? 'lighter' : 'source-over';
     // 同一的言语：字后面拖着一缕淡淡的弧
-    ctx.strokeStyle = 'rgba(255, 232, 186, 0.13)';
+    ctx.strokeStyle = add ? 'rgba(255, 232, 186, 0.13)' : 'rgba(255, 238, 200, 0.3)';
     ctx.lineWidth = Math.max(0.6, 0.9 * W.unit);
     ctx.beginPath();
     for (const g of glyphs) {
@@ -938,7 +943,16 @@
       if (age < 0 || age > 13) continue;
       const a = clamp(age / 0.9, 0, 1) * (age > 4.5 ? clamp(1 - (age - 4.5) / 8, 0, 1) : 1);
       if (a <= 0.01) continue;
-      const x = g.x * W.w, y = groundY(2, x) - hn * 1.75 - age * 2.2 * W.unit;
+      const x = g.x * W.w, gy = groundY(2, x), y = gy - hn * 1.75 - age * 2.2 * W.unit;
+      // 先祖的微光：一代人如一盏灯，亮起，又隐去
+      const fade = clamp(1 - (age - 1.5) / 3, 0, 1) * clamp(age / 0.6, 0, 1);
+      if (fade > 0.01) {
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalAlpha = fade * (0.35 + 0.35 * W.night);
+        const s = hn * 2.2;
+        ctx.drawImage(glowSprite('soul', [255, 236, 200]), x - s / 2, gy - hn * 0.6 - s / 2, s, s);
+        ctx.globalCompositeOperation = 'source-over';
+      }
       const sp = textSprite(g.name, px, [255, 234, 190]);
       ctx.globalAlpha = a;
       ctx.drawImage(sp.c, x - sp.w / 2, y - sp.h / 2, sp.w, sp.h);
@@ -1040,11 +1054,12 @@
     setup() {
       S = fresh();
       glyphs.length = 0; emitAcc = 0;
-      const L = { deep: 1, light: 1, gather: 1, dayNight: 1, vault: 1, clouds: 1, land: 1, grass: 1, herbs: 1, trees: 0.34,
+      const L = { deep: 1, light: 1, gather: 1, dayNight: 1, vault: 1, clouds: 1, land: 1, grass: 1, herbs: 1, trees: 0.24,
         lights: 1, moon: 1, stars: 1, life: 1, good: 0, sabbath: 0, given: 1 };
       for (const k in L) if (W.hasLevel(k)) W.set(k, L[k], true);
       for (const k of MY_LEVELS) W.set(k, 0, true);
-      const gx = W.w * 0.66, tx = W.w * 0.97;
+      // 示拿是一片平原：树只在最西边（画面右缘）留下一棵幼小的
+      const gx = W.w * 0.66, tx = W.w * 0.995;
       W.setOrigin('grass', gx, W.ridgeBaseY(2, gx));
       W.setOrigin('herbs', gx, W.ridgeBaseY(2, gx));
       W.setOrigin('trees', tx, W.ridgeBaseY(2, tx));
@@ -1054,9 +1069,9 @@
       W.setPop('fish', 140, W.w * 0.15, W.h * 0.8, true);
       W.setPop('whale', 3, W.w * 0.12, W.h * 0.78, true);
       W.setPop('bird', 40, W.w * 0.6, W.h * 0.3, true);
-      W.setPop('cattle', 7, lx, ly, true);
-      W.setPop('beast', 6, lx, ly, true);
-      W.setPop('creeper', 30, lx, ly, true);
+      W.setPop('cattle', 5, lx, ly, true);
+      W.setPop('beast', 3, lx, ly, true);
+      W.setPop('creeper', 24, lx, ly, true);
       W.setPop('human', 0, lx, ly, true);
       cast().clear({ fade: false });
       cast().add('japheth', { label: '雅弗', x: 0.53, facing: -1, robe: ROBE.jap, from: 'none' });
@@ -1267,7 +1282,7 @@
               W.set('babelWork', 0, b.instant);
               W.set('babelShaft', 0, b.instant);
               W.set('babelOne', 0, b.instant);
-              W.goTo(0.765, 16, b.instant);
+              W.goTo(0.75, 16, b.instant);
               S.speech = 'scatter';
               for (const g of SPEAK) cast().scatter(g);
               cast().walk('nimrod', 1.12, { speed: 0.03 });
@@ -1294,7 +1309,7 @@
       {
         kind: 'act', utter: '闪的后代记在下面', cmd: 'git log --first-parent 闪..他拉', ref: '11:10',
         verse: [
-          { text: '闪的后代记在下面。<br>洪水以后二年，闪一百岁生了亚法撒。', ref: '创世记 11:10', hold: 6.5 },
+          { text: '闪的后代记在下面。<br>……闪一百岁生了亚法撒。', ref: '创世记 11:10', hold: 6 },
         ],
         apply(c) {
           spiritRing(c);
@@ -1305,6 +1320,8 @@
               W.set('babelYard', 0, b.instant);
               W.set('babelWork', 0, b.instant);
               S.speech = 'none';
+              for (const g of SPEAK) cast().removeCrowd(g);   // 分散的人若还在路上，也在夜色里隐去
+              cast().remove('nimrod');
             }],
             [12, b => { W.set('babelUr', 1, b.instant); }],
             [10.4, () => say([{ text: '希伯活到三十四岁，生了法勒。', ref: '创世记 11:16', hold: 4.5 }])],
@@ -1379,24 +1396,28 @@
               say([{ text: '他拉带着他儿子亚伯兰和他孙子哈兰的儿子罗得，并他儿妇亚伯兰的妻子撒莱，<br>出了迦勒底的吾珥，要往迦南地去；他们走到哈兰，就住在那里。', ref: '创世记 11:31', hold: 9 }]);
             }],
             [12, b => { W.goTo(0.738, 16, b.instant); }],
-            [21, () => { cast().pose('terah', 'sit'); cast().pose('sarai', 'sit'); }],
+            [21, () => {
+              // 慢的机器上脚步可能落后于情节：他拉此刻必须已在哈兰
+              const p = cast().get('terah');
+              if (p && Math.abs(p.nx - 0.83) > 0.03) cast().place('terah', 0.83);
+              cast().pose('terah', 'sit'); cast().pose('sarai', 'sit');
+            }],
             [23.5, b => {
               cast().pose('terah', 'lie');
               cast().face('abram', 'terah');
-              cast().pose('abram', 'kneel');
+              cast().pose('abram', 'kneel', { weep: true });
               say([{ text: '他拉共活了二百零五岁，就死在哈兰。', ref: '创世记 11:32', hold: 6.5 }]);
               if (!b.instant) sfx('weep', { soft: true });
             }],
             [26.5, b => {
-              const p = cast().get('terah');
-              const x = p ? p.nx : 0.83;
+              const x = 0.83;
               cast().remove('terah');
               S.cairns.push({ x, t0: b.instant ? -1e9 : W.t });
               if (!b.instant) fx().sparkle(x * W.w, groundY(2, x * W.w) - hnear() * 0.3, 26, [255, 238, 210], 14, 'near');
             }],
             [29, () => {
               // 亚伯兰起来，面向西方——迦南还在前头
-              cast().pose('abram', 'stand');
+              cast().pose('abram', 'stand', { weep: false });
               cast().face('abram', 1);
               cast().pose('sarai', 'stand');
               cast().face('sarai', 1);

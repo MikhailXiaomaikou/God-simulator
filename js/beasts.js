@@ -59,7 +59,7 @@
       hl: 7.4, hh: 3.9, muz: 0.68, ear: 3.4, antler: true, tail: 'up',
       walk: 10, stride: 12, herdR: 70, graze: [4, 9], flee: 1, curious: 1, col: hex('#8A5A3A'), col2: [92, 60, 40], top: 30, len: 34 },
     lion: { cn: '狮子', cls: 'beast', type: 'q', bl: 27, bh: 11.5, leg: 10.5, lw: [3.4, 2.4, 2.2], neck: 6.2, nw: [8.0, 6.4], up: 0.3, hd: 0.55,
-      hl: 8.2, hh: 6.8, muz: 0.82, ear: 2.2, mane: true, tail: 'lion', rump: 0.95,
+      hl: 8.2, hh: 6.8, muz: 0.82, ear: 2.2, mane: true, tail: 'lion', rump: 0.95, sphinx: true,
       walk: 8.5, stride: 11, herdR: 30, graze: [8, 14], col: hex('#B98A4A'), col2: [120, 76, 36], top: 26, len: 40 },
     horse: { cn: '马', cls: 'beast', type: 'q', bl: 27, bh: 12.5, leg: 16, lw: [3.1, 1.9, 1.6], neck: 13, nw: [7.6, 3.8], up: 0.95, hd: 1.5,
       hl: 10.8, hh: 4.6, muz: 0.8, ear: 2.6, hmane: true, tail: 'horse', chest: 1.0, rump: 1.05,
@@ -130,17 +130,20 @@
     const a = x0 + m * 0.4, b = Math.min(x1, W.w - m);
     return b - a > 20 ? [a, b] : null;
   }
-  // 近地的纵深：窄高的屏幕（竖屏手机）上，田野相对生灵更高，便让它们散得更开
-  const VMAX = [0.3, 0.4, 0.55];
+  // 近地的纵深：生灵散布在整片原野上（远者小、近者大），而不是挤在脊线上的一条；
+  // 窄高的屏幕（竖屏手机）上，田野相对生灵更高，便让它们散得更开
+  const VMAX = [0.3, 0.4, 0.64];
   function calcSpans() {
     SPAN[1] = scan(1); SPAN[2] = scan(2);
     const s = SPAN[2];
     if (s) {
       const fh = W.h - W.ridgeBaseY(2, (s[0] + s[1]) / 2);
       const rel = fh / (cu() * 100);
-      VMAX[2] = clamp(0.33 + 0.15 * rel, 0.5, 0.8);
+      VMAX[2] = clamp(0.44 + 0.2 * rel, 0.64, 0.82);
     }
   }
+  // 原野上的一个纵深：略偏向远处（脊线一带），但整片原野都有
+  const fieldV = (lo, hi) => lerp(lo, hi, Math.pow(Math.random(), 1.2));
   function span(layer) { if (!SPAN[layer]) SPAN[layer] = scan(layer); return SPAN[layer] || [W.w * 0.55, W.w * 0.95]; }
   function clampX(layer, x, m) { const s = span(layer); m = Math.min(m || 0, (s[1] - s[0]) * 0.3); return clamp(x, s[0] + m, s[1] - m); }
 
@@ -152,7 +155,7 @@
     LT.sunCol = mix(RIM_DAY, RIM_WARM, c01(dk * 1.2));
     LT.sx = W.core.x; LT.sy = W.core.y;
     const mo = W.moon;
-    LT.moonA = mo && mo.vis > 0 ? mo.vis * W.night * sstep(-0.06, 0.2, mo.elev) * 0.85 : 0;
+    LT.moonA = mo && mo.vis > 0 ? mo.vis * W.night * sstep(-0.06, 0.2, mo.elev) * 0.5 : 0;
     LT.mx = mo ? mo.x : 0; LT.my = mo ? mo.y : 0;
     const sp = W.spirit;
     LT.spx = sp.x; LT.spy = sp.y;
@@ -182,10 +185,10 @@
     }
     if (ws < 0.004) { RIM.a = 0; RIM.dx = 0; RIM.dy = -1; return RIM; }
     const L = Math.hypot(wx, wy) || 1;
-    const k = clamp(cu() * (warm ? 0.7 : 0.85), 0.65, 1.15) * (1 + 0.45 * W.night);
+    const k = clamp(cu() * (warm ? 0.95 : 0.85), 0.65, 1.15) * (1 + 0.15 * W.night);
     RIM.dx = wx / L * k; RIM.dy = wy / L * k;
     RIM.c[0] = r / ws; RIM.c[1] = g / ws; RIM.c[2] = b / ws;
-    RIM.a = Math.min(1, ws * (1 + 0.6 * W.night)) * (warm ? 1 : 0.85);
+    RIM.a = Math.min(1, ws * (1 + 0.15 * W.night)) * (warm ? 1 : 0.85);
     return RIM;
   }
   function shc(rgb, depth, extra, k) {
@@ -320,8 +323,11 @@
     if (front) { u = th + 0.03; l = th - lift * 1.05 - 0.02; }
     else { u = th - 0.22 - lift * 0.12; l = th + 0.16 + lift * 0.75; }
     if (lie > 0.001) {
-      u = lerp(u, front ? 1.25 : 1.35, lie);
-      l = lerp(l, front ? -1.5 : -1.6, lie);
+      if (front && M.sphinx) { u = lerp(u, 1.42, lie); l = lerp(l, 1.3, lie); }   // 前爪伸在胸前，平放在地上
+      else {                                                                         // 蹄类：前膝向前折起，后腿收在腹下
+        u = lerp(u, front ? 1.25 : 1.35, lie);
+        l = lerp(l, front ? -1.5 : -1.6, lie);
+      }
     }
     const L1 = L * (front ? 0.5 : 0.52), L2 = L * 0.5;
     const kx = x0 + Math.sin(u) * L1, ky = y0 + Math.cos(u) * L1;
@@ -332,10 +338,11 @@
 
   function buildQuad(a) {
     const M = a.M, lie = a.lie, g = a.gait, run = a.run, ph = a.ph;
-    const bl = M.bl, bh = M.bh, L0 = M.leg + bh * 0.32;
+    // 卧下时身子略略收拢、胸口抬起，不成一条扁平的长条
+    const bl = M.bl * (1 - 0.07 * lie), bh = M.bh * (1 + 0.04 * lie), L0 = M.leg + M.bh * 0.32;
     const bob = -(0.04 + 0.12 * run) * g * L0 * Math.abs(Math.cos(ph));
-    const by = lerp(-(M.leg + bh * 0.5), -bh * 0.46, lie) + bob;
-    const pitch = a.pitch + (run ? 0.06 * Math.sin(ph * 2) * run : 0);
+    const by = lerp(-(M.leg + bh * 0.5), -bh * 0.47, lie) + bob;
+    const pitch = a.pitch + (run ? 0.06 * Math.sin(ph * 2) * run : 0) - lie * (M.sphinx ? 0.09 : 0.05);
     const cp = Math.cos(pitch), spn = Math.sin(pitch);
     const rx = (x, y) => x * cp - (y - by) * spn, ry = (x, y) => by + x * spn + (y - by) * cp;
     const hy = by + bh * 0.2, L = L0 * (1 - 0.3 * lie);
@@ -354,14 +361,14 @@
       const n = 5;
       for (let i = 0; i < n; i++) {
         const k = i / (n - 1);
-        SP_[2 * i] = t0x - k * (3 + 3 * g + run * 5) + Math.sin(k * 2 + sway) * 1.2 * k - k * k * 1.5;
-        SP_[2 * i + 1] = t0y + k * (bh * 0.95 + M.leg * 0.45) * (1 - run * 0.35);
+        SP_[2 * i] = t0x - k * (3 + 3 * g + run * 5 + lie * 2) + Math.sin(k * 2 + sway) * 1.2 * k - k * k * 1.5;
+        SP_[2 * i + 1] = t0y + k * (bh * 0.95 + M.leg * 0.45) * (1 - run * 0.35) * (1 - 0.5 * lie);
       }
-      for (let i = 0; i < n; i++) { const over = SP_[2 * i + 1] + 0.8; if (over > 0) { SP_[2 * i + 1] = -0.8; SP_[2 * i] -= over; } }
+      for (let i = 0; i < n; i++) { const over = SP_[2 * i + 1] + 0.8; if (over > 0) { SP_[2 * i + 1] = -0.8; SP_[2 * i] -= over * 0.4; } }
       strand(SP_, n, 3.2, 1.2);
     } else if (M.tail === 'lion' || M.tail === 'tuft') {
       op(M.tail === 'lion' ? 'body' : 'far');
-      const n = 5, len = M.tail === 'lion' ? bh * 1.5 : bh * 1.3;
+      const n = 5, len = (M.tail === 'lion' ? bh * 1.5 * (1 - 0.2 * lie) : bh * 1.3 * (1 - 0.5 * lie));
       for (let i = 0; i < n; i++) {
         const k = i / (n - 1);
         const cx = M.tail === 'lion' ? -k * len * 0.55 - Math.sin(k * 3.1) * 1.5 : -k * 1.5;
@@ -369,7 +376,7 @@
         SP_[2 * i + 1] = t0y + k * len * (M.tail === 'lion' ? 0.8 - k * k * 0.55 : 0.95);
       }
       // 卧下时尾巴顺着地面，不钻进土里
-      for (let i = 0; i < n; i++) { const over = SP_[2 * i + 1] + 0.6; if (over > 0) { SP_[2 * i + 1] = -0.6; SP_[2 * i] -= over * 0.9; } }
+      for (let i = 0; i < n; i++) { const over = SP_[2 * i + 1] + 0.6; if (over > 0) { SP_[2 * i + 1] = -0.6; SP_[2 * i] -= over * (M.tail === 'lion' ? 0.9 : 0.4); } }
       strand(SP_, n, 1.3, 0.8);
       a._tuftX = SP_[2 * (n - 1)]; a._tuftY = Math.min(SP_[2 * (n - 1) + 1], -1.2);
     }
@@ -719,13 +726,16 @@
     const s = span(layer);
     let x, v;
     if (instant) {
-      x = clampX(layer, anchorX + rnd(-1, 1) * (s[1] - s[0]) * 0.42, 20 * u);
-      v = layer === 2 ? Math.pow(Math.random(), 1.3) * VMAX[2] * 0.92 : rnd(0.05, 0.4);
+      let hx = homeX(sp, layer);
+      if (sp === 'lion') { const hs = homeX('sheep', layer); hx = hs == null ? null : hs + (countSp('lion') ? 1 : -1) * rnd(34, 52) * u; }
+      x = clampX(layer, hx != null ? hx + rnd(-1, 1) * Math.min(SPEC[sp].herdR * 1.3 * u, (s[1] - s[0]) * 0.14) : anchorX + rnd(-1, 1) * (s[1] - s[0]) * 0.42, 20 * u);
+      v = layer === 2 ? fieldV(0.03, VMAX[2] * 0.94) : rnd(0.05, 0.4);
     } else {
+      // 一对一对，自灵所在之处向两旁、向前后依次出现
       const pair = Math.floor(k / 2), side = pair % 2 ? 1 : -1, ring = Math.ceil(pair / 2);
-      x = anchorX + side * ring * 34 * u + (k % 2 ? 1 : -1) * 8 * u + rnd(-4, 4) * u;
+      x = anchorX + side * ring * 30 * u + (k % 2 ? 1 : -1) * 9 * u + rnd(-4, 4) * u;
       x = clampX(layer, x, 16 * u);
-      v = layer === 2 ? 0.04 + (pair % 3) * 0.24 * VMAX[2] + rnd(0, 0.05) : rnd(0.05, 0.3);
+      v = layer === 2 ? clamp(0.06 + ((pair * 0.382) % 1) * 0.78 * VMAX[2] + (k % 2) * 0.04 + rnd(-0.02, 0.03), 0.03, VMAX[2]) : rnd(0.05, 0.3);
     }
     const a = newAnimal(sp, layer, x, v, instant);
     individuate(a, countSp(sp));
@@ -781,10 +791,11 @@
       const c = adults.length ? adults[0].x : anchorX;
       const n = HU.length - 2;
       x = c + (n % 2 ? 1 : -1) * (18 + 12 * Math.floor(n / 2)) * u + rnd(-4, 4) * u;
-      v = 0.16 + rnd(0, 0.12);
+      v = (adults.length ? adults[0].v : 0.3) + rnd(0.02, 0.14);
     } else {
+      // 人在原野的中景：比走兽更近，受造之冠，一眼可见
       x = anchorX + (kind === 'man' ? -9 : 9) * u;
-      v = 0.1 + (kind === 'woman' ? 0.015 : 0);
+      v = VMAX[2] * 0.42 + (kind === 'woman' ? 0.015 : 0);
     }
     x = clampX(2, x, 10 * u);
     const h = newHuman(kind, x, v, instant);
@@ -927,6 +938,16 @@
     for (const k in HERD) { const h = HERD[k]; if (h.n) { h.cx = h.sx / h.n; h.cv = h.sv / h.n; } }
   }
   function herdOf(a) { const h = HERD[herdKey(a)]; return h && h.n ? h : null; }
+  // 各从其类：每一类在原野上有自己的一片家园（沿该层陆地的比例位置），群心在其左右缓缓游移；
+  // 生灵在灵所在之处出生，其后慢慢散回各自的家园——于是全地都有活物，而不是挤成一堆
+  const HOME = { sheep: 0.5, goat: 0.8, cow: 0.3, deer: 0.66, horse: 0.5, elephant: 0.9, rabbit: 0.2 };
+  function homeX(sp, layer) {
+    const f = HOME[sp];
+    if (f == null) return null;
+    const s = span(layer);
+    const wob = 0.09 * U.noise1(W.t * 0.011 + sp.length * 7.3 + f * 13);
+    return s[0] + (s[1] - s[0]) * clamp(f + wob, 0.05, 0.95);
+  }
   function sheepCenter(layer) { const h = HERD['sheep' + layer] || HERD['sheep2']; return h && h.n ? h : null; }
 
   const awe = () => (W.lt.good >= 1 && W.lv.good < 0.985) || (W.ritual.holding && W.ritual.kind === 'behold');
@@ -942,15 +963,20 @@
       const base = sc ? sc.cx : a.x;
       x = base + (a.sex ? 1 : -1) * rnd(34, 52) * u;
     } else if (h && h.n > 1 && !far) {
-      const R = M.herdR * u;
-      x = h.cx + rnd(-R, R);
+      const R = M.herdR * u, hx = homeX(a.sp, a.layer);
+      const c = hx == null ? h.cx : lerp(h.cx, hx, 0.3);
+      x = c + rnd(-R, R);
       if (Math.abs(a.x - h.cx) > R * 1.5) x = h.cx + rnd(-R, R) * 0.5;
     } else {
       x = a.x + rnd(-1, 1) * (far ? 160 : 90) * u;
+      const hx = homeX(a.sp, a.layer);
+      if (hx != null) x = lerp(x, hx, 0.25);
     }
     a.tx = clampX(a.layer, x, M.len * 0.5 * u);
     const vmax = VMAX[a.layer];
-    a.tv = clamp(a.v + rnd(-0.12, 0.12), 0.02, vmax);
+    let tv = a.v + rnd(-0.16, 0.16);
+    if (h && h.n > 1 && !far && a.sp !== 'lion') tv = lerp(tv, h.cv + rnd(-0.1, 0.1), 0.35);   // 同群的在纵深上也相随
+    a.tv = clamp(tv, 0.02, vmax);
   }
   function think(a) {
     const M = a.M, r = Math.random();
@@ -1044,7 +1070,7 @@
           if (W.night < 0.35) { a.wake -= dt; if (a.wake <= 0) setSt(a, 'look', rnd(1.5, 3)); }
           break;
         case 'rest':
-          lieT = 1; neckT = M.up * 0.55 + 0.1;
+          lieT = 1; neckT = M.up * 0.55 + 0.1 + (M.sphinx ? 0.3 : 0);
           if (a.stT > a.dur) think(a);
           break;
         case 'graze':
@@ -1182,10 +1208,10 @@
     }
     h.act = act;
     if (act === 'walk') {
-      h.tx = clampX(2, h.x + (Math.random() < 0.5 ? -1 : 1) * rnd(70, 170) * u, 20 * u); h.tv = rnd(0.06, 0.22); h.actDur = 40;
+      h.tx = clampX(2, h.x + (Math.random() < 0.5 ? -1 : 1) * rnd(70, 170) * u, 20 * u); h.tv = VMAX[2] * rnd(0.22, 0.75); h.actDur = 40;
     } else if (act === 'fruit') {
       const ts = nearTrees();
-      if (!ts.length) { h.act = 'walk'; h.tx = clampX(2, h.x + rnd(-120, 120) * u, 20 * u); h.tv = 0.12; h.actDur = 30; return; }
+      if (!ts.length) { h.act = 'walk'; h.tx = clampX(2, h.x + rnd(-120, 120) * u, 20 * u); h.tv = VMAX[2] * rnd(0.25, 0.6); h.actDur = 30; return; }
       let best = null, bd = 1e9;
       for (const t of ts) { const d = Math.abs(t.x - h.x) + rnd(0, 80) * u; if (d < bd) { bd = d; best = t; } }
       h.tree = best; h.tx = clampX(2, best.x + (h.x < best.x ? -1 : 1) * 5 * u, 8 * u); h.tv = 0.03; h.actDur = 40;
@@ -1218,9 +1244,11 @@
     h.lookT = clamp(ang * 0.9, -0.3, 1.05) * (k == null ? 1 : k);
   }
 
+  // 人的尺度：与后来各卷里的人物（cast.js）相近；窄屏上再略放大，受造之冠要一眼可见
+  const humanK = () => (W.w < 600 ? 1.22 : 1.1);
   function updHuman(h, dt, lead, part) {
     const u = cu();
-    h.S = cu() * depthK(2, h.v) * h.size;
+    h.S = cu() * depthK(2, h.v) * h.size * humanK();
     h.y = footY(2, h.x, h.v);
     const sp = W.spirit;
     let base = h.pose, spdT = 0, faceT = h.dir;
@@ -1810,7 +1838,7 @@
       setCol('body', HUMAN, 0, ex); COLS.head = COLS.body; CRGB.head = CRGB.body;
       setCol('far', HUMAN, 0, ex, 0.72);
       setCol('hair', HUMAN_HAIR, 0, ex);
-      rim.a = Math.min(1, rim.a * 0.85);
+      rim.a = Math.min(1, rim.a * 1.1);
       if (emerging) {
         ctx.save();
         ctx.globalAlpha = alpha;
@@ -1819,18 +1847,19 @@
         flush(ctx, rim);
         ctx.restore();
       } else flush(ctx, rim);
-      // 胸中的微光：他们是世上唯一自带光的受造物
+      // 胸中的微光：他们是世上唯一自带光的受造物——一点清亮的核，外面一圈柔和的晕
       if (GLOW) {
         tp(h._chest[0], h._chest[1]);
         const cx = PX, cy = PY;
-        const on = h.breathed || !emerging ? 1 : 0;
-        let a = on * alpha * (0.2 + 0.4 * W.night + 0.12 * W.dusk);
-        let r = (7.5 + 3.5 * W.night) * s;
+        const on = (h.breathed || !emerging ? 1 : 0) * alpha, n = W.night;
+        let a = on * (0.1 + 0.3 * n + 0.1 * W.dusk);                 // 晕
+        let r = (8 + 6 * n) * s;
+        const ac = on * (0.42 + 0.5 * n + 0.1 * W.dusk), rc = (2.3 + 0.6 * n) * s;   // 核
         if (h.flash >= 0) { const k = h.flash / 1.4; r = lerp(40, 10, eOut(k)) * cu(); a = Math.max(a, (1 - k) * 0.9); }
-        if (a > 0.01) {
+        if (a > 0.01 || ac > 0.01) {
           ctx.globalCompositeOperation = 'lighter';
-          ctx.globalAlpha = Math.min(1, a);
-          ctx.drawImage(GLOW, cx - r, cy - r, r * 2, r * 2);
+          if (a > 0.01) { ctx.globalAlpha = Math.min(1, a); ctx.drawImage(GLOW, cx - r, cy - r, r * 2, r * 2); }
+          if (ac > 0.01) { ctx.globalAlpha = Math.min(1, ac); ctx.drawImage(GLOW, cx - rc, cy - rc, rc * 2, rc * 2); }
           ctx.globalAlpha = 1;
           ctx.globalCompositeOperation = 'source-over';
         }
@@ -1898,12 +1927,16 @@
       const open = 0.3 + 0.7 * Math.abs(Math.sin(c.flap));
       const tilt = clamp(c.vx * 0.12, -0.35, 0.35);
       setT(c.x, c.y, s, 1, tilt);
-      const wx = open;
-      // 两对翻飞的三角：前翅大、后翅小
-      tri(0, -0.55, 0, 0.35, -1.05 * wx, -1.0);
-      tri(0, -0.55, 0, 0.35, 1.05 * wx, -1.0);
-      tri(0, -0.1, 0, 0.6, -0.72 * wx, 0.8);
-      tri(0, -0.1, 0, 0.6, 0.72 * wx, 0.8);
+      // 两对翻飞的翅：前翅是向外上方张开的圆角三角，后翅小而圆；扇动即翅面的宽窄
+      for (let sd = -1; sd <= 1; sd += 2) {
+        const k = sd * open;
+        PB[0] = 0; PB[1] = -0.42; PB[2] = 0.5 * k; PB[3] = -1.12; PB[4] = 1.08 * k; PB[5] = -1.02;
+        PB[6] = 1.12 * k; PB[7] = -0.62; PB[8] = 0.62 * k; PB[9] = -0.12; PB[10] = 0; PB[11] = 0.02;
+        polyN(6);
+        PB[0] = 0; PB[1] = -0.02; PB[2] = 0.72 * k; PB[3] = 0.02; PB[4] = 0.86 * k; PB[5] = 0.42;
+        PB[6] = 0.5 * k; PB[7] = 0.82; PB[8] = 0.16 * k; PB[9] = 0.62; PB[10] = 0; PB[11] = 0.42;
+        polyN(6);
+      }
     }
     for (let i = 0; i < 3; i++) {
       if (!paths[i]) continue;

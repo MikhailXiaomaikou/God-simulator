@@ -71,7 +71,7 @@
     i, n: 0, step: 1, base: null, cur: null, rise: -1, dirty: true, wl: 0,
     minY: 0, spanA: -1, spanB: -1, folds: [],
     wet: 0, breached: false, emitAcc: 0, pv: 0, pk: -1, P: null, rk: '', RP: null,
-    nb: 0, B: null, tmp: null, herbs: [], trees: [], texels: [], rivX: [],
+    nb: 0, B: null, tmp: null, herbs: [], trees: [], texels: [], coast: null,
   }));
   const trees = [];                 // 近 / 中两层的树
   const blooms = [];                // 赐福与「遍满地面」时开出的花
@@ -198,7 +198,7 @@
     const mo = W.moon;
     const ma = mo && mo.vis > 0 ? mo.vis * W.night * sstep(-0.06, 0.2, mo.elev) : 0;
     FL.moon = { x: mo ? mo.x : 0, y: mo ? mo.y : 0, a: ma * 0.6, col: RIM_NIGHT };
-    FL.moonO = ma * 0.13;
+    FL.moonO = ma * 0.26;
     const sp = W.spirit;
     FL.sp = { x: sp.x, y: sp.y, R: 230 * Math.max(0.6, W.unit), a: L * (0.1 + 0.9 * W.night) };
   }
@@ -338,7 +338,7 @@
             const rx = RR(0.04, 0.075) * (1 - 0.35 * edge) + 0.012;
             const ry = rx * RR(0.42, 0.62);
             const yy = y + edge * edge * 0.028 + RR(-0.014, 0.01) * (1 - edge * 0.5);
-            const tt = tb + 0.14 + edge * 0.18 + R() * 0.05;
+            const tt = 0.34 + k * 0.022 + edge * 0.12 + R() * 0.03;   // 每层枝一抽出，叶便自内向外铺开（免得先成一根光杆）
             blob(m, x, yy + ry * 0.7, rx * 1.12, ry * 1.1, RR(-0.3, 0.3), tt, 0);
             if (R() < 0.8) blob(m, x + RR(-0.01, 0.01), yy - ry * 0.1, rx, ry, RR(-0.3, 0.3), tt + 0.02, 1);
           }
@@ -502,12 +502,12 @@
     else if (variant === 'morn' || variant === 'eve') {
       hiA = 0.35; dx = variant === 'morn' ? -1 : 1; dy = -0.4; warm = 1;
       rim = rimWarm; glowA = 0.18; gradK = 1;
-    } else if (variant === 'night') { hiA = 0; rim = null; glowA = 0.3; gradK = 0.25; }
+    } else if (variant === 'night') { hiA = 0; rim = null; glowA = 0; gradK = 0.25; }
     else if (variant === 'live') {
       hiA = 0.55 * FL.wd + 0.35 * FL.ww;
       dx = lx; dy = ly; warm = c01(FL.ww * 1.4);
       rim = FL.wd + FL.ww > 0.15 ? mix(rimDay, rimWarm, warm) : null;
-      glowA = 0.1 * FL.wd + 0.18 * FL.ww + 0.3 * FL.wn;
+      glowA = 0.1 * FL.wd + 0.18 * FL.ww;
       gradK = 1 - 0.75 * FL.wn;
     }
     const dl = Math.hypot(dx, dy) || 1;
@@ -524,13 +524,13 @@
     const rimPx = layer === 2 ? 1.4 : 1.0;
     P.rdx = P.ldx * rimPx; P.rdy = P.ldy * rimPx;
     const fe = variant === 'night' ? 0.03 : 0.12;
-    // 熟透的果子在夜里自己发出温暖的微光（像小小的灯），而不是暗色的洞
+    // 夜里只有灵是灯：熟透的果子不自己发光，只比叶略暖一点（免得成了暗色的洞）
     const nightW = variant === 'night' ? 1 : variant === 'live' ? FL.wn : 0;
     P.fruit = K.fruit.map(c => {
       const base = sh(ripe ? mix(c, [255, 150, 70], K.ripeMix == null ? 0.15 : K.ripeMix) : c, fe);
       if (!ripe || nightW <= 0) return css(base);
-      const glowC = mul(mix(c, [255, 196, 128], 0.55), 0.62 * (K.ripeMix != null ? 0.55 : 1));
-      return css(mix(base, glowC, 0.85 * nightW));
+      const glowC = mul(mix(c, [220, 150, 110], 0.4), 0.3 * (K.ripeMix != null ? 0.6 : 1));
+      return css(mix(base, glowC, 0.5 * nightW));
     });
     P.fruitHi = css(sh([255, 236, 210], 0.2), 0.5);
     P.bloom = (K.bloom || [[255, 255, 255]]).map(c => css(sh(c, 0.2)));
@@ -541,14 +541,26 @@
     fruit: ['#000', '#000', '#000'], fruitHi: 'rgba(0,0,0,0)', bloom: ['#000', '#000', '#000'], glowA: 0 };
 
   // ── 画一棵树（grow 0→1：先干，后冠，末了结果）─────────────────
+  // 生长是一株幼苗长成大树（整体随 growScale 由小变大）：
+  //   枝干在 grow 0→0.34 间抽出，叶团在 0.22→0.78 间次第绽开，果子在 0.8→1 间结成。
+  //   模型里各部件的 t 仍是原来的次序，这里只是把它们映射到这两段时间上——
+  //   这样就不会出现"一根光秃秃的高杆子，然后才长叶"（像电线杆）的样子。
+  const segT = g => (g >= 1 ? 1 : c01(g / 0.34) * 0.46);
+  const leafT = g => (g >= 1 ? 1 : 0.34 + c01((g - 0.22) / 0.56) * 0.62);
+  function growScale(g) {
+    if (g >= 1) return 1;
+    const x = c01(g / 0.9);
+    return 0.16 + 0.84 * (1 - (1 - x) * (1 - x));
+  }
   function paintTree(g, m, grow, P, H, ripe) {
     const tr = new Path2D(), bk = new Path2D(), md = new Path2D();
     const trR = P.rim ? new Path2D() : null;
     const hi = P.hiA > 0.02 ? new Path2D() : null;
     let nTr = 0, nBk = 0, nMd = 0, nHi = 0, nTrR = 0;
+    const gS = segT(grow), gL = leafT(grow);
     for (let i = 0; i < m.segs.length; i++) {
       const s = m.segs[i];
-      const p = c01((grow - s.t0) / (s.t1 - s.t0 || 0.01));
+      const p = c01((gS - s.t0) / (s.t1 - s.t0 || 0.01));
       if (p <= 0) continue;
       const x0 = s.x0 * H, y0 = s.y0 * H;
       const x1 = (s.x0 + (s.x1 - s.x0) * p) * H, y1 = (s.y0 + (s.y1 - s.y0) * p) * H;
@@ -569,7 +581,7 @@
     }
     for (let i = 0; i < m.blobs.length; i++) {
       const b = m.blobs[i];
-      const s = grow >= 1 ? 1 : eBack(c01((grow - b.t) / 0.16));
+      const s = grow >= 1 ? 1 : eBack(c01((gL - b.t) / 0.16));
       if (s <= 0.01) continue;
       const rx = b.rx * H * s, ry = b.ry * H * s, x = b.x * H, y = b.y * H, c = Math.cos(b.rot), sn = Math.sin(b.rot);
       const p = b.tone === 0 ? bk : md;
@@ -587,7 +599,7 @@
       fr0 = new Path2D(); fr1 = new Path2D();
       const cx = m.crown.x * H, cy = m.crown.y * H;
       for (const f of m.fronds) {
-        const p = c01((grow - f.t) / 0.3);
+        const p = c01((gL - f.t) / 0.3);
         if (p <= 0) continue;
         const e = eOut(p), L = f.len * H * e;
         const sa = Math.sin(f.ang), ca = Math.cos(f.ang);
@@ -620,9 +632,9 @@
     }
     if (nBk) { g.fillStyle = P.back; g.fill(bk); }
     if (nTr) { g.fillStyle = P.trunk; g.fill(tr); }
-    if (m.marks.length && grow > 0.05) {
+    if (m.marks.length && gS > 0.05) {
       const mk = new Path2D(); let n = 0;
-      for (const k of m.marks) if (grow > k.t + 0.03) { mk.moveTo(k.x0 * H, k.y0 * H); mk.lineTo(k.x1 * H, k.y1 * H); n++; }
+      for (const k of m.marks) if (gS > k.t + 0.03) { mk.moveTo(k.x0 * H, k.y0 * H); mk.lineTo(k.x1 * H, k.y1 * H); n++; }
       if (n) { g.strokeStyle = P.bark2; g.lineWidth = Math.max(0.6, 0.007 * H); g.stroke(mk); }
     }
     // 冠的主色：朝光一侧亮，背光一侧沉
@@ -641,12 +653,12 @@
     if (nMd) { g.fillStyle = cfill; g.fill(md); }
     if (hi && nHi) { g.globalAlpha = P.hiA; g.fillStyle = P.hi; g.fill(hi); g.globalAlpha = 1; }
     // 花
-    if (m.blooms.length && grow > 0.5) {
+    if (m.blooms.length && gL > 0.5) {
       for (let ci = 0; ci < P.bloom.length; ci++) {
         const bp = new Path2D(); let n = 0;
         for (const f of m.blooms) {
           if (f.c !== ci) continue;
-          const s = grow >= 1 ? 1 : eBack(c01((grow - f.t) / 0.1));
+          const s = grow >= 1 ? 1 : eBack(c01((gL - f.t) / 0.1));
           if (s <= 0) continue;
           const r = Math.max(0.55, f.r * H * s);
           bp.moveTo(f.x * H + r, f.y * H); bp.arc(f.x * H, f.y * H, r, 0, TAU); n++;
@@ -729,23 +741,47 @@
   }
   function freeImg(img) { if (img && typeof img.close === 'function') { try { img.close(); } catch (e) { /* */ } } }
   function bakeKey(t) { return t.H.toFixed(2) + '|' + (t.ripe ? 1 : 0) + '|' + Math.min(W.dpr || 1, 1.5); }
-  function bakeTree(t) {
+  // 烘焙的库：同一棵树（种类 / 种子 / 层 / 尺寸 / 熟否 / 像素比）只烘一次。
+  // 恢复存档、卷与卷之间的 resync、来回缩放窗口都会重新布局——长好的树直接取回，不必重烘。
+  const bakeStore = new Map();
+  const storeKey = t => t.kind + '|' + t.seed + '|' + t.layer + '|' + bakeKey(t);
+  function releaseBake(b) {
+    if (!b) return;
+    if (bakeStore.get(b.key) === b) bakeStore.delete(b.key);
+    for (const k in b.c) freeImg(b.c[k]);
+  }
+  // 轮廓光的四个方向：光自左 / 右 / 上 / 下
+  const ODIR = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+  // 烘焙分阶段进行：昼 / 晨 / 昏 / 夜 四态各一步，剪影与四向轮廓一步——每帧只做预算内的几步，
+  // 免得一棵树长成的那一帧卡顿。未烘完之前，树用生长快照来画。
+  function bakeBox(t, bsMax) {
     const m = t.model, H = t.H;
     const pad = 4 + (t.ripe ? 5 : 0);
     const bx0 = m.bx0 * H - pad, by0 = m.by0 * H - pad, bx1 = m.bx1 * H + pad, by1 = m.by1 * H + pad;
-    const bs = Math.min(W.dpr || 1, 1.5);
-    const cw = Math.max(2, Math.min(2048, Math.ceil((bx1 - bx0) * bs))), ch = Math.max(2, Math.min(2048, Math.ceil((by1 - by0) * bs)));
-    const old = t.bake && t.bake.c || {};
-    const c = {};
-    for (const v of VARIANTS) {
-      const sf = surface(old[v], cw, ch), g = sf.g;
+    const bs = Math.min(W.dpr || 1, bsMax);
+    return { bx0, by0, bx1, by1, bs,
+      cw: Math.max(2, Math.min(2048, Math.ceil((bx1 - bx0) * bs))), ch: Math.max(2, Math.min(2048, Math.ceil((by1 - by0) * bs))) };
+  }
+  function bakeStep(t) {
+    let J = t.job;
+    if (!J || J.key !== bakeKey(t)) {
+      if (J) for (const k in J.c) freeImg(J.c[k]);
+      J = t.job = Object.assign(bakeBox(t, 1.5), { key: bakeKey(t), c: {}, step: 0 });
+    }
+    const m = t.model, H = t.H, { bx0, by0, bs, cw, ch } = J;
+    if (J.step < 4) {
+      const v = VARIANTS[J.step];
+      const sf = surface(null, cw, ch), g = sf.g;
       g.setTransform(1, 0, 0, 1, 0, 0); g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
       g.clearRect(0, 0, cw, ch);
       g.setTransform(bs, 0, 0, bs, -bx0 * bs, -by0 * bs);
       paintTree(g, m, 1, treePal(t.kind, t.layer, v, t.ripe), H, t.ripe);
-      c[v] = finish(sf);
+      J.c[v] = finish(sf);
+      J.step++;
+      return false;
     }
-    // 轮廓光（月 / 灵）：以剪影外扩再减去自身
+    // 轮廓光（月 / 灵）：剪影朝光的方向挪开一两像素，再减去自身——只剩朝光一侧的一道细边。
+    // 四个方向各烘一张（半分辨率：边本就柔），绘制时按光的方位混合。
     if (!SIL) SIL = document.createElement('canvas');
     if (SIL.width < cw || SIL.height < ch) { SIL.width = Math.max(SIL.width, cw); SIL.height = Math.max(SIL.height, ch); }
     const sg = SIL.getContext('2d');
@@ -753,32 +789,88 @@
     sg.setTransform(bs, 0, 0, bs, -bx0 * bs, -by0 * bs);
     paintTree(sg, m, 1, SILPAL, H, false);
     sg.setTransform(1, 0, 0, 1, 0, 0);
-    const sf = surface(old.outline, cw, ch), og = sf.g;
-    og.setTransform(1, 0, 0, 1, 0, 0); og.globalAlpha = 1; og.globalCompositeOperation = 'source-over';
-    og.clearRect(0, 0, cw, ch);
-    const r = 1.35 * bs;
-    for (const d of [[0, -1], [-0.72, -0.72], [0.72, -0.72], [-1, 0], [1, 0], [0, -1.8]]) og.drawImage(SIL, 0, 0, cw, ch, d[0] * r, d[1] * r, cw, ch);
-    og.globalCompositeOperation = 'source-in';
-    og.fillStyle = 'rgb(184,212,255)'; og.fillRect(0, 0, cw, ch);
-    og.globalCompositeOperation = 'destination-out';
-    og.drawImage(SIL, 0, 0, cw, ch, 0, 0, cw, ch);
-    og.globalCompositeOperation = 'source-over';
-    c.outline = finish(sf);
-    // 释放旧的位图
-    for (const k in old) if (old[k] !== c[k]) freeImg(old[k]);
-    t.bake = { c, x0: bx0, y0: by0, w: bx1 - bx0, h: by1 - by0, H };
-    t.bakeKey = bakeKey(t);
+    const hs = 0.5, ow = Math.max(2, Math.ceil(cw * hs)), oh = Math.max(2, Math.ceil(ch * hs));
+    const r = (t.layer === 2 ? 1.5 : 1.15) * bs * hs;
+    for (let k = 0; k < 4; k++) {
+      const d = ODIR[k];
+      const sf = surface(null, ow, oh), og = sf.g;
+      og.setTransform(1, 0, 0, 1, 0, 0); og.globalAlpha = 1; og.globalCompositeOperation = 'source-over';
+      og.clearRect(0, 0, ow, oh);
+      og.drawImage(SIL, 0, 0, cw, ch, d[0] * r, d[1] * r, ow, oh);
+      og.drawImage(SIL, 0, 0, cw, ch, d[0] * r * 0.5, d[1] * r * 0.5, ow, oh);
+      og.globalCompositeOperation = 'source-in';
+      og.fillStyle = 'rgb(196,220,255)'; og.fillRect(0, 0, ow, oh);
+      og.globalCompositeOperation = 'destination-out';
+      og.drawImage(SIL, 0, 0, cw, ch, 0, 0, ow, oh);
+      og.globalCompositeOperation = 'source-over';
+      J.c['o' + k] = finish(sf);
+    }
+    // 完成：装上，旧的释放
+    const key = storeKey(t);
+    if (t.bake && t.bake.key !== key) releaseBake(t.bake);
+    const prev = bakeStore.get(key);
+    if (prev && prev !== t.bake) releaseBake(prev);
+    t.bake = { c: J.c, x0: bx0, y0: J.by0, w: J.bx1 - bx0, h: J.by1 - J.by0, H, key };
+    bakeStore.set(key, t.bake);
+    t.bakeKey = J.key;
+    t.job = null;
+    if (t.snap) { freeImg(t.snap.img); t.snap = null; }
+    return true;
   }
-  function processBakes() {
+  function bakeTree(t) { let guard = 8; while (guard-- > 0 && !bakeStep(t)) { /* 一口气烘完 */ } }
+  function processBakes(budget) {
     if (!bakeQ.length) return;
     const t0 = performance.now();
     let n = 0;
-    // 先烘焙那些正以「现画」代替的
+    // 先烘焙那些正以快照代替的（尚无可用的烘焙）
     bakeQ.sort((a, b) => (a.bake && a.bake.H === a.H ? 1 : 0) - (b.bake && b.bake.H === b.H ? 1 : 0));
-    while (bakeQ.length && (n === 0 || performance.now() - t0 < 2.5)) {
-      const t = bakeQ.shift();
-      t.queued = false;
-      if (t.g >= 1 && t.bakeKey !== bakeKey(t)) { U.safe('land.bake', () => bakeTree(t)); n++; }
+    while (bakeQ.length && (n === 0 || performance.now() - t0 < budget)) {
+      const t = bakeQ[0];
+      if (!(t.g >= 1 && t.bakeKey !== bakeKey(t))) { bakeQ.shift(); t.queued = false; continue; }
+      let done = true;
+      U.safe('land.bake', () => { done = bakeStep(t); });
+      n++;
+      if (done !== false) { bakeQ.shift(); t.queued = false; }
+    }
+  }
+  // 生长中的树：隔几帧重画一张全尺寸的快照，其余帧按此刻的 growScale 缩放着画——
+  // 生长的大小始终平滑，只有叶团绽开的一瞬按快照的节奏；十几棵树同时生长也不必每帧逐棵现画
+  function snapTree(t) {
+    const B = bakeBox(t, 1.25), m = t.model, H = t.H;
+    const sf = surface(null, B.cw, B.ch), g = sf.g;
+    g.setTransform(1, 0, 0, 1, 0, 0); g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
+    g.clearRect(0, 0, B.cw, B.ch);
+    g.setTransform(B.bs, 0, 0, B.bs, -B.bx0 * B.bs, -B.by0 * B.bs);
+    const y = ridgeAt(LY[t.layer], t.x);
+    let lx = W.core.x - t.x, ly = W.core.y - (y - H * 0.6);
+    if (FL.sun.a < FL.moon.a) { lx = FL.moon.x - t.x; ly = FL.moon.y - y; }
+    paintTree(g, m, t.g, treePal(t.kind, t.layer, 'live', t.ripe, lx, ly), H, t.ripe);
+    const img = finish(sf);
+    if (t.snap) freeImg(t.snap.img);
+    t.snap = { img, g: t.g, x0: B.bx0, y0: B.by0, w: B.bx1 - B.bx0, h: B.by1 - B.by0, H, f: W.frame };
+  }
+  const SNAPC = [];
+  function processSnaps(budget) {
+    SNAPC.length = 0;
+    for (const t of trees) {
+      if (t.g <= 0) { if (t.snap) { freeImg(t.snap.img); t.snap = null; } continue; }
+      const baked = t.g >= 1 && t.bake && t.bake.H === t.H;
+      if (baked) { if (t.snap) { freeImg(t.snap.img); t.snap = null; } continue; }
+      const sn = t.snap;
+      const st = !sn || sn.H !== t.H ? 9 : t.g - sn.g + (W.frame - sn.f) * 0.0002;
+      if (sn && sn.H === t.H && (t.g - sn.g < 0.004 && (sn.g >= 1 || W.frame - sn.f < 30))) continue;
+      SNAPC.push(st, t);
+    }
+    if (!SNAPC.length) return;
+    const t0 = performance.now();
+    for (let n = 0; n < 40; n++) {
+      let bi = -1, bs = -1;
+      for (let i = 0; i < SNAPC.length; i += 2) if (SNAPC[i] > bs) { bs = SNAPC[i]; bi = i; }
+      if (bi < 0) break;
+      const t = SNAPC[bi + 1];
+      SNAPC[bi] = -2;
+      U.safe('land.snap', () => snapTree(t));
+      if (performance.now() - t0 > budget) break;
     }
   }
   function queueBake(t) { if (!t.queued) { t.queued = true; bakeQ.push(t); } }
@@ -798,9 +890,13 @@
   // ════════════════════════════════════════════════════════════
   //  布局：树、草叶、菜蔬、远山林木、溪流
   // ════════════════════════════════════════════════════════════
-  function dropBake(t) { if (t.bake) { for (const k in t.bake.c) freeImg(t.bake.c[k]); t.bake = null; } t.bakeKey = ''; }
+  function dropWork(t) {
+    if (t.job) { for (const k in t.job.c) freeImg(t.job.c[k]); t.job = null; }
+    if (t.snap) { freeImg(t.snap.img); t.snap = null; }
+  }
+  function dropBake(t) { dropWork(t); if (t.bake) { releaseBake(t.bake); t.bake = null; } t.bakeKey = ''; }
   function layoutTrees() {
-    for (const t of trees) dropBake(t);
+    for (const t of trees) { dropWork(t); t.bake = null; t.bakeKey = ''; }   // 烘好的位图留在库里，新的布局可以取回
     for (const L of LY) L.trees = [];
     trees.length = 0;
     bakeQ.length = 0;
@@ -812,7 +908,7 @@
       const t = {
         layer, x, kind, seed, H, start, dur, isOrigin, model: genModel(kind, seed),
         g: 0, pg: -1, phase: (seed * 0.618) % TAU, sink: (layer === 2 ? 3 : 1.5) * u,
-        bake: null, bakeKey: '', queued: false, ripe, ripeAt: ripe ? 0 : Infinity,
+        bake: null, bakeKey: '', queued: false, job: null, snap: null, ripe, ripeAt: ripe ? 0 : Infinity,
       };
       trees.push(t); LY[layer].trees.push(t);
       return t;
@@ -870,6 +966,13 @@
       }
     }
     for (const L of LY) L.trees.sort((p, q) => baseAt(L, p.x) - baseAt(L, q.x) || p.H - q.H);
+    // 取回库里已烘好的，其余的位图释放
+    const used = new Set();
+    for (const t of trees) {
+      const b = bakeStore.get(storeKey(t));
+      if (b) { t.bake = b; t.bakeKey = bakeKey(t); used.add(b); }
+    }
+    for (const [k, b] of Array.from(bakeStore)) if (!used.has(b)) releaseBake(b);
     for (const t of trees) { t.g = treeGrowth(t); t.pg = t.g; if (t.g >= 1) queueBake(t); }
   }
   function treeGrowth(t) { return c01((W.lv.trees - t.start) / t.dur); }
@@ -970,18 +1073,6 @@
     L.texels.sort((a, b) => a.v - b.v);
   }
 
-  function buildRivers() {
-    const u = uu();
-    for (const L of LY) {
-      L.rivX = [];
-      const sp = baseSpan(L, 2);
-      if (!sp) continue;
-      const R = U.mulberry32(66 + L.i * 11);
-      const step = (L.i === 2 ? 38 : L.i === 1 ? 26 : 20) * u;
-      for (let x = sp[0] + step * 0.5; x < sp[1]; x += step * (0.6 + R() * 0.8)) L.rivX.push([x, R() * 40, (R() - 0.5) * 2]);
-    }
-  }
-
   function buildFolds(L) {
     const defs = L.i === 2 ? [[0.17, 0.07, 5.3, 11.1], [0.44, 0.1, 3.7, 4.2]]
       : L.i === 1 ? [[0.34, 0.14, 7.1, 2.5]] : [[0.3, 0.14, 9.3, 8.8], [0.58, 0.1, 6.1, 1.7]];
@@ -1064,36 +1155,100 @@
   // ════════════════════════════════════════════════════════════
   //  更新
   // ════════════════════════════════════════════════════════════
+  // 旱地出水：水从地上泻下（自己的水痕），脊上溅起水花，水线处翻起白沫
+  const drops = [];
+  const MAXD = 420;
+  // 近岸的海岸坡（左侧斜下入海的一段）：|坡度| 大的地方
+  function coastI(L) {
+    if (L.coast && L.coast.pv === L.pv) return L.coast;
+    const idx = [];
+    for (let i = Math.max(1, L.spanA); i < Math.min(L.n - 1, L.spanB); i++) {
+      const y = L.cur[i];
+      if (y >= L.wl - 1 || y > W.h + 2) continue;
+      const sl = (L.cur[i - 1] - L.cur[i + 1]) / (2 * L.step);
+      if (sl > 0.45) idx.push(i);
+    }
+    L.coast = { pv: L.pv, idx };
+    return L.coast;
+  }
   function emitRise(L, dt) {
     const e = L.rise;
-    if (!(e > 0 && e < 1) || L.spanA < 0 || !fxOK()) return;
+    const active = e > 0 && e < 1;
+    if ((!active && L.wet < 0.05) || L.spanA < 0) return;
     const q = W.quality || 1, u = uu();
     const ls = [0.45, 0.7, 1][L.i];
-    const rate = [36, 60, 110][L.i] * q * (0.4 + 0.6 * Math.sin(Math.PI * e));
-    L.emitAcc += rate * dt;
+    const k = active ? 0.35 + 0.65 * Math.sin(Math.PI * e) : L.wet * 0.35;
+    // 水痕：自脊上泻下，直到水线（近岸：自海岸坡落入海中，或在脊下滑一小段）
+    // （远 / 中丘的水帘由 drawWet 的流动纹理画出；近岸的海岸坡上，水一缕缕落回海中）
+    const coast = L.i === 2 ? coastI(L).idx : null;
+    if (coast && coast.length) {
+      L.emitAcc += 70 * q * k * dt;
+      let guard = 0;
+      while (L.emitAcc >= 1 && guard++ < 40) {
+        L.emitAcc -= 1;
+        if (drops.length >= MAXD) break;
+        const x = coast[(Math.random() * coast.length) | 0] * L.step + rnd(-L.step, L.step);
+        const y = ridgeAt(L, x);
+        if (y >= L.wl - 2 || y > W.h) continue;
+        drops.push({ x, y: y + rnd(0, 2), vy: rnd(10, 40) * u, g: rnd(220, 320) * u, y1: Math.min(W.h + 4, y + rnd(14, 70) * u), layer: 2, len: rnd(0.7, 1.4) });
+      }
+    }
+    if (!active || !fxOK()) return;
     const pass = L_PASS[L.i];
-    let guard = 0;
-    while (L.emitAcc >= 1 && guard++ < 30) {
-      L.emitAcc -= 1;
+    // 脊上溅起的水花（加光的小点，像碎银）
+    if (Math.random() < dt * [8, 16, 26][L.i] * q * k) {
       const i = L.spanA + ((Math.random() * (L.spanB - L.spanA + 1)) | 0);
-      const x = i * L.step + rnd(-L.step, L.step);
-      const y = ridgeAt(L, x);
-      if (y >= L.wl - 1) continue;
-      const crest = Math.random() < 0.25;
-      GS.fx.add({
-        x, y: y + rnd(0, 3) * ls, vx: rnd(-18, 18) * ls, vy: crest ? rnd(-120, -50) * ls : rnd(-30, 20) * ls,
-        max: rnd(0.8, 1.7), size: rnd(0.6, 1.5) * Math.max(0.7, u) * (0.6 + 0.4 * ls), c: crest ? [236, 246, 255] : [196, 222, 255],
-        a: crest ? 0.9 : 0.75, drag: 0.5, grav: 300 * ls * u, pass,
-      });
+      const x = i * L.step, y = ridgeAt(L, x);
+      if (y < L.wl - 1) {
+        GS.fx.add({ x, y, vx: rnd(-22, 22) * ls, vy: rnd(-110, -40) * ls, max: rnd(0.6, 1.3), size: rnd(0.5, 1.1) * Math.max(0.7, u) * (0.6 + 0.4 * ls),
+          c: [236, 246, 255], a: 0.85, drag: 0.6, grav: 280 * ls * u, pass });
+      }
     }
     // 水线处翻涌的浪沫
-    if (Math.random() < dt * 14 * q) {
-      const i = L.spanA + ((Math.random() * (L.spanB - L.spanA + 1)) | 0);
-      const x = i * L.step;
-      const yb = L.i === 2 ? W.h - 2 : L.wl;
-      GS.fx.add({ x, y: yb, vx: rnd(-40, 40) * ls, vy: rnd(-60, -20) * ls, max: rnd(0.5, 1.1), size: rnd(0.8, 1.8) * ls * Math.max(0.7, u),
-        c: [230, 242, 255], a: 0.8, drag: 1.4, grav: 160 * ls, pass });
+    if (Math.random() < dt * 12 * q * k) {
+      let x, yb;
+      if (L.i === 2) {
+        if (!coast || !coast.length) return;
+        const i = coast[(Math.random() * coast.length) | 0];
+        x = i * L.step; yb = Math.min(W.h - 2, L.cur[i]);
+      } else { const i = L.spanA + ((Math.random() * (L.spanB - L.spanA + 1)) | 0); x = i * L.step; yb = L.wl; }
+      GS.fx.add({ x, y: yb, vx: rnd(-40, 40) * ls, vy: rnd(-60, -20) * ls, max: rnd(0.5, 1.1), size: rnd(0.8, 1.6) * ls * Math.max(0.7, u),
+        c: [230, 242, 255], a: 0.75, drag: 1.4, grav: 160 * ls, pass });
     }
+  }
+  function updDrops(dt) {
+    for (let i = drops.length - 1; i >= 0; i--) {
+      const d = drops[i];
+      d.vy += d.g * dt;
+      d.y += d.vy * dt;
+      if (d.y >= d.y1) {
+        // 落进海里的一点水花
+        if (d.layer < 2 && fxOK() && Math.random() < 0.12) {
+          GS.fx.add({ x: d.x, y: d.y1, vx: rnd(-12, 12), vy: rnd(-26, -8), max: rnd(0.3, 0.6), size: 0.7 * Math.max(0.6, uu()),
+            c: [226, 240, 255], a: 0.6, drag: 1, grav: 90, pass: L_PASS[d.layer] });
+        }
+        drops[i] = drops[drops.length - 1]; drops.pop();
+      }
+    }
+  }
+  function drawDrops(ctx, L) {
+    if (!drops.length) return;
+    const ls = [0.45, 0.7, 1][L.i], u = uu();
+    const p = new Path2D();
+    let n = 0;
+    for (const d of drops) {
+      if (d.layer !== L.i) continue;
+      const len = Math.min(d.vy * 0.05, 16 * ls * u) * d.len + 1.2 * ls;
+      p.moveTo(d.x, d.y - len); p.lineTo(d.x, d.y);
+      n++;
+    }
+    if (!n) return;
+    const c = mix(W.shade([200, 226, 250], depthOf(L.i) * 0.5, 0.35), W.haze, 0.15);
+    ctx.lineCap = 'round';
+    ctx.lineWidth = (0.55 + 0.6 * ls) * Math.max(0.7, u);
+    ctx.strokeStyle = css(c, 0.5 * W.lv.light);
+    ctx.stroke(p);
+    ctx.lineCap = 'butt';
   }
 
   function emitFronts(dt) {
@@ -1153,9 +1308,10 @@
       if (!quiet && fxOK() && t.g > t.pg && t.pg >= 0) {
         const y = ridgeAt(L, t.x);
         const pass = L_PASS[t.layer];
+        const Hs = t.H * growScale(t.g);
         if (t.pg <= 0 && t.g > 0) GS.fx.sparkle(t.x, y - 3, t.layer === 2 ? 14 : 6, [200, 255, 180], 5 * u, pass);
-        if (t.pg < 0.42 && t.g >= 0.42) GS.fx.sparkle(t.x, y + t.model.cy * t.H, t.layer === 2 ? 10 : 4, [214, 255, 190], t.H * 0.25, pass);
-        if (t.pg < 0.86 && t.g >= 0.86) GS.fx.sparkle(t.x, y + t.model.cy * t.H, t.layer === 2 ? 12 : 5, [255, 214, 150], t.H * 0.28, pass);
+        if (t.pg < 0.42 && t.g >= 0.42) GS.fx.sparkle(t.x, y + t.model.cy * Hs, t.layer === 2 ? 10 : 4, [214, 255, 190], Hs * 0.25, pass);
+        if (t.pg < 0.86 && t.g >= 0.86) GS.fx.sparkle(t.x, y + t.model.cy * Hs, t.layer === 2 ? 12 : 5, [255, 214, 150], Hs * 0.28, pass);
       }
       t.pg = t.g;
       // 第六日的赐福之后：果子更熟、更多
@@ -1259,8 +1415,10 @@
     updLight();
     if (W.t >= quietUntil) emitFronts(dt);
     updTrees();
-    processBakes();
+    processSnaps(0.5);
+    processBakes(0.9);
     updDrift(dt);
+    updDrops(dt);
     // 赐福第六日：遍地开花
     if (W.stage >= 24 && !worldBloomed && W.lv.grass > 0.5) worldBloom(W.spirit.x, W.t >= quietUntil);
     if (W.stage < 24 && worldBloomed) { worldBloomed = false; for (let i = blooms.length - 1; i >= 0; i--) if (blooms[i].world) blooms.splice(i, 1); }
@@ -1292,8 +1450,9 @@
     const d = depthOf(L.i);
     let soil = W.shade(SOIL[L.i], d), sod = W.shade(SOD[L.i], d);
     if (L.wet > 0) {
-      const k = 1 - 0.22 * L.wet;
-      soil = mul(soil, k); sod = mul(sod, k);
+      // 湿土更深、略冷
+      const k = 1 - 0.3 * L.wet;
+      soil = mix(mul(soil, k), mul(W.haze, 0.3), 0.12 * L.wet); sod = mul(sod, k);
     }
     return [soil, sod];
   }
@@ -1356,9 +1515,49 @@
       fp.closePath();
       folds.push(fp); rims.push(rp);
     }
-    L.P = { land, folds, rims };
+    // 脊线（开口的折线，湿亮与水沫用）
+    const ridge = new Path2D();
+    let pen = false;
+    for (let i = i0; i <= i1; i++) {
+      if (cur[i] >= wl - 0.5) { pen = false; continue; }
+      if (!pen) { ridge.moveTo(i * st, cur[i]); pen = true; } else ridge.lineTo(i * st, cur[i]);
+    }
+    L.P = { land, folds, rims, ridge };
     L.rk = '';
     return L.P;
+  }
+
+  // 青草的前沿：不是一道竖直的色带，而是沿着地面蔓延的一条参差的边——
+  // 脊上跑在前面，坡下略迟；边缘随推进而起伏。三层由外而内叠出柔和的过渡。
+  function frontLag(v) { return v * v * FR.feather * 2.4; }
+  function drawGreenFront(ctx, L, P, sod) {
+    const R = FR.gR[L.i], ox = FR.gx, f = FR.feather;
+    if (R + f * 0.8 <= 0) return;
+    const top = L.minY - 3, bot = (L.i === 2 ? W.h : L.wl) + 2;
+    const hgt = Math.max(1, bot - top);
+    const n = L.i === 2 ? 22 : 10;
+    const wob = f * 0.6, sd = L.i * 7.3;
+    ctx.save();
+    ctx.clip(P.land);
+    const OFF = [[0.75, 0.3], [0, 0.5], [-0.75, 1]];
+    for (const [o, a] of OFF) {
+      const r0 = R + o * f;
+      ctx.beginPath();
+      for (let k = 0; k <= n; k++) {
+        const y = top + (k / n) * hgt, v = (y - top) / hgt;
+        const xr = ox + r0 - frontLag(v) + U.noise1(y * 0.05 + sd + R * 0.013) * wob;
+        k ? ctx.lineTo(Math.max(ox, xr), y) : ctx.moveTo(Math.max(ox, xr), y);
+      }
+      for (let k = n; k >= 0; k--) {
+        const y = top + (k / n) * hgt, v = (y - top) / hgt;
+        const xl = ox - r0 + frontLag(v) - U.noise1(y * 0.05 + sd + 40 - R * 0.011) * wob;
+        ctx.lineTo(Math.min(ox, xl), y);
+      }
+      ctx.closePath();
+      ctx.fillStyle = css(sod, a);
+      ctx.fill();
+    }
+    ctx.restore();
   }
 
   function drawGround(ctx, L) {
@@ -1367,24 +1566,9 @@
     const [soil, sod] = groundColors(L);
     // 主色：生土 → 青草（随绿潮）
     const gl = W.lv.grass;
-    if (gl <= 0) ctx.fillStyle = css(soil);
-    else if (FR.grassAll) ctx.fillStyle = css(sod);
-    else {
-      const R = FR.gR[L.i], ox = FR.gx, f = FR.feather;
-      if (R + f <= 0) ctx.fillStyle = css(soil);
-      else {
-        const gr = ctx.createLinearGradient(0, 0, W.w, 0);
-        const pts = [ox - R - f, ox - R + f, ox + R - f, ox + R + f].map(x => c01(x / W.w));
-        const inner = R - f > 0;
-        const midc = inner ? sod : mix(soil, sod, c01((R + f) / (2 * f)));
-        gr.addColorStop(pts[0], css(soil));
-        gr.addColorStop(Math.max(pts[0], Math.min(pts[1], (pts[1] + pts[2]) / 2)), css(midc));
-        gr.addColorStop(Math.min(pts[3], Math.max(pts[2], (pts[1] + pts[2]) / 2)), css(midc));
-        gr.addColorStop(pts[3], css(soil));
-        ctx.fillStyle = gr;
-      }
-    }
+    ctx.fillStyle = css(gl > 0 && FR.grassAll ? sod : soil);
     ctx.fill(P.land);
+    if (gl > 0 && !FR.grassAll) drawGreenFront(ctx, L, P, sod);
     // 褶皱：更近的山脊，略暗，顶上一线微光
     const alpha = [0.07, 0.1, 0.12][L.i];
     const sun = FL.sun;
@@ -1411,24 +1595,114 @@
       og.addColorStop(0.45, 'rgba(4,6,4,0.1)');
       og.addColorStop(1, 'rgba(4,6,4,0.4)');
     } else {
-      const hz = W.haze, a = L.i === 0 ? 0.6 : 0.22;
+      const hz = W.haze, a = L.i === 0 ? 0.6 : 0.14;
       og.addColorStop(0, css(hz, 0));
-      og.addColorStop(0.5, css(hz, a * 0.25));
+      og.addColorStop(0.55, css(hz, a * 0.25));
       og.addColorStop(1, css(hz, a));
     }
     ctx.fillStyle = og;
     ctx.fill(P.land);
-    // 刚出水的地：下半仍罩着一层流下的水膜，随晾干而退去
-    if (L.wet > 0.02) {
-      const band = (bot - top) * (0.25 + 0.5 * (1 - L.rise));
-      const wg = ctx.createLinearGradient(0, bot - band, 0, bot);
-      const wc = mix(W.shade([70, 120, 170], depthOf(L.i) * 0.6, 0.2), W.haze, 0.2);
-      wg.addColorStop(0, css(wc, 0));
-      wg.addColorStop(0.7, css(wc, 0.18 * L.wet));
-      wg.addColorStop(1, css(wc, 0.38 * L.wet));
-      ctx.fillStyle = wg;
-      ctx.fill(P.land);
+    if (L.wet > 0.02) drawWet(ctx, L, P, top, bot);
+  }
+
+  // 水帘的纹理：一缕缕竖直的细水痕（白，带透明渐变），上下左右无缝平铺
+  let STREAK = null, STREAK_PAT = null;
+  const SK_W = 96, SK_H = 160;
+  function makeStreaks() {
+    const c = document.createElement('canvas');
+    c.width = SK_W; c.height = SK_H;
+    const g = c.getContext('2d');
+    const R = U.mulberry32(99);
+    g.lineCap = 'round';
+    for (let i = 0; i < 64; i++) {
+      const x = R() * SK_W, y = R() * SK_H, len = 14 + R() * 60, a = 0.12 + R() * 0.45, lw = 0.5 + R() * 1.1, dx = (R() - 0.5) * 1.5;
+      for (const ox of [0, -SK_W, SK_W]) for (const oy of [0, -SK_H]) {
+        const x0 = x + ox, y0 = y + oy;
+        if (x0 < -3 || x0 > SK_W + 3 || y0 > SK_H || y0 + len < 0) continue;
+        const gr = g.createLinearGradient(0, y0, 0, y0 + len);
+        gr.addColorStop(0, 'rgba(255,255,255,0)');
+        gr.addColorStop(0.75, 'rgba(255,255,255,' + a.toFixed(3) + ')');
+        gr.addColorStop(1, 'rgba(255,255,255,0)');
+        g.strokeStyle = gr; g.lineWidth = lw;
+        g.beginPath(); g.moveTo(x0, y0); g.lineTo(x0 + dx, y0 + len); g.stroke();
+      }
     }
+    return c;
+  }
+
+  // 刚出水的地：一层水帘自脊上泻下（纹理向下流动），随地晾干而变薄；脊上湿亮
+  function drawWet(ctx, L, P, top, bot) {
+    const w = L.wet, lit = W.lv.light;
+    if (lit <= 0.01) return;
+    const u = uu(), ls = [0.45, 0.7, 1][L.i];
+    const d = depthOf(L.i);
+    const glint = W.shade([226, 240, 255], d * 0.5, 0.4);
+    ctx.save();
+    ctx.clip(P.land);
+    // 水帘
+    if (!STREAK) { STREAK = makeStreaks(); STREAK_PAT = null; }
+    if (!STREAK_PAT) { try { STREAK_PAT = ctx.createPattern(STREAK, 'repeat'); } catch (e) { STREAK_PAT = null; } }
+    if (STREAK_PAT) {
+      const sc = ls * Math.max(0.6, u);
+      const e = L.rise;
+      const flow = (e > 0 && e < 1 ? 0.55 + 0.45 * Math.sin(Math.PI * e) : 0.55) * w;
+      // 近岸：水帘只在脊下一段（其下是向我们铺开的地面）
+      const H1 = L.i === 2 ? (bot - top) * 0.42 : bot - top;
+      const off = ((W.t * 70 * sc) % (SK_H * sc) + SK_H * sc) % (SK_H * sc);
+      ctx.fillStyle = STREAK_PAT;
+      const bands = L.i === 2 ? [[0, 0.55], [0.5, 0.3], [0.8, 0.12]] : [[0, 0.55]];
+      for (const [f0, a] of bands) {
+        const y0 = top + H1 * f0, y1 = L.i === 2 ? top + H1 * (f0 === 0 ? 0.5 : f0 === 0.5 ? 0.8 : 1) : bot;
+        ctx.save();
+        ctx.beginPath(); ctx.rect(0, y0, W.w, y1 - y0); ctx.clip();
+        ctx.translate(0, top - SK_H * sc + off);
+        ctx.scale(sc, sc);
+        ctx.globalAlpha = c01(a * flow * lit * (0.35 + 0.65 * W.daylight));
+        ctx.fillRect(0, 0, W.w / sc, (bot - top) / sc + SK_H * 2);
+        ctx.restore();
+      }
+    }
+    // 脊上的湿亮：一道贴着脊线、向下渐隐的天光
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = css(glint, 0.12 * w * lit);
+    ctx.lineWidth = 9 * ls;
+    ctx.stroke(P.ridge);
+    ctx.strokeStyle = css(glint, 0.24 * w * lit);
+    ctx.lineWidth = 3.5 * ls;
+    ctx.stroke(P.ridge);
+    ctx.restore();
+    ctx.lineJoin = 'miter';
+  }
+
+  // 出水时水线处翻腾的白沫：一串起伏的浪花（远 / 中丘在水线；近岸在海岸坡）
+  function drawFroth(ctx, L) {
+    const w = L.wet;
+    if (w < 0.03 || L.spanA < 0) return;
+    const e = L.rise;
+    const k = (e > 0 && e < 1 ? 0.45 + 0.55 * Math.sin(Math.PI * e) : 0.45) * w;
+    const u = uu(), ls = [0.45, 0.7, 1][L.i], t = W.t;
+    const fc = W.shade(FOAM, depthOf(L.i) * 0.5, 0.45);
+    const p = new Path2D();
+    const cur = L.cur, st = L.step, wl = L.wl;
+    let n = 0;
+    const bub = (x, y, i) => {
+      const nv = 0.5 + 0.5 * U.noise1(x * 0.045 + t * 1.3 + L.i * 5);
+      const r = (0.8 + 3.4 * nv * nv) * ls * Math.max(0.7, u) * (0.5 + 0.5 * k);
+      const yy = y - r * 0.3 - (0.5 + 0.5 * Math.sin(t * 4.2 + i * 1.7)) * r * 0.6;
+      p.moveTo(x + r, yy); p.arc(x, yy, r, 0, TAU); n++;
+      // 浪头上再翻起一小团
+      if (nv > 0.55) { const r2 = r * 0.62, y2 = yy - r * (0.7 + 0.5 * Math.sin(t * 3.1 + i)); p.moveTo(x + r2 + r * 0.3, y2); p.arc(x + r * 0.3, y2, r2, 0, TAU); }
+    };
+    if (L.i < 2) {
+      const stp = Math.max(1, Math.round(3.5 * ls / st));
+      for (let i = L.spanA; i <= L.spanB; i += stp) if (cur[i] < wl - 0.5) bub(i * st, wl, i);
+    } else {
+      const ci = coastI(L).idx;
+      for (let j = 0; j < ci.length; j++) { const i = ci[j]; bub(i * st, Math.min(W.h + 2, cur[i]) + 2, i); }
+    }
+    if (!n) return;
+    ctx.fillStyle = css(fc, 0.8 * k * W.lv.light);
+    ctx.fill(p);
   }
 
   // 脊线描光的路径：朝光 / 背光两段；光走过几像素或大地变了才重建
@@ -1597,30 +1871,6 @@
     }
   }
 
-  // 旱地升起时，水从其上流下
-  function drawRivulets(ctx, L) {
-    if (L.i === 0 || L.wet < 0.02 || !L.rivX.length || L.spanA < 0) return;
-    const u = uu(), ls = [0.45, 0.7, 1][L.i];
-    const wl = L.wl, bot = L.i === 2 ? W.h : wl;
-    ctx.save();
-    ctx.setLineDash([3 * ls * u + 1, 7 * ls * u + 2, 6 * ls * u + 1, 12 * ls * u + 3]);
-    ctx.lineDashOffset = -W.t * 70 * ls * u;
-    ctx.beginPath();
-    for (const r of L.rivX) {
-      const x = r[0];
-      const y0 = ridgeAt(L, x) + 1;
-      if (y0 >= wl - 2) continue;
-      const len = (bot - y0) * (L.i === 2 ? 0.35 + 0.4 * (r[1] / 40) : 0.6 + 0.4 * (r[1] / 40));
-      const w = r[2] * 4 * ls * u;
-      ctx.moveTo(x, y0 + r[1] * 0.3 * ls);
-      ctx.bezierCurveTo(x + w, y0 + len * 0.3, x - w * 0.6, y0 + len * 0.65, x + w * 0.8, y0 + len);
-    }
-    ctx.strokeStyle = css([214, 234, 255], 0.2 * L.wet * W.lv.light * (0.25 + 0.75 * W.daylight));
-    ctx.lineWidth = 0.5 + 0.6 * ls;
-    ctx.stroke();
-    ctx.restore();
-  }
-
   // 远山的林木：细碎的纹理
   let texCache = null;
   function drawTexels(ctx) {
@@ -1655,6 +1905,7 @@
     if (!n || W.lv.grass <= 0 || L.spanA < 0) return;
     const B = L.B, tmp = L.tmp, gi = L.glowIdx;
     const R = FR.gR[L.i], ox = FR.gx, gz = FR.gzone, all = FR.grassAll;
+    const fTop = L.minY - 3, fInv = 1 / Math.max(1, (L.i === 2 ? W.h : L.wl) + 5 - L.minY);
     const t = W.t, sp = W.spirit, sx = sp.x, sy = sp.y;
     const u = uu();
     const Rb = 72 * Math.max(0.6, u);
@@ -1701,8 +1952,6 @@
       if (!all) {
         const dd = x > ox ? x - ox : ox - x;
         if (dd >= R) continue;
-        gr = dd < R - gz ? 1 : (R - dd) / gz;
-        gr = gr * gr * (3 - 2 * gr);
       }
       let f = x * invSt;
       if (f < 0) f = 0; else if (f > lastI) f = lastI;
@@ -1711,6 +1960,15 @@
       if (rid >= wl - 0.8) continue;
       const v = B.v[i];
       const y = v > 0 ? rid + v * (H - rid) : rid + B.dy[i];
+      if (!all) {
+        // 与地面的绿潮同一条前沿：坡下略迟
+        const vv = (y - fTop) * fInv;
+        const Re = R - frontLag(vv < 0 ? 0 : vv > 1 ? 1 : vv);
+        const dd = x > ox ? x - ox : ox - x;
+        if (dd >= Re) continue;
+        gr = dd < Re - gz ? 1 : (Re - dd) / gz;
+        gr = gr * gr * (3 - 2 * gr);
+      }
       let hh = B.h[i] * gr;
       if (hh < 0.4) continue;
       f = x * invG; if (f < 0) f = 0; else if (f > lastG) f = lastG;
@@ -1787,6 +2045,7 @@
     const hs = L.herbs;
     const near = L.i === 2, u = uu();
     const R = FR.hR[L.i], ox = FR.hx, zone = 110 * u, all = FR.herbAll;
+    const fTop = L.minY - 3, fInv = 1 / Math.max(1, (L.i === 2 ? W.h : L.wl) + 5 - L.minY);
     const t = W.t, sp = W.spirit;
     const Rb = 64 * Math.max(0.6, u), wl = L.wl, H = W.h;
     const df = W.dayFactor;
@@ -1797,15 +2056,15 @@
     const hold = W.ritual && W.ritual.holding ? W.ritual.charge : 0;
     for (let k = 0; k < hs.length; k++) {
       const hb = hs[k];
-      let g = 1;
-      if (!all) {
-        const dd = Math.abs(hb.x - ox);
-        g = c01((R - dd) / zone - hb.dl);
-      }
-      if (g <= 0) continue;
       const rid = ridgeAt(L, hb.x);
       if (rid >= wl - 1) continue;
       const bx = hb.x, by = (hb.v > 0 ? rid + hb.v * (H - rid) : rid) + 1;
+      let g = 1;
+      if (!all) {
+        const dd = Math.abs(hb.x - ox);
+        g = c01((R - frontLag(c01((by - fTop) * fInv)) - dd) / zone - hb.dl);
+      }
+      if (g <= 0) continue;
       const gs = c01(g / 0.5), gl = c01((g - 0.3) / 0.4), gh = c01((g - 0.6) / 0.4);
       const s = hb.s;
       let bend = hb.lean + windAt(bx) * 0.45 + 0.05 * Math.sin(t * 1.9 + hb.ph);
@@ -1963,6 +2222,15 @@
     }
     return a * c01(t.g * 1.5);
   }
+  // 轮廓光四个方向的权重（左、右、上、下）；inside 0..1：光在冠中时四面皆亮
+  const OW = [0, 0, 0, 0];
+  function addRim(vx, vy, a, inside) {
+    const l = Math.hypot(vx, vy) || 1;
+    vx /= l; vy /= l;
+    const e = inside * 0.45;
+    OW[0] += a * Math.max(e, -vx); OW[1] += a * Math.max(e, vx);
+    OW[2] += a * Math.max(e, -vy); OW[3] += a * Math.max(e, vy);
+  }
   function drawTrees(ctx, layer) {
     const L = LY[layer];
     if (!L.trees.length || W.lv.trees <= 0 || L.spanA < 0) return;
@@ -1975,7 +2243,7 @@
         if (t.g < 0.3) continue;
         const y = ridgeAt(L, t.x);
         if (y >= L.wl - 2) continue;
-        const rx = t.model.cw * t.H * 0.32 * c01(t.g * 1.4), ry = 2.2 * uu();
+        const rx = t.model.cw * t.H * 0.32 * growScale(t.g) * c01(t.g * 3), ry = 2.2 * uu();
         const x = t.x + sdx * rx * 0.6;
         ctx.moveTo(x + rx, y + 2); ctx.ellipse(x, y + 2, rx, ry, 0, 0, TAU); n++;
       }
@@ -2003,21 +2271,34 @@
           ctx.globalAlpha = o[1];
           ctx.drawImage(c[o[0]], b.x0, b.y0, b.w, b.h);
         }
-        // 月的轮廓光 + 灵近处的冷蓝描光
-        let oa = FL.moonO;
+        // 轮廓光只在朝光的一侧：月自其方位，灵自其方位（夜里唯一的灯）
+        const cyT = y + t.model.cy * t.H;
+        OW[0] = OW[1] = OW[2] = OW[3] = 0;
+        if (FL.moonO > 0.01) addRim(FL.moon.x - x, FL.moon.y - cyT, FL.moonO, 0);
         if (S.a > 0.05 && W.night > 0.05) {
-          const dd = Math.hypot(S.x - x, S.y - (y + t.model.cy * t.H));
-          const RR = S.R + t.H * 0.4;
-          if (dd < RR) { const f = 1 - dd / RR; oa += W.night * (layer === 2 ? 0.65 : 0.45) * f * f * f; }
+          const dx = S.x - x, dy = S.y - cyT;
+          const dd = Math.hypot(dx, dy);
+          const RR = S.R * 0.8 + t.H * 0.5;
+          if (dd < RR) {
+            const f = 1 - dd / RR;
+            addRim(dx, dy, W.night * S.a * (layer === 2 ? 0.85 : 0.6) * f * f, c01(1 - dd / (t.H * 0.45)));
+          }
         }
-        if (oa > 0.02) { ctx.globalAlpha = Math.min(1, oa); ctx.drawImage(c.outline, b.x0, b.y0, b.w, b.h); }
+        for (let k = 0; k < 4; k++) {
+          if (OW[k] > 0.02) { ctx.globalAlpha = Math.min(1, OW[k]); ctx.drawImage(c['o' + k], b.x0, b.y0, b.w, b.h); }
+        }
         ctx.globalAlpha = 1;
+      } else if (t.snap && t.snap.H === t.H) {
+        // 生长中（或烘焙尚未就绪）：快照按此刻的大小缩放
+        const sn = t.snap, sc = growScale(t.g);
+        if (sc !== 1) ctx.scale(sc, sc);
+        ctx.drawImage(sn.img, sn.x0, sn.y0, sn.w, sn.h);
       } else {
-        // 生长中（或烘焙尚未就绪）：现画
+        // 还没有快照（刚开始生长的第一帧）：现画
         let lx = W.core.x - x, ly = W.core.y - (y - t.H * 0.6);
         if (FL.sun.a < FL.moon.a) { lx = FL.moon.x - x; ly = FL.moon.y - y; }
         const P = treePal(t.kind, layer, 'live', t.ripe, lx, ly);
-        paintTree(ctx, t.model, t.g, P, t.H, t.ripe);
+        paintTree(ctx, t.model, t.g, P, t.H * growScale(t.g), t.ripe);
       }
       ctx.restore();
     }
@@ -2055,28 +2336,30 @@
     if (l < 2) drawReflection(ctx, L);
     drawGround(ctx, L);
     drawRims(ctx, L);
-    if (l === 0) { drawTexels(ctx); drawFoam(ctx, L); drawRivulets(ctx, L); return; }
+    if (l === 0) { drawTexels(ctx); drawDrops(ctx, L); drawFoam(ctx, L); drawFroth(ctx, L); return; }
     drawTrees(ctx, l);
     drawBlades(ctx, L);
     drawHerbs(ctx, L);
     drawBlooms(ctx, l);
     drawDrift(ctx, l);
+    drawDrops(ctx, L);
     drawFoam(ctx, L);
-    drawRivulets(ctx, L);
+    drawFroth(ctx, L);
   }
   // 与 draw 相同，但逐段计时（GS.land.prof.on = true 时）
   function drawProf(ctx, l, L) {
     if (l < 2) pf('refl', () => drawReflection(ctx, L));
     pf('ground', () => drawGround(ctx, L));
     pf('rims', () => drawRims(ctx, L));
-    if (l === 0) { pf('texels', () => drawTexels(ctx)); pf('foam', () => drawFoam(ctx, L)); pf('riv', () => drawRivulets(ctx, L)); return; }
+    if (l === 0) { pf('texels', () => drawTexels(ctx)); pf('drops', () => drawDrops(ctx, L)); pf('foam', () => drawFoam(ctx, L)); pf('froth', () => drawFroth(ctx, L)); return; }
     pf('trees', () => drawTrees(ctx, l));
     pf('blades', () => drawBlades(ctx, L));
     pf('herbs', () => drawHerbs(ctx, L));
     pf('blooms', () => drawBlooms(ctx, l));
     pf('drift', () => drawDrift(ctx, l));
+    pf('drops', () => drawDrops(ctx, L));
     pf('foam', () => drawFoam(ctx, L));
-    pf('riv', () => drawRivulets(ctx, L));
+    pf('froth', () => drawFroth(ctx, L));
   }
 
   // ════════════════════════════════════════════════════════════
@@ -2100,7 +2383,6 @@
     lastQ = W.quality || 1;
     for (const L of LY) { buildBlades(L); buildHerbs(L); }
     buildTexels();
-    buildRivers();
     layoutTrees();
     // 花：按比例迁到新的尺寸
     if (worldBloomed) {
@@ -2143,7 +2425,7 @@
   }
 
   function reset() {
-    blooms.length = 0; drift.length = 0; bakeQ.length = 0;
+    blooms.length = 0; drift.length = 0; bakeQ.length = 0; drops.length = 0;
     worldBloomed = false; ripeOn = false; treeOrigin = null;
     for (const t of trees) { dropBake(t); t.g = 0; t.pg = 0; t.ripe = false; t.ripeAt = Infinity; }
     for (const L of LY) { L.wet = 0; L.breached = false; L.dirty = true; }
@@ -2151,6 +2433,7 @@
 
   function restore() {
     quietUntil = W.t + 0.35;
+    drops.length = 0;
     if (W.w !== lastW || W.h !== lastH || !ready) resize();
     if (!ready) return;
     for (const L of LY) { L.dirty = true; updRidge(L); L.wet = 0; L.breached = L.rise > 0.04; }
@@ -2173,6 +2456,7 @@
       const t = bakeQ.shift(); t.queued = false;
       if (t.g >= 1 && t.bakeKey !== bakeKey(t)) U.safe('land.bake', () => bakeTree(t));
     }
+    processSnaps(12);
   }
 
   // ════════════════════════════════════════════════════════════
@@ -2189,7 +2473,7 @@
       const L = LY[t.layer];
       const y = ridgeAt(L, t.x);
       if (y >= L.wl - 1) continue;
-      const m = t.model, gs = c01(t.g * 1.3);
+      const m = t.model, gs = growScale(t.g);
       T.push({ x: t.x, y, top: y + m.top * t.H * gs, w: m.cw * t.H * gs, layer: t.layer, grown: t.g, kind: t.kind, label: KIND[t.kind].cn });
       if (t.g >= 1) for (const p of m.perch) P.push({ x: t.x + p[0] * t.H, y: y + t.sink + p[1] * t.H, layer: t.layer });
     }

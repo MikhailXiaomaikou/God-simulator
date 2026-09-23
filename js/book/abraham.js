@@ -34,13 +34,13 @@
 
   // ── 地上的位置（画面宽度的比例）：左 = 东（盐海与平原），右 = 西（往埃及、往哈兰的路）──
   const X = {
-    spring: 0.4, shrub: 0.442, sleep: 0.452, pieces: 0.505, look: 0.555,
-    moreh: 0.578, altarS: 0.606,
-    altarB: 0.632, tentB: 0.658, tentL: 0.694,
-    oakA: 0.64, tent: 0.69, oakB: 0.738, altarM: 0.765,          // 幔利（希伯仑）
-    cave: 0.83, tamarisk: 0.878, wellN: 0.935,
-    // 中景（平原）
-    lotTent: 0.472, sodom: 0.506, gomorrah: 0.556, salt: 0.598, zoar: 0.652,
+    spring: 0.405, shrub: 0.442, pieces: 0.47, sleep: 0.556, look: 0.575,
+    moreh: 0.52, altarS: 0.548,                                   // 示剑
+    altarB: 0.6, tentB: 0.628, tentL: 0.656,                      // 伯特利
+    oakA: 0.675, tent: 0.72, oakB: 0.768, altarM: 0.8,            // 幔利（希伯仑）
+    cave: 0.855, tamarisk: 0.9, wellN: 0.95,
+    // 中景（盐海岸边的平原）
+    lotTent: 0.505, sodom: 0.53, gomorrah: 0.578, salt: 0.618, zoar: 0.668,
   };
   const ROBE = {
     abram: [150, 118, 84], sarai: [168, 112, 100], lot: [112, 96, 82], hagar: [196, 186, 162], ishmael: [136, 104, 72],
@@ -68,9 +68,9 @@
   const has = id => { const c = C(); return c.has ? c.has(id) : !!(c.get && c.get(id)); };
   const hasCrowd = gid => { const c = C(); return !!(c.crowds && c.crowds.has && c.crowds.has(gid)); };
   function add(id, o) { return C().add(id, o); }
-  function walk(id, x, o) { if (has(id)) C().walk(id, x, o); }
-  function pose(id, p, o) { if (has(id)) C().pose(id, p, o); }
-  function face(id, d) { if (has(id)) C().face(id, d); }
+  function walk(id, x, o) { C().walk(id, x, o); }
+  function pose(id, p, o) { C().pose(id, p, o); }
+  function face(id, d) { C().face(id, d); }
   function rm(id, now) { if (has(id)) C().remove(id, now ? { fade: false } : undefined); }
   function fig(id) { const c = C(); return c.get ? c.get(id) : null; }
   function relabel(id, label) { const f = fig(id); if (f) f.label = label; }
@@ -132,6 +132,7 @@
     o = o || {};
     let p = P.get(id);
     const isNew = !p;
+    if (isNew && !kind) return null;
     if (isNew) {
       p = { id, kind: kind || 'tent', x: 0.5, layer: 2, size: 1, label: '', seed: hashStr(id), tx: null, spd: 0.02 };
       for (const k in EASE) { p[k] = 0; p['t' + k] = 0; }
@@ -294,7 +295,7 @@
   //  画：各种物件
   // ════════════════════════════════════════════════════════════
   function drawOak(ctx, p) {
-    const l = p.layer, s = LS(l) * p.size, H = 100 * s, x = p.x * W.w, y = gY(l, p.x) + 3 * s, m = p.model;
+    const l = p.layer, s = LS(l) * p.size, H = 90 * s, x = p.x * W.w, y = gY(l, p.x) + 3 * s, m = p.model;
     const sway = W.wind * 0.01 * H + Math.sin(W.t * 0.55 + p.seed) * 0.004 * H;
     ctx.globalAlpha = p.a;
     const trunk = css([60, 44, 32], l);
@@ -799,7 +800,7 @@
     const band = W.lv.abStars;
     ctx.globalCompositeOperation = 'lighter';
     if (band > 0.01) {
-      ctx.globalAlpha = A * band * 0.9;
+      ctx.globalAlpha = A * band * 0.32;
       ctx.drawImage(SP.band, 0, 0, W.w, W.horizonY);
     }
     for (let b = 0; b < BUCK; b++) bucketPaths[b].length = 0;
@@ -987,7 +988,7 @@
       for (const [id, p] of P) {
         for (const k in EASE) {
           const tg = k === 'a' ? p.ta : p['t' + k];
-          if (p[k] !== tg) p[k] = U.approach ? approachLin(p[k], tg, EASE[k] * f) : tg;
+          if (p[k] !== tg) p[k] = approachLin(p[k], tg, EASE[k] * f);
         }
         if (p.tx != null) {
           const d = p.tx - p.x, v = p.spd * f;
@@ -1105,16 +1106,19 @@
   //  幕后布置：哈兰的清晨
   // ════════════════════════════════════════════════════════════
   function setup() {
-    const lv = { deep: 1, light: 1, gather: 1, dayNight: 1, vault: 1, clouds: 0.5, land: 1, grass: 1, herbs: 1, trees: 1, lights: 1, moon: 1, stars: 1, life: 1, good: 0, given: 1,
+    const lv = { deep: 1, light: 1, gather: 1, dayNight: 1, vault: 1, clouds: 0.5, land: 1, grass: 1, herbs: 1, trees: 0.5, lights: 1, moon: 1, stars: 1, life: 1, good: 0, given: 1,
       abStars: 0, abDrought: 0, abDark: 0, abPass: 0, abFire: 0, abSmoke: 0, abTwelve: 0 };
     for (const k in lv) if (!W.hasLevel || W.hasLevel(k)) W.set(k, lv[k], true);
+    // 迦南是山地：树木多在西边（右）的山上，平原与旷野（左）开阔
+    W.setOrigin('trees', W.w * 0.98, W.ridgeBaseY(2, W.w * 0.98));
+    W.set('trees', 0.5, true);
     W.goTo(0.27, 0, true);
     const lx = W.w * 0.78, ly = W.ridgeBaseY(2, lx);
     W.setPop('fish', 110, W.w * 0.15, W.h * 0.8, true);
     W.setPop('whale', 2, W.w * 0.12, W.h * 0.78, true);
     W.setPop('bird', 34, W.w * 0.6, W.h * 0.3, true);
     W.setPop('cattle', 8, lx, ly, true);
-    W.setPop('beast', 5, lx, ly, true);
+    W.setPop('beast', 3, lx, ly, true);
     W.setPop('creeper', 26, lx, ly, true);
     W.setPop('human', 0, lx, ly, true);
     resetScene();
@@ -1128,7 +1132,7 @@
     prop('zoar', 'city', { x: X.zoar, layer: 1, size: 0.3, label: '琐珥' });
     prop('spring', 'spring', { x: X.spring, label: '水泉' });
     prop('shrub', 'shrub', { x: X.shrub, label: '小树' });
-    prop('cave', 'cave', { x: X.cave, label: '麦比拉田间的洞' });
+    prop('cave', 'cave', { x: X.cave, label: '磐石' });
     // 哈兰的帐棚
     prop('tH1', 'tent', { x: 0.905, label: '帐棚' });
     prop('tH2', 'tent', { x: 0.962, size: 0.8, label: '帐棚' });
@@ -1137,7 +1141,7 @@
     add('abram', { label: '亚伯兰', sex: 'm', age: 'adult', x: 0.88, facing: -1, robe: ROBE.abram, glow: 0.4, from: 'none' });
     add('sarai', { label: '撒莱', sex: 'f', age: 'adult', x: 0.93, facing: -1, robe: ROBE.sarai, glow: 0.2, from: 'none' });
     add('lot', { label: '罗得', sex: 'm', age: 'adult', x: 0.855, facing: -1, robe: ROBE.lot, glow: 0.15, from: 'none' });
-    c.crowd('hh', { n: 4, x0: 0.92, x1: 0.99, layer: 2, label: '仆婢', from: 'none' });
+    c.crowd('hh', { n: 4, x0: 0.92, x1: 0.99, layer: 2, label: '仆婢', from: 'none', mill: false });
     animal('cam1', 'camel', 0.975, { facing: -1 });
     animal('cam2', 'camel', 0.94, { facing: -1 });
   }
@@ -1213,7 +1217,7 @@
             animal('don1', 'donkey', 1.12, { facing: -1 });
             family(X.tentB - 0.035, { speed: 0.03, lot: false });
             walk('lot', X.tentL + 0.02, { speed: 0.03 });
-            W.setPop('cattle', 16, W.w * 0.95, W.ridgeBaseY(2, W.w * 0.95), b.instant);
+            W.setPop('cattle', 14, W.w * 0.97, W.ridgeBaseY(2, W.w * 0.97), b.instant);
             sfx(b, 'camel');
           }],
           [19, b => { prop('tentB', 'tent', { x: X.tentB, label: '帐棚' }); prop('tentL', 'tent', { x: X.tentL, size: 0.85, label: '罗得的帐棚' }); prop('altarB', null, { fire: 1 }); walk('abram', X.altarB - 0.018, { speed: 0.02, pose: 'pray' }); sfx(b, 'fire'); }],
@@ -1229,7 +1233,7 @@
             unprop('tentL');
             pose('abram', 'stand');
             walk('lot', 0.41, { speed: 0.022 });
-            if (!hasCrowd('lh')) C().crowd('lh', { n: 2, x0: X.tentL + 0.03, x1: X.tentL + 0.06, layer: 2, label: '罗得的牧人', from: W.replaying ? 'none' : 'fade' });
+            if (!hasCrowd('lh')) C().crowd('lh', { mill: false, n: 2, x0: X.tentL + 0.03, x1: X.tentL + 0.06, layer: 2, label: '罗得的牧人', from: W.replaying ? 'none' : 'fade' });
             C().crowdWalk('lh', 0.43, 0.46, { speed: 0.022 });
           }],
           [45, () => { rm('lot'); C().removeCrowd('lh'); }],
@@ -1304,14 +1308,14 @@
       apply(c) {
         T(c, [
           [0.2, b => {
-            C().crowd('men', { n: 9, x0: X.tent + 0.02, x1: X.tent + 0.16, layer: 2, label: '精练的壮丁', robe: [96, 80, 66], from: b.instant ? 'none' : 'fade' });
+            C().crowd('men', { mill: false, n: 9, x0: X.tent + 0.02, x1: X.tent + 0.16, layer: 2, label: '精练的壮丁', robe: [96, 80, 66], from: b.instant ? 'none' : 'fade' });
             beamOn(b, 'abram', { dur: 4 });
             sfx(b, 'crowd');
           }],
           [2.5, () => { walk('abram', 0.42, { speed: 0.045 }); C().crowdWalk('men', 0.43, 0.52, { speed: 0.045 }); }],
           [7, b => { C().removeCrowd('men'); flash(b, { type: 'battle', dur: 5 }); prop('sodom', null, { fire: 0 }); }],
           [11, b => {
-            C().crowd('men2', { n: 8, x0: 0.4, x1: 0.47, layer: 2, label: '精练的壮丁', robe: [96, 80, 66], from: b.instant ? 'none' : 'fade' });
+            C().crowd('men2', { mill: false, n: 8, x0: 0.4, x1: 0.47, layer: 2, label: '精练的壮丁', robe: [96, 80, 66], from: b.instant ? 'none' : 'fade' });
             C().crowdWalk('men2', 0.45, 0.52, { speed: 0.03 });
             walk('abram', X.look + 0.012, { speed: 0.03 });
             add('lotM', { label: '罗得', sex: 'm', age: 'adult', layer: 1, x: X.sodom + 0.03, facing: -1, robe: ROBE.lot, glow: 0.15, from: 'fade' });
@@ -1730,7 +1734,7 @@
             W.goTo(0.27, 4, b.instant);
             pose('abram', 'stand');
             setAge('isaac', 'adult', 0.84);
-            C().crowd('sv', { n: 2, x0: X.tent + 0.03, x1: X.tent + 0.06, layer: 2, label: '仆人', from: b.instant ? 'none' : 'fade' });
+            C().crowd('sv', { mill: false, n: 2, x0: X.tent + 0.03, x1: X.tent + 0.06, layer: 2, label: '仆人', from: b.instant ? 'none' : 'fade' });
             carry('isaac', 'wood'); carry('abram', 'torch');
           }],
           [9, b => {
@@ -1866,7 +1870,7 @@
             walk('isaac', X.cave - 0.024, { speed: 0.013, pose: 'stand' });
             walk('bearer', X.cave + 0.004, { speed: 0.013 });
             walk('abram', X.cave - 0.045, { speed: 0.013 });
-            prop('cave', null, { lit: 0.5 });
+            prop('cave', null, { lit: 0.5, label: '麦比拉洞' });
           }],
           [34, b => { unprop('bier'); prop('cave', null, { seal: 1, lit: 0 }); C().removeCrowd('heth'); pose('abram', 'kneel'); sfx(b, 'seal'); }],
           [38, () => { pose('abram', 'stand'); walk('abram', X.tent - 0.03, { speed: 0.018 }); walk('isaac', X.tent - 0.05, { speed: 0.018 }); walk('bearer', X.tent + 0.1, { speed: 0.018 }); }],
@@ -1929,6 +1933,7 @@
             prop('wellN', null, { lit: 0 }); unprop('wellN');
             walk('servant', 0.66, { speed: 0.02 }); walk('rebekah', 0.64, { speed: 0.02 });
             walk('cam1', 0.685, { speed: 0.02 }); walk('cam2', 0.715, { speed: 0.02 }); walk('cam3', 0.745, { speed: 0.02 });
+            setAge('isaac', 'adult', 1);
             walk('isaac', X.spring + 0.02, { speed: 0.025 });
           }],
           [52, b => { W.goTo(0.76, 9, b.instant); walk('isaac', 0.585, { speed: 0.02, pose: 'pray' }); }],

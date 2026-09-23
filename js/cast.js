@@ -314,7 +314,10 @@
   }
   function aliasCol(key, from) { COL[key] = COL[from]; CRGB[key] = CRGB[from]; }
   const HAS_ADD = typeof Path2D !== 'undefined' && !!Path2D.prototype.addPath;
+  const DBG = { noFill: false, noRim: false };
   function flushOps(ctx, rim, baseKey, after) {
+    if (DBG.noFill) { nOps = 0; return; }
+    if (DBG.noRim) rim = null;
     if (rim && rim.a > 0.03 && nOps) {
       const c = CRGB[baseKey] || [0, 0, 0], rc = rim.c, a = Math.min(1, rim.a);
       ctx.fillStyle = U.rgb(c[0] + (rc[0] - c[0]) * a, c[1] + (rc[1] - c[1]) * a, c[2] + (rc[2] - c[2]) * a);
@@ -541,6 +544,7 @@
     if (ps === 'run' && p.tx != null && !W.replaying) { p.speed = Math.max(p.speed, 0.085); setPose(p, 'run'); return; }
     if (p.tx != null && !o.stop && !W.replaying) { p.afterWalk = ps; return; }
     p.tx = null; setPose(p, ps);
+    if (ps === 'embrace' && W.replaying && !p.isAnimal) closeGap(p, true);
   }
   // face(id, 1 | -1)：朝右 / 朝左；face(id, 0.3)：朝向画面比例 0.3 处；face(id, 'eve')：朝向某人
   function face(id, d) {
@@ -588,6 +592,35 @@
     };
     go(left, mid - gap / 2, 1);
     go(right, mid + gap / 2, -1);
+  }
+  // 两人都在 embrace 而相隔尚远：各走半程，相向而拥（重演时立即到位）
+  function embracePartner(p) {
+    const e = p.embrace && people.get(p.embrace);
+    if (e && !e.isAnimal && (e.pose === 'embrace' || (e.tx != null && e.afterWalk === 'embrace'))) return e;
+    let best = null, bd = 0.25;
+    for (const q of people.values()) {
+      if (q === p || q.isAnimal || q.dying || q.layer !== p.layer || q.pose !== 'embrace') continue;
+      const d = q.nx - p.nx, ad = Math.abs(d);
+      if (ad < bd && Math.sign(d) === p.facing && q.facing === -p.facing) { bd = ad; best = q; }
+    }
+    return best;
+  }
+  function closeGap(p, instant) {
+    const e = embracePartner(p); if (!e) return;
+    const gap = scaleOf(p) * 0.3 / Math.max(1, W.w);
+    const d = e.nx - p.nx, s = Math.sign(d) || p.facing;
+    if (Math.abs(d) <= gap * 1.5) return;
+    const mid = (p.nx + e.nx) / 2;
+    if (instant) {
+      p.nx = mid - s * gap / 2; e.nx = mid + s * gap / 2; p.tx = e.tx = null;
+      p.facing = p.fd = s; e.facing = e.fd = -s;
+      return;
+    }
+    for (const [q, x, dir, o] of [[p, mid - s * gap / 2, s, e], [e, mid + s * gap / 2, -s, p]]) {
+      if (q.tx != null || q.mount) continue;
+      q.tx = x; q.afterWalk = 'embrace'; q.faceTo = o.id; q.speed = Math.max(q.speed, 0.035);
+      setPose(q, 'walk'); q.facing = dir;
+    }
   }
   function dismount(p, m) {
     p.mount = null; p._seat = null;
@@ -764,6 +797,7 @@
       // 人群里的人偶尔挪动几步；羊群慢慢移着吃草
       walkM(p, clamp(p.nx + rand(-0.03, 0.03), 0.02, 0.98));
     }
+    if (p.pose === 'embrace' && p.tx == null && !p.isAnimal && !p.mount && ((W.frame + p.ord) % 12 === 0)) closeGap(p, false);
     // 神言说时，站着的人转向神的灵
     if (W.ritual.holding && !p.isAnimal && p.tx == null && !p.mount && !p.fly && UPRIGHT[p.pose] && p.pose !== 'wrestle' && p.pose !== 'embrace' && p.pose !== 'weep') {
       p.facing = W.spirit.x >= p.nx * W.w ? 1 : -1;
@@ -847,6 +881,8 @@
       Q[LEAN] += 0.15 * upright; Q[HEAD] += 0.12 * upright;
       Q[NTH] += 0.07 * up; Q[FTH] += 0.07 * up; Q[NSH] -= 0.04 * up; Q[FSH] -= 0.06 * up;
     }
+    // 天使：两臂微张，掌心向前
+    if (p.angel && p.pose === 'stand') { Q[NUA] += 0.2 * upright; Q[NFA] += 0.45 * upright; Q[FUA] -= 0.12 * upright; Q[FFA] += 0.25 * upright; Q[HEAD] -= 0.05; }
     // 呼吸
     const br = Math.sin(W.t * 1.7 + p.phase);
     p._br = br;
@@ -962,7 +998,7 @@
     const hemF = [fkx + Math.sin(Q[FSH]) * A.SH * robeK, fky + Math.cos(Q[FSH]) * A.SH * robeK];
 
     // ── 远侧：翼、臂、腿 ──
-    if (p.wings) { op('wingF'); wing(p, sx, sy, ux, uy, fx, fy, -0.12); }
+    if (p.wings) { op('wingF'); wing(p, sx, sy, ux, uy, fx, fy, -0.34); }
     op('far');
     arm(jfx, jfy, fUa, fFa, bare, false);
     if (bare) { limb(-0.008, 0, fkx, fky, ffx, ffy, 0.1 * WK, 0.066 * WK, 0.042 * WK); if (!lo) foot(fkx, fky, ffx, ffy, Q[FSH]); }
@@ -1021,7 +1057,7 @@
     }
     // ── 头巾 / 包头 / 须 / 腰带 ──
     const beard = p.beardOpt != null ? p.beardOpt : (elder && !woman && !p.angel);
-    if (style === 'veil' || style === 'cloth' || beard || (!woman && !bare && !child && !p.angel && !lo)) {
+    if (style === 'veil' || style === 'cloth' || beard || (!woman && !bare && !child && !lo)) {
       op('acc');
       if (style === 'veil' || style === 'cloth') {
         const veil = style === 'veil';
@@ -1043,8 +1079,8 @@
         PB[4] = hcx - hfx * hr * 0.2 - hux * hr * 0.95; PB[5] = hcy - hfy * hr * 0.2 - huy * hr * 0.95;
         polyN(3);
       }
-      if (!woman && !bare && !child && !p.angel && !lo && style !== 'veil') {
-        const a0 = 0.36, a1 = 0.45, w = waW * 1.08;
+      if (!woman && !bare && !child && !lo && style !== 'veil') {
+        const a0 = p.angel ? 0.4 : 0.36, a1 = p.angel ? 0.47 : 0.45, w = waW * 1.08;
         quad(ux * Tl * a0 - fx * w, uy * Tl * a0 - fy * w, ux * Tl * a0 + fx * w, uy * Tl * a0 + fy * w,
           ux * Tl * a1 + fx * w, uy * Tl * a1 + fy * w, ux * Tl * a1 - fx * w, uy * Tl * a1 - fy * w);
       }
@@ -1065,7 +1101,7 @@
     }
     // ── 近侧的臂（盖在躯干上）──
     if (!lo || bare) { op(bare ? 'skin' : 'arm'); arm(jnx, jny, nUa, nFa, bare, true); }
-    if (p.wings) { op('wing'); wing(p, sx, sy, ux, uy, fx, fy, 0.14); }
+    if (p.wings) { op('wing'); wing(p, sx, sy, ux, uy, fx, fy, 0.08); }
     // ── 手中之物 ──
     P_FLAME = null; P_SWORD = null;
     const handBusy = p.carry && (p.prop === 'staff' || p.prop === 'torch' || p.prop === 'sword');
@@ -1083,17 +1119,17 @@
   // 基路伯之翼：自肩后向上、向后展开；主羽一片片叠成柔和的扇边
   function wing(p, sx, sy, ux, uy, fx, fy, off) {
     const flap = Math.sin(W.t * 0.8 + p.phase) * 0.05;
-    const th = p._lean + off + flap - 0.42;
+    const th = p._lean + off + flap - 0.3;
     const wux = Math.sin(th), wuy = -Math.cos(th);        // 沿翼向上
     const wbx = -Math.cos(th), wby = -Math.sin(th);       // 翼的后缘一侧
     const rx = sx - fx * 0.025 - ux * 0.05, ry = sy - fy * 0.025 - uy * 0.05;
     const P = (u, b, i) => { PB[2 * i] = rx + wux * u + wbx * b; PB[2 * i + 1] = ry + wuy * u + wby * b; };
-    P(0, -0.03, 0); P(0.2, -0.058, 1); P(0.46, -0.045, 2); P(0.68, 0.0, 3); P(0.78, 0.07, 4); P(0.62, 0.14, 5); P(0.32, 0.15, 6); P(0.06, 0.1, 7);
+    P(0, -0.03, 0); P(0.24, -0.07, 1); P(0.56, -0.06, 2); P(0.84, -0.01, 3); P(0.96, 0.06, 4); P(0.78, 0.15, 5); P(0.4, 0.17, 6); P(0.06, 0.11, 7);
     polyN(8);
     const ang = Math.atan2(wuy, wux);
-    for (let i = 0; i < 5; i++) {
-      const u = 0.66 - i * 0.14, b = 0.12 + 0.012 * i;
-      ell(rx + wux * u + wbx * b, ry + wuy * u + wby * b, 0.13 - i * 0.008, 0.036, ang + 0.28 + i * 0.07);
+    for (let i = 0; i < 6; i++) {
+      const u = 0.84 - i * 0.14, b = 0.13 + 0.012 * i;
+      ell(rx + wux * u + wbx * b, ry + wuy * u + wby * b, 0.15 - i * 0.01, 0.036, ang + 0.3 + i * 0.07);
     }
   }
   function backProp(kind, Tl, ux, uy, fx, fy) {
@@ -1241,8 +1277,8 @@
       ctx.globalCompositeOperation = 'lighter';
       if (p.angel) {
         tp(p._headL[0], p._headL[1]);
-        const r = h * 0.24;
-        ctx.globalAlpha = alpha * (0.3 + 0.35 * W.night);
+        const r = h * 0.2;
+        ctx.globalAlpha = alpha * (0.18 + 0.3 * W.night);
         ctx.drawImage(glowSprite('pale', [255, 246, 222], 1), PX - r, PY - r, r * 2, r * 2);
       } else {
         tp(p._chestL[0], p._chestL[1]);
@@ -1539,7 +1575,13 @@
     ell(0, by, bl * 0.5, bh * 0.5, 0);
     ell(bl * 0.28, by + bh * 0.08, bl * 0.2, bh * 0.52, 0);          // 胸
     ell(-bl * 0.3, by - bh * 0.02, bl * 0.2, bh * 0.48, 0);          // 臀
-    ell(-bl * 0.04, by - bh * 0.48, bl * 0.26, bh * 0.56, 0);        // 峰
+    // 峰：自背脊缓缓隆起
+    for (let i = 0; i <= 8; i++) {
+      const t = i / 8, b = Math.pow(Math.sin(Math.PI * t), 1.35);
+      PB[2 * i] = lerp(-bl * 0.4, bl * 0.3, t); PB[2 * i + 1] = by - bh * 0.36 - bh * 0.6 * b;
+    }
+    PB[18] = bl * 0.3; PB[19] = by; PB[20] = -bl * 0.4; PB[21] = by;
+    polyN(11);
     // 颈：先向前下垂，再向上弯到头
     const al = a.neck;
     const sx = bl * 0.4, sy = by - bh * 0.12;
@@ -1554,17 +1596,22 @@
     ell(hx + fxv * 2.6, hyy + fyv * 2.6, M.hl * 0.42, M.hh * 0.52, -be);
     ell(hx + fxv * 5.4 - uxv * 0.5, hyy + fyv * 5.4 - uyv * 0.5, M.hl * 0.26, M.hh * 0.42, -be);
     seg(hx + uxv * 1.2, hyy + uyv * 1.2, hx - fxv * 0.8 + uxv * 2.6, hyy - fyv * 0.8 + uyv * 2.6, 1.2, 0.5);
-    // 鞍与驮袋（彩色的织物）
+    // 鞍与驮袋（彩色的织物）：搭在峰上的毯子，两侧垂下，袋子挂在身侧
     if (a.pack) {
       op('pk1');
-      PB[0] = -bl * 0.32; PB[1] = by - bh * 0.4; PB[2] = -bl * 0.24; PB[3] = by - bh * 0.98;
-      PB[4] = bl * 0.14; PB[5] = by - bh * 0.98; PB[6] = bl * 0.22; PB[7] = by - bh * 0.4;
-      PB[8] = bl * 0.14; PB[9] = by + bh * 0.15; PB[10] = -bl * 0.26; PB[11] = by + bh * 0.15;
-      polyN(6);
+      const hx0 = -bl * 0.05, hy0 = by - bh * 0.42, rxh = bl * 0.24 + 0.9, ryh = bh * 0.54 + 0.9;
+      const n = 7;
+      for (let i = 0; i < n; i++) {
+        const t = Math.PI * (1.12 + 0.76 * i / (n - 1));
+        SP_[2 * i] = hx0 + Math.cos(t) * rxh; SP_[2 * i + 1] = hy0 + Math.sin(t) * ryh * 0.96;
+      }
+      strand(SP_, n, 2.6, 2.6);
+      quad(hx0 - rxh * 0.62, hy0 - ryh * 0.5, hx0 - rxh * 0.16, hy0 - ryh * 0.62, hx0 - rxh * 0.2, by + bh * 0.2, hx0 - rxh * 0.66, by + bh * 0.16);
+      quad(hx0 + rxh * 0.16, hy0 - ryh * 0.62, hx0 + rxh * 0.62, hy0 - ryh * 0.5, hx0 + rxh * 0.66, by + bh * 0.16, hx0 + rxh * 0.2, by + bh * 0.2);
       op('pk2');
-      ell(-bl * 0.2, by + bh * 0.02, bl * 0.1, bh * 0.34, 0);
-      ell(bl * 0.1, by + bh * 0.02, bl * 0.09, bh * 0.32, 0);
-      quad(-bl * 0.27, by - bh * 0.96, bl * 0.18, by - bh * 0.96, bl * 0.18, by - bh * 1.08, -bl * 0.27, by - bh * 1.08);
+      ell(hx0 - rxh * 0.4, by + bh * 0.12, bl * 0.075, bh * 0.28, 0);
+      ell(hx0 + rxh * 0.42, by + bh * 0.12, bl * 0.07, bh * 0.26, 0);
+      seg(hx0 - rxh * 0.66, by + bh * 0.2, hx0 + rxh * 0.66, by + bh * 0.2, 1.0, 1.0);
     }
     a._seatL = [-bl * 0.04, by - bh * (a.pack ? 1.08 : 1.0)];
   }
@@ -1758,6 +1805,6 @@
     animal, herd, prop, carry, holdHands, embrace, ride, fly, attach,
     list: () => Array.from(people.keys()),
     get people() { return people; }, get crowds() { return crowds; },
-    POSES: Object.keys(POSES), KINDS: Object.keys(SPEC),
+    POSES: Object.keys(POSES), KINDS: Object.keys(SPEC), _dbg: DBG,
   };
 })(window.GS);
