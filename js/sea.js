@@ -206,7 +206,8 @@
   }
 
   // 灵的情形（每帧一次）
-  const SPC = { over: false, bx: 0, by: 0, slow: false, fast: false, listen: false, R: 140, near: 0 };
+  const SPC = { over: false, bx: 0, by: 0, slow: false, fast: false, listen: false, R: 140, near: 0, ballN: 0 };
+  const BALL_MAX = 60;
   function spiritContext() {
     const sp = W.spirit;
     const u = Math.max(0.6, W.unit);
@@ -261,6 +262,9 @@
     }
 
     const q = W.quality || 1, cap = q < 0.75 ? 7 : 12, stride = q < 0.75 ? 3 : 2, dts = dt * stride;
+    let ballN = 0;
+    for (let i = 0; i < N; i++) if (FISH[i].inBall) ballN++;
+    SPC.ballN = ballN;
     const sp = W.spirit, lis = SPC.listen, t = W.t;
     const sunK = W.daylight;
     for (let idx = 0; idx < N; idx++) {
@@ -359,9 +363,13 @@
               }
               f.panic = 1.5; f.ball = 0;
             }
-            const want = SPC.slow && f.panic <= 0 && ds < (f.ball > 0.2 ? SPC.R * 1.5 : SPC.R) ? 1 : 0;
+            // 鱼球至多六十来条：其余的鱼群仍各游各的（不致整片海都聚到灵的下面）
+            const cand = SPC.slow && f.panic <= 0 && ds < (f.inBall ? SPC.R * 1.5 : SPC.R);
+            if (cand && !f.inBall && SPC.ballN < BALL_MAX) { f.inBall = true; SPC.ballN++; }
+            const want = cand && f.inBall ? 1 : 0;
             f.ball = U.approach(f.ball, want, want ? 1.4 : 0.9, dts);
-          } else f.ball = U.approach(f.ball, 0, 0.9, dts);
+            if (!want && f.ball < 0.05) f.inBall = false;
+          } else { f.ball = U.approach(f.ball, 0, 0.9, dts); if (f.ball < 0.05) f.inBall = false; }
           if (f.ball > 0.01) {
             // 鱼球：在灵的下方缓缓转动
             const ox = (f.x - SPC.bx) * is, oy = (f.y - SPC.by) * isz;
@@ -1088,7 +1096,7 @@
     for (let i = 0; i < N; i++) {
       const f = FISH[i];
       if (f.band !== band || f.k !== 2) continue;
-      const e = (0.62 - 0.3 * f.sub) * f.a * sstep(0.06, 0.3, f.D);
+      const e = (0.7 - 0.3 * f.sub) * f.a * sstep(0.06, 0.3, f.D);
       if (e < 0.04) continue;
       const span = f.wid * f.s * 1.25, sy = span * f.fz * 0.9;
       if (DARK) {
@@ -1104,8 +1112,8 @@
         ctx.globalAlpha = c01(C.bio * 0.12 * f.a * pulse);
         ctx.fillStyle = css(BIO, 1); ctx.fill();
         if (GLOW) {
-          ctx.globalAlpha = c01(C.bio * 0.3 * f.a * pulse);
-          ctx.drawImage(GLOW, f.x - span * 0.8, f.y - sy * 0.8, span * 1.6, sy * 1.6);
+          ctx.globalAlpha = c01(C.bio * 0.17 * f.a * pulse);
+          ctx.drawImage(GLOW, f.x - span, f.y - sy, span * 2, sy * 2);
         }
         ctx.globalCompositeOperation = 'source-over';
       }

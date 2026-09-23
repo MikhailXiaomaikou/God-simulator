@@ -107,7 +107,7 @@
   const FAM_ID = FAM.map(f => f.id);
   const EXTRAS = ['fl:w1a', 'fl:w1b', 'fl:w2a', 'fl:w2b', 'fl:fall', 'fl:t1', 'fl:t2'];
   // 坛前的位置（相对坛的 x）
-  const ALTAR_SPOT = { noah: 0.035, noahW: 0.065, shem: -0.04, shemW: -0.065, ham: 0.095, hamW: 0.118, japheth: -0.092, japhethW: -0.116 };
+  const ALTAR_SPOT = { noah: 0.032, noahW: 0.058, shem: -0.036, shemW: -0.058, ham: 0.084, hamW: 0.104, japheth: -0.08, japhethW: -0.1 };
 
   // ── 小工具 ──────────────────────────────────────────────────
   const inst = b => !!(b && b.instant) || !!W.replaying;
@@ -154,7 +154,7 @@
   // ════════════════════════════════════════════════════════════
   //  亚拉腊山：大小两峰，其间一片宽阔的鞍部（方舟停在那里）
   // ════════════════════════════════════════════════════════════
-  const MT = { ok: false, w: 0, h: 0, n: 0, step: 3, H: null, SL: null, wl: 0, Hm: 0, xc: 0, xg: 0, xl: 0, Wg: 0, Wl: 0, sep: 0, sM: 0.8, gul: [] };
+  const MT = { emb: 0, ok: false, w: 0, h: 0, n: 0, step: 3, H: null, SL: null, wl: 0, Hm: 0, xc: 0, xg: 0, xl: 0, Wg: 0, Wl: 0, sep: 0, sM: 0.8, gul: [] };
   function smax(a, b, k) { const h = c01(0.5 + 0.5 * (a - b) / k); return b + (a - b) * h + k * h * (1 - h); }
   function arkLen() { return Math.max(40, Math.min(360 * uu() * narrow(), 0.44 * W.w)); }
   function layoutMountain() {
@@ -162,32 +162,36 @@
     MT.w = w; MT.h = h;
     if (!(w > 4 && h > 4)) { MT.ok = false; return; }
     MT.wl = 0.87 * h;
-    const Hm = MT.Hm = Math.min(0.5 * h, 0.85 * w);
+    const Hm = MT.Hm = Math.min(0.5 * h, 0.75 * w);
     const sep = MT.sep = Math.min(1.5 * Hm, 0.5 * w);
     const xg = MT.xg = 0.87 * w, xl = MT.xl = xg - sep, xc = MT.xc = xl + sep * 0.5;
-    const Wm = 1.1 * sep, Wg = MT.Wg = 0.55 * sep, Wl = MT.Wl = 0.45 * sep;
+    const Wm = 1.02 * sep, Wg = MT.Wg = Math.max(0.55 * sep, 0.42 * Hm), Wl = MT.Wl = Math.max(0.46 * sep, 0.36 * Hm);
     const step = MT.step = Math.max(2, w / 360);
     const n = MT.n = Math.ceil(w / step) + 2;
-    if (!MT.H || MT.H.length !== n) { MT.H = new Float32Array(n); MT.SL = new Float32Array(n); }
+    if (!MT.H || MT.H.length !== n) { MT.H = new Float32Array(n); MT.SL = new Float32Array(n); MT.X = new Float32Array(n); }
+    // 山脚可向水线以下延伸多少（只在近岸有地之处——升起之后藏在近岸之后；海湾里不延伸）
+    const wl2 = W.waterlineY(2);
+    for (let i = 0; i < n; i++) MT.X[i] = sstep(wl2 - 0.01 * h, wl2 - 0.06 * h, W.ridgeBaseY(2, Math.min(w, i * step)));
     const k = 0.07 * Hm;
     const ng = Math.pow(0.97, 1.6), nl = Math.pow(0.96, 1.45);
     for (let i = 0; i < n; i++) {
       const x = i * step;
       const dm = (x - xc) / Wm;
-      const massif = Math.abs(dm) < 1 ? 0.5 * Hm * Math.pow(1 - dm * dm, 0.85) : 0;
+      const massif = Math.abs(dm) < 1 ? 0.5 * Hm * Math.pow(1 - dm * dm, 1.15) : 0;
       const dg = Math.sqrt(((x - xg) / Wg) * ((x - xg) / Wg) + 0.0009);
       const g = dg < 1 ? Hm * Math.pow(1 - dg, 1.6) / ng : 0;
       const dl = Math.sqrt(((x - xl) / Wl) * ((x - xl) / Wl) + 0.0016);
-      const l = dl < 1 ? 0.64 * Hm * Math.pow(1 - dl, 1.45) / nl : 0;
+      const l = dl < 1 ? 0.66 * Hm * Math.pow(1 - dl, 1.45) / nl : 0;
       let hh = smax(smax(massif, g, k), l, k);
       // 山坡的起伏；鞍部保持平坦（方舟停在那里）
-      const rough = sstep(0.12 * sep, 0.32 * sep, Math.abs(x - xc));
-      hh += hh * 0.05 * U.fbm1(x / (0.06 * Hm) + 5.3, 3) * rough;
+      const rough = sstep(0.14 * sep, 0.3 * sep, Math.abs(x - xc));
+      hh += hh * (0.03 + 0.06 * rough) * U.fbm1(x / (0.05 * Hm) + 5.3, 3) * (0.25 + 0.75 * rough);
       MT.H[i] = Math.max(0, hh);
       MT.SL[i] = 0.7 * Hm + 0.05 * Hm * U.noise1(x / (0.035 * Hm) + 9.1) - 0.08 * Hm * Math.abs(U.noise1(x / (0.016 * Hm) + 3.3));
     }
     // 方舟在山上的大小：两峰之间放得下
     MT.sM = clamp((0.5 * sep) / arkLen(), 0.42, 0.82);
+    MT.emb = 0.014 * arkLen() * MT.sM;             // 龙骨稍稍陷进山里
     // 山沟：自峰顶附近往下的几道暗线
     MT.gul = [];
     const r = U.mulberry32(77);
@@ -231,17 +235,22 @@
     const dy = mtSink();
     const dp = 0.3;
     const day = W.daylight;
-    const clipB = wl + W.layerRise(2) * 0.1 * W.h;         // 近岸升起之后，山脚藏在它后面
+    const clipB = wl + W.layerRise(2) * 0.014 * W.h;        // 近岸升起之后，山脚藏在它后面
     ctx.save();
     ctx.beginPath(); ctx.rect(-10, -10, W.w + 20, clipB + 10); ctx.clip();
     ctx.translate(0, dy);
-    // 剪影
+    // 剪影（山脚只在山身之下向下延伸，好藏进近岸之后）
+    const ext = 0.014 * W.h, hk = 0.06 * Hm;          // 一丝向下的延伸：免得近岸与山脚之间露出一线水
     ctx.beginPath();
-    ctx.moveTo(-2, wl + 0.12 * W.h);
-    for (let i = 0; i < n; i++) ctx.lineTo(i * st, wl - H[i]);
-    ctx.lineTo(W.w + 2, wl + 0.12 * W.h);
+    ctx.moveTo(0, wl - H[0]);
+    for (let i = 1; i < n; i++) ctx.lineTo(i * st, wl - H[i]);
+    for (let i = n - 1; i >= 0; i--) ctx.lineTo(i * st, wl + ext * sstep(0, hk, H[i]) * MT.X[i]);
     ctx.closePath();
-    ctx.fillStyle = W.shadeCSS(ROCK, dp);
+    const gf = ctx.createLinearGradient(0, wl - Hm, 0, wl);
+    gf.addColorStop(0, W.shadeCSS([134, 128, 130], 0.42));
+    gf.addColorStop(0.55, W.shadeCSS(ROCK, dp));
+    gf.addColorStop(1, W.shadeCSS(mix([98, 84, 72], [74, 100, 58], 0.75 * c01(W.lv.grass)), 0.16));
+    ctx.fillStyle = gf;
     ctx.fill();
     ctx.save();
     ctx.clip();
@@ -263,20 +272,26 @@
     ctx.fill();
     // 背光的一面：以峰顶为界，一明一暗
     const sunLeft = W.sun.x < MT.xg;
+    const shA = 0.22 + 0.12 * day;
     const shadeFace = (cx, top, ww) => {
       const s = sunLeft ? 1 : -1;
+      ctx.beginPath();
       ctx.moveTo(cx, wl - top - 4);
       ctx.lineTo(cx + s * 0.14 * ww, wl - top * 0.55);
       ctx.lineTo(cx + s * 0.06 * ww, wl + 4);
       ctx.lineTo(cx + s * ww, wl + 4);
       ctx.lineTo(cx + s * ww, wl - top - 8);
       ctx.closePath();
+      // 背光面自山脊向外渐淡，不留一道直边
+      const gs = ctx.createLinearGradient(cx, 0, cx + s * ww, 0);
+      gs.addColorStop(0, U.rgba(14, 16, 30, shA));
+      gs.addColorStop(0.55, U.rgba(14, 16, 30, shA * 0.75));
+      gs.addColorStop(1, U.rgba(14, 16, 30, 0));
+      ctx.fillStyle = gs;
+      ctx.fill();
     };
-    ctx.beginPath();
     shadeFace(MT.xg, mtH(MT.xg), MT.Wg);
     shadeFace(MT.xl, mtH(MT.xl), MT.Wl);
-    ctx.fillStyle = U.rgba(14, 16, 30, 0.22 + 0.12 * day);
-    ctx.fill();
     // 山沟
     if (MT.gul.length) {
       ctx.beginPath();
@@ -305,7 +320,7 @@
     ctx.stroke();
     ctx.restore();
     // 水线：山与水相接处，水里一道暗影与一道白沫
-    if (e < 0.999) {
+    {
       const ga = ctx.createLinearGradient(0, wl, 0, wl + 0.03 * W.h);
       ga.addColorStop(0, U.rgba(6, 12, 20, 0.35));
       ga.addColorStop(1, U.rgba(6, 12, 20, 0));
@@ -348,7 +363,7 @@
   const ARK = { vis: false, x: 0, y: 0, s: 1, L: 1, tilt: 0, float: false, mount: false, depth: 0, a: '' };
   function poseXY(p, out) {
     if (p.a === 'ground') { const x = clamp(p.x, 0.05, 0.95) * W.w; out[0] = x; out[1] = groundUnder(x); out[2] = 1; }
-    else if (p.a === 'mount') { const x = MT.xc; out[0] = x; out[1] = Math.min(MT.wl, surfY(x)); out[2] = MT.sM; }
+    else if (p.a === 'mount') { const x = MT.xc; out[0] = x; out[1] = Math.min(MT.wl, surfY(x) + MT.emb); out[2] = MT.sM; }
     else { out[0] = p.x * W.w; out[1] = p.y * W.h; out[2] = p.s || 1; }
     return out;
   }
@@ -368,7 +383,7 @@
     ARK.x = x; ARK.y = y; ARK.s = s; ARK.L = arkLen() * s;
     ARK.a = st.p1.a;
     ARK.mount = st.p1.a === 'mount';
-    ARK.float = st.p1.a === 'sea' || st.p1.a === 'raw' || (ARK.mount && (k < 1 || surfY(MT.xc) > MT.wl - 0.5));
+    ARK.float = st.p1.a === 'sea' || st.p1.a === 'raw' || (ARK.mount && (k < 1 || surfY(MT.xc) + MT.emb > MT.wl - 0.5));
     ARK.tilt = st.p1.a === 'ground' ? groundTilt(x) : 0;
     ARK.depth = ARK.mount ? 0.16 : 0.02;
     return ARK;
@@ -1215,7 +1230,7 @@
       ctx.lineWidth = 2 * w;
       ctx.beginPath(); ctx.arc(G.cx, G.cy, R, Math.PI, Math.PI + Math.PI * k); ctx.stroke();
     };
-    band(G.R, bw, 0.3 * vis, false);
+    band(G.R, bw, 0.26 * vis, false);
     band(G.R * 1.32, bw * 1.25, 0.09 * vis, true);
     ctx.globalCompositeOperation = 'source-over';
     // 两虹之间略暗
@@ -2227,7 +2242,7 @@
               setArk({ a: 'mount', s: 1 }, 12, b);
             }],
             [21, b => { lv('flWind', 0.35, b); }],
-            [24, b => { driveLand(0.3, 0.03, b); lv('flRays', 0.55, b); }],
+            [24, b => { driveLand(0.3, 0.03, b); lv('flRays', 0.4, b); }],
           ]);
         },
       },
@@ -2245,7 +2260,7 @@
           TL(c, [
             [0, b => {
               lv('ararat', 0.62, b); lv('flWind', 0.2, b); lv('flSea', 0.2, b); lv('storm', 0.12, b); lv('rain', 0, b);
-              lv('flRays', 0.4, b);
+              lv('flRays', 0.12, b);
               setArk({ a: 'mount', s: 1 }, 0, b);
               lv('arkWin', 1, b);
               S.noahWin = true;
@@ -2288,13 +2303,13 @@
             [0, b => {
               S.flights = inst(b) ? [] : S.flights;
               time(0.4, 7, b);
-              lv('storm', 0, b); lv('rain', 0, b); lv('flSea', 0, b); lv('flWind', 0.15, b); lv('flRays', 0.25, b); lv('clouds', 0.35, b);
+              lv('storm', 0, b); lv('rain', 0, b); lv('flSea', 0, b); lv('flWind', 0.15, b); lv('flRays', 0, b); lv('clouds', 0.35, b);
               driveLand(1, 0.08, b);
               lv('ararat', 1, b);
               setArk({ a: 'mount', s: 1 }, 0, b);
               lv('arkWin', 0, b);
               S.noahWin = false;
-              S.altarX = clamp(exitEndX() / W.w - 0.13, 0.42, 0.52);
+              S.altarX = clamp(exitEndX() / W.w - 0.07, 0.47, 0.56);
             }],
             [2.5, b => {
               const xe = exitEndX(), ye = W.ridgeBaseY(2, xe);
@@ -2303,6 +2318,7 @@
               if (!inst(b)) fx().sparkle(xe, ye - 6, 40, [200, 255, 190], 30 * uu(), 'near');
             }],
             [4, b => { lv('arkDoor', 1, b); lv('arkRamp', 1, b); sfx('gate', b); }],
+            [22, b => { lv('flLamp', 0, b); }],
             [9, b => {
               const w = winPt();
               W.setPop('bird', 40, w[0], w[1], inst(b));

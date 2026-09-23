@@ -89,6 +89,14 @@
     if (rate) s.playbackRate.value = rate;
     return s;
   }
+  // 稀疏化曲线：把缓慢的随机起伏变成一阵一阵的"沙、沙沙"（叶声、碎石声的颗粒）
+  let SPARSE = null;
+  function sparseCurve() {
+    if (SPARSE) return SPARSE;
+    const n = 1024, c = new Float32Array(n), th = 0.12;
+    for (let i = 0; i < n; i++) { const x = (i / (n - 1)) * 2 - 1; c[i] = x > th ? Math.pow((x - th) / (1 - th), 1.7) * 2.2 : 0; }
+    return (SPARSE = c);
+  }
   function panner(p) {
     if (hasPan) { const s = AC.createStereoPanner(); s.pan.value = clamp(fin(p) ? p : 0, -1, 1); return s; }
     return gain(1);
@@ -103,13 +111,28 @@
     f(type, fr, q) { const x = filt(type, fr, q); this.n.push(x); return x; },
     o(type, fr) { const x = osc(type, fr); this.n.push(x); this.s.push(x); return x; },
     nz(kind, rate) { const x = noiseSrc(kind, rate); this.n.push(x); this.s.push(x); return x; },
+    // 常驻声床用的噪声：播放速率缓缓漂移（±2.5%），循环的缓冲便不会被耳朵认出"同一段又来了"
+    nzd(kind) {
+      const x = this.nz(kind, 1);
+      this.lfo(rnd(0.021, 0.047), 0.025, x.playbackRate);
+      return x;
+    },
     p(pan) { const x = panner(pan); this.n.push(x); return x; },
+    ws(curve) { const x = AC.createWaveShaper(); x.curve = curve; this.n.push(x); return x; },
     // 低频振荡：rate Hz、深度 depth，加到 param 上
     lfo(rate, depth, param, type) {
       if (!param) return null;
       const l = this.o(type || 'sine', rate), g = this.g(depth);
       l.connect(g); g.connect(param);
       return l;
+    },
+    // 随机的缓慢起伏：褐噪声放慢播放（带宽约 150×rate Hz）——比正弦 LFO 自然，不耗 JS
+    //   深度 depth 约为起伏的峰值（褐噪声 RMS 0.3，接到参数上时左右声道混为一，约 ±0.21 RMS）
+    nlfo(rate, depth, param) {
+      if (!param) return null;
+      const s = this.nz('brown', rate), g = this.g(depth);
+      s.connect(g); g.connect(param);
+      return s;
     },
     out(node, bus, pan, rev) {
       let x = node;
@@ -294,10 +317,13 @@
   // 正弦铃（「好」的动机）
   function bells(fs, gap, g, d, at, o) {
     o = o || {};
+    // 铃不颤音：只有极轻的一丝（约 2 音分），外加一道微失谐的影子与很快消失的高分音——是玻璃，不是玩具
     fs.forEach((f, i) => {
-      note({ f, g, a: 0.005, d, at: (at || 0) + i * gap, vib: [5, o.vib == null ? 0.005 : o.vib], pan: (i - (fs.length - 1) / 2) * 0.25,
+      const t = (at || 0) + i * gap, pan = (i - (fs.length - 1) / 2) * 0.25;
+      note({ f, g, a: 0.005, d, at: t, vib: [4.3, o.vib == null ? 0.0012 : o.vib], pan,
         rev: o.rev == null ? 0.55 : o.rev, bus: o.bus, prio: o.prio == null ? 2 : o.prio });
-      note({ f: f * 2, g: g * 0.12, a: 0.004, d: d * 0.4, at: (at || 0) + i * gap, pan: (i - (fs.length - 1) / 2) * 0.25, bus: o.bus, prio: 0 });
+      note({ f, det: 3.5, g: g * 0.35, a: 0.005, d: d * 0.8, at: t, pan: -pan, rev: o.rev == null ? 0.55 : o.rev, bus: o.bus, prio: 0 });
+      note({ f: f * 2.76, g: g * 0.07, a: 0.003, d: d * 0.18, at: t, pan, bus: o.bus, prio: 0 });
     });
   }
 
@@ -341,12 +367,13 @@
     v.out(env, 'amb', pan, 0.22);
     v.play(t0, t + 0.2);
   }
-  // 海鸥：正弦 1200→900Hz，20Hz 颤音，180ms，两三声
+  // 海鸥：远处的「kiaow」——富泛音的簧音，先扬后抑，经低通与一点粗糙的颤动；两三声，一声比一声轻
   function gull(at, pan, g) {
-    const k = rint(2, 3);
+    const k = rint(2, 3), f0 = rnd(560, 660);
     for (let i = 0; i < k; i++) {
-      const f = rnd(1150, 1300);
-      note({ f, path: [[f * 0.76, 0.18]], vib: [20, 0.03], g: g * (1 - i * 0.2), a: 0.02, s: 0.1, r: 0.12, at: (at || 0) + i * rnd(0.26, 0.34), pan, rev: 0.3, bus: 'amb', prio: 0 });
+      const f = f0 * rnd(0.97, 1.04);
+      note({ f, type: PW.reed, path: [[f * 1.24, 0.06], [f * 0.8, 0.22]], trem: [31, 0.35], lp: 2400, g: g * 0.5 * (1 - i * 0.2), a: 0.02, s: 0.1, r: 0.16,
+        at: (at || 0) + i * rnd(0.36, 0.48), pan, rev: 0.45, bus: 'amb', prio: 0 });
     }
   }
   // 斑鸠：低柔的两声「咕—咕」
@@ -418,9 +445,11 @@
     note({ f, path: [[f * rnd(2.4, 3.2), 0.04]], g, a: 0.004, d: 0.07, at, pan, rev: 0.25, bus: bus || 'amb', prio: 0 });
   }
   // 心跳：成对的低沉闷响（lub · dub）
+  // 心跳：成对的低沉闷响（lub · dub）；外加一声很短的"叩"（330Hz 附近），小喇叭上也有心跳
   function thump(at, f, g, dest) {
     note({ f: f * 1.35, path: [[f * 0.8, 0.12]], g, a: 0.008, d: 0.22, at, bus: dest, prio: 1 });
     note({ f: f * 2.7, path: [[f * 1.6, 0.1]], g: g * 0.3, a: 0.006, d: 0.12, at, bus: dest, prio: 0 });
+    burst({ buf: 'pink', f: 330, q: 1.3, g: g * 0.55, a: 0.004, d: 0.075, at, bus: dest, prio: 0 });
   }
   // 木：正弦 + 4 倍分音（树木的木声）
   function wood(f, at, g, pan) {
@@ -481,18 +510,24 @@
     const divine = () => N.divine, amb = () => N.bus.amb.in, mus = () => N.bus.mus.in;
     // 渊的底鸣：走音的 54.5 与真 A 55 相拍，36Hz 与之不谐；随日子调准
     beds.drone = new Bed((v, out) => {
-      const st = W.stage | 0;
+      const st = W.stage | 0, ch0 = stageChaos(st), tuned = ch0 === 55;
       const lp = v.f('lowpass', 170, 0.8), am = v.g(1);
       v.lfo(0.05, 0.28, am.gain);
-      const chaos = v.o(PW.drone, stageChaos(st)), truth = v.o(PW.soft, 55), sub = v.o(PW.soft, stageSub(st));
+      const chaos = v.o(PW.drone, ch0), truth = v.o(PW.soft, 55), sub = v.o(PW.soft, stageSub(st));
       const gc = v.g(0.5), gt = v.g(0.34), gs = v.g(0.55);
       chaos.connect(gc); truth.connect(gt); sub.connect(gs);
       gc.connect(lp); gt.connect(lp); gs.connect(lp);
       lp.connect(am); am.connect(out);
-      v.c.chaos = ctl(chaos.frequency, stageChaos(st)); v.c.sub = ctl(sub.frequency, stageSub(st)); v.c.lp = ctl(lp.frequency, 170);
+      // 泛音层（2、3、4、6、8 次）：同样走音、同样被调准。第 n 泛音的拍频是 n×0.5Hz——
+      // 混沌在高处滚得更快；手机与笔记本的小喇叭也由它听见这声底鸣
+      const oc = v.o(PW.over, ch0), ot = v.o(PW.over, 55), goc = v.g(1), got = v.g(0.8);
+      const olp = v.f('lowpass', 520, 0.5), og = v.g(0.2);
+      oc.connect(goc); ot.connect(got); goc.connect(olp); got.connect(olp); olp.connect(og); og.connect(am);
+      v.c.chaos = ctl(chaos.frequency, ch0); v.c.ochaos = ctl(oc.frequency, ch0);
+      v.c.sub = ctl(sub.frequency, stageSub(st)); v.c.lp = ctl(lp.frequency, 170); v.c.olp = ctl(olp.frequency, 520);
       // 调准之后，走音的声部与真 A 合而为一：参照的 55Hz 淡出（免得两个同频声部相位相消）
-      v.c.truth = ctl(gt.gain, 0.34);
-      if (stageChaos(st) === 55) { gt.gain.value = 0; v.c.truth.v = 0; }
+      v.c.truth = ctl(gt.gain, 0.34); v.c.otruth = ctl(got.gain, 0.8);
+      if (tuned) { gt.gain.value = 0; v.c.truth.v = 0; got.gain.value = 0; v.c.otruth.v = 0; }
     }, divine);
     // 光垫：A3 + E4，成对微失谐，左右展开；第四日起低通随日升落
     beds.light = new Bed((v, out) => {
@@ -510,10 +545,11 @@
     beds.air = new Bed((v, out) => {
       const b = v.o(PW.soft, F.B3), gb = v.g(0.55), pb = v.p(-0.2);
       b.connect(gb); gb.connect(pb); pb.connect(out);
-      const n = v.nz('pink'), bp = v.f('bandpass', 350, 1.2), am = v.g(0.6), gn = v.g(1.6);
-      v.lfo(0.2, 0.4, am.gain);
+      const n = v.nzd('pink'), bp = v.f('bandpass', 350, 1.2), am = v.g(0.6), gn = v.g(1.6);
+      v.lfo(0.2, 0.3, am.gain); v.nlfo(0.004, 0.35, am.gain);
       n.connect(bp); bp.connect(am); am.connect(gn); gn.connect(out);
-      const h = v.nz('white'), hp = v.f('highpass', 5200, 0.5), gh = v.g(0.05);
+      const h = v.nzd('white'), hp = v.f('highpass', 5200, 0.5), gh = v.g(0.035);
+      v.nlfo(0.002, 0.03, gh.gain);
       h.connect(hp); hp.connect(gh); gh.connect(out);
     }, divine);
     // 地：C#3——大三度进入，和声有了根基
@@ -546,13 +582,14 @@
       lp.connect(am); am.connect(out);
     }, mus);
     // 海：浪身（粉红噪声低通，缓涌）+ 浪沫（带通嘶声，随涌起伏）
+    // 浪：一道慢涌（正弦，约 14 秒）加上不规则的起伏（放慢的褐噪声）——海从不按拍子呼吸
     beds.water = new Bed((v, out) => {
       const pn = v.p(0);
-      const n1 = v.nz('pink'), lp = v.f('lowpass', 480, 0.6), sw = v.g(0.72), body = v.g(1);
-      v.lfo(0.071, 0.3, sw.gain); v.lfo(0.113, 0.16, sw.gain);
+      const n1 = v.nzd('pink'), lp = v.f('lowpass', 480, 0.6), sw = v.g(0.72), body = v.g(1);
+      v.lfo(0.071, 0.2, sw.gain); v.nlfo(0.0016, 0.55, sw.gain);
       n1.connect(lp); lp.connect(sw); sw.connect(body); body.connect(pn);
-      const n2 = v.nz('white'), bp = v.f('bandpass', 2300, 0.6), fo = v.g(0.35), foam = v.g(0.3);
-      v.lfo(0.071, 0.3, fo.gain); v.lfo(0.29, 0.12, fo.gain);
+      const n2 = v.nzd('white'), bp = v.f('bandpass', 2300, 0.6), fo = v.g(0.35), foam = v.g(0.3);
+      v.lfo(0.071, 0.2, fo.gain); v.nlfo(0.0016, 0.4, fo.gain); v.nlfo(0.012, 0.16, fo.gain);
       n2.connect(bp); bp.connect(fo); fo.connect(foam); foam.connect(pn);
       pn.connect(out);
       v.c.foam = ctl(foam.gain, 0.3); v.c.lp = ctl(lp.frequency, 480);
@@ -560,25 +597,33 @@
     }, amb);
     // 灵在水面上运行：随灵的速度而起的水声
     beds.stir = new Bed((v, out) => {
-      const n = v.nz('white'), bp = v.f('bandpass', 620, 0.7), pn = v.p(0);
-      n.connect(bp); bp.connect(pn); pn.connect(out);
+      const n = v.nzd('white'), bp = v.f('bandpass', 620, 0.7), pn = v.p(0), ch = v.g(0.8);
+      v.nlfo(0.03, 0.45, ch.gain);                         // 水被搅动：一阵一阵，不是一条平平的嘶声
+      n.connect(bp); bp.connect(ch); ch.connect(pn); pn.connect(out);
       if (hasPan) v.c.pan = ctl(pn.pan, 0);
       v.c.f = ctl(bp.frequency, 620);
     }, amb);
-    // 风：带通噪声，中心随阵风移动，声像随风向
+    // 风：带通噪声，中心随阵风移动，声像随风向；自身也有一阵一阵的起伏
     beds.wind = new Bed((v, out) => {
-      const n = v.nz('pink'), bp = v.f('bandpass', 400, 0.9), pn = v.p(0);
-      n.connect(bp); bp.connect(pn);
-      const n2 = v.nz('white'), wh = v.f('bandpass', 900, 9), gw = v.g(0.08);
-      n2.connect(wh); wh.connect(gw); gw.connect(pn);
-      pn.connect(out);
+      const n = v.nzd('pink'), bp = v.f('bandpass', 400, 0.9), pn = v.p(0), gust = v.g(0.8);
+      v.nlfo(0.0035, 0.5, gust.gain);
+      n.connect(bp); bp.connect(gust);
+      const n2 = v.nzd('white'), wh = v.f('bandpass', 900, 9), gw = v.g(0.06);
+      n2.connect(wh); wh.connect(gw); gw.connect(gust);
+      gust.connect(pn); pn.connect(out);
       v.c.f = ctl(bp.frequency, 400); v.c.wf = ctl(wh.frequency, 900);
       if (hasPan) v.c.pan = ctl(pn.pan, 0);
     }, amb);
-    // 叶的沙沙：高频带通噪声，随机的抖动（陆地在右）
+    // 叶的沙沙：高频噪声经"稀疏的随机起伏"开合——一簇一簇的沙、沙沙，而不是一条嘶声（陆地在右）
     beds.leaves = new Bed((v, out) => {
-      const n = v.nz('white'), bp = v.f('bandpass', 3800, 0.5), hp = v.f('highpass', 1500, 0.6), pn = v.p(0.45);
-      n.connect(bp); bp.connect(hp); hp.connect(pn); pn.connect(out);
+      const n = v.nzd('white'), bp = v.f('bandpass', 3600, 0.55), hp = v.f('highpass', 1400, 0.6), pn = v.p(0.45);
+      n.connect(bp); bp.connect(hp);
+      const vca = v.g(0), m = v.nz('brown', 0.13), sh = v.ws(sparseCurve());
+      m.connect(sh); sh.connect(vca.gain);                 // 颗粒：约 20Hz 带宽的随机起伏，只取其峰
+      const body = v.g(0.12), gust = v.g(0.72);
+      v.nlfo(0.0025, 0.55, gust.gain);                     // 阵风：十几秒一涌
+      hp.connect(vca); hp.connect(body);
+      vca.connect(gust); body.connect(gust); gust.connect(pn); pn.connect(out);
     }, amb);
     // 夜虫：4.2kHz 正弦，每 0.6s 一组三个 30Hz 脉冲
     beds.crickets = new Bed((v, out) => {
@@ -591,9 +636,10 @@
   }
 
   function scheduleCrickets(v, t) {
+    const hz = Math.max(0.35, tickDt + 0.25);             // 帧率很低时也不断拍
     for (const c of v.cr) {
       if (c.next < t) c.next = t + Math.random() * c.per;
-      while (c.next < t + 0.35) {
+      while (c.next < t + hz) {
         const t0 = c.next;
         if (Math.random() < 0.9) {
           for (let k = 0; k < 3; k++) {
@@ -612,33 +658,44 @@
   // 快速的 xorshift 随机数（生成缓冲时比 Math.random 快得多）
   let seed = (Math.random() * 4294967295) >>> 0 || 1;
   function nrand() { seed ^= seed << 13; seed ^= seed >>> 17; seed ^= seed << 5; return (seed >>> 0) / 2147483648 - 1; }
+  // 起初备一段短的（手势里要快）；稍后在后台换成长的（互不成整数倍），声床的循环便听不出
   const NOISE_SEC = { white: 1.7, pink: 2.6, brown: 2.1 };
-  function noiseBuffer(kind) {
-    const rate = AC.sampleRate, len = Math.floor(rate * (NOISE_SEC[kind] || 2)), M = Math.floor(rate * 0.05);
-    const buf = AC.createBuffer(2, len, rate);
+  const LONG_SEC = { white: 4.3, pink: 5.9, brown: 3.7 };
+  function fillNoise(buf, ch, kind) {
+    const len = buf.length, M = Math.floor(buf.sampleRate * 0.05);
     const x = new Float32Array(len + M);
-    for (let ch = 0; ch < 2; ch++) {
-      let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0, br = 0;
-      for (let i = 0; i < len + M; i++) {
-        const w = nrand();
-        if (kind === 'pink') {
-          b0 = 0.99886 * b0 + w * 0.0555179; b1 = 0.99332 * b1 + w * 0.0750759; b2 = 0.969 * b2 + w * 0.153852;
-          b3 = 0.8665 * b3 + w * 0.3104856; b4 = 0.55 * b4 + w * 0.5329522; b5 = -0.7616 * b5 - w * 0.016898;
-          x[i] = b0 + b1 + b2 + b3 + b4 + b5 + b6 + w * 0.5362; b6 = w * 0.115926;
-        } else if (kind === 'brown') {
-          br = (br + 0.02 * w) / 1.02; x[i] = br;
-        } else x[i] = w;
-      }
-      // 首尾等功率交叠：循环无缝
-      const d = buf.getChannelData(ch);
-      for (let i = 0; i < len; i++) d[i] = x[i];
-      for (let i = 0; i < M; i++) { const k = i / M; d[i] = x[i] * Math.sqrt(k) + x[len + i] * Math.sqrt(1 - k); }
-      let mean = 0; for (let i = 0; i < len; i++) mean += d[i]; mean /= len;
-      let ss = 0; for (let i = 0; i < len; i++) { d[i] -= mean; ss += d[i] * d[i]; }
-      const k = 0.3 / Math.max(1e-6, Math.sqrt(ss / len));
-      for (let i = 0; i < len; i++) d[i] *= k;
+    let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0, br = 0;
+    for (let i = 0; i < len + M; i++) {
+      const w = nrand();
+      if (kind === 'pink') {
+        b0 = 0.99886 * b0 + w * 0.0555179; b1 = 0.99332 * b1 + w * 0.0750759; b2 = 0.969 * b2 + w * 0.153852;
+        b3 = 0.8665 * b3 + w * 0.3104856; b4 = 0.55 * b4 + w * 0.5329522; b5 = -0.7616 * b5 - w * 0.016898;
+        x[i] = b0 + b1 + b2 + b3 + b4 + b5 + b6 + w * 0.5362; b6 = w * 0.115926;
+      } else if (kind === 'brown') {
+        br = (br + 0.02 * w) / 1.02; x[i] = br;
+      } else x[i] = w;
     }
+    // 首尾等功率交叠：循环无缝
+    const d = buf.getChannelData(ch);
+    for (let i = 0; i < len; i++) d[i] = x[i];
+    for (let i = 0; i < M; i++) { const k = i / M; d[i] = x[i] * Math.sqrt(k) + x[len + i] * Math.sqrt(1 - k); }
+    let mean = 0; for (let i = 0; i < len; i++) mean += d[i]; mean /= len;
+    let ss = 0; for (let i = 0; i < len; i++) { d[i] -= mean; ss += d[i] * d[i]; }
+    const k = 0.3 / Math.max(1e-6, Math.sqrt(ss / len));
+    for (let i = 0; i < len; i++) d[i] *= k;
+  }
+  function noiseBuffer(kind, sec) {
+    const buf = AC.createBuffer(2, Math.floor(AC.sampleRate * (sec || NOISE_SEC[kind] || 2)), AC.sampleRate);
+    fillNoise(buf, 0, kind); fillNoise(buf, 1, kind);
     return buf;
+  }
+  // 后台分片：每片只做一个声道（约 5ms），做完才换上
+  function longNoiseSteps(kind) {
+    let buf = null;
+    return [
+      () => { buf = AC.createBuffer(2, Math.floor(AC.sampleRate * LONG_SEC[kind]), AC.sampleRate); fillNoise(buf, 0, kind); },
+      () => { if (buf) { fillNoise(buf, 1, kind); NB[kind] = buf; } },
+    ];
   }
   function impulse(sec, decay) {
     const rate = AC.sampleRate, len = Math.floor(rate * sec), pre = Math.floor(rate * 0.012);
@@ -680,6 +737,9 @@
       drone: wave([1, 0.55, 0.25, 0.12, 0.06]),
       warm: wave([1, 0.5, 0.3, 0.2, 0.12, 0.07]),
       reed: wave([1, 0.7, 0.5, 0.36, 0.27, 0.2, 0.15, 0.11, 0.08, 0.06]),
+      over: wave([0, 0.5, 0.42, 0.36, 0, 0.2, 0, 0.11]),        // 只有 2、3、4、6、8 次泛音（避开不谐的 5、7）
+      voice: wave([1, 0.46, 0.3, 0.17, 0.1, 0.06, 0.035]),      // 灵的哼鸣：有身躯的 A3，小喇叭也听得见
+      grit: wave([1, 0.62, 0.45, 0.33, 0.25, 0.19, 0.14, 0.1, 0.07, 0.05]), // 低吼（经低通随充盈打开）
     };
     const sum = gain(1);
     const comp = AC.createDynamicsCompressor();
@@ -707,10 +767,12 @@
     nx.whale = t + rnd(20, 50); nx.theme = t + 20;
     lastStage = W.stage | 0;
     // 其余的缓冲在手势之后分几步于后台备好，免得第一次按下时卡顿
-    const later = [
-      () => { if (!NB.pink) NB.pink = noiseBuffer('pink'); },
-      () => { N.conv.buffer = impulse(2.8, 3.5); },
-    ];
+    const later = [].concat(
+      NB.pink ? [] : longNoiseSteps('pink'),
+      [() => { N.conv.buffer = impulse(2.8, 3.5); }],
+      longNoiseSteps('white'),
+      longNoiseSteps('brown'),
+    );
     const step = () => { const f = later.shift(); if (!f) return; try { f(); } catch (e) { err('build', e); } setTimeout(step, 45); };
     setTimeout(step, 60);
   }
@@ -771,8 +833,10 @@
     // 底鸣
     const d = beds.drone.want(lv.deep * LV.drone * divNow, st >= nst ? 0.3 : 2);
     if (d) {
-      set(d.c.chaos, stageChaos(st), 3); set(d.c.sub, stageSub(st), 2.7); set(d.c.lp, lerp(170, 95, night), 2);
-      set(d.c.truth, stageChaos(st) === 55 ? 0 : 0.34, 5);
+      const ch = stageChaos(st), tuned = ch === 55;
+      set(d.c.chaos, ch, 3); set(d.c.ochaos, ch, 3); set(d.c.sub, stageSub(st), 2.7);
+      set(d.c.lp, lerp(170, 95, night), 2); set(d.c.olp, lerp(520, 300, night), 2);
+      set(d.c.truth, tuned ? 0 : 0.34, 5); set(d.c.otruth, tuned ? 0 : 0.8, 5);
     }
     // 光垫（第四日起低通随日：夜 600Hz，正午 2400Hz）
     const lp = beds.light.want(lv.light * LV.light * (1 - 0.3 * night) * divNow, st >= nst ? 0.3 : 2);
@@ -780,7 +844,8 @@
     beds.air.want((lv.vault || 0) * LV.air * thin * divNow, 3);
     beds.earth.want((lv.land || 0) * LV.earth * thin * divNow, 3);
     beds.human.want((W.popN('human') > 0 ? 1 : 0) * LV.human * thin * divNow, 4);
-    const eve = st >= nst && W.freeClock && !(W.act > 0) ? (W.dusk || 0) * (W.tod > 0.5 ? 1 : 0) : 0;
+    // 安息的世界（七日之后的自由时辰，及全书终了之后）：日落时一缕「甚好」
+    const eve = st >= nst && W.freeClock ? (W.dusk || 0) * smoothstep(0.55, 0.62, W.tod || 0) : 0;
     beds.sunset.want(eve * LV.sunset, 3);
 
     // 海
@@ -800,8 +865,8 @@
     const wd = beds.wind.want((lv.vault || 0) * LV.wind * (0.12 + 0.88 * Math.pow(gust, 1.6)) * (1 - 0.4 * night), 0.8);
     if (wd) { set(wd.c.f, 280 + 700 * gust, 0.8); set(wd.c.wf, 700 + 900 * gust, 0.8); if (wd.c.pan) set(wd.c.pan, clamp(W.wind || 0, -1, 1) * 0.6, 1); }
     // 叶
-    const leaf = (lv.trees || 0) * (0.2 + 0.8 * gust) * LV.leaves;
-    beds.leaves.want(leaf * rnd(0.6, 1), 0.05);
+    const leaf = (lv.trees || 0) * (0.25 + 0.75 * gust) * LV.leaves;
+    beds.leaves.want(leaf, 1.2);
     // 夜虫（言说时也安静下来）
     const cr = beds.crickets.want(W.popN('creeper') > 0 ? smoothstep(0.35, 0.8, night) * LV.cricket * (holding ? 0.15 : 1) : 0, 1.5);
     if (cr) scheduleCrickets(cr, t);
@@ -864,11 +929,37 @@
 
   // ── 言说之声 ────────────────────────────────────────────
   // 每种按住的声音：build(h) 建立节点，返回 set(c)；充盈度只推动音量与滤波
-  function rumble(h, f0, f1, k) {
+  // 地鸣：褐噪声低通 f0→f1 + 一层中频的"身躯"（粉红噪声 240→520Hz 带通）——
+  // 耳机里是大地的低吼，手机与笔记本的小喇叭上也听得见它在滚动；起伏是不规则的（放慢的褐噪声）
+  function rumble(h, f0, f1, k, mid) {
     const n = h.nz('brown'), lp = h.f('lowpass', f0, 0.9), roll = h.g(1), g = h.g(0);
-    h.lfo(0.23, 0.22, roll.gain); h.lfo(0.61, 0.12, roll.gain);
+    h.lfo(0.23, 0.2, roll.gain); h.nlfo(0.018, 0.45, roll.gain);
     n.connect(lp); lp.connect(roll); roll.connect(g); g.connect(h.out);
-    return c => { const e = Math.pow(c, 1.5); to(lp.frequency, f0 + (f1 - f0) * c, 0.1); to(g.gain, k * e, 0.1); };
+    const m = h.nz('pink'), bp = h.f('bandpass', 240, 0.9), gm = h.g(mid == null ? 0.42 : mid);
+    m.connect(bp); bp.connect(gm); gm.connect(roll);
+    return c => {
+      const e = Math.pow(c, 1.5);
+      to(lp.frequency, f0 + (f1 - f0) * c, 0.1); to(bp.frequency, 240 + 280 * c, 0.15); to(g.gain, k * e, 0.1);
+    };
+  }
+  // 碎裂声：一个噪声源 + 排程的颗粒（泊松分布）——石的碎裂、土的崩落；返回 (每秒颗数, 响度) => 排程
+  function crackler(h, f0, f1, q, pan) {
+    const n = h.nz('white'), bp = h.f('bandpass', (f0 + f1) / 2, q), g = h.g(0), pn = h.p(pan || 0);
+    n.connect(bp); bp.connect(g); g.connect(pn); pn.connect(h.out);
+    let next = T() + 0.05;
+    return (rate, amp) => {
+      const t = T(), hz = t + 0.25;
+      if (next < t) next = t + 0.01;
+      if (!(rate > 0.05) || !(amp > 0)) { next = Math.max(next, t + 0.05); return; }
+      while (next < hz) {
+        bp.frequency.setValueAtTime(rnd(f0, f1), next);
+        if (pn.pan) pn.pan.setValueAtTime(clamp((pan || 0) + rnd(-0.7, 0.7), -1, 1), next);
+        g.gain.setValueAtTime(0, next);
+        g.gain.linearRampToValueAtTime(amp * rnd(0.25, 1), next + 0.0025);
+        g.gain.setTargetAtTime(0, next + 0.0025, rnd(0.006, 0.03));
+        next += Math.max(0.012, -Math.log(1 - Math.random()) / rate);
+      }
+    };
   }
   function tone(h, type, f, pan) {
     const o = h.o(type, f), g = h.g(0);
@@ -900,14 +991,16 @@
       const s = tone(h, PW.soft, F.A0), s2 = tone(h, 'sine', F.A1);
       return c => { to(lp.frequency, 200 + 700 * c, 0.08); to(g.gain, 0.26 * c * c, 0.08); to(s.gain, 0.15 * c, 0.15); to(s2.gain, 0.06 * c, 0.15); };
     },
-    // 第一日：雷声般的地鸣与 55Hz 的嗡鸣
+    // 第一日：雷声般的地鸣与 55Hz 的低吼（富泛音的 A1 经低通，随充盈 140→480Hz 打开：越说越沉，不越高）
     thunder(h) {
-      const r = rumble(h, 60, 220, 0.48), hum = tone(h, PW.soft, F.A1);
-      return c => { r(c); to(hum.gain, 0.1 * Math.pow(c, 1.5), 0.1); };
+      const r = rumble(h, 60, 220, 0.46);
+      const o = h.o(PW.grit, F.A1), lp = h.f('lowpass', 140, 0.7), hum = h.g(0);
+      o.connect(lp); lp.connect(hum); hum.connect(h.out);
+      return c => { r(c); to(lp.frequency, 140 + 340 * c, 0.12); to(hum.gain, 0.085 * Math.pow(c, 1.5), 0.1); };
     },
     // 第二日：地鸣变轻，风升起（带通 200→1200Hz）
     wind(h) {
-      const r = rumble(h, 50, 140, 0.3);
+      const r = rumble(h, 50, 140, 0.3, 0.3);
       const n = h.nz('pink'), bp = h.f('bandpass', 200, 1.5), gust = h.g(1), g = h.g(0), pn = h.p(0);
       h.lfo(0.31, 0.35, gust.gain);
       if (hasPan) h.lfo(0.09, 0.6, pn.pan);
@@ -915,18 +1008,23 @@
       return c => { r(c); to(bp.frequency, 200 + 1000 * c, 0.1); to(g.gain, 0.55 * c, 0.1); };
     },
     // 第三日：地壳的研磨（低通 40→120Hz + A0 + 带通的碾磨）
+    // 研磨：170Hz 的碾磨与 480Hz 的刮擦（同一个锯齿起伏），石的碎裂随充盈越来越密
     grind(h, k) {
       k = k || 1;
-      const r = rumble(h, 40, 120, 0.56 * k), a0 = tone(h, PW.soft, F.A0);
-      const n = h.nz('pink'), bp = h.f('bandpass', 170, 3), am = h.g(0.5), g = h.g(0);
-      h.lfo(5.3, 0.45, am.gain, 'sawtooth'); h.lfo(1.7, 0.2, am.gain);
-      n.connect(bp); bp.connect(am); am.connect(g); g.connect(h.out);
-      return c => { r(c); to(a0.gain, 0.12 * c * k, 0.1); to(g.gain, 0.72 * Math.pow(c, 1.5) * k, 0.1); to(bp.frequency, 140 + 90 * c, 0.2); };
+      const r = rumble(h, 40, 120, 0.54 * k, 0.36), a0 = tone(h, PW.soft, F.A0);
+      const n = h.nz('pink'), bp = h.f('bandpass', 170, 3), bp2 = h.f('bandpass', 480, 1.6), am = h.g(0.5), g = h.g(0), g2 = h.g(0.45);
+      h.lfo(5.3, 0.45, am.gain, 'sawtooth'); h.nlfo(0.03, 0.4, am.gain);
+      n.connect(bp); bp.connect(am); n.connect(bp2); bp2.connect(g2); g2.connect(am); am.connect(g); g.connect(h.out);
+      const cr = crackler(h, 900, 3400, 1.4, 0.15);
+      return c => {
+        r(c); to(a0.gain, 0.12 * c * k, 0.1); to(g.gain, 0.66 * Math.pow(c, 1.5) * k, 0.1); to(bp.frequency, 140 + 90 * c, 0.2);
+        cr(2 + 26 * c * c * k, 0.16 * c * k);
+      };
     },
     names3(h) { return HOLD.grind(h, 0.55); },
     // 草：研磨柔化为沙沙（粉红噪声 3kHz 带通）与低低的嗡声
     rustle(h, woody) {
-      const r = rumble(h, 50, 90, 0.25);
+      const r = rumble(h, 50, 90, 0.25, 0.25);
       const n = h.nz('pink'), bp = h.f('bandpass', 2000, 0.8), fl = h.g(0.7), g = h.g(0), pn = h.p(0.3);
       h.lfo(7.7, 0.18, fl.gain); h.lfo(11.3, 0.12, fl.gain); h.lfo(0.4, 0.15, fl.gain);
       n.connect(bp); bp.connect(fl); fl.connect(g); g.connect(pn); pn.connect(h.out);
@@ -965,24 +1063,38 @@
       return c => { gs.forEach((x, i) => to(x.gain, G[i] * smoothstep(i * 0.15, i * 0.15 + 0.5, c), 0.12)); to(g.gain, 0.3 * c, 0.12); };
     },
     // 众星：高处的低语，随灵移动的快慢起伏
+    // 灵在天上每划过一段（与 main 记下星的归宿同一个步长），便有一声星的轻鸣：高低即音高，左右即声像
     stars(h) {
       const n = h.nz('white'), hp = h.f('highpass', 4200, 0.6), g = h.g(0), pn = h.p(0);
       n.connect(hp); hp.connect(g); g.connect(pn); pn.connect(h.out);
       const p1 = tone(h, 'sine', F.A6, -0.3), p2 = tone(h, 'sine', F.E7, 0.3);
+      h.lx = null; h.ly = null; h.pts = 0;
       return c => {
-        const sp = clamp(((W.spirit && W.spirit.speed) || 0) / 500, 0, 1);
-        to(g.gain, 0.24 * c * (0.2 + 0.8 * sp), 0.1);
-        if (pn.pan && W.spirit) to(pn.pan, panX(W.spirit.x), 0.1);
-        to(p1.gain, 0.008 * c, 0.2); to(p2.gain, 0.005 * c, 0.2);
+        const s = W.spirit;
+        const sp = clamp(((s && s.speed) || 0) / 500, 0, 1);
+        to(g.gain, 0.24 * c * (0.25 + 0.75 * sp), 0.1);
+        if (pn.pan && s) to(pn.pan, panX(s.x), 0.1);
+        to(p1.gain, 0.011 * c, 0.2); to(p2.gain, 0.007 * c, 0.2);
+        if (s && fin(s.x) && fin(s.y) && s.y < W.horizonY - 10 && h.pts < 40) {
+          const step = 26 * Math.max(0.6, W.unit || 1);
+          if (h.lx == null || Math.hypot(s.x - h.lx, s.y - h.ly) > step) {
+            h.lx = s.x; h.ly = s.y; h.pts++;
+            const k = Math.round(clamp(1 - s.y / Math.max(1, W.horizonY), 0, 1) * 10);
+            ping(pent(F.A4, k), 0, 0.028 + 0.02 * c, panX(s.x), h.out);
+          }
+        }
       };
     },
     // 第五日（鱼）：水下听见的地鸣，气泡随充盈度越来越密
     underwater(h) {
       const n = h.nz('brown'), lp = h.f('lowpass', 400, 0.8), g = h.g(0);
       n.connect(lp); lp.connect(g); g.connect(h.out);
+      const m = h.nz('pink'), mlp = h.f('lowpass', 650, 0.7), mg = h.g(0), wash = h.g(0.7);
+      h.nlfo(0.012, 0.45, wash.gain);                     // 水下听见的、闷住的潮涌
+      m.connect(mlp); mlp.connect(wash); wash.connect(mg); mg.connect(h.out);
       h.bub = T();
       return c => {
-        to(g.gain, 0.4 * Math.pow(c, 1.5), 0.1);
+        to(g.gain, 0.36 * Math.pow(c, 1.5), 0.1); to(mg.gain, 0.2 * Math.pow(c, 1.5), 0.1);
         const t = T(), rate = 1 + 11 * c;
         if (h.bub < t) h.bub = t;
         while (h.bub < t + 0.15) { bubble(h.bub - t, rnd(-0.8, 0.8), 0.03 + 0.03 * c, h.out); h.bub += rnd(0.5, 1.5) / rate; }
@@ -1010,19 +1122,25 @@
     },
     // 第六日（活物）：大地的起伏，底下渐渐有了心跳（50→72bpm）
     heave(h) {
-      const r = rumble(h, 40, 100, 0.56);
+      const r = rumble(h, 40, 100, 0.54, 0.4);
       const hb = heartbeats(h, [{ f: 52, g: 0.3 }]);
-      return c => { r(c); hb(c, x => 50 + 22 * x); };
+      const cr = crackler(h, 500, 1600, 1.2, 0.3);        // 尘土从地里拱起：零星的土粒
+      return c => { r(c); hb(c, x => 50 + 22 * x); cr(1 + 8 * c, 0.07 * c); };
     },
-    // 造人：世界屏息；灵自己的声音——正弦 A3 带 0.2Hz 的呼吸；两颗心，约 60bpm，略错开
+    // 造人：世界屏息；灵自己的声音——有身躯的 A3 哼鸣（小喇叭也听得见），带 0.2Hz 的呼吸与一缕气息；
+    // 两颗心，约 60bpm，略错开
     human(h) {
       const v1 = h.g(0), sw = h.g(0.85);
-      const o = h.o('sine', F.A3), o2 = h.o('sine', F.A2);
+      const o = h.o(PW.voice, F.A3), o2 = h.o('sine', F.A2), lp = h.f('lowpass', 1100, 0.6);
+      o.detune.value = -2;
       h.lfo(0.2, 0.15, sw.gain);
-      const g2 = h.g(0.25);
-      o.connect(sw); o2.connect(g2); g2.connect(sw); sw.connect(v1); v1.connect(h.out);
+      const g2 = h.g(0.3);
+      o.connect(lp); lp.connect(sw); o2.connect(g2); g2.connect(sw); sw.connect(v1); v1.connect(h.out);
+      const n = h.nz('pink'), bp = h.f('bandpass', 850, 0.8), br = h.g(0), ba = h.g(0.5);
+      h.lfo(0.2, 0.5, ba.gain);                           // 气息随同一口呼吸起伏
+      n.connect(bp); bp.connect(ba); ba.connect(br); br.connect(h.out);
       const hb = heartbeats(h, [{ f: 50, g: 0.27 }, { f: 46, g: 0.18, off: 0.37, mul: 0.97 }]);
-      return c => { to(v1.gain, 0.08 * smoothstep(0, 0.35, c), 0.2); hb(c, () => 60); };
+      return c => { to(v1.gain, 0.062 * smoothstep(0, 0.35, c), 0.2); to(br.gain, 0.05 * c, 0.2); hb(c, () => 60); };
     },
     // 甚好：每一日的音依次亮起，堆成一个和弦
     behold(h) {
@@ -1116,7 +1234,10 @@
     0() {
       note({ f: 45, path: [[28, 2.5]], g: 0.32, a: 0.02, d: 3, prio: 2 });
       note({ f: 90, path: [[56, 2.5]], g: 0.1, a: 0.02, d: 2.4, prio: 2 });
+      note({ f: 180, path: [[112, 2.5]], g: 0.03, a: 0.03, d: 1.6, prio: 2 });          // 小喇叭上的那一声"咚"
       burst({ buf: 'brown', ft: 'lowpass', f: 300, q: 0.7, g: 0.25, a: 0.05, s: 0.3, r: 2.2, rev: 0.3 });
+      // 渊面的一口深水：闷住的水声缓缓合上
+      burst({ buf: 'pink', ft: 'lowpass', f: 1100, f2: 260, sweep: 2.8, q: 0.6, g: 0.12, a: 0.12, s: 0.4, r: 2.6, rev: 0.45 });
     },
     // 要有光：A1/E2/A2/E3 和弦，高处的微光，一阵风扫过
     1() {
@@ -1418,9 +1539,11 @@
       if (day >= 6) fs.push(F.Fs4);
       chord(fs, { type: PW.soft, g: 0.04, a: 3, s: 2, r: 7, lp: 1400, lp2: 280, lpT: 10, spread: 0.4, rev: 0.55 });
     }),
-    // 黎明：A3→A4 的日出滑音，和这一日的和弦
+    // 黎明：A 的泛音自下而上次第亮起（光是升起，不是滑音），一口渐亮的空气，和这一日的和弦
     dawn: api('dawn', day => {
-      note({ f: F.A3, path: [[F.A4, 3]], g: 0.05, a: 1, s: 2, r: 3, rev: 0.6, prio: 2 });
+      [F.A3, F.E4, F.A4, F.Cs5, F.E5].forEach((f, i) => note({ f, g: 0.032 * (1 - i * 0.13), det: rnd(-3, 3), a: 1.3, s: 0.8, r: 3.2,
+        at: i * 0.34, pan: (i - 2) * 0.17, rev: 0.65, prio: 2 }));
+      burst({ buf: 'pink', f: 420, f2: 2400, sweep: 3.2, q: 0.7, g: 0.05, a: 1.6, s: 0.6, r: 2.4, pan: -0.4, pan2: 0.3, rev: 0.5, prio: 1 });
       let fs = [F.A3, F.E4];
       if (day === 2) fs = [F.A3, F.B3, F.E4];
       else if (day >= 3) fs = [F.A3, F.Cs4, F.E4];

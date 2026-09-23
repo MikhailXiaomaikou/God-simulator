@@ -990,7 +990,11 @@
       SP || sprites();
       ctx.globalCompositeOperation = 'lighter';
       const br = 0.8 + 0.2 * Math.sin(W.t * 0.9);
-      glowSp(ctx, SP.gold, x + 0.1 * L, b - 3 * s, L * 0.9, p.a * p.lit * 0.32 * br * (0.5 + 0.5 * nightK()));
+      const breath = 0.8 + 0.2 * Math.sin(W.t * 0.55);
+      glowSp(ctx, SP.warm, x + 0.1 * L, b - 4 * s, L * 2.1, p.a * p.lit * 0.22 * breath * (0.3 + 0.7 * nightK()));
+      glowSp(ctx, SP.gold, x + 0.1 * L, b - 3 * s, L * 1.35, p.a * p.lit * 0.42 * br * (0.45 + 0.55 * nightK()));
+      ctx.fillStyle = U.rgba(255, 220, 160, p.a * p.lit * 0.1 * br * (0.4 + 0.6 * nightK()));
+      ctx.beginPath(); ctx.ellipse(x, y + 1 * s, L * 0.95, 4.5 * s, 0, 0, TAU); ctx.fill();
       ctx.fillStyle = U.rgba(255, 238, 200, p.a * p.lit * 0.75 * br);
       ctx.beginPath(); ctx.arc(x + 0.12 * L, b - 4.6 * s, Math.max(0.8, 1.1 * s), 0, TAU); ctx.fill();
       ctx.globalCompositeOperation = 'source-over';
@@ -1543,12 +1547,12 @@
     ctx.moveTo(tx, by - bh * 0.3); ctx.quadraticCurveTo(tx - d * 2 * s, by + bh * 0.2, tx - d * 1.4 * s, by + bh * 0.8); ctx.lineTo(tx - d * 0.6 * s, by + bh * 0.8); ctx.quadraticCurveTo(tx - d * 1 * s, by + bh * 0.2, tx + d * 0.6 * s, by - bh * 0.3); ctx.closePath();
   }
   function drawCows(ctx, e) {
-    const t = e.t, s = LS(2) * 1.15, u = SU();
+    const t = e.t, s = LS(2) * 1.3, u = SU();
     SP || sprites();
     const A = smoothstep(0, 1, t) * (1 - smoothstep(e.dur - 3.5, e.dur, t));
     if (A < 0.01) return;
     const rp = nilePt(0.84), riverX = rp[0], riverY = rp[1];
-    const slot = (i, lean) => { const xf = (lean ? 0.52 : 0.505) + i * 0.034; return [xf * W.w, fieldY(xf, lean ? 0.36 : 0.56)]; };
+    const slot = (i, lean) => { const xf = (lean ? 0.522 : 0.505) + i * 0.034 + (rt(i * 7 + (lean ? 90 : 40)) - 0.5) * 0.012; return [xf * W.w, fieldY(xf, (lean ? 0.34 : 0.56) + (rt(i * 7 + (lean ? 91 : 41)) - 0.5) * 0.16)]; };
     const cows = [];
     for (let k = 0; k < 14; k++) {
       const lean = k >= 7, i = k % 7, t0 = (lean ? 8 : 0.8) + i * 0.8, q = clamp((t - t0) / 3, 0, 1);
@@ -1892,7 +1896,7 @@
         if (l === 2) { drawGoshen(ctx); drawNile(ctx); }
         const list = sortProps();
         for (const p of list) {
-          if (p.layer !== l || p.a < 0.005 || p.kind === 'chariot') continue;
+          if (p.layer !== l || p.a < 0.005 || p.kind === 'chariot' || p.kind === 'coffin' || p.kind === 'bier') continue;
           drawKind(ctx, p);
         }
         if (l === 2) { drawPromise(ctx); drawWith(ctx); }
@@ -1911,7 +1915,14 @@
         drawFX(ctx);
       }
     },
-    draw() {},
+    draw(ctx, pass) {
+      // 棺材与抬尸的架：在走兽之后、人之前画（不被游荡的牛挡住）
+      if (!isCur() || pass !== 'near') return;
+      for (const p of sortProps()) {
+        if (p.layer !== 2 || p.a < 0.005) continue;
+        if (p.kind === 'coffin') drawCoffin(ctx, p); else if (p.kind === 'bier') drawBier(ctx, p);
+      }
+    },
     reset() { P.clear(); FXL.length = 0; sortedN = -1; },
     restore() {
       for (const [id, p] of P) { if (p.dying) { P.delete(id); continue; } p.a = p.ta; snap(p); }
@@ -2907,7 +2918,10 @@
             crowdWalk('flockC', 0.765, 0.81, { speed: 0.02 });
             spread(eleven(), 0.772, 0.82, { speed: 0.02, seed: 59, pose: 'sit' });
           }],
-          [L[2] + 3, b => { crowd('house2', { n: 9, x0: 0.775, x1: 0.83, layer: 2, label: '以色列人', from: fromOf(b) }); sfx(b, 'bleat'); }],
+          [L[2] + 3, b => {
+            crowd('house2', { n: 9, x0: 0.775, x1: 0.83, layer: 2, label: '以色列人', from: fromOf(b) }); sfx(b, 'bleat');
+            ['ox1', 'ox2', 'wagon1', 'wagon2', 'don1', 'don2', 'don3'].forEach(id => rm(id));
+          }],
           [L[3], b => { passDay(b, 6); prop('bed', 'bed', { x: X.bed, label: '雅各的床' }); }],
           [L[3] + 3, () => walk('jacob', X.bed, { speed: 0.02 })],
           [L[3] + 4.5, () => { onBed('jacob', true); pose('jacob', 'sit'); face('jacob', -1); }],
@@ -3036,6 +3050,9 @@
           [0, b => {
             carry('joseph', null); pose('joseph', 'stand'); face('joseph', 1);
             W.goTo(0.72, 11, b.instant);
+            spread(eleven(), 0.764, 0.812, { speed: 0.02, seed: 67 });
+            KIDS.forEach(([id], i) => walk(id, 0.698 + i * 0.006, { speed: 0.02 }));
+            crowdWalk('house', 0.815, 0.855, { speed: 0.02 }); crowdWalk('house2', 0.825, 0.875, { speed: 0.02 });
           }],
           [1.2, b => { pose('joseph', 'point'); W.set('jsPromise', 1, b.instant); sfx(b, 'harp'); }],
           [4, () => { poseAll(eleven(), 'raise'); KIDS.forEach(k => face(k[0], 1)); }],
@@ -3044,12 +3061,12 @@
           [L[1] + 1.2, b => { const p = figPt('joseph', 0.3); if (p) fxAdd(b, { type: 'soul', dur: 4.5, x0: p[0] / W.w, y0: p[1] / W.h, up: 0.06 }); }],
           [L[1] + 2.6, () => {
             rm('joseph');
-            prop('coffin', 'coffin', { x: X.coffin, lit: 1, label: '约瑟的棺材' });
+            prop('coffin', 'coffin', { x: X.coffin, size: 1.2, lit: 1, label: '约瑟的棺材' });
             poseAll(eleven(), 'bow'); crowdPose('house', 'bow'); crowdPose('house2', 'bow');
             KIDS.forEach(k => pose(k[0], 'bow'));
             ['manasseh', 'ephraim', 'asenath'].forEach(id => pose(id, 'bow'));
           }],
-          [L[1] + 4.5, b => W.goTo(0.8, 14, b.instant)],
+          [L[1] + 4.5, b => W.goTo(0.778, 14, b.instant)],
         ]);
       },
     },
