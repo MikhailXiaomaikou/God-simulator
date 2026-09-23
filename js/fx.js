@@ -70,7 +70,16 @@
 
   // ── 名字：万物以其自身的质料聚成其名（聚—驻—散）───────────
   const glyphCache = {};
-  const FONT = '"Songti SC", "STSong", "Noto Serif CJK SC", "Noto Serif SC", "Source Han Serif SC", "SimSun", serif';
+  // 万物之名以毛笔楷书（马善政）写成；字体未载入前先用系统字，载入后清空缓存重新取点
+  const FONT = '"GS Brush", "Kaiti SC", "STKaiti", "KaiTi", "Songti SC", "STSong", "Noto Serif CJK SC", "SimSun", serif';
+  function preloadFonts() {
+    try {
+      if (!document.fonts || !document.fonts.load) return;
+      document.fonts.load('200px "GS Brush"', '天地海昼夜圣一二三四五六七头第日').then(() => {
+        for (const k in glyphCache) delete glyphCache[k];
+      }).catch(() => {});
+    } catch (e) { /* 老浏览器：用系统字 */ }
+  }
   function glyphPoints(ch) {
     if (glyphCache[ch]) return glyphCache[ch];
     const S = 240;
@@ -395,7 +404,7 @@
 
   function reset() { parts.length = 0; rings.length = 0; names.length = 0; bursts.length = 0; trail.length = 0; trace = []; constellation = null; goodStar = null; }
 
-  GS.fx = { init() {}, resize() {}, update, draw, reset, add, burst, ring, dust, sparkle, sow, name, nameStr, glyphPoints,
+  GS.fx = { init() { preloadFonts(); }, resize() {}, update, draw, reset, add, burst, ring, dust, sparkle, sow, name, nameStr, glyphPoints,
     setConstellation, setGoodStar, setTrace, getConstellation: () => constellation,
     get busyNames() { return names.length; } };
 })(window.GS);

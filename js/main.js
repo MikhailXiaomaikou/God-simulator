@@ -330,7 +330,7 @@
       g.drawImage(canvas, 0, 0);
       const k = c.width / W.w;
       g.scale(k, k);
-      g.font = '13px "Songti SC", "STSong", "Noto Serif CJK SC", serif';
+      g.font = '15px "GS Kai", "Kaiti SC", "STKaiti", "Songti SC", serif';
       g.textAlign = 'right';
       g.fillStyle = 'rgba(250,246,236,0.72)';
       g.shadowColor = 'rgba(0,0,0,0.8)'; g.shadowBlur = 4;

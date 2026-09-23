@@ -26,20 +26,31 @@
 
   // ── 神谕：按住时逐字浮现 ────────────────────────────────────
   let utterKind = '';
+  const PUNCT = /[，。、；：！？「」『』（）…—,.;:!?]/;
+  // 每个字带一点手写的随性：微斜、微高低、微大小，言说时轻轻浮动
   function utterBegin(text, tint, kind) {
     utterText = text;
     utterKind = kind || '';
     utterShown = 0;
     utterState = 'speaking';
     el.utter.className = 'layer' + (kind ? ' k-' + kind : '');
-    el.utter.innerHTML = Array.from(text).map(ch =>
-      ch === ' ' ? '<span class="ch">&nbsp;</span>' : '<span class="ch">' + ch + '</span>').join('');
-    el.utter.style.opacity = '1';
+    let k = 0;
+    el.utter.innerHTML = Array.from(text).map(ch => {
+      if (ch === ' ') return '<span class="ch pu">&nbsp;</span>';
+      const pu = PUNCT.test(ch);
+      const r = pu ? 0 : (Math.random() * 2 - 1) * 3.4;
+      const y = pu ? 0 : (Math.random() * 2 - 1) * 0.07;
+      const sc = pu ? 1 : 0.93 + Math.random() * 0.17;
+      return '<span class="ch' + (pu ? ' pu' : '') + '" style="--r:' + r.toFixed(2) + 'deg;--y:' + y.toFixed(3) + 'em;--s:' + sc.toFixed(3) +
+        ';--f:' + (-Math.random() * 3.4).toFixed(2) + 's;--k:' + (k++) + '"><i>' + ch + '</i></span>';
+    }).join('');
     el.utter.style.transition = 'opacity 0.3s ease';
+    el.utter.style.opacity = '1';
+    el.utter.style.transform = '';
+    el.utter.style.filter = '';
     const c = tint || [190, 215, 255];
     el.utter.style.setProperty('--utter-glow', U.rgba(c[0], c[1], c[2], 0.6));
   }
-  // charge 0..1：按比例显出文字（在 0.85 时说完，余下的是"充盈"）
   // 返回当前显出的字数
   function utterProgress(charge) {
     if (utterState !== 'speaking') return utterShown;
@@ -50,23 +61,33 @@
     for (let i = utterShown; i < n; i++) chars[i].classList.add('on');
     if (n > utterShown) utterShown = n;
     el.utter.style.transform = 'scale(' + (0.97 + 0.05 * charge).toFixed(4) + ')';
-    el.utter.style.filter = charge >= 1 ? 'brightness(1.25)' : '';
+    el.utter.style.filter = charge >= 1 ? 'brightness(1.3)' : '';
     return utterShown;
   }
-  // 说满松手：话语成就——文字化光而去
+  // 说满松手：话语成就——一字接一字化光升去
   function utterFulfill() {
     utterState = 'fulfilled';
-    el.utter.style.transition = 'opacity 1.6s ease 0.5s, transform 2.2s ease, filter 1.2s ease';
-    el.utter.style.transform = 'scale(1.08)';
-    el.utter.style.filter = 'brightness(1.6) blur(1px)';
-    el.utter.style.opacity = '0';
+    const chars = el.utter.children;
+    for (let i = 0; i < chars.length; i++) chars[i].classList.add('on');
+    el.utter.classList.add('done');
+    el.utter.style.transition = 'transform 2.6s ease, filter 1.4s ease';
+    el.utter.style.transform = 'scale(1.06)';
+    el.utter.style.filter = 'brightness(1.2)';
   }
-  // 话未说完：声息散去
+  // 话未说完：墨散入水
   function utterCancel() {
     utterState = 'idle';
     el.utter.classList.add('scatter');
-    el.utter.style.transition = 'opacity 1s ease';
-    el.utter.style.opacity = '0';
+    el.utter.style.transform = '';
+    el.utter.style.filter = '';
+  }
+
+  // 经文逐字包裹：一字一痕，如墨渗入纸；出处落一方朱印
+  function inkText(text, ref) {
+    let k = 0;
+    const body = String(text).split(/<br\s*\/?>/i).map(part =>
+      Array.from(part).map(ch => '<span class="sc" style="--k:' + (k++) + '">' + ch + '</span>').join('')).join('<br>');
+    return body + (ref ? '<span class="ref"><span class="seal" style="--k:' + k + '">' + ref + '</span></span>' : '');
   }
 
   // ── 经文：一句一句浮现；新的旁白会取代尚未显示的旧旁白 ───────
@@ -88,7 +109,8 @@
     }
     narrShowing = true;
     const show = () => {
-      el.scripture.innerHTML = line.text + (line.ref ? '<span class="ref">' + line.ref + '</span>' : '');
+      el.scripture.innerHTML = inkText(line.text, line.ref);
+      void el.scripture.offsetWidth;            // 先让每个字以"未干"的样子出现，再逐字渗开
       el.scripture.classList.add('show');
       hideHint();
       if (!line.silent) GS.bus.emit('scripture', line);
@@ -243,7 +265,10 @@
   }
 
   // ── 终幕 ────────────────────────────────────────────────────
-  function finale(on) { el.finale.classList.toggle('show', !!on); }
+  function finale(on) {
+    if (on) el.finale.classList.add('drawn');
+    el.finale.classList.toggle('show', !!on);
+  }
 
   function setSoundButton(muted) { el.bSound.classList.toggle('off', !!muted); }
 

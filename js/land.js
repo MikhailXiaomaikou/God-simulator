@@ -675,7 +675,7 @@
           if (s <= 0) continue;
           const r = Math.max(0.6, f.r * H * s * rk), x = f.x * H, y = f.y * H;
           if (f.shape === 1) { fp.moveTo(x + r * 0.8, y); fp.ellipse(x, y, r * 0.8, r * 1.05, 0, 0, TAU); }
-          else if (f.shape === 2) { fp.moveTo(x + r * 0.45, y); fp.ellipse(x, y, r * 0.45, r * 2.1, 0.25, 0, TAU); }
+          else if (f.shape === 2) { fp.moveTo(x + r * 0.45 * 0.9689, y + r * 0.45 * 0.2474); fp.ellipse(x, y, r * 0.45, r * 2.1, 0.25, 0, TAU); }
           else if (f.shape === 3) { fp.moveTo(x + r * 0.7, y); fp.ellipse(x, y, r * 0.7, r * 1.4, 0, 0, TAU); }
           else { fp.moveTo(x + r, y); fp.arc(x, y, r, 0, TAU); }
           n++;
@@ -697,12 +697,37 @@
 
   // ── 烘焙 ────────────────────────────────────────────────────
   const VARIANTS = ['day', 'morn', 'eve', 'night'];
-  function canvasOf(old, w, h) {
-    let c = old;
+  // 烘焙面：有 OffscreenCanvas 时用一块共享的草稿面，画完即 transferToImageBitmap（不可变、最省的 drawImage 来源，也省内存）；
+  // 否则退回普通 canvas。
+  const HAS_OC = typeof OffscreenCanvas !== 'undefined' && typeof OffscreenCanvas.prototype.transferToImageBitmap === 'function';
+  let SCR = null, ocOK = HAS_OC;
+  function surface(old, w, h) {
+    if (ocOK) {
+      try {
+        if (!SCR) SCR = new OffscreenCanvas(w, h);
+        if (SCR.width !== w || SCR.height !== h) { SCR.width = w; SCR.height = h; }
+        const g = SCR.getContext('2d');
+        if (g) return { c: SCR, g, oc: true };
+      } catch (e) { /* 退回 */ }
+      ocOK = false;
+    }
+    let c = old && !(typeof ImageBitmap !== 'undefined' && old instanceof ImageBitmap) ? old : null;
     if (!c) c = document.createElement('canvas');
     if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
-    return c;
+    return { c, g: c.getContext('2d'), oc: false };
   }
+  function finish(sf) {
+    if (sf.oc) {
+      try { return sf.c.transferToImageBitmap(); } catch (e) { ocOK = false; }
+      // 转移失败：把内容拷到普通 canvas
+      const c = document.createElement('canvas');
+      c.width = sf.c.width; c.height = sf.c.height;
+      c.getContext('2d').drawImage(sf.c, 0, 0);
+      return c;
+    }
+    return sf.c;
+  }
+  function freeImg(img) { if (img && typeof img.close === 'function') { try { img.close(); } catch (e) { /* */ } } }
   function bakeKey(t) { return t.H.toFixed(2) + '|' + (t.ripe ? 1 : 0) + '|' + Math.min(W.dpr || 1, 1.5); }
   function bakeTree(t) {
     const m = t.model, H = t.H;
@@ -713,12 +738,12 @@
     const old = t.bake && t.bake.c || {};
     const c = {};
     for (const v of VARIANTS) {
-      const cv = canvasOf(old[v], cw, ch);
-      const g = cv.getContext('2d');
-      g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, cw, ch);
+      const sf = surface(old[v], cw, ch), g = sf.g;
+      g.setTransform(1, 0, 0, 1, 0, 0); g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
+      g.clearRect(0, 0, cw, ch);
       g.setTransform(bs, 0, 0, bs, -bx0 * bs, -by0 * bs);
       paintTree(g, m, 1, treePal(t.kind, t.layer, v, t.ripe), H, t.ripe);
-      c[v] = cv;
+      c[v] = finish(sf);
     }
     // 轮廓光（月 / 灵）：以剪影外扩再减去自身
     if (!SIL) SIL = document.createElement('canvas');
@@ -728,9 +753,9 @@
     sg.setTransform(bs, 0, 0, bs, -bx0 * bs, -by0 * bs);
     paintTree(sg, m, 1, SILPAL, H, false);
     sg.setTransform(1, 0, 0, 1, 0, 0);
-    const oc = canvasOf(old.outline, cw, ch);
-    const og = oc.getContext('2d');
-    og.setTransform(1, 0, 0, 1, 0, 0); og.clearRect(0, 0, cw, ch);
+    const sf = surface(old.outline, cw, ch), og = sf.g;
+    og.setTransform(1, 0, 0, 1, 0, 0); og.globalAlpha = 1; og.globalCompositeOperation = 'source-over';
+    og.clearRect(0, 0, cw, ch);
     const r = 1.35 * bs;
     for (const d of [[0, -1], [-0.72, -0.72], [0.72, -0.72], [-1, 0], [1, 0], [0, -1.8]]) og.drawImage(SIL, 0, 0, cw, ch, d[0] * r, d[1] * r, cw, ch);
     og.globalCompositeOperation = 'source-in';
@@ -738,7 +763,9 @@
     og.globalCompositeOperation = 'destination-out';
     og.drawImage(SIL, 0, 0, cw, ch, 0, 0, cw, ch);
     og.globalCompositeOperation = 'source-over';
-    c.outline = oc;
+    c.outline = finish(sf);
+    // 释放旧的位图
+    for (const k in old) if (old[k] !== c[k]) freeImg(old[k]);
     t.bake = { c, x0: bx0, y0: by0, w: bx1 - bx0, h: by1 - by0, H };
     t.bakeKey = bakeKey(t);
   }
@@ -771,7 +798,9 @@
   // ════════════════════════════════════════════════════════════
   //  布局：树、草叶、菜蔬、远山林木、溪流
   // ════════════════════════════════════════════════════════════
+  function dropBake(t) { if (t.bake) { for (const k in t.bake.c) freeImg(t.bake.c[k]); t.bake = null; } t.bakeKey = ''; }
   function layoutTrees() {
+    for (const t of trees) dropBake(t);
     for (const L of LY) L.trees = [];
     trees.length = 0;
     bakeQ.length = 0;
@@ -805,7 +834,7 @@
     if (sp) {
       const a = sp[0] + 8 * u, b = Math.min(sp[1], W.w - 6 * u);
       const width = Math.max(1, b - a);
-      const N = clamp(Math.round(width / (90 * u)), 4, 13);
+      const N = clamp(Math.round(width / (82 * u)), 4, 13);
       const spc = width / N;
       const oxc = clamp(ox, a + 2 * u, b);
       const D = Math.max(oxc - a, b - oxc, 1);
@@ -865,7 +894,7 @@
     }
     // 近岸的草地：一簇簇散在向下铺展的大地上，越近越大
     if (near) {
-      const nT = Math.min(280, Math.round((sp[1] - sp[0]) / (6.5 * u) * q));
+      const nT = Math.min(240, Math.round((sp[1] - sp[0]) / (7.8 * u) * q));
       const R2 = U.mulberry32(1313);
       for (let k = 0; k < nT; k++) {
         const x = sp[0] + R2() * (sp[1] - sp[0]);
@@ -1501,7 +1530,7 @@
       // 其上一簇簇较亮的浪花，随潮缓缓漂移、呼吸
       ctx.beginPath();
       pen = false;
-      for (let i = L.spanA; i <= L.spanB; i++) {
+      for (let i = L.spanA; i <= L.spanB; i += 2) {
         const x = i * st;
         const on = cur[i] < wl - 0.4 && U.noise1(x * 0.022 + t * 0.12 + L.i * 13) > 0.2 - 0.25 * br;
         if (!on) { pen = false; continue; }
@@ -1586,7 +1615,7 @@
       ctx.moveTo(x, y0 + r[1] * 0.3 * ls);
       ctx.bezierCurveTo(x + w, y0 + len * 0.3, x - w * 0.6, y0 + len * 0.65, x + w * 0.8, y0 + len);
     }
-    ctx.strokeStyle = css([214, 234, 255], 0.2 * L.wet * W.lv.light);
+    ctx.strokeStyle = css([214, 234, 255], 0.2 * L.wet * W.lv.light * (0.25 + 0.75 * W.daylight));
     ctx.lineWidth = 0.5 + 0.6 * ls;
     ctx.stroke();
     ctx.restore();
@@ -2087,9 +2116,7 @@
     GS.bus.on('bless', e => U.safe('land.bless', () => onBless(e)));
     GS.bus.on('fulfill', e => U.safe('land.fulfill', () => {
       const st = e && e.stage;
-      if (st && st.index === 23) {
-        worldBloom(e.x, true);
-      }
+      if (st && st.index === 23 && W.lv.grass > 0.5) worldBloom(e.x, true);
     }));
   }
 
@@ -2118,7 +2145,7 @@
   function reset() {
     blooms.length = 0; drift.length = 0; bakeQ.length = 0;
     worldBloomed = false; ripeOn = false; treeOrigin = null;
-    for (const t of trees) { t.bake = null; t.bakeKey = ''; t.g = 0; t.pg = 0; t.ripe = false; t.ripeAt = Infinity; }
+    for (const t of trees) { dropBake(t); t.g = 0; t.pg = 0; t.ripe = false; t.ripeAt = Infinity; }
     for (const L of LY) { L.wet = 0; L.breached = false; L.dirty = true; }
   }
 

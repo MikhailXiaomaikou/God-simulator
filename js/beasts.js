@@ -53,8 +53,8 @@
     goat: { cn: '山羊', cls: 'cattle', type: 'q', bl: 16.5, bh: 8.8, leg: 9, lw: [2.0, 1.35, 1.15], neck: 7.2, nw: [4.4, 3.0], up: 0.8, hd: 1.15,
       hl: 6.4, hh: 3.8, muz: 0.72, ear: 2.4, horn: 'goat', beard: true, tail: 'up',
       walk: 8.5, stride: 8, herdR: 60, graze: [4, 9], col: [140, 118, 94], alt: [216, 206, 188], col2: [70, 56, 44], top: 24, len: 27 },
-    cow: { cn: '牛', cls: 'cattle', type: 'q', bl: 29, bh: 14.5, leg: 9.5, lw: [3.6, 2.5, 2.1], neck: 7.4, nw: [9.4, 6.0], up: 0.2, hd: 0.95,
-      hl: 9.4, hh: 6.0, muz: 0.92, ear: 2.8, earOut: true, horn: 'cow', tail: 'tuft', chest: 1.05, rump: 1.02,
+    cow: { cn: '牛', cls: 'cattle', type: 'q', bl: 30, bh: 13, leg: 11, lw: [3.6, 2.4, 2.1], neck: 7.6, nw: [9.6, 5.6], up: 0.28, hd: 0.8,
+      hl: 10.4, hh: 5.8, muz: 0.95, ear: 2.8, earOut: true, horn: 'cow', tail: 'tuft', rump: 1.0, flat: true, dewlap: true,
       walk: 6.5, stride: 10, herdR: 60, graze: [6, 13], col: hex('#5A4633'), alt: hex('#2A211A'), col2: [34, 27, 22], acc: [222, 212, 196], top: 29, len: 42 },
     deer: { cn: '鹿', cls: 'beast', type: 'q', bl: 21, bh: 9.6, leg: 14, lw: [2.5, 1.4, 1.0], neck: 11, nw: [4.8, 3.0], up: 1.0, hd: 1.45,
       hl: 7.4, hh: 3.9, muz: 0.68, ear: 3.4, antler: true, tail: 'up',
@@ -173,7 +173,7 @@
     }
     if (ws < 0.004) { RIM.a = 0; RIM.dx = 0; RIM.dy = -1; return RIM; }
     const L = Math.hypot(wx, wy) || 1;
-    const k = Math.max(0.9, Math.min(1.5, cu() * 1.15));
+    const k = clamp(cu() * (warm ? 0.7 : 0.85), 0.65, 1.15);
     RIM.dx = wx / L * k; RIM.dy = wy / L * k;
     RIM.c[0] = r / ws; RIM.c[1] = g / ws; RIM.c[2] = b / ws;
     RIM.a = Math.min(1, ws) * (warm ? 1 : 0.85);
@@ -366,6 +366,11 @@
       ell(0, by, bl * 0.5, bh * 0.5, pitch);
       if (M.chest) ell(rx(bl * 0.27, by + bh * 0.05), ry(bl * 0.27, by + bh * 0.05), bl * 0.22 * M.chest, bh * 0.52 * M.chest, pitch);
       if (M.rump) ell(rx(-bl * 0.29, by - bh * 0.02), ry(-bl * 0.29, by - bh * 0.02), bl * 0.22 * M.rump, bh * 0.51 * M.rump, pitch);
+      if (M.flat) {                                   // 牛：平直的背与髋角
+        ell(rx(-bl * 0.02, by - bh * 0.1), ry(-bl * 0.02, by - bh * 0.1), bl * 0.47, bh * 0.4, pitch);
+        ell(rx(-bl * 0.36, by - bh * 0.3), ry(-bl * 0.36, by - bh * 0.3), bl * 0.13, bh * 0.3, pitch);
+      }
+      if (M.dewlap) ell(rx(bl * 0.4, by + bh * 0.2), ry(bl * 0.4, by + bh * 0.2), bl * 0.08, bh * 0.36, pitch - 0.3);
       if (M.tail === 'up') {
         const tx = rx(-bl * 0.49, by - bh * 0.3), ty = ry(-bl * 0.49, by - bh * 0.3);
         seg(tx, ty, tx - 2.2, ty - 1.9 - Math.max(0, sway) * 0.6, 2.0, 0.5);
@@ -514,13 +519,12 @@
   // ════════════════════════════════════════════════════════════
   //  人：抽象、优雅的小剪影，没有面孔
   // ════════════════════════════════════════════════════════════
-  const HM = { thigh: 7.0, shin: 6.9, torso: 8.7, neck: 1.1, head: 2.3, ua: 5.0, fa: 4.8 };
+  const HM = { thigh: 7.4, shin: 7.2, torso: 8.2, neck: 1.35, head: 1.95, ua: 5.2, fa: 5.0 };
   const POSE = {
-    stand: { hipH: 13.8, lean: 0.03, rot: 0, head: 0, nTh: 0.03, nSh: 0.0, fTh: -0.04, fSh: 0.02, nUa: 0.07, nFa: 0.14, fUa: -0.06, fFa: 0.05 },
-    sit:   { hipH: 2.9, lean: -0.06, rot: 0, head: 0.05, nTh: 2.25, nSh: 0.22, fTh: 2.1, fSh: 0.32, nUa: 0.85, nFa: 1.75, fUa: 0.78, fFa: 1.65 },
-    lean:  { hipH: 2.4, lean: -0.34, rot: 0, head: 0.25, nTh: 1.45, nSh: 1.42, fTh: 2.0, fSh: 0.45, nUa: -0.5, nFa: -0.42, fUa: -0.58, fFa: -0.5 },
-    lie:   { hipH: 1.9, lean: 0, rot: -1.5708, head: 0, nTh: 0.62, nSh: -0.5, fTh: 0.02, fSh: 0.02, nUa: 0.12, nFa: 0.2, fUa: -0.12, fFa: -0.05 },
-    kneel: { hipH: 7.0, lean: 0.1, rot: 0, head: 0.2, nTh: 1.2, nSh: -0.35, fTh: 0.2, fSh: -1.4, nUa: 0.3, nFa: 0.5, fUa: 0.2, fFa: 0.4 },
+    stand: { hipH: 14.5, lean: 0.03, rot: 0, head: 0, nTh: 0.07, nSh: 0.02, fTh: -0.09, fSh: -0.03, nUa: 0.12, nFa: 0.24, fUa: -0.13, fFa: -0.04 },
+    sit:   { hipH: 3.0, lean: -0.04, rot: 0, head: 0.05, nTh: 2.2, nSh: 0.2, fTh: 2.05, fSh: 0.3, nUa: 0.85, nFa: 1.8, fUa: 0.78, fFa: 1.65 },
+    lean:  { hipH: 2.5, lean: -0.3, rot: 0, head: 0.25, nTh: 1.5, nSh: 1.45, fTh: 2.05, fSh: 0.35, nUa: -0.45, nFa: -0.38, fUa: -0.52, fFa: -0.46 },
+    lie:   { hipH: 2.0, lean: 0, rot: -1.5708, head: 0, nTh: 0.62, nSh: -0.5, fTh: 0.02, fSh: 0.02, nUa: 0.12, nFa: 0.2, fUa: -0.12, fFa: -0.05 },
   };
   const PK = Object.keys(POSE.stand);
   const pcopy = (o, src) => { for (let i = 0; i < PK.length; i++) o[PK[i]] = src[PK[i]]; return o; };
@@ -533,70 +537,65 @@
     const px = Math.cos(lean), py = Math.sin(lean);            // 躯干向前
     const tor = HM.torso * k.t;
     const shx = ux * tor, shy = uy * tor;
-    const d = (a) => [Math.sin(a), Math.cos(a)];
     const th = HM.thigh * k.l, sh = HM.shin * k.l, ua = HM.ua * k.a, fa = HM.fa * k.a;
-    const legW = woman ? [2.35, 1.6, 1.1] : [2.55, 1.75, 1.2];
-    // 远侧：腿与臂
+    const lw0 = (woman ? 2.75 : 2.7) * k.w, lw1 = (woman ? 1.55 : 1.7) * k.w, lw2 = 1.0 * k.w;
+    const aw0 = (woman ? 1.35 : 1.6) * k.w, aw1 = (woman ? 1.05 : 1.2) * k.w, aw2 = 0.85 * k.w;
+    const leg = (tA, sA, off) => {
+      const kx = off + Math.sin(tA) * th, ky = Math.cos(tA) * th;
+      const fx = kx + Math.sin(sA) * sh, fy = ky + Math.cos(sA) * sh;
+      limb(off, 0, kx, ky, fx, fy, lw0, lw1, lw2);
+      seg(fx - Math.cos(sA) * 0.3, fy + Math.sin(sA) * 0.3, fx + Math.cos(sA) * 2.0 * k.l, fy - Math.sin(sA) * 2.0 * k.l + 0.25, 1.05 * k.w, 0.6 * k.w);
+    };
+    const arm = (uA, fA, near) => {
+      const sjx = shx - ux * 1.0 + (near ? px * 0.35 : -px * 0.35), sjy = shy - uy * 1.0 + (near ? py * 0.35 : -py * 0.35);
+      const ex = sjx + Math.sin(uA) * ua, ey = sjy + Math.cos(uA) * ua;
+      const hx = ex + Math.sin(fA) * fa, hy = ey + Math.cos(fA) * fa;
+      limb(sjx, sjy, ex, ey, hx, hy, aw0, aw1, aw2);
+      ell(hx + Math.sin(fA) * 0.5, hy + Math.cos(fA) * 0.5, 0.62 * k.w, 0.78 * k.w, -fA);
+      return [hx, hy];
+    };
+    // 远侧：腿与臂（暗一些）
     op('far');
-    {
-      const [a1, b1] = d(P.fTh), kx = a1 * th - 0.3, ky = b1 * th;
-      const [a2, b2] = d(P.fSh), fx = kx + a2 * sh, fy = ky + b2 * sh;
-      limb(-0.3, 0, kx, ky, fx, fy, legW[0], legW[1], legW[2]);
-      seg(fx, fy, fx + Math.cos(P.fSh) * 1.9 * k.l, fy - Math.sin(P.fSh) * 1.9 * k.l, 1.1, 0.8);
-      const sjx = shx - ux * 0.9 - px * 0.3, sjy = shy - uy * 0.9 - py * 0.3;
-      const [c1, e1] = d(P.fUa), ex = sjx + c1 * ua, ey = sjy + e1 * ua;
-      const [c2, e2] = d(P.fFa);
-      limb(sjx, sjy, ex, ey, ex + c2 * fa, ey + e2 * fa, 1.55, 1.2, 0.95);
-      ell(ex + c2 * fa, ey + e2 * fa, 0.72, 0.72, 0);
-    }
-    op('body');
-    {
-      const [a1, b1] = d(P.nTh), kx = a1 * th + 0.3, ky = b1 * th;
-      const [a2, b2] = d(P.nSh), fx = kx + a2 * sh, fy = ky + b2 * sh;
-      limb(0.3, 0, kx, ky, fx, fy, legW[0], legW[1], legW[2]);
-      seg(fx, fy, fx + Math.cos(P.nSh) * 1.9 * k.l, fy - Math.sin(P.nSh) * 1.9 * k.l, 1.1, 0.8);
-    }
-    // 躯干：髋 → 腰 → 胸 → 肩
-    const hipW = (woman ? 4.1 : 3.6) * k.w, waW = (woman ? 2.9 : 3.3) * k.w, chW = (woman ? 3.9 : 4.7) * k.w, shW = (woman ? 3.7 : 4.9) * k.w;
-    const fr = woman ? 0.3 * k.w : 0;
-    const pt = (t, w, side) => [ux * tor * t + px * w * side, uy * tor * t + py * w * side];
-    const q = [pt(0.02, hipW / 2, -1), pt(0.45, waW / 2, -1), pt(0.78, chW / 2, -1), pt(0.98, shW / 2, -1),
-      pt(0.98, shW / 2, 1), pt(0.78, chW / 2 + fr, 1), pt(0.45, waW / 2, 1), pt(0.02, hipW / 2, 1)];
-    for (let i = 0; i < 8; i++) { PB[2 * i] = q[i][0]; PB[2 * i + 1] = q[i][1]; }
-    polyN(8);
-    ell(0, 0, hipW * 0.5, hipW * 0.46, lean);
-    ell(shx, shy + 0.3, shW * 0.5, 1.2, lean);
-    // 头：抬头时向后仰；前方一点微凸，示其所望
+    leg(P.fTh, P.fSh, -0.35);
+    arm(P.fUa, P.fFa, false);
+    // 长发（女人）：自头顶垂到背上，随风轻摆
     const hd = lean - P.head * 0.55;
     const hr = HM.head * k.h;
-    const hcx = shx + Math.sin(hd) * (HM.neck + hr), hcy = shy - Math.cos(hd) * (HM.neck + hr);
-    seg(shx, shy, hcx, hcy, 1.7 * k.w, 1.4 * k.w);
-    h._head = [hcx, hcy, hr];
+    const hcx = shx + Math.sin(hd) * (HM.neck * k.t + hr * 1.05), hcy = shy - Math.cos(hd) * (HM.neck * k.t + hr * 1.05);
     if (woman) {
       op('hair');
-      const bx = -Math.cos(hd), by = -Math.sin(hd);     // 头后方
-      for (let i = 0; i < 5; i++) {
-        const t = i / 4;
-        SP_[2 * i] = hcx + bx * hr * (0.35 + 0.25 * t) - Math.sin(hd) * 0 + Math.sin(lean) * t * 5 * k.h;
-        SP_[2 * i + 1] = hcy + by * hr * 0.3 + t * (hr * 2.7) * Math.cos(lean * 0.6);
+      const bx = -Math.cos(hd), by = -Math.sin(hd);           // 头后方
+      const dn = [Math.sin(lean) * 0.4, 1];                     // 大致向下
+      const wind = (W.wind || 0) * 0.8 * (h.face < 0 ? 1 : -1);
+      const L = hr * (h.kind === 'child' ? 2.6 : 3.6);
+      for (let i = 0; i < 6; i++) {
+        const t = i / 5;
+        SP_[2 * i] = hcx + bx * hr * (0.25 + 0.5 * t) + dn[0] * L * t + wind * t * t * 1.4 + Math.sin(W.t * 1.3 + h.seed * 9 + t * 2) * 0.25 * t;
+        SP_[2 * i + 1] = hcy - hr * 0.55 * (1 - t) + by * hr * 0.2 + dn[1] * L * t;
       }
-      strand(SP_, 5, hr * 1.35, hr * 0.7);
-      ell(hcx + bx * hr * 0.18, hcy - hr * 0.08 + by * hr * 0.1, hr * 1.06, hr * 1.02, 0);
+      strand(SP_, 6, hr * 1.7, hr * 0.55);
+      ell(hcx + bx * hr * 0.22, hcy - hr * 0.1, hr * 1.08, hr * 1.1, hd);
     }
+    op('body');
+    leg(P.nTh, P.nSh, 0.35);
+    // 躯干：髋 → 腰 → 胸 → 肩（略呈四分之三侧身，肩宽于侧影）
+    const hipW = (woman ? 4.5 : 3.8) * k.w, waW = (woman ? 2.85 : 3.3) * k.w, chW = (woman ? 4.0 : 5.0) * k.w, shW = (woman ? 4.1 : 5.4) * k.w;
+    const fr = woman ? 0.45 * k.w : 0.1;
+    const pt = (t, w, side, i) => { PB[2 * i] = ux * tor * t + px * w * side; PB[2 * i + 1] = uy * tor * t + py * w * side; };
+    pt(0.0, hipW / 2, -1, 0); pt(0.44, waW / 2, -1, 1); pt(0.76, chW / 2, -1, 2); pt(0.97, shW / 2 - 0.3, -1, 3);
+    pt(0.97, shW / 2 - 0.3, 1, 4); pt(0.72, chW / 2 + fr, 1, 5); pt(0.44, waW / 2, 1, 6); pt(0.0, hipW / 2, 1, 7);
+    polyN(8);
+    ell(0, 0.2, hipW * 0.5, hipW * 0.42, lean);
+    ell(shx - ux * 0.55, shy - uy * 0.55, shW * 0.5, 1.15, lean);
+    seg(shx, shy, hcx - Math.sin(hd) * hr * 0.6, hcy + Math.cos(hd) * hr * 0.6, 1.25 * k.w, 1.1 * k.w);
+    h._head = [hcx, hcy, hr];
     op('head');
-    ell(hcx, hcy, hr, hr * 1.06, hd);
-    const gz = P.head * 0.9;            // 视线：前方偏上
-    ell(hcx + Math.cos(hd - gz) * hr * 0.55, hcy + Math.sin(hd - gz) * hr * 0.55, hr * 0.55, hr * 0.5, 0);
+    ell(hcx, hcy, hr * 0.95, hr * 1.1, hd);
+    const gz = P.head * 0.9;            // 视线：前方偏上（没有面孔，只有头的朝向）
+    ell(hcx + Math.cos(hd - gz) * hr * 0.42, hcy + Math.sin(hd - gz) * hr * 0.42 + hr * 0.12, hr * 0.62, hr * 0.62, 0);
     // 近侧的臂（盖在躯干上）
-    {
-      const sjx = shx - ux * 0.9 + px * 0.3, sjy = shy - uy * 0.9 + py * 0.3;
-      const [c1, e1] = d(P.nUa), ex = sjx + c1 * ua, ey = sjy + e1 * ua;
-      const [c2, e2] = d(P.nFa), hx = ex + c2 * fa, hy = ey + e2 * fa;
-      limb(sjx, sjy, ex, ey, hx, hy, 1.6, 1.22, 0.95);
-      ell(hx, hy, 0.75, 0.75, 0);
-      h._hand = [hx, hy];
-    }
-    h._chest = [shx * 0.72 + px * 0.4, shy * 0.72 + py * 0.4];
+    h._hand = arm(P.nUa, P.nFa, true);
+    h._chest = [shx * 0.72 + px * 0.5, shy * 0.72 + py * 0.5];
   }
 
   // ── 缓存的光晕贴图（萤火、胸中的光）──────────────────────────
@@ -725,7 +724,7 @@
   const PROP = {
     man: { t: 1.0, l: 1.0, a: 1.0, w: 1.0, h: 1.0 },
     woman: { t: 0.97, l: 0.97, a: 0.97, w: 0.94, h: 0.98 },
-    child: { t: 0.88, l: 0.84, a: 0.88, w: 0.9, h: 1.22 },
+    child: { t: 0.86, l: 0.8, a: 0.85, w: 0.95, h: 1.3 },
   };
   function newHuman(kind, x, v, instant) {
     const h = {
@@ -1849,7 +1848,7 @@
       const p = paths[ci] || (paths[ci] = new Path2D());
       CP = p;
       const s = 4.2 * u * c.bs;
-      const open = 0.16 + 0.84 * Math.abs(Math.sin(c.flap));
+      const open = 0.3 + 0.7 * Math.abs(Math.sin(c.flap));
       const tilt = clamp(c.vx * 0.12, -0.35, 0.35);
       setT(c.x, c.y, s, 1, tilt);
       const wx = open;
@@ -1868,11 +1867,11 @@
       ctx.fill(paths[i]);
     }
     // 细细的身
-    ctx.fillStyle = U.rgba(40, 32, 26, vis * 0.8);
+    ctx.fillStyle = U.rgba(46, 36, 30, vis * 0.7);
     for (const c of CR) {
       if (c.kind !== 'bf' || c.age < 0.4) continue;
       const s = 4.2 * u * c.bs;
-      ctx.fillRect(c.x - 0.35, c.y - s * 0.55, 0.7, s * 1.15);
+      ctx.fillRect(c.x - 0.3, c.y - s * 0.4, 0.6, s * 0.85);
     }
   }
 
