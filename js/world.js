@@ -248,7 +248,9 @@
   const NIGHT_HAZE = [22, 32, 62], DUSK_HAZE = [236, 150, 118], DAY_HAZE = [178, 204, 228], DARK = [6, 8, 14];
   // 以层深 depth（0 近 → 1 远）为基色 rgb 着色：受光照、夜色与大气透视影响
   W.shade = function (rgb, depth, extraLight) {
-    const lit = clamp(0.10 + 0.90 * W.daylight + (extraLight || 0), 0, 1.2);
+    // 七日之后的夜里，近处的地稍亮一些：故事里的人要看得见
+    const floor = 0.10 + (W.act >= 1 ? 0.06 * (1 - clamp(depth || 0, 0, 1)) : 0);
+    const lit = clamp(floor + (1 - floor) * W.daylight + (extraLight || 0), 0, 1.2);
     const a = W.ambient;
     let r = rgb[0] * lit * a[0] / 255, g = rgb[1] * lit * a[1] / 255, b = rgb[2] * lit * a[2] / 255;
     const hz = (depth || 0) * 0.78;
@@ -274,7 +276,15 @@
 
   // ── 视口 ────────────────────────────────────────────────────
   W.resize = function (w, h, dpr) {
+    const ow = W.w, oh = W.h;
     W.w = w; W.h = h; W.dpr = dpr;
+    // 生长的源头以像素记：视口变了，随之按比例挪动（换成新对象，大地便会重新排布）
+    if (ow > 1 && oh > 1 && (ow !== w || oh !== h)) {
+      for (const k in W.origin) {
+        const o = W.origin[k];
+        if (o && isFinite(o.x) && isFinite(o.y)) W.origin[k] = { x: o.x * w / ow, y: o.y * h / oh };
+      }
+    }
     W.horizonY = W.HZ * h;
     W.unit = Math.min(w, h * 1.25) / 900;
     if (!W.spirit.x && !W.spirit.y) {
