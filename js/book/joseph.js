@@ -2302,7 +2302,7 @@
             walk('simeon', 0.62, { speed: 0.03 }); walk('levi', 0.645, { speed: 0.03 });
           }],
           [L[5] + 3, () => walk('joseph', X.pit + 0.004, { speed: 0.02 })],
-          [L[5] + 5, b => { rm('joseph'); prop('pit', null, { lit: 1 }); sfx(b, 'thud'); }],
+          [L[5] + 5, () => { rm('joseph'); prop('pit', null, { lit: 1 }); }],
           [L[5] + 7, () => { walk('reuben', 0.47, { speed: 0.022, pose: 'sit' }); walk('simeon', 0.556, { speed: 0.025 }); walk('levi', 0.568, { speed: 0.025 }); }],
         ]);
       },
@@ -2335,7 +2335,7 @@
             bros(id => { if (id !== 'reuben') pose(id, 'stand'); });
             walk('judah', 0.672, { speed: 0.03 });
           }],
-          [L[2] + 3, b => { fxAdd(b, { type: 'coins', dur: 3, a: 'tr1', b: 'judah' }); sfx(b, 'coins'); }],
+          [L[2] + 3, b => fxAdd(b, { type: 'coins', dur: 3, a: 'tr1', b: 'judah' })],
           [L[2] + 4, () => walk('joseph', 0.694, { speed: 0.03 })],
           [L[2] + 7.5, () => {
             walk('tr1', 0.3, { speed: 0.036 }); follow('joseph', 'tr1', 0.016);
@@ -2852,7 +2852,7 @@
             walk('jacob', X.beersheba + 0.014, { speed: 0.018, pose: 'kneel' });
             walk('benjamin', X.beersheba + 0.032, { speed: 0.02 });
           }],
-          [4, () => prop('altar', null, { fire: 1 })],
+          [4, b => { prop('altar', null, { fire: 1 }); sfx(b, 'fire'); }],
           [L[1], b => {
             W.goTo(0.97, 5, b.instant);
             pose('jacob', 'pray');

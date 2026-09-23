@@ -160,6 +160,7 @@
 
   // 七日的终幕：「安息」
   function actOneFinale() {
+    safe('audio.rest', () => GS.audio.rest());       // 第七日：自起初就在的低鸣落下（后面各卷的乐声由 audio 按卷重新带起）
     GS.book.after(13, () => { GS.ui.finale(true, { title: '安息', sub: '天地万物都造齐了', foot: '7 日 · 27 句话 · 0 个 bug' }); safe('audio.finale', () => GS.audio.finale()); });
     GS.book.after(24, () => GS.ui.finale(false));
   }
