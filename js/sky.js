@@ -306,7 +306,7 @@ vec3 sky(vec2 px, vec2 n, float lm) {
       float Zc = 1.0 / (above * 2.6 + 0.2);
       vec2 Pc = vec2((n.x - 0.5) * ASPECT * Zc, Zc * 1.5);
       float t = TIME * 0.2;
-      float sw = fbm(Pc * vec2(0.8, 1.3) + vec2(t * 0.22, t * 0.5), OCT > 2.5 ? 3.0 : 2.0);
+      float sw = fbm(Pc * vec2(0.8, 1.3) + vec2(t * 0.22, t * 0.5), 2.0);
       float bands = 0.5 + 0.5 * sin(Pc.y * 2.4 + Pc.x * 0.7 - t * 1.6 + sw * 5.5);
       float nearF = exp(-above * 16.0);
       vec3 wc = WA_COL * (0.5 + 0.75 * sw + 0.3 * bands) * mix(1.0, 0.7, smoothstep(0.02, 0.25, above));
@@ -396,7 +396,7 @@ vec3 sky(vec2 px, vec2 n, float lm) {
       if (den > 0.002) {
         vec2 kd = vec2(KEYX, KEYY) - px;
         vec2 ld = kd / (length(kd) + 1.0);
-        float d1 = fbm(P + vec2(ld.x, -ld.y * 0.6) * 0.22, OCT);
+        float d1 = fbm(P + vec2(ld.x, -ld.y * 0.6) * 0.22, 2.0);
         float lit = clamp(0.5 + (d0 - d1) * 4.5, 0.0, 1.0);
         vec3 cc = mix(CL_SH, CL_LIT, lit);
         cc += gl * (1.0 - den) * 1.2;         // 边缘透光
@@ -553,7 +553,11 @@ void main() {
   float lm = lightMask(px);
   vec3 col = n.y < HZ ? sky(px, n, lm) : sea(px, n, lm);
   // 甚好：金色；安息：柔和、温暖、高调
-  col = mix(col, col * vec3(1.1, 1.0, 0.8) + vec3(0.03, 0.018, 0.0) * lm, GOOD * 0.55);
+  if (GOOD > 0.001) {
+    float hzW = exp(-abs(n.y - HZ) * 3.5);
+    col = mix(col, col * vec3(1.07, 1.0, 0.93), GOOD * 0.6);
+    col += vec3(1.0, 0.7, 0.36) * GOOD * lm * (0.035 + 0.075 * hzW) * (0.3 + 0.7 * DAYF);
+  }
   col = mix(col, col * 0.9 + vec3(0.075, 0.064, 0.048) * lm * (0.25 + 0.75 * DAYF), SABBATH * 0.5);
   col = tone(max(col, 0.0));
   col += (h12(gl_FragCoord.xy + fract(TIME * 7.13) * 91.0) - 0.5) * (2.4 / 255.0);
@@ -575,10 +579,11 @@ void main() {
   };
   const params = (function () { try { return new URLSearchParams(location.search); } catch (e) { return null; } })();
   const FORCE_2D = !!(params && params.get('sky') === '2d');
+  const FORCE_GL1 = !!(params && params.get('sky') === 'gl1');
 
   // ── 每帧的共同状态（GL 与 2D 共用）──────────────────────────
   const F = {};
-  function hashInt(k) { return U.hash1((k * 7919 + 13) | 0); }
+  function hashInt(k) { return ih(k | 0, 7919); }
 
   function compute() {
     const lv = W.lv, w = Math.max(1, W.w), h = Math.max(1, W.h), M = Math.min(w, h);
@@ -596,7 +601,7 @@ void main() {
     // 天色
     const dayT = mix3(PAL.pearlTop, PAL.dayTop, V), dayM = mix3(PAL.pearlMid, PAL.dayMid, V);
     let dayH = mix3(PAL.pearlHz, PAL.dayHz, V);
-    dayH = mix3(dayH, PAL.goldHz, lv.good * 0.35);
+    dayH = mix3(dayH, PAL.goldHz, lv.good * 0.28);
     const nT = mix3(PAL.pearlNTop, PAL.nightTop, V), nM = mix3(PAL.pearlNMid, PAL.nightMid, V), nH = mix3(PAL.pearlNHz, PAL.nightHz, V);
     F.cTop = mix3(nT, dayT, df); F.cMid = mix3(nM, dayM, df); F.cHz = mix3(nH, dayH, df);
     F.dTop = mix3(PAL.pearlDTop, PAL.duskTop, V); F.dMid = mix3(PAL.pearlDMid, PAL.duskMid, V); F.dHz = mix3(PAL.pearlDHz, PAL.duskHz, V);
@@ -629,9 +634,12 @@ void main() {
     const sowing = 4 * s * (1 - s) * (1 - smoothstep(0.0, 0.5, 1 - df));
     const starNight = dn * smoothstep(0.36, 0.0, df);
     F.starVis = s * (starNight + sowing * 0.55);
-    F.starR = 0.25 + Math.pow(s, 0.6) * 3.2;
+    const diagM = Math.hypot(w, h) / M;        // 以 min(w,h) 为单位的对角线：揭示半径须覆盖整幅
+    F.diagM = diagM;
+    F.starR = 0.25 + Math.pow(s, 0.6) * (diagM + 0.9);
     F.milky = smoothstep(0.35, 1.0, s) * (W.quality >= 0.7 ? 1 : 0.7);
-    F.starRot = (W.clock || 0) * 0.36;
+    // 众星绕极缓转：只随夜的时辰（正午折返，那时看不见星）
+    F.starRot = (U.fract((W.tod || 0) + 0.5) - 0.5) * 0.5;
 
     // 穹苍
     F.domeE = smoothstep(0, 1, V);
@@ -665,7 +673,8 @@ void main() {
     // 地平雾（黎明多一层）
     const dawn = dn * Math.exp(-Math.pow((W.tod - 0.27) / 0.05, 2));
     F.mist = L * (0.3 + 0.22 * dusk + 0.35 * dawn);
-    F.haze = [W.haze[0] / 255, W.haze[1] / 255, W.haze[2] / 255];
+    const hz = W.haze || [0, 0, 0];
+    F.haze = [hz[0] / 255, hz[1] / 255, hz[2] / 255];
     F.pearl = L * (1 - V);
 
     // 神的灵
@@ -674,8 +683,8 @@ void main() {
     F.charge = ch;
     F.spAmt = (0.35 + 0.65 * (1 - clamp(W.daylight, 0, 1) * 0.85)) * (1 + ch * 0.9);
     S.spT += dt * (1 + ch * 2.5);
-    F.spT = S.spT % 1000;
-    F.ripple = clamp(0.4 - (W.spirit.speed || 0) / 1500, 0, 0.4) + ch * 0.8;
+    F.spT = S.spT % (Math.PI * 2 / 2.6 * 400);   // 与涟漪的周期对齐，取模不跳变
+    F.ripple = clamp(0.4 - (+W.spirit.speed || 0) / 1500, 0, 0.4) + ch * 0.8;
 
     // 流星：每 25–45 秒一颗，0.6 秒
     F.shoot = null;
@@ -742,7 +751,7 @@ void main() {
     const attrs = { alpha: false, antialias: false, depth: false, stencil: false, premultipliedAlpha: false,
       preserveDrawingBuffer: false, powerPreference: 'default', desynchronized: false };
     let gl = null;
-    try { gl = cv.getContext('webgl2', attrs); S.isGL2 = !!gl; } catch (e) { gl = null; }
+    if (!FORCE_GL1) { try { gl = cv.getContext('webgl2', attrs); S.isGL2 = !!gl; } catch (e) { gl = null; } }
     if (!gl) { try { gl = cv.getContext('webgl', attrs) || cv.getContext('experimental-webgl', attrs); } catch (e) { gl = null; } }
     return gl;
   }
@@ -762,7 +771,7 @@ void main() {
     put(4, W.moon.x, W.moon.y, F.moonAmt, F.moonR);
     put(5, F.moonPh, F.moonDay, F.starVis, F.starR);
     put(6, S.sowO[0], S.sowO[1], S.lightO[0], S.lightO[1]);
-    put(7, F.L, 0.3 + Math.pow(F.L, 0.6) * 3.2, W.lv.deep, F.V);
+    put(7, F.L, 0.3 + Math.pow(F.L, 0.6) * (F.diagM + 1.0), W.lv.deep, F.V);
     put(8, F.clouds, F.drift, F.bio, F.film);
     put(9, sp.x, sp.y, W.lv.deep > 0.001 || F.L > 0 ? F.spAmt : F.spAmt * 0.3, F.charge);
     put(10, F.df, F.dusk, F.nightness, W.lv.good);
@@ -851,6 +860,22 @@ void main() {
   }
 
   // ── Canvas2D 回退 ───────────────────────────────────────────
+  // 自带的整数哈希值噪声（烘焙回退贴图用）
+  function ih(x, y) {
+    let h = Math.imul(x | 0, 374761393) ^ Math.imul(y | 0, 668265263);
+    h = Math.imul(h ^ (h >>> 13), 1274126177);
+    return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+  }
+  function vn(x, y) {
+    const ix = Math.floor(x), iy = Math.floor(y), fx = x - ix, fy = y - iy;
+    const ux = fx * fx * (3 - 2 * fx), uy = fy * fy * (3 - 2 * fy);
+    return lerp(lerp(ih(ix, iy), ih(ix + 1, iy), ux), lerp(ih(ix, iy + 1), ih(ix + 1, iy + 1), ux), uy);
+  }
+  function fbn(x, y) {
+    let s = 0, a = 0.5, n = 0;
+    for (let i = 0; i < 4; i++) { s += a * vn(x, y); n += a; x = x * 2.03 + 17.3; y = y * 2.03 - 9.1; a *= 0.5; }
+    return s / n;
+  }
   function mk(w, h) { const c = document.createElement('canvas'); c.width = Math.max(1, w | 0); c.height = Math.max(1, h | 0); return c; }
   function css(rgb, a) {
     const r = clamp(rgb[0] * 255, 0, 255) | 0, g = clamp(rgb[1] * 255, 0, 255) | 0, b = clamp(rgb[2] * 255, 0, 255) | 0;
@@ -870,20 +895,21 @@ void main() {
     gr.addColorStop(1, 'rgba(255,255,255,0)');
     g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
     // 云的遮罩（噪声），重新着色用的暂存画布
-    const CW = 256, CH = 64;
+    const CW = 512, CH = 72;
     fb.cloud = mk(CW, CH);
     const cc = fb.cloud.getContext('2d');
     const img = cc.createImageData(CW, CH);
+    const cf = (x, y) => fbn(x * 0.022, y * 0.09);
     for (let y = 0; y < CH; y++) {
       for (let x = 0; x < CW; x++) {
-        // 横向可平铺：以圆周采样
-        const a = (x / CW) * Math.PI * 2;
-        const v = U.fbm2(Math.cos(a) * 2.2 + 10, Math.sin(a) * 2.2 + y / CH * 3.2, 4) * 0.5 + 0.5;
-        const band = Math.sin((y / CH) * Math.PI);
-        const d = smoothstep(0.52, 0.78, v) * band;
+        // 横向可平铺：与平移一整幅的样本交叉混合
+        const t = x / CW;
+        const v = cf(x, y) * (1 - t) + cf(x - CW, y) * t;
+        const band = Math.pow(Math.sin((y / CH) * Math.PI), 1.5);
+        const d = smoothstep(0.52, 0.74, v + (band - 1) * 0.25) * band;
         const o = (y * CW + x) * 4;
         img.data[o] = img.data[o + 1] = img.data[o + 2] = 255;
-        img.data[o + 3] = (d * 255) | 0;
+        img.data[o + 3] = (d * 235) | 0;
       }
     }
     cc.putImageData(img, 0, 0);
@@ -940,7 +966,8 @@ void main() {
     if (a <= 0.002 || r <= 0) return;
     const gr = g.createRadialGradient(x, y, 0, x, y, r);
     gr.addColorStop(0, css(rgb, a));
-    gr.addColorStop(0.25, css(rgb, a * 0.35));
+    gr.addColorStop(0.2, css(rgb, a * 0.32));
+    gr.addColorStop(0.55, css(rgb, a * 0.07));
     gr.addColorStop(1, css(rgb, 0));
     g.fillStyle = gr;
     g.fillRect(x - r, y - r, r * 2, r * 2);
@@ -1017,19 +1044,23 @@ void main() {
       const r = F.moonR, mx = W.moon.x, my = W.moon.y;
       g.save();
       g.beginPath(); g.rect(-20, -20, w + 40, HZy + 20); g.clip();
-      g.globalAlpha = clamp(F.moonAmt + F.moonDay * 0.5, 0, 1);
-      g.fillStyle = css(F.moonCol);
-      g.beginPath(); g.arc(mx, my, r, 0, Math.PI * 2); g.fill();
-      // 明暗界线：以椭圆近似
-      const ph = F.moonPh, c = Math.cos(ph * Math.PI * 2);
-      if (Math.abs(ph - 0.5) > 0.02) {
-        g.fillStyle = css(mix3(F.cTop, F.cMid, 0.5));
-        g.beginPath();
-        const waxing = ph < 0.5;
-        g.arc(mx, my, r + 0.5, waxing ? Math.PI / 2 : -Math.PI / 2, waxing ? Math.PI * 1.5 : Math.PI / 2);
-        g.ellipse(mx, my, Math.abs(c) * r, r + 0.5, 0, waxing ? Math.PI * 1.5 : Math.PI / 2, waxing ? Math.PI / 2 : Math.PI * 1.5, c < 0);
-        g.fill();
+      // 暗面（夜里遮住身后的星）
+      if (F.moonAmt > 0.01) {
+        g.globalAlpha = clamp(F.moonAmt, 0, 1);
+        g.fillStyle = css(mix3(F.cTop, F.cMid, 0.6).map(v => v * 0.8 + 0.01));
+        g.beginPath(); g.arc(mx, my, r, 0, Math.PI * 2); g.fill();
       }
+      g.globalAlpha = clamp(F.moonAmt + F.moonDay * 0.45, 0, 1);
+      g.fillStyle = css(F.moonCol);
+      g.translate(mx, my);
+      let ph = clamp(F.moonPh, 0, 1);
+      if (ph > 0.5) { g.scale(-1, 1); ph = 1 - ph; }
+      const c = Math.cos(ph * Math.PI * 2), rx = Math.max(0.01, Math.abs(c) * r);
+      g.beginPath();
+      g.arc(0, 0, r, -Math.PI / 2, Math.PI / 2, false);
+      if (c > 0) g.ellipse(0, 0, rx, r, 0, Math.PI / 2, -Math.PI / 2, true);
+      else g.ellipse(0, 0, rx, r, 0, Math.PI / 2, Math.PI * 1.5, false);
+      g.fill();
       g.restore();
       g.globalAlpha = 1;
     }
@@ -1095,7 +1126,7 @@ void main() {
       const low = 1 - smoothstep(0, 0.55, aL);
       const len = seaH * (0.5 + 0.5 * low);
       const wid = M * (0.12 + 0.2 * (1 - low));
-      g.globalAlpha = clamp(amt, 0, 1) * (0.7 + 0.3 * Math.sin(W.t * 3.1));
+      g.globalAlpha = clamp(amt, 0, 1) * (0.45 + 0.15 * Math.sin(W.t * 3.1));
       g.drawImage(fb.glit, lx - wid / 2, HZy + (1 - low) * seaH * 0.3, wid, len);
       g.globalAlpha = 1;
       tintGlow(g, lx, HZy + (HZy - ly) * 0.6, M * 0.25, rgb, amt * 0.1);
