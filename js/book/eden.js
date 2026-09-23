@@ -1077,7 +1077,7 @@
       if (p) {
         const e = smoothstep(0, 0.8, fa) * smoothstep(5, 2.5, fa);
         ctx.globalCompositeOperation = 'lighter';
-        drawGlow(ctx, 'pearl', p[0], p[1] - personH() * 0.6, 26 * P.s, 70 * P.s, 0.5 * e);
+        drawGlow(ctx, 'pearl', p[0], p[1] - personH('eve') * 0.6, 26 * P.s, 70 * P.s, 0.5 * e);
         ctx.globalCompositeOperation = 'source-over';
       }
     }
@@ -1108,15 +1108,24 @@
   }
 
   // 暗处的人：身后一抹极淡的光，使剪影可辨（他们仍带着神的形像）
+  // 基路伯出现之后：剑的火光越过田野，照在向东走去的二人身后——他们成了火光前的剪影
   function drawBacklight(ctx) {
     const dark = clamp(W.night * 1.2 + W.dusk * 0.5 + LV.edenSleep * 0.6, 0, 1);
-    if (dark < 0.05) return;
-    const h = personH();
+    const fire = Math.max(LV.edenSword, LV.edenCherub * 0.6);
+    if (dark < 0.05 && fire < 0.02) return;
+    const sg = fire > 0.02 ? swordGeo() : null;
     ctx.globalCompositeOperation = 'lighter';
     for (const id of ['adam', 'eve']) {
       const p = personXY(id), f = cast().get(id);
       if (!p || !f || f.alpha < 0.05) continue;
-      drawGlow(ctx, 'warm', p[0], p[1] - h * 0.5, h * 0.95, h * 0.85, 0.2 * dark * f.alpha);
+      const h = personH(id);
+      drawGlow(ctx, 'warm', p[0], p[1] - h * 0.5, h * 1.05, h * 0.95, 0.5 * dark * f.alpha);
+      if (sg) {
+        const d = Math.abs(p[0] - sg.x) / Math.max(1, W.w), toward = sg.x > p[0] ? 1 : -1;
+        const k = fire * f.alpha * clamp(1.35 - d * 2.5, 0.35, 1) * (0.5 + 0.5 * dark);
+        drawGlow(ctx, 'fire', p[0] + toward * h * 0.22, p[1] - h * 0.5, h * 1.25, h * 1.05, 0.42 * k * (0.9 + 0.1 * Math.sin(W.t * 9 + p[0])));
+        drawGlow(ctx, 'fire', p[0] + toward * h * 0.4, p[1] + 1, h * 1.6, h * 0.3, 0.3 * k);
+      }
     }
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
@@ -1231,13 +1240,18 @@
   function nameRiver(i, b) {
     if (inst(b) || !G || !G.heads[i]) return;
     const rv = RIVERS[i], hd = G.heads[i];
-    const q = hd[Math.floor((hd.length - 1) * rv.nameAt)];
-    if (!q) return;
     const size = Math.max(14, M() * 0.042);
     const n = Array.from(rv.name).length;
-    let cx = q.x + rv.side * size * (n * 0.55 + 0.9);
-    cx = clamp(cx, size * n * 0.6, W.w - size * n * 0.6);
-    const cy = Math.min(q.y - size * 0.9, W.h - size * 0.8);
+    // 名字写在河上；若落在经文所在处，就沿河往源头挪（经文在左侧海上 / 竖屏的顶上）
+    let q = null, cx = 0, cy = 0;
+    for (let t = rv.nameAt; t >= 0.2; t -= 0.06) {
+      q = hd[Math.floor((hd.length - 1) * t)];
+      if (!q) return;
+      cx = clamp(q.x + rv.side * size * (n * 0.55 + 0.9), size * n * 0.6, W.w - size * n * 0.6);
+      cy = Math.min(q.y - size * 0.9, W.h - size * 0.8);
+      if (!inTextZone(cx - size * n * 0.5, cy) && !inTextZone(cx + size * n * 0.5, cy - size * 0.5)) break;
+    }
+    if (!q) return;
     const src = () => { const p = hd[Math.floor(Math.random() * hd.length)]; return [p.x + rnd(-1, 1) * p.hw, p.y + rnd(-0.5, 0.5) * p.hw * 0.5, rv.c]; };
     fx().nameStr(rv.name, cx, cy, size, rv.c, src, { hold: 3.4, dot: 1.9 });
     chime(rv.name[0]);
@@ -1256,12 +1270,13 @@
     for (const a of AN) {
       if (!a || !a.M || !isFinite(a.x) || !isFinite(a.y) || a.motes || a.x < 24 || a.x > W.w - 24) continue;
       if (S.named[a.M.cn]) continue;
+      if (inTextZone(a.x, a.y - (a.M.top || 20) * (a.S || P.s) - 30 * P.s)) continue;
       cands.push([Math.abs(a.x - ad[0]) + (a.layer === 2 ? 0 : 120) + Math.random() * 40, a]);
     }
     cands.sort((p, q) => p[0] - q[0]);
     const birdTurn = Object.keys(S.named).length === 3 || !cands.length;
     if (birdTurn && GS.air && Array.isArray(GS.air._birds)) {
-      const bs = GS.air._birds.filter(bd => bd && bd.a > 0.8 && bd.mode !== 'away' && isFinite(bd.x) && isFinite(bd.y) && bd.x > 30 && bd.x < W.w - 30 && bd.y > 30 && bd.y < W.horizonY && !S.named[BIRD_CN[bd.k]]);
+      const bs = GS.air._birds.filter(bd => bd && bd.a > 0.8 && bd.mode !== 'away' && isFinite(bd.x) && isFinite(bd.y) && bd.x > 30 && bd.x < W.w - 30 && bd.y > 30 && bd.y < W.horizonY && !S.named[BIRD_CN[bd.k]] && !inTextZone(bd.x, bd.y - 30 * P.s));
       if (bs.length) {
         const bd = bs[Math.floor(Math.random() * bs.length)], label = BIRD_CN[bd.k] || '雀鸟';
         target = { x: bd.x, y: bd.y - 14 * P.s, label, col: [236, 240, 250], src: () => [bd.x + rnd(-8, 8) * P.s, bd.y + rnd(-5, 5) * P.s, [226, 232, 246]] };
@@ -1276,7 +1291,7 @@
       // 神把活物带到那人面前：近处的走兽转身朝他走去几步
       U.safe('eden.bring', () => {
         if (a.layer === 2 && a.st !== 'rest' && a.st !== 'sleep' && a.lie < 0.5) {
-          const dx = (a.x > ad[0] ? 1 : -1) * rnd(34, 60) * P.s;
+          const dx = (a.x > ad[0] ? 1 : -1) * Math.max(0.03 * W.w, rnd(44, 70) * P.s);
           a.tx = clamp(ad[0] + dx, 20, W.w - 20); a.st = 'walk'; a.stT = 0; a.dur = 14;
         }
         a.joy = 2.4; a.joyX = ad[0];
@@ -1297,7 +1312,7 @@
   function fruitMote(fromX, fromY, id) {
     const p = personXY(id);
     if (!p) return;
-    fx().add({ x: fromX, y: fromY, vx: 0, vy: 0, tx: p[0], ty: p[1] - personH() * 0.55, home: true, max: 1.5, size: 2.2 * Math.max(0.7, P.s), c: [240, 120, 64], drag: 0, pass: 'air', arc: 0.25 });
+    fx().add({ x: fromX, y: fromY, vx: 0, vy: 0, tx: p[0], ty: p[1] - personH(id) * 0.55, home: true, max: 1.5, size: 2.2 * Math.max(0.7, P.s), c: [240, 120, 64], drag: 0, pass: 'air', arc: 0.25 });
   }
   function knowFruitXY() {
     const T0 = treeGeo(), f = MOD.know ? MOD.know.fruit[0] : [-0.2, -0.5];
@@ -1544,7 +1559,7 @@
         ],
         apply(c) {
           T(c, [
-            [0.3, () => { const L = layout(); walk('eve', L.mE, 0.03); walk('adam', L.mA, 0.03); avoid([L.mA - 0.04, L.mE + 0.04]); }],
+            [0.3, () => { const L = layout(); avoid([L.mA - 0.04, L.mE + 0.04]); }],
             [1.2, () => { cast().face('eve', layout().tk); cast().pose('eve', 'raise'); }],
             [2.8, b => {
               S.taken = true;
@@ -1646,10 +1661,7 @@
         ],
         apply(c) {
           T(c, [
-            [0.5, b => {
-              W.goTo(0.765, 12, inst(b));
-              const L = layout(); avoid([L.tl - 0.04, L.hide + 0.08]);
-            }],
+            [0.5, () => { const L = layout(); avoid([L.tl - 0.04, L.hide + 0.08]); }],
             [3.5, b => { lv('edenThorns', 1, b); cast().pose('adam', 'kneel', { stop: true }); lv('edenGlow', 0.2, b); }],
             [19, b => { if (!inst(b)) { const p = personXY('adam'); if (p) fx().dust(p[0], p[1], 46, [196, 166, 124], 16 * P.s); } }],
           ]);
@@ -1733,7 +1745,7 @@
             }],
             [1.8, b => { lv('edenSword', 1, b); if (!inst(b)) sfx('fire', b); }],
             [4.5, () => { cast().face('adam', 1); cast().face('eve', 1); cast().pose('eve', 'kneel'); }],
-            [11, b => W.goTo(0.9, 22, inst(b))],                      // 入夜，月从东方升起
+            [11, b => W.goTo(0.97, 22, inst(b))],                     // 夜深，月从东方升起
             [15, () => { cast().pose('eve', 'stand'); cast().face('adam', -1); cast().face('eve', -1); }],   // 转身向东，走向他所自出之土
             [19, () => { const L = layout(); walk('adam', L.exA - 0.012, 0.006); walk('eve', L.exE - 0.012, 0.006); }],
           ]);

@@ -16,12 +16,14 @@
  *           第三回，不再回来。
  *   8:13–22 「你……都可以出方舟」——地面干了，青草自山脚铺开；挪亚一家与走兽沿着山坡走下来，飞鸟自光中飞出；
  *           挪亚筑坛，燔祭的烟笔直上升，顶上一团金光；「稼穑、寒暑、冬夏、昼夜就永不停息了」——一昼一夜轮转。
- *   9:1–17  赐福；「我把虹放在云彩中」——一道大虹横过整个天空（在 'sky' 层画，柔和而发光，外面一道淡淡的副虹）。
+ *   9:1–17  赐福；「我把虹放在云彩中」——一道大虹横过天空，在西斜的日的对面（在 'seaFar' 层的天上画，柔和而发光，外面一道淡淡的副虹）。
  *   9:18–29 挪亚作起农夫来，栽了一个葡萄园；洪水以后又活了三百五十年；他躺下，化入光中，留下一堆石头。
  *
  * 规矩：本卷的一切状态只在 setup / apply / 情节（beats）里设定——瞬间重演时得到同样的世界。
  *       布景只在本卷进行时绘制（GS.book.current('flood')）。
- *       程度 'rain'（雨 0..1，声音模块也读它）与 'storm'（暴风雨的天）在本文件定义。
+ *       程度 'rain'（雨 0..1，声音模块也读它）与 'storm'（暴风雨的天 0..1：乌云遮住日、月与海上的光；
+ *       fx 的星也读它，天幕可据它暗下日轮与光晕）在本文件定义。
+ *       W.beastAvoid：人、坛与方舟所在的区间，地上的走兽绕开。
  * ───────────────────────────────────────────────────────────── */
 (function (GS) {
   'use strict';
@@ -196,7 +198,7 @@
       const rough = sstep(0.14 * sep, 0.3 * sep, Math.abs(x - xc));
       hh += hh * (0.03 + 0.06 * rough) * U.fbm1(x / (0.05 * Hm) + 5.3, 3) * (0.25 + 0.75 * rough);
       MT.H[i] = Math.max(0, hh);
-      MT.SL[i] = 0.8 * Hm + 0.04 * Hm * U.noise1(x / (0.035 * Hm) + 9.1) - 0.08 * Hm * Math.abs(U.noise1(x / (0.016 * Hm) + 3.3));
+      MT.SL[i] = 0.84 * Hm + 0.04 * Hm * U.noise1(x / (0.035 * Hm) + 9.1) - 0.08 * Hm * Math.abs(U.noise1(x / (0.016 * Hm) + 3.3));
     }
     // 山露出水面的横向范围与最高处（离屏画布的大小）
     let ia = -1, ib = -1, hmax = 0;
@@ -247,16 +249,16 @@
   // 山的画（屏幕坐标，dy = 0；画在离屏画布上）：远一层的石色，自下而上蒙着水汽；背光面柔和地暗下，雪顶的下缘渐淡
   function paintMountain(g) {
     const wl = MT.wl, Hm = MT.Hm, n = MT.n, st = MT.step, H = MT.H;
-    const dp = 0.55, day = W.daylight, hz = W.haze, sto = c01(W.lv.storm);
+    const dp = 0.3, day = W.daylight, hz = W.haze, sto = c01(W.lv.storm);
     g.beginPath();
     g.moveTo(0, wl + 3);
     for (let i = 0; i < n; i++) g.lineTo(i * st, wl - H[i]);
     g.lineTo((n - 1) * st, wl + 3);
     g.closePath();
     const gf = g.createLinearGradient(0, wl - Hm, 0, wl);
-    gf.addColorStop(0, W.shadeCSS([140, 134, 138], dp * 0.85));
-    gf.addColorStop(0.5, W.shadeCSS(ROCK, dp));
-    gf.addColorStop(1, W.shadeCSS(mix([98, 88, 78], [80, 104, 66], 0.7 * c01(W.lv.grass)), dp * 0.7));
+    gf.addColorStop(0, W.shadeCSS([106, 94, 86], dp * 0.9));
+    gf.addColorStop(0.45, W.shadeCSS([88, 76, 66], dp));
+    gf.addColorStop(1, W.shadeCSS(mix([68, 60, 50], [66, 90, 52], 0.7 * c01(W.lv.grass)), dp * 0.8));
     g.fillStyle = gf;
     g.fill();
     g.save();
@@ -276,15 +278,15 @@
     }
     if (open) closeSnow(n - 1);
     const snow = W.shade(SNOW, dp * 0.7, 0.04);
-    const gsn = g.createLinearGradient(0, wl - MT.Hmax, 0, wl - 0.72 * Hm);
-    gsn.addColorStop(0, rgba(snow, 0.9));
-    gsn.addColorStop(0.55, rgba(snow, 0.62));
-    gsn.addColorStop(1, rgba(snow, 0.06));
+    const gsn = g.createLinearGradient(0, wl - MT.Hmax, 0, wl - 0.76 * Hm);
+    gsn.addColorStop(0, rgba(snow, 0.78));
+    gsn.addColorStop(0.45, rgba(snow, 0.42));
+    gsn.addColorStop(1, rgba(snow, 0));
     g.fillStyle = gsn;
     g.fill();
     // 背光的一面：自峰下柔和地暗下，再向山外渐淡
     const sunLeft = W.sun.x < MT.xg;
-    const shA = (0.2 + 0.12 * day) * (1 - 0.4 * sto);
+    const shA = (0.26 + 0.14 * day) * (1 - 0.4 * sto);
     const shadeFace = (cx, top, ww) => {
       const s = sunLeft ? 1 : -1;
       const x0 = cx - s * 0.05 * ww, x1 = cx + s * ww;
@@ -298,25 +300,36 @@
     };
     shadeFace(MT.xg, mtH(MT.xg), MT.Wg);
     shadeFace(MT.xl, mtH(MT.xl), MT.Wl);
-    // 山沟
+    // 山沟与山脊：一道宽而淡的暗影，一道细线；朝光的一侧一道淡淡的亮脊
     if (MT.gul.length) {
-      g.beginPath();
-      for (const q of MT.gul) {
-        g.moveTo(q[0], wl - q[1]);
-        for (let k = 2; k < q.length; k += 2) g.lineTo(q[k], wl - q[k + 1]);
-      }
-      g.strokeStyle = U.rgba(24, 26, 40, 0.1 + 0.06 * day);
-      g.lineWidth = Math.max(1, 1.2 * uu());
-      g.lineJoin = 'round';
+      const u = uu(), sd = sunLeft ? -1 : 1;
+      g.lineJoin = 'round'; g.lineCap = 'round';
+      const path = (ox) => {
+        g.beginPath();
+        for (const q of MT.gul) {
+          g.moveTo(q[0] + ox, wl - q[1]);
+          for (let k = 2; k < q.length; k += 2) g.lineTo(q[k] + ox, wl - q[k + 1]);
+        }
+      };
+      path(0);
+      g.strokeStyle = U.rgba(24, 24, 36, 0.07 + 0.04 * day);
+      g.lineWidth = 8 * u;
+      g.stroke();
+      g.strokeStyle = U.rgba(24, 26, 40, 0.13 + 0.07 * day);
+      g.lineWidth = Math.max(1, 1.2 * u);
+      g.stroke();
+      path(sd * 3 * u);
+      g.strokeStyle = rgba(W.shade(RIMC, 0.3), (0.05 + 0.08 * day) * (1 - 0.6 * sto));
+      g.lineWidth = 2.2 * u;
       g.stroke();
     }
     // 暴风雨下，山也暗
     if (sto > 0.01) { g.fillStyle = U.rgba(10, 12, 20, 0.3 * sto); g.fillRect(-2, wl - MT.Hmax - 10, W.w + 4, MT.Hmax + 14); }
     // 水汽：自下而上，山与远处的天、海相融
     const gm = g.createLinearGradient(0, wl - MT.Hmax, 0, wl);
-    gm.addColorStop(0, rgba(hz, 0.12));
-    gm.addColorStop(0.55, rgba(hz, 0.28));
-    gm.addColorStop(1, rgba(hz, 0.55));
+    gm.addColorStop(0, rgba(hz, 0.05));
+    gm.addColorStop(0.6, rgba(hz, 0.16));
+    gm.addColorStop(1, rgba(hz, 0.32));
     g.fillStyle = gm;
     g.fillRect(-2, wl - MT.Hmax - 10, W.w + 4, MT.Hmax + 14);
     g.restore();
@@ -328,7 +341,7 @@
       const y = wl - H[i];
       if (on) g.lineTo(i * st, y); else { g.moveTo(i * st, y); on = true; }
     }
-    g.strokeStyle = W.shadeCSS(W.dusk > 0.3 ? [255, 190, 130] : RIMC, dp * 0.6, (0.14 + 0.3 * day) * (1 - 0.6 * sto), 0.4);
+    g.strokeStyle = W.shadeCSS(W.dusk > 0.3 ? [255, 190, 130] : RIMC, dp * 0.6, (0.1 + 0.22 * day) * (1 - 0.6 * sto), 0.4);
     g.lineWidth = 1.1;
     g.stroke();
   }
@@ -1822,7 +1835,7 @@
       if (v === d.goal) S.drive = null;
       // 大地沉下时，树木也随之没入水中（不在仅剩的一线山脊上直立着"浮"在水面）
       if (sinking) {
-        const tv = sstep(0.42, 0.86, Math.min(v, W.lv.land));
+        const tv = sstep(0.5, 0.95, Math.min(v, W.lv.land));
         if (tv < W.lt.trees) W.set('trees', tv, true);
       }
     }
@@ -2451,7 +2464,7 @@
               setArk({ a: 'mount', s: 1 }, 0, b);
               lv('arkWin', 0, b);
               S.noahWin = false;
-              S.altarX = clamp(exitEndX() / W.w - 0.07, 0.47, 0.56);
+              S.altarX = clamp(exitEndX() / W.w - 0.04, 0.5, 0.6);
               avoid([[S.altarX - 0.13, S.altarX + 0.13]]);
             }],
             [2.5, b => {
@@ -2585,12 +2598,12 @@
             [0, b => {
               lv('rainbow', 0, b); lv('clouds', 0.5, b); lv('storm', 0, b); lv('rain', 0, b); lv('flFire', 0, b); lv('flGold', 0, b);
               lv('flVine', 1, b);
-              avoid([[0.34, 0.6], [0.83, 0.95]]);
+              avoid([[0.38, 0.6], [0.83, 0.95]]);
               S.tentT0 = inst(b) ? -1e9 : S.clock;
               for (const f of FAM) cast().pose(f.id, 'stand');
               cast().walk('noah', 0.7, { pose: 'kneel', speed: 0.035 });
               cast().walk('noahW', 0.66, { pose: 'stand', speed: 0.03 });
-              cast().crowd('fl:kin', { n: 7, x0: 0.36, x1: 0.56, layer: 2, label: '挪亚的子孙', from: inst(b) ? 'none' : 'fade' });
+              cast().crowd('fl:kin', { n: 7, x0: 0.4, x1: 0.58, layer: 2, label: '挪亚的子孙', from: inst(b) ? 'none' : 'fade' });
             }],
             [6, b => { W.passDay(10, inst(b)); }],
             [15, b => { cast().walk('noah', 0.875, { pose: 'sit', speed: 0.03 }); cast().walk('noahW', 0.855, { pose: 'stand', speed: 0.03 }); }],
