@@ -34,7 +34,7 @@
 
   // ── 色板 ────────────────────────────────────────────────────
   const SWIFT = hex('#10141A'), GULL = hex('#F0F4F8'), GULL_TIP = [44, 48, 56], GULL_BACK = [168, 178, 190];
-  const SONG = [44, 36, 30], SONG_BREAST = [168, 104, 64], EAGLE = [40, 30, 23], EAGLE_HEAD = [222, 214, 196];
+  const SONG = [44, 36, 30], SONG_BREAST = [132, 92, 62], EAGLE = [40, 30, 23], EAGLE_HEAD = [222, 214, 196];
   const RIM_DAY = [255, 244, 222], RIM_WARM = [255, 178, 110], RIM_NIGHT = [168, 190, 240];
 
   // ── 类别 ────────────────────────────────────────────────────
@@ -613,7 +613,7 @@
   // ════════════════════════════════════════════════════════════
   const DC = { frame: -1, swift: [], rim: [255, 255, 255], rimA: 0 };
   function colors() {
-    if (DC.frame === W.frame) return DC;
+    if (DC.frame >= 0 && W.frame - DC.frame < 3 && W.frame >= DC.frame) return DC;
     DC.frame = W.frame;
     for (let k = 0; k < 4; k++) DC.swift[k] = W.shadeCSS(SWIFT, [0.08, 0.32, 0.55, 0.78][k]);
     let rim = U.mixRGB(RIM_NIGHT, RIM_DAY, W.dayFactor);
@@ -785,7 +785,8 @@
   // 小鸟（栖着 / 在地上 / 飞）
   function drawSmall(ctx, b, C, dark) {
     const lk = b.k === 2 || b.mode === 'perched' ? (LAYER_K[(b.perch ? b.perch.layer : b.layer)] || 1) : 1;
-    const S = (b.k === 2 ? 7 : 6.2) * cu() * (b.mode === 'perched' || (b.k === 2 && b.st !== 'fly' && b.st !== 'hoverFly') ? Math.max(0.55, lk) : 1 - 0.55 * b.z);
+    let S = (b.k === 2 ? 8.6 : 6.6) * cu() * (b.mode === 'perched' || (b.k === 2 && b.st !== 'fly' && b.st !== 'hoverFly') ? Math.max(0.55, lk) : 1 - 0.55 * b.z);
+    if (b.k === 3) S *= 1.7;
     const layer = b.perch ? b.perch.layer : b.layer;
     const depth = W.LAYERS && W.LAYERS[layer] ? W.LAYERS[layer].depth : 0;
     const col = W.shade(dark ? SWIFT : SONG, depth * 0.8);
@@ -831,8 +832,8 @@
     // 雀鸟的暖色胸
     if (!dark) {
       ctx.beginPath();
-      ctx.ellipse(x + f * S * 0.14, y - S * 0.24, S * 0.17, S * 0.14, 0, 0, TAU);
-      ctx.fillStyle = css(W.shade(SONG_BREAST, depth * 0.8), 0.9);
+      ctx.ellipse(x + f * S * 0.16, y - S * 0.25, S * 0.15, S * 0.12, -0.3 * f, 0, TAU);
+      ctx.fillStyle = css(W.shade(SONG_BREAST, depth * 0.8), 0.75);
       ctx.fill();
     }
     // 细细的描光（迎光的背）

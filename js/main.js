@@ -178,6 +178,7 @@
   function restore(n, choices) {
     n = clamp(n | 0, 0, STAGES.length);
     S.choices = choices || {};
+    for (const k in W.pop) W.pop[k].n = 0;         // 生灵的数目由各句话重新定下
     for (let i = 0; i < n; i++) {
       safe('restore ' + i, () => {
         const r = STAGES[i].apply({ instant: true, x: W.w * 0.72, y: W.h * 0.55, choice: S.choices[i] || null, trail: [] });

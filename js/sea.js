@@ -156,7 +156,7 @@
   const FK = [
     { cn: '鱼', len: 10, wid: 2.5, R: 30, sep: 7, vmin: 15, vmax: 44, wA: 1.3, wC: 1.2, wS: 1.8, wander: 10, beat: 2.6 },
     { cn: '鱼', len: 15, wid: 3.8, R: 46, sep: 15, vmin: 10, vmax: 30, wA: 0.55, wC: 0.45, wS: 1.4, wander: 14, beat: 1.8 },
-    { cn: '蝠鲼', len: 26, wid: 40, R: 0, sep: 0, vmin: 8, vmax: 16, wA: 0, wC: 0, wS: 0, wander: 3, beat: 0.35 },
+    { cn: '蝠鲼', len: 42, wid: 72, R: 0, sep: 0, vmin: 8, vmax: 16, wA: 0, wC: 0, wS: 0, wander: 3, beat: 0.35 },
   ];
   // 每个鱼群的深度带（在哪片水里游）
   const SCH_D = [[0.42, 0.94], [0.2, 0.62], [0.3, 0.9], [0.22, 0.9]];
@@ -179,8 +179,8 @@
       i, k: sl[0], sc: sl[1], x, y, vx: Math.cos(hd) * v, vy: Math.sin(hd) * v, hd, av: 0,
       len: K.len * rnd(0.85, 1.18), wid: K.wid * rnd(0.9, 1.1), ph: rnd(0, TAU),
       sub: rnd(0.25, 0.85), subB: rnd(0.25, 0.85), born: instant ? -99 : W.t, a: instant ? 1 : 0,
-      flick: 0, flickAt: 0, panic: 0, ball: 0, ax: 0, ay: 0, vmin0: null, orb: rnd(0.35, 1), leap: null, seed: Math.random(),
-      D: 0.5, s: 1, fz: 0.5, band: 2, tr: new Float32Array(12), trH: 0, trN: 0, trT: 0, wx: x, wy: y,
+      flick: 0, flickAt: 0, panic: 0, ball: 0, ax: 0, ay: 0, vmin0: null, wx: 0, wy: 0, orb: rnd(0.35, 1), leap: null, seed: Math.random(),
+      D: 0.5, s: 1, fz: 0.5, band: 2, tr: new Float32Array(12), trH: 0, trN: 0, trT: 0,
     };
   }
 
@@ -270,110 +270,113 @@
       const think = ((idx + W.frame) % stride) === 0 || f.panic > 1.3;
       if (!think) { ax = f.ax; ay = f.ay; vmin = f.vmin0 != null ? f.vmin0 : vmin; }
       else {
-
-      if (lis) {
-        // 言说：停住，面向灵
-        const dx = (sp.x - f.x) * is, dy = (Math.max(sp.y, hz) - f.y) * isz;
-        const d = Math.hypot(dx, dy) + 1e-3;
-        const tv = 2.2;
-        ax += ((dx / d) * tv - f.vx) * 2.4;
-        ay += ((dy / d) * tv - f.vy) * 2.4;
-        vmin = 0;
-        f.ball = Math.max(0, f.ball - dts);
-      } else {
-        // boids
-        if (f.k !== 2) {
-          const R2 = K.R * K.R, sep = K.sep;
-          let n = 0, avx = 0, avy = 0, cx = 0, cy = 0, sx = 0, sy = 0;
-          const gx = clamp((f.x / gSize) | 0, 0, gCols - 1), gy = clamp(((f.y - hz) / gSize) | 0, 0, gRows - 1);
-          const y0 = Math.max(0, gy - 1), y1 = Math.min(gRows - 1, gy + 1), x0 = Math.max(0, gx - 1), x1 = Math.min(gCols - 1, gx + 1);
-          outer:
-          for (let yy = y0; yy <= y1; yy++) {
-            for (let xx = x0; xx <= x1; xx++) {
-              for (let j = gHead[yy * gCols + xx]; j >= 0; j = gNext[j]) {
-                if (j === idx) continue;
-                const o = FISH[j];
-                if (o.leap) continue;
-                const dx = (o.x - f.x) * is, dy = (o.y - f.y) * isz;
-                const d2 = dx * dx + dy * dy;
-                if (d2 > R2) continue;
-                if (d2 < sep * sep) {
-                  const d = Math.sqrt(d2) + 1e-3, k = (sep - d) / (sep * d);
-                  sx -= dx * k; sy -= dy * k;
-                }
-                if (o.sc === f.sc) {
-                  n++; avx += o.vx; avy += o.vy; cx += dx; cy += dy;
-                  if (n >= cap) break outer;
+        if (lis) {
+          // 言说：停住，面向灵
+          const dx = (sp.x - f.x) * is, dy = (Math.max(sp.y, hz) - f.y) * isz;
+          const d = Math.hypot(dx, dy) + 1e-3;
+          const tv = 2.2;
+          ax += ((dx / d) * tv - f.vx) * 2.4;
+          ay += ((dy / d) * tv - f.vy) * 2.4;
+          vmin = 0;
+          f.ball = Math.max(0, f.ball - dts);
+        } else {
+          // boids
+          if (f.k !== 2) {
+            const R2 = K.R * K.R, sep = K.sep;
+            let n = 0, avx = 0, avy = 0, cx = 0, cy = 0, sx = 0, sy = 0;
+            const gx = clamp((f.x / gSize) | 0, 0, gCols - 1), gy = clamp(((f.y - hz) / gSize) | 0, 0, gRows - 1);
+            const y0 = Math.max(0, gy - 1), y1 = Math.min(gRows - 1, gy + 1), x0 = Math.max(0, gx - 1), x1 = Math.min(gCols - 1, gx + 1);
+            outer:
+            for (let yy = y0; yy <= y1; yy++) {
+              for (let xx = x0; xx <= x1; xx++) {
+                for (let j = gHead[yy * gCols + xx]; j >= 0; j = gNext[j]) {
+                  if (j === idx) continue;
+                  const o = FISH[j];
+                  if (o.leap) continue;
+                  const dx = (o.x - f.x) * is, dy = (o.y - f.y) * isz;
+                  const d2 = dx * dx + dy * dy;
+                  if (d2 > R2) continue;
+                  if (d2 < sep * sep) {
+                    const d = Math.sqrt(d2) + 1e-3, k = (sep - d) / (sep * d);
+                    sx -= dx * k; sy -= dy * k;
+                  }
+                  if (o.sc === f.sc) {
+                    n++; avx += o.vx; avy += o.vy; cx += dx; cy += dy;
+                    if (n >= cap) break outer;
+                  }
                 }
               }
             }
-          }
-          const coh = f.panic > 0 ? 0.15 : 1, bw = 1 - 0.75 * f.ball;
-          if (n > 0) {
-            avx /= n; avy /= n; cx /= n; cy /= n;
-            ax += (avx - f.vx) * K.wA * 1.3 * bw;
-            ay += (avy - f.vy) * K.wA * 1.3 * bw;
-            ax += cx * K.wC * 1.5 * coh * bw;
-            ay += cy * K.wC * 1.5 * coh * bw;
-          }
-          ax += sx * K.wS * 55; ay += sy * K.wS * 55;
-          // 鱼群的去处；新生的鱼先绕着生处游一圈
-          const S = f.sc >= 0 ? SCH[f.sc] : null;
-          if (S) {
-            if (S.orbit) {
-              const ox = (f.x - S.orbit.x) * is, oy = (f.y - S.orbit.y) * isz;
-              const r = Math.hypot(ox, oy) + 1e-3, rr = 18 + 34 * f.orb;
-              const tvx = (-oy / r) * 26 - (ox / r) * (r - rr) * 0.8, tvy = (ox / r) * 26 - (oy / r) * (r - rr) * 0.8;
-              ax += (tvx - f.vx) * 1.6; ay += (tvy - f.vy) * 1.6;
-            } else {
-              const dx = (S.tx - f.x) * is, dy = (S.ty - f.y) * isz;
-              const d = Math.hypot(dx, dy) + 1e-3, k = d > 140 ? 16 : 8;
-              ax += (dx / d) * k * bw; ay += (dy / d) * k * bw;
+            const coh = f.panic > 0 ? 0.15 : 1, bw = 1 - 0.75 * f.ball;
+            if (n > 0) {
+              avx /= n; avy /= n; cx /= n; cy /= n;
+              ax += (avx - f.vx) * K.wA * 1.3 * bw;
+              ay += (avy - f.vy) * K.wA * 1.3 * bw;
+              ax += cx * K.wC * 1.5 * coh * bw;
+              ay += cy * K.wC * 1.5 * coh * bw;
+            }
+            ax += sx * K.wS * 55; ay += sy * K.wS * 55;
+            // 鱼群的去处；新生的鱼先绕着生处游一圈
+            const S = f.sc >= 0 ? SCH[f.sc] : null;
+            if (S) {
+              if (S.orbit) {
+                const ox = (f.x - S.orbit.x) * is, oy = (f.y - S.orbit.y) * isz;
+                const r = Math.hypot(ox, oy) + 1e-3, rr = 18 + 34 * f.orb;
+                const tvx = (-oy / r) * 26 - (ox / r) * (r - rr) * 0.8, tvy = (ox / r) * 26 - (oy / r) * (r - rr) * 0.8;
+                ax += (tvx - f.vx) * 1.6; ay += (tvy - f.vy) * 1.6;
+              } else {
+                const dx = (S.tx - f.x) * is, dy = (S.ty - f.y) * isz;
+                const d = Math.hypot(dx, dy) + 1e-3, k = d > 140 ? 16 : 8;
+                ax += (dx / d) * k * bw; ay += (dy / d) * k * bw;
+              }
             }
           }
-        }
-        // 漫游
-        const wa = U.noise1(t * 0.23 + f.seed * 97) * Math.PI * 2;
-        ax += Math.cos(wa) * K.wander; ay += Math.sin(wa) * K.wander;
-        // 灵
-        if (SPC.over) {
-          const dxs = f.x - SPC.bx, dys = f.y - SPC.by, ds = Math.hypot(dxs, dys);
-          if (SPC.fast && ds < SPC.R * 1.35) {
-            if (f.panic <= 0.3) {
-              const ex = dxs * is, ey = dys * isz, e = Math.hypot(ex, ey) + 1e-3;
-              f.vx += (ex / e) * 70; f.vy += (ey / e) * 70;
-              if (Math.random() < 0.6) f.flick = 1;
+          // 漫游
+          const wa = U.noise1(t * 0.23 + f.seed * 97) * Math.PI * 2;
+          ax += Math.cos(wa) * K.wander; ay += Math.sin(wa) * K.wander;
+          // 灵
+          if (SPC.over) {
+            const dxs = f.x - SPC.bx, dys = f.y - SPC.by, ds = Math.hypot(dxs, dys);
+            if (SPC.fast && ds < SPC.R * 1.35) {
+              if (f.panic <= 0.3) {
+                const ex = dxs * is, ey = dys * isz, e = Math.hypot(ex, ey) + 1e-3;
+                f.vx += (ex / e) * 70; f.vy += (ey / e) * 70;
+                if (Math.random() < 0.6) f.flick = 1;
+              }
+              f.panic = 1.5; f.ball = 0;
             }
-            f.panic = 1.5; f.ball = 0;
+            const want = SPC.slow && f.panic <= 0 && ds < (f.ball > 0.2 ? SPC.R * 1.5 : SPC.R) ? 1 : 0;
+            f.ball = U.approach(f.ball, want, want ? 1.4 : 0.9, dts);
+          } else f.ball = U.approach(f.ball, 0, 0.9, dts);
+          if (f.ball > 0.01) {
+            // 鱼球：在灵的下方缓缓转动
+            const ox = (f.x - SPC.bx) * is, oy = (f.y - SPC.by) * isz;
+            const r = Math.hypot(ox, oy) + 1e-3, rr = 4 + 26 * f.orb * f.orb;
+            const tsp = f.k === 2 ? 10 : 15;
+            const tvx = (-oy / r) * tsp - (ox / r) * (r - rr) * 1.2, tvy = (ox / r) * tsp - (oy / r) * (r - rr) * 1.2;
+            ax += (tvx - f.vx) * 2.6 * f.ball; ay += (tvy - f.vy) * 2.6 * f.ball;
+            vmin *= 1 - 0.6 * f.ball;
           }
-          const want = SPC.slow && f.panic <= 0 && ds < (f.ball > 0.2 ? SPC.R * 1.5 : SPC.R) ? 1 : 0;
-          f.ball = U.approach(f.ball, want, want ? 1.4 : 0.9, dts);
-        } else f.ball = U.approach(f.ball, 0, 0.9, dts);
-        if (f.ball > 0.01) {
-          // 鱼球：在灵的下方缓缓转动
-          const ox = (f.x - SPC.bx) * is, oy = (f.y - SPC.by) * isz;
-          const r = Math.hypot(ox, oy) + 1e-3, rr = 4 + 26 * f.orb * f.orb;
-          const tsp = f.k === 2 ? 10 : 15;
-          const tvx = (-oy / r) * tsp - (ox / r) * (r - rr) * 1.2, tvy = (ox / r) * tsp - (oy / r) * (r - rr) * 1.2;
-          ax += (tvx - f.vx) * 2.6 * f.ball; ay += (tvy - f.vy) * 2.6 * f.ball;
-          vmin *= 1 - 0.6 * f.ball;
+        }
+        f.ax = ax; f.ay = ay; f.vmin0 = vmin;
+      }
+      // 岸：前方探路，遇地则转（与群体转向同频）
+      if (think) {
+        f.wx = 0; f.wy = 0;
+        const hd0 = Math.atan2(f.vy, f.vx);
+        const la = (f.k === 2 ? 30 : 12) + Math.hypot(f.vx, f.vy) * 0.6;
+        const px = f.x + Math.cos(hd0) * la * f.s, py = f.y + Math.sin(hd0) * la * f.s * f.fz;
+        if (!seaAt(px, py) || f.D < 0.1) {
+          const aL = hd0 - 0.8, aR = hd0 + 0.8;
+          const okL = seaAt(f.x + Math.cos(aL) * la * f.s, f.y + Math.sin(aL) * la * f.s * f.fz);
+          const okR = seaAt(f.x + Math.cos(aR) * la * f.s, f.y + Math.sin(aR) * la * f.s * f.fz);
+          const turn = okL && !okR ? -1 : okR && !okL ? 1 : (f.seed < 0.5 ? -1 : 1);
+          const pa = hd0 + turn * Math.PI / 2;
+          f.wx = Math.cos(pa) * 90; f.wy = Math.sin(pa) * 90;
+          if (!okL && !okR) { f.wx -= Math.cos(hd0) * 60; f.wy -= Math.sin(hd0) * 60; }
         }
       }
-      f.ax = ax; f.ay = ay; f.vmin0 = vmin;
-      }
-      // 岸：前方探路，遇地则转
-      const hd0 = Math.atan2(f.vy, f.vx);
-      const la = (f.k === 2 ? 30 : 12) + Math.hypot(f.vx, f.vy) * 0.6;
-      const px = f.x + Math.cos(hd0) * la * f.s, py = f.y + Math.sin(hd0) * la * f.s * f.fz;
-      if (!seaAt(px, py) || f.D < 0.1) {
-        const aL = hd0 - 0.8, aR = hd0 + 0.8;
-        const okL = seaAt(f.x + Math.cos(aL) * la * f.s, f.y + Math.sin(aL) * la * f.s * f.fz);
-        const okR = seaAt(f.x + Math.cos(aR) * la * f.s, f.y + Math.sin(aR) * la * f.s * f.fz);
-        const turn = okL && !okR ? -1 : okR && !okL ? 1 : (f.seed < 0.5 ? -1 : 1);
-        const pa = hd0 + turn * Math.PI / 2;
-        ax += Math.cos(pa) * 90; ay += Math.sin(pa) * 90;
-        if (!okL && !okR) { ax -= Math.cos(hd0) * 60; ay -= Math.sin(hd0) * 60; }
-      }
+      ax += f.wx; ay += f.wy;
       if (f.D < 0.12) ay += 40;
       // 积分
       f.vx += ax * dt; f.vy += ay * dt;
@@ -705,7 +708,7 @@
       const dsp = Math.hypot(sp.x - w.x, (sp.y + W.h * 0.018) - w.y);
       if (!lis && sp.speed < 70 && dsp < rS && w.st !== 'breach' && w.role !== 2 && w.a >= 1) {
         w.hover += dt;
-        if (w.hover >= 2 && seaAt(w.x, w.y) && w.fade > 0.9) { w.hover = -4; w.nextBreach = W.t + rnd(60, 110); setSt(w, 'breach', 3.4); }
+        if (w.hover >= 2 && seaAt(w.x, w.y) && w.fade > 0.9) { w.hover = -10; w.nextBreach = W.t + rnd(60, 110); setSt(w, 'breach', 3.4); }
       } else if (w.hover > 0) w.hover = Math.max(0, w.hover - dt * 2);
       else if (w.hover < 0) w.hover = Math.min(0, w.hover + dt);
       // ── 夜里的鲸歌 ──
@@ -858,7 +861,7 @@
       const X = f.x + s * (la * c - lb * sn), Y = f.y + s * fz * (la * sn + lb * c);
       if (k === 0) ctx.moveTo(X, Y); else ctx.lineTo(X, Y);
     }
-    ctx.closePath();
+    // fill 会自动闭合子路径，省去 closePath
   }
   function rayPath(ctx, f) {
     const s = f.s, c = Math.cos(f.hd), sn = Math.sin(f.hd), fz = f.fz;
@@ -886,7 +889,8 @@
   const FC = { frame: -1, band: [[], [], []], ray: ['', '', ''], silver: '', lit: [0, 0, 0], light: 0 };
   const ALV = [0.18, 0.32, 0.48, 0.66];
   function frameColors() {
-    if (FC.frame === W.frame) return FC;
+    // 光色变化缓慢：每三帧重算一次颜色字符串即可
+    if (FC.frame >= 0 && W.frame - FC.frame < 3 && W.frame >= FC.frame) return FC;
     FC.frame = W.frame;
     const hzD = [0.6, 0.38, 0.12];
     for (let b = 0; b < 3; b++) {
@@ -895,7 +899,7 @@
         const c = W.shade(FISH_DARK[k], hzD[b] * 0.6);
         for (let l = 0; l < ALV.length; l++) arr[k * 4 + l] = css(c, ALV[l]);
       }
-      FC.ray[b] = W.shadeCSS(RAY, hzD[b] * 0.5, 0.5);
+      FC.ray[b] = W.shadeCSS(RAY, hzD[b] * 0.4, 1);
     }
     FC.lit = W.shade(SILVER, 0, 0.35);
     FC.light = c01(W.daylight * 1.1);
@@ -936,7 +940,7 @@
           any = true;
         }
         if (any) {
-          ctx.strokeStyle = css(BIO, C.bio * (pass === 0 ? 0.1 : 0.2));
+          ctx.strokeStyle = css(BIO, C.bio * (pass === 0 ? 0.07 : 0.15));
           ctx.lineWidth = Math.max(0.7, W.unit * SB * (pass === 0 ? 0.9 : 1.3));
           ctx.stroke();
         }
@@ -968,7 +972,7 @@
     for (let i = 0; i < N; i++) {
       const f = FISH[i];
       if (f.band !== band || f.k !== 2) continue;
-      const e = (0.7 - 0.4 * f.sub) * f.a * sstep(0.06, 0.3, f.D);
+      const e = (0.72 - 0.34 * f.sub) * f.a * sstep(0.06, 0.3, f.D);
       if (e < 0.04) continue;
       ctx.globalAlpha = e;
       ctx.beginPath(); rayPath(ctx, f);

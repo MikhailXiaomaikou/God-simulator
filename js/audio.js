@@ -38,7 +38,7 @@
 
   // ── 状态 ────────────────────────────────────────────────
   let AC = null, N = null, NB = null, PW = null;
-  let muted = false, hidden = false, live = 0, acc = 0, resumeAt = -1e9, suspT = 0;
+  let muted = false, hidden = false, live = 0, lastTick = -1, tickDt = 0.1, resumeAt = -1e9, suspT = 0;
   let hold = null, breathN = 0, lastStage = -1, lastCharge = 0, lastChargeAt = 0, divNow = -1;
   let hasPan = false, unlocked = false, gestureHooked = false;
   const errs = [];
@@ -80,7 +80,8 @@
   }
   function noiseSrc(kind, rate) {
     const s = AC.createBufferSource();
-    s.buffer = NB[kind] || NB.white;
+    if (!NB[kind]) NB[kind] = noiseBuffer(kind);          // 按需生成（平时已在后台预先备好）
+    s.buffer = NB[kind];
     s.loop = true;
     if (rate) s.playbackRate.value = rate;
     return s;
@@ -127,7 +128,8 @@
     },
     // 一次性：t0 开始，t1 停止，停后自行断开
     play(t0, t1) {
-      const s = this.s, n = this.n;
+      const s = this.s, n = this.n, k = pend.indexOf(this);
+      if (k >= 0) pend.splice(k, 1);
       if (!s.length) { live--; return; }
       this.startAll(t0);
       for (let i = 0; i < s.length; i++) s[i].stop(t1);
@@ -148,7 +150,14 @@
     const cap = prio >= 2 ? 96 : prio === 1 ? base : base * 0.6;
     if (live >= cap) return null;
     live++;
-    return new Voice();
+    const v = new Voice();
+    pend.push(v);
+    return v;
+  }
+  // 建到一半出错的声部：拆掉并归还名额（不让计数泄漏）
+  const pend = [];
+  function flush() {
+    while (pend.length) { const v = pend.pop(); try { v.kill(); } catch (e) { /* */ } live--; }
   }
 
   // ── 包络 ────────────────────────────────────────────────
@@ -243,7 +252,7 @@
     const src = v.nz(o.buf || 'white');
     const fl = v.f('bandpass', o.f0, o.q || 2.5), g = v.g(0);
     src.connect(fl); fl.connect(g);
-    const p = hasPan ? v.p(0) : null;
+    const p = hasPan ? v.p(0) : null;          // 每颗粒子各有其声像
     let x = g;
     if (p) { g.connect(p); x = p; }
     const len = o.len || 0.02;
@@ -251,7 +260,7 @@
     for (let i = 0; i < o.n; i++) {
       tt = t + (o.dur * i) / o.n + rnd(0, o.dur / o.n);
       fl.frequency.setValueAtTime(rnd(o.f0, o.f1), tt);
-      if (p) p.pan.setValueAtTime(rnd(-1, 1) * (o.spread == null ? 0.7 : o.spread) + (o.pan || 0), tt);
+      if (p) p.pan.setValueAtTime(clamp(rnd(-1, 1) * (o.spread == null ? 0.7 : o.spread) + (o.pan || 0), -1, 1), tt);
       g.gain.setValueAtTime(0, tt);
       g.gain.linearRampToValueAtTime(o.g * rnd(0.5, 1), tt + Math.min(0.004, len * 0.3));
       g.gain.setTargetAtTime(0, tt + Math.min(0.004, len * 0.3), len / 3);
@@ -295,7 +304,8 @@
     fs.forEach((f, i) => note({
       f, g: o.gs ? o.gs[i] : o.g, type: o.types ? o.types[i] : o.type, a: o.a, s: o.s, r: o.r, d: o.d,
       det: rnd(-1, 1) * (o.det || 0), at: (o.at || 0) + (o.strum || 0) * i, lp: o.lp, lp2: o.lp2, lpT: o.lpT,
-      pan: o.spread && n > 1 ? ((i / (n - 1)) * 2 - 1) * o.spread * (i % 2 ? 1 : -1) : o.pan, rev: o.rev, bus: o.bus, prio: o.prio == null ? 2 : o.prio,
+      // 低音居中，越高的声部越向两侧交错展开
+      pan: o.spread && n > 1 ? o.spread * (i % 2 ? 1 : -1) * (0.3 + 0.7 * i / (n - 1)) : o.pan, rev: o.rev, bus: o.bus, prio: o.prio == null ? 2 : o.prio,
     }));
   }
 
@@ -432,26 +442,32 @@
 
   // ── 常驻声床：按需建立、静默久了便拆除 ─────────────────
   function Bed(build, dest) { this.build = build; this.dest = dest; this.x = null; this.idle = 0; }
+  let bedBuilt = false;                                 // 每一拍至多新建一个声床，免得卡顿
   Bed.prototype.want = function (lvl, tc) {
     if (lvl > 0.0004) {
-      if (!this.x) this.start();
+      if (!this.x) { if (bedBuilt || this.broken) return null; bedBuilt = true; this.start(); if (!this.x) return null; }
       this.idle = 0;
       set(this.x.L, lvl, tc);
     } else if (this.x) {
       set(this.x.L, 0, tc);
-      this.idle += TICK;
-      if (this.idle > Math.max(3, tc * 7)) this.stop();
+      this.idle += tickDt;
+      if (this.idle > Math.max(2.5, tc * 5)) this.stop();
     }
     return this.x;
   };
   Bed.prototype.start = function () {
+    if (this.broken) return;
     const v = new Voice();
-    const lvl = v.g(0);
-    v.L = ctl(lvl.gain, 0);
-    this.build(v, lvl);
-    lvl.connect(this.dest());
-    v.startAll(T());
-    this.x = v;
+    try {
+      const lvl = v.g(0);
+      v.L = ctl(lvl.gain, 0);
+      this.build(v, lvl);
+      lvl.connect(this.dest());
+      v.startAll(T());
+      this.x = v;
+    } catch (e) {                                        // 建不起来的声床：拆掉，不再重试
+      err('bed', e); v.kill(); this.broken = true; this.x = null;
+    }
   };
   Bed.prototype.stop = function () { if (this.x) { this.x.kill(); this.x = null; } };
 
@@ -471,6 +487,9 @@
       gc.connect(lp); gt.connect(lp); gs.connect(lp);
       lp.connect(am); am.connect(out);
       v.c.chaos = ctl(chaos.frequency, stageChaos(st)); v.c.sub = ctl(sub.frequency, stageSub(st)); v.c.lp = ctl(lp.frequency, 170);
+      // 调准之后，走音的声部与真 A 合而为一：参照的 55Hz 淡出（免得两个同频声部相位相消）
+      v.c.truth = ctl(gt.gain, 0.34);
+      if (stageChaos(st) === 55) { gt.gain.value = 0; v.c.truth.v = 0; }
     }, divine);
     // 光垫：A3 + E4，成对微失谐，左右展开；第四日起低通随日升落
     beds.light = new Bed((v, out) => {
@@ -587,14 +606,18 @@
   }
 
   // ── 缓冲：噪声（白 / 粉红 / 褐）与混响的脉冲响应 ────────
+  // 快速的 xorshift 随机数（生成缓冲时比 Math.random 快得多）
+  let seed = (Math.random() * 4294967295) >>> 0 || 1;
+  function nrand() { seed ^= seed << 13; seed ^= seed >>> 17; seed ^= seed << 5; return (seed >>> 0) / 2147483648 - 1; }
+  const NOISE_SEC = { white: 1.7, pink: 2.6, brown: 2.1 };
   function noiseBuffer(kind) {
-    const rate = AC.sampleRate, len = Math.floor(rate * 2.2), M = Math.floor(rate * 0.05);
+    const rate = AC.sampleRate, len = Math.floor(rate * (NOISE_SEC[kind] || 2)), M = Math.floor(rate * 0.05);
     const buf = AC.createBuffer(2, len, rate);
+    const x = new Float32Array(len + M);
     for (let ch = 0; ch < 2; ch++) {
-      const x = new Float32Array(len + M);
       let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0, br = 0;
       for (let i = 0; i < len + M; i++) {
-        const w = Math.random() * 2 - 1;
+        const w = nrand();
         if (kind === 'pink') {
           b0 = 0.99886 * b0 + w * 0.0555179; b1 = 0.99332 * b1 + w * 0.0750759; b2 = 0.969 * b2 + w * 0.153852;
           b3 = 0.8665 * b3 + w * 0.3104856; b4 = 0.55 * b4 + w * 0.5329522; b5 = -0.7616 * b5 - w * 0.016898;
@@ -620,11 +643,14 @@
     for (let ch = 0; ch < 2; ch++) {
       const d = buf.getChannelData(ch);
       let lp = 0;
-      for (let i = pre; i < len; i++) {
-        const t = i / len;
-        const k = 0.9 - 0.72 * t;                          // 尾巴越往后越暗
-        lp += k * ((Math.random() * 2 - 1) - lp);
-        d[i] = lp * Math.pow(1 - t, decay);
+      // 包络 (1-t)^decay 每 64 个采样精确计算一次，其间线性插值
+      for (let i0 = pre; i0 < len; i0 += 64) {
+        const e0 = Math.pow(1 - i0 / len, decay), i1 = Math.min(len, i0 + 64), e1 = Math.pow(1 - i1 / len, decay);
+        for (let i = i0; i < i1; i++) {
+          const t = i / len, k = 0.9 - 0.72 * t;           // 尾巴越往后越暗
+          lp += k * (nrand() - lp);
+          d[i] = lp * (e0 + (e1 - e0) * ((i - i0) / 64));
+        }
       }
       // 几道早期反射
       for (let r = 0; r < 7; r++) {
@@ -645,7 +671,7 @@
   function build() {
     AC = new Ctx();
     hasPan = typeof AC.createStereoPanner === 'function';
-    NB = { white: noiseBuffer('white'), pink: noiseBuffer('pink'), brown: noiseBuffer('brown') };
+    NB = { white: noiseBuffer('white'), brown: noiseBuffer('brown') };
     PW = {
       soft: wave([1, 0.25, 0.1, 0.05, 0.025]),
       drone: wave([1, 0.55, 0.25, 0.12, 0.06]),
@@ -661,7 +687,6 @@
     const out = gain(muted || hidden ? 0 : 1);
     sum.connect(comp); comp.connect(master); master.connect(lim); lim.connect(out); out.connect(AC.destination);
     const revIn = gain(1), conv = AC.createConvolver(), revOut = gain(0.5);
-    conv.buffer = impulse(2.8, 3.5);
     revIn.connect(conv); conv.connect(revOut); revOut.connect(sum);
     const mkBus = send => {
       const inp = gain(1), duck = gain(1), s = gain(send);
@@ -678,6 +703,13 @@
     for (const k of ['pluck', 'star', 'whale', 'moo', 'bleat', 'theme', 'themeCheck', 'song']) nx[k] = t + rnd(3, 10);
     nx.whale = t + rnd(20, 50); nx.theme = t + 20;
     lastStage = W.stage | 0;
+    // 其余的缓冲在手势之后分几步于后台备好，免得第一次按下时卡顿
+    const later = [
+      () => { if (!NB.pink) NB.pink = noiseBuffer('pink'); },
+      () => { N.conv.buffer = impulse(2.8, 3.5); },
+    ];
+    const step = () => { const f = later.shift(); if (!f) return; try { f(); } catch (e) { err('build', e); } setTimeout(step, 45); };
+    setTimeout(step, 60);
   }
 
   function resume() {
@@ -719,6 +751,7 @@
     const holding = !!(W.ritual && W.ritual.holding);
     if (st !== lastStage) { if (st !== nst - 1) breathN = 0; lastStage = st; }
     const hk = hold ? hold.kind : '';
+    bedBuilt = false;
 
     // 造物主之声：七息里渐渐退去，安息之后（约 20 秒）永远止息；声床随之拆除
     const div = st >= nst ? 0 : st === nst - 1 ? Math.max(0.3, 1 - 0.1 * breathN) : 1;
@@ -734,7 +767,10 @@
 
     // 底鸣
     const d = beds.drone.want(lv.deep * LV.drone * divNow, st >= nst ? 0.3 : 2);
-    if (d) { set(d.c.chaos, stageChaos(st), 3); set(d.c.sub, stageSub(st), 2.7); set(d.c.lp, lerp(170, 95, night), 2); }
+    if (d) {
+      set(d.c.chaos, stageChaos(st), 3); set(d.c.sub, stageSub(st), 2.7); set(d.c.lp, lerp(170, 95, night), 2);
+      set(d.c.truth, stageChaos(st) === 55 ? 0 : 0.34, 5);
+    }
     // 光垫（第四日起低通随日：夜 600Hz，正午 2400Hz）
     const lp = beds.light.want(lv.light * LV.light * (1 - 0.3 * night) * divNow, st >= nst ? 0.3 : 2);
     if (lp) set(lp.c.lp, lerp(1500, lerp(600, 2400, dayF), lv.lights || 0), 2);
@@ -796,10 +832,10 @@
       if (Math.random() < 0.05 * act * dt) gull(rnd(0, 0.1), rnd(-0.9, -0.3), LV.bird * 1.2);
       if (Math.random() < 0.025 * act * dt) dove(rnd(0, 0.1), rnd(0.2, 0.8), LV.bird * 1.6);
     }
-    // 鲸歌：夜里每 60–120 秒
+    // 鲸歌：夜里每 60–120 秒（海若已自己唱起——'whale' 事件——便由它唱）
     if (t >= nx.whale) {
       nx.whale = t + rnd(60, 120);
-      if (W.popN('whale') > 0 && night > 0.5 && !holding) { whaleSong(0, rnd(-0.8, -0.2), LV.whale); nx.song = t + 20; }
+      if (W.popN('whale') > 0 && night > 0.5 && !holding && t - (nx.busSong || -1e9) > 90) { whaleSong(0, rnd(-0.8, -0.2), LV.whale); nx.song = t + 20; }
     }
     // 气泡
     if ((lv.life || 0) > 0.3 && Math.random() < 0.3 * lv.life * calm * q * dt) bubble(rnd(0, 0.1), rnd(-0.85, -0.1), LV.bubble);
@@ -863,8 +899,8 @@
     },
     // 第一日：雷声般的地鸣与 55Hz 的嗡鸣
     thunder(h) {
-      const r = rumble(h, 60, 220, 0.6), hum = tone(h, PW.soft, F.A1);
-      return c => { r(c); to(hum.gain, 0.12 * Math.pow(c, 1.5), 0.1); };
+      const r = rumble(h, 60, 220, 0.48), hum = tone(h, PW.soft, F.A1);
+      return c => { r(c); to(hum.gain, 0.1 * Math.pow(c, 1.5), 0.1); };
     },
     // 第二日：地鸣变轻，风升起（带通 200→1200Hz）
     wind(h) {
@@ -873,16 +909,16 @@
       h.lfo(0.31, 0.35, gust.gain);
       if (hasPan) h.lfo(0.09, 0.6, pn.pan);
       n.connect(bp); bp.connect(gust); gust.connect(g); g.connect(pn); pn.connect(h.out);
-      return c => { r(c); to(bp.frequency, 200 + 1000 * c, 0.1); to(g.gain, 0.65 * c, 0.1); };
+      return c => { r(c); to(bp.frequency, 200 + 1000 * c, 0.1); to(g.gain, 0.55 * c, 0.1); };
     },
     // 第三日：地壳的研磨（低通 40→120Hz + A0 + 带通的碾磨）
     grind(h, k) {
       k = k || 1;
-      const r = rumble(h, 40, 120, 0.7 * k), a0 = tone(h, PW.soft, F.A0);
+      const r = rumble(h, 40, 120, 0.56 * k), a0 = tone(h, PW.soft, F.A0);
       const n = h.nz('pink'), bp = h.f('bandpass', 170, 3), am = h.g(0.5), g = h.g(0);
       h.lfo(5.3, 0.45, am.gain, 'sawtooth'); h.lfo(1.7, 0.2, am.gain);
       n.connect(bp); bp.connect(am); am.connect(g); g.connect(h.out);
-      return c => { r(c); to(a0.gain, 0.12 * c * k, 0.1); to(g.gain, 0.9 * Math.pow(c, 1.5) * k, 0.1); to(bp.frequency, 140 + 90 * c, 0.2); };
+      return c => { r(c); to(a0.gain, 0.12 * c * k, 0.1); to(g.gain, 0.72 * Math.pow(c, 1.5) * k, 0.1); to(bp.frequency, 140 + 90 * c, 0.2); };
     },
     names3(h) { return HOLD.grind(h, 0.55); },
     // 草：研磨柔化为沙沙（粉红噪声 3kHz 带通）与低低的嗡声
@@ -906,7 +942,7 @@
     growth(h) { return HOLD.rustle(h, true); },
     // 第四日：无声的光——A 的六个分音随充盈度渐次亮起，各自缓缓漂移
     shimmer(h) {
-      const G = [0.07, 0.056, 0.048, 0.04, 0.031, 0.025];
+      const G = [0.085, 0.068, 0.058, 0.048, 0.037, 0.03];
       const gs = G.map((_, i) => {
         const o = h.o('sine', F.A3 * (i + 1)); o.detune.value = rnd(-4, 4);
         const am = h.g(0.8), g = h.g(0), pn = h.p((i % 2 ? 1 : -1) * 0.12 * (i + 1));
@@ -943,7 +979,7 @@
       n.connect(lp); lp.connect(g); g.connect(h.out);
       h.bub = T();
       return c => {
-        to(g.gain, 0.5 * Math.pow(c, 1.5), 0.1);
+        to(g.gain, 0.4 * Math.pow(c, 1.5), 0.1);
         const t = T(), rate = 1 + 11 * c;
         if (h.bub < t) h.bub = t;
         while (h.bub < t + 0.15) { bubble(h.bub - t, rnd(-0.8, 0.8), 0.03 + 0.03 * c, h.out); h.bub += rnd(0.5, 1.5) / rate; }
@@ -971,7 +1007,7 @@
     },
     // 第六日（活物）：大地的起伏，底下渐渐有了心跳（50→72bpm）
     heave(h) {
-      const r = rumble(h, 40, 100, 0.7);
+      const r = rumble(h, 40, 100, 0.56);
       const hb = heartbeats(h, [{ f: 52, g: 0.3 }]);
       return c => { r(c); hb(c, x => 50 + 22 * x); };
     },
@@ -1060,8 +1096,8 @@
   const FUL = {
     // 起初：一声低沉的落下（45→28Hz），然后渊的底鸣缓缓浮起
     0() {
-      note({ f: 45, path: [[28, 2.5]], g: 0.42, a: 0.02, d: 3, prio: 2 });
-      note({ f: 90, path: [[56, 2.5]], g: 0.14, a: 0.02, d: 2.4, prio: 2 });
+      note({ f: 45, path: [[28, 2.5]], g: 0.32, a: 0.02, d: 3, prio: 2 });
+      note({ f: 90, path: [[56, 2.5]], g: 0.1, a: 0.02, d: 2.4, prio: 2 });
       burst({ buf: 'brown', ft: 'lowpass', f: 300, q: 0.7, g: 0.25, a: 0.05, s: 0.3, r: 2.2, rev: 0.3 });
     },
     // 要有光：A1/E2/A2/E3 和弦，高处的微光，一阵风扫过
@@ -1089,9 +1125,9 @@
     },
     // 旱地：研磨的褐噪声涌起，水珠溅落，A1 E2 A2 C#3——C# 进入，和声有了根基
     8() {
-      burst({ buf: 'brown', ft: 'lowpass', f: 300, q: 0.9, g: 0.6, a: 1, s: 1, r: 1.5, am: [4.1, 0.3] });
+      burst({ buf: 'brown', ft: 'lowpass', f: 300, q: 0.9, g: 0.45, a: 1, s: 1, r: 1.5, am: [4.1, 0.3] });
       grains({ buf: 'white', n: 30, dur: 3, f0: 800, f1: 2500, len: 0.06, q: 1.4, g: 0.1, spread: 0.85, at: 0.4, rev: 0.25 });
-      chord([F.A1, F.E2, F.A2, F.Cs3], { gs: [0.14, 0.1, 0.075, 0.065], a: 1.2, s: 3, r: 5, at: 2.2, rev: 0.45 });
+      chord([F.A1, F.E2, F.A2, F.Cs3], { gs: [0.12, 0.085, 0.065, 0.055], a: 1.2, s: 3, r: 5, at: 2.2, rev: 0.45 });
     },
     // 海 / 地的名字已由 nameChime 奏出；成就本身只是一口潮声
     9() { burst({ buf: 'pink', ft: 'lowpass', f: 500, q: 0.6, g: 0.18, a: 0.8, s: 0.4, r: 2, rev: 0.3, pan: -0.4 }); },
@@ -1185,7 +1221,7 @@
     27() { bells([F.A5, F.Cs6, F.E6], 0.2, 0.01, 3.5, 0.6); },
   };
   const FUL_KIND = {
-    refrain() { tollBell(55, 0.17, 6, 0.1, 0, 'evt', 0.6); tollBell(110, 0.07, 4.5, 0.1, 0, 'evt', 0.6); },
+    refrain() { tollBell(55, 0.13, 6, 0.1, 0, 'evt', 0.6); tollBell(110, 0.055, 4.5, 0.1, 0, 'evt', 0.6); },
     cmd() { chord([F.A1, F.E2, F.A2], { gs: [0.2, 0.15, 0.1], a: 0.5, s: 0.5, r: 3.5 }); },
     bless() { for (let i = 0; i < 10; i++) pluck(pent(F.A5, rint(0, 6)), 0.3 + i * 0.2, 0.03, rnd(-0.9, 0.9), 0.6); },
   };
@@ -1220,16 +1256,16 @@
 
   // ── 声床的电平（混音在此校准）────────────────────────────
   const LV = {
-    drone: 0.04, light: 0.035, air: 0.037, earth: 0.02, human: 0.032, sunset: 0.012,
-    water: 0.13, stir: 0.04, wind: 0.5, leaves: 0.2, cricket: 0.05,
-    pluck: 0.03, star: 0.03, bird: 0.025, whale: 0.05, bubble: 0.03, graze: 0.02, herd: 0.05, theme: 0.02,
+    drone: 0.028, light: 0.035, air: 0.037, earth: 0.02, human: 0.032, sunset: 0.012,
+    water: 0.13, stir: 0.04, wind: 0.5, leaves: 0.2, cricket: 0.03,
+    pluck: 0.03, star: 0.03, bird: 0.025, whale: 0.035, bubble: 0.03, graze: 0.02, herd: 0.05, theme: 0.02,
   };
 
   // ── 对外的接口：未 init / 静音 / 无 WebAudio 时都是安全的空操作 ──
   function api(label, fn) {
     return function () {
       if (!AC) return;
-      try { return fn.apply(null, arguments); } catch (e) { err(label, e); }
+      try { return fn.apply(null, arguments); } catch (e) { err(label, e); flush(); }
     };
   }
 
@@ -1255,13 +1291,15 @@
       hidden = h;
       try { applyOut(); } catch (e) { err('visibility', e); }
     },
-    update: api('update', dt => {
-      if (hidden || AC.state === 'closed') return;
-      acc += dt > 0 && dt < 1 ? dt : 0.016;
-      if (acc < TICK) return;
-      const d = Math.min(acc, 0.5);
-      acc = 0;
-      tick(d);
+    // 以音频时钟计时（与画面帧率无关；声音挂起时自然停住）
+    update: api('update', () => {
+      if (hidden || AC.state !== 'running') return;
+      const t = T();
+      if (lastTick < 0 || t < lastTick) lastTick = t - TICK;
+      if (t - lastTick < TICK) return;
+      tickDt = Math.min(t - lastTick, 0.5);
+      lastTick = t;
+      tick(tickDt);
     }),
     chargeStart: api('chargeStart', (day, kind) => {
       if (hold) releaseHold(false);
@@ -1333,7 +1371,7 @@
     good: api('good', big => {
       if (!big) { bells([F.A5, F.Cs6, F.E6], 0.16, 0.08, 2.8); return; }
       chord([F.A1, F.E2, F.A2, F.Cs3, F.E3, F.B3, F.Cs4, F.E4, F.Fs4, F.A4], {
-        gs: [0.12, 0.09, 0.075, 0.062, 0.052, 0.036, 0.033, 0.03, 0.026, 0.024],
+        gs: [0.095, 0.072, 0.06, 0.05, 0.042, 0.029, 0.027, 0.024, 0.021, 0.019],
         types: ['sine', 'sine', 'sine', 'sine', 'sine', 'triangle', 'triangle', 'triangle', 'triangle', 'triangle'],
         a: 1.2, s: 6, r: 8, spread: 0.6, rev: 0.55, det: 3,
       });
@@ -1416,7 +1454,8 @@
       });
     }),
     _dbg: () => ({ ctx: AC, out: N && N.out, sum: N && N.sum, live, errs: errs.slice(), hold: hold ? hold.hk : null,
-      beds: Object.keys(beds).filter(k => beds[k].x), breathN, LV }),
+      beds: Object.keys(beds).filter(k => beds[k].x), breathN, LV, divine: divNow,
+      drone: beds.drone && beds.drone.x ? [beds.drone.x.c.chaos.v, beds.drone.x.c.sub.v] : null }),
   };
 
   // 他处发出的声音事件
@@ -1425,7 +1464,7 @@
       if (!AC || !e) return;
       try {
         const t = T(), pan = panX(e.x || 0);
-        if (e.type === 'song') { if (t >= (nx.song || 0)) { nx.song = t + 15; whaleSong(0, pan, LV.whale); } }
+        if (e.type === 'song') { nx.busSong = t; if (t >= (nx.song || 0)) { nx.song = t + 15; whaleSong(0, pan, LV.whale); } }
         else if (e.type === 'breach') {
           burst({ buf: 'white', f: 1500, q: 0.6, g: 0.03, a: 0.01, d: 0.6, at: 0.2, pan, rev: 0.35, bus: 'amb', prio: 0 });
           burst({ buf: 'white', f: 1500, q: 0.6, g: 0.055, a: 0.01, d: 0.9, at: 1.5, pan, rev: 0.4, bus: 'amb', prio: 0 });
@@ -1433,7 +1472,7 @@
         } else if (e.type === 'spout') {
           burst({ buf: 'pink', f: 1100, q: 0.7, g: 0.035, a: 0.05, d: 0.7, pan, rev: 0.3, bus: 'amb', prio: 0 });
         }
-      } catch (er) { err('whale', er); }
+      } catch (er) { err('whale', er); flush(); }
     });
     let lastSplash = 0;
     GS.bus.on('splash', e => {
@@ -1443,7 +1482,7 @@
         if (t - lastSplash < 0.07) return;
         lastSplash = t;
         splash(e.x || 0, e.y || W.h, e.size || 1, 0);
-      } catch (er) { err('splash', er); }
+      } catch (er) { err('splash', er); flush(); }
     });
   }
 })(window.GS);
