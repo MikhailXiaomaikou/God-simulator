@@ -193,7 +193,7 @@
       const rough = sstep(0.14 * sep, 0.3 * sep, Math.abs(x - xc));
       hh += hh * (0.03 + 0.06 * rough) * U.fbm1(x / (0.05 * Hm) + 5.3, 3) * (0.25 + 0.75 * rough);
       MT.H[i] = Math.max(0, hh);
-      MT.SL[i] = 0.7 * Hm + 0.05 * Hm * U.noise1(x / (0.035 * Hm) + 9.1) - 0.08 * Hm * Math.abs(U.noise1(x / (0.016 * Hm) + 3.3));
+      MT.SL[i] = 0.77 * Hm + 0.04 * Hm * U.noise1(x / (0.035 * Hm) + 9.1) - 0.08 * Hm * Math.abs(U.noise1(x / (0.016 * Hm) + 3.3));
     }
     // 方舟在山上的大小：两峰之间放得下
     MT.sM = clamp((0.5 * sep) / arkLen(), 0.42, 0.82);
@@ -1172,35 +1172,35 @@
     if (sp) { ctx.globalAlpha = 0.35 * a; ctx.drawImage(sp, B.pts[0] - 0.2 * W.w, B.pts[1] - 0.12 * W.h, 0.4 * W.w, 0.24 * W.h); ctx.globalAlpha = 1; }
     ctx.globalCompositeOperation = 'source-over';
   }
-  // 云开处透下的光
+  // 云开处透下的光：自云隙斜斜落下的几道光柱（只在天上，落到地平线处渐隐）
   function drawRays(ctx, front) {
-    const k = W.lv.flRays * (front ? 0.35 : 1);
+    if (front) return;
+    const k = W.lv.flRays;
     if (k < 0.01) return;
-    const up = W.sun.elev > -0.02 && W.lv.lights > 0.5;
-    const sx = up ? W.sun.x : W.w * 0.3, sy = up ? Math.max(W.sun.y, -0.1 * W.h) : W.h * 0.06;
-    const reach = Math.hypot(W.w, W.h) * 0.9;
-    const g = ctx.createRadialGradient(sx, sy, 0, sx, sy, reach);
-    g.addColorStop(0, U.rgba(255, 240, 210, 0));
-    g.addColorStop(0.1, U.rgba(255, 238, 200, 0.05 * k));
-    g.addColorStop(0.4, U.rgba(255, 232, 190, 0.028 * k));
-    g.addColorStop(1, 'rgba(255,230,190,0)');
-    const base = Math.atan2(W.h - sy, W.w * 0.5 - sx);
+    const hz = W.horizonY;
+    const sx = clamp(W.sun.x, 0.22 * W.w, 0.78 * W.w) + 0.08 * W.w * Math.sin(S.clock * 0.05), sy = -0.12 * W.h;
+    const reach = hz - sy + 4;
+    const g = ctx.createLinearGradient(0, 0, 0, hz);
+    g.addColorStop(0, U.rgba(255, 244, 220, 0.02 * k));
+    g.addColorStop(0.35, U.rgba(255, 240, 210, 0.07 * k));
+    g.addColorStop(0.8, U.rgba(255, 236, 200, 0.045 * k));
+    g.addColorStop(1, 'rgba(255,236,200,0)');
+    ctx.save();
+    ctx.beginPath(); ctx.rect(-10, -10, W.w + 20, hz + 10); ctx.clip();
     ctx.globalCompositeOperation = 'lighter';
     ctx.fillStyle = g;
     // 每道光以三层由宽到窄叠成：边缘柔和
     for (const kw of [1, 0.6, 0.3]) {
       ctx.beginPath();
-      for (let i = 0; i < 8; i++) {
-        const a0 = base - 0.8 + i * 0.22 + 0.05 * Math.sin(S.clock * 0.15 + i * 1.7);
-        const wdt = (0.03 + 0.03 * hsh(i * 3.3)) * kw;
-        ctx.moveTo(sx, sy);
-        ctx.lineTo(sx + Math.cos(a0 - wdt) * reach, sy + Math.sin(a0 - wdt) * reach);
-        ctx.lineTo(sx + Math.cos(a0 + wdt) * reach, sy + Math.sin(a0 + wdt) * reach);
-        ctx.closePath();
+      for (let i = 0; i < 6; i++) {
+        const a0 = Math.PI / 2 - 0.42 + i * 0.17 + 0.04 * Math.sin(S.clock * 0.12 + i * 1.7);
+        const w0 = (0.01 + 0.012 * hsh(i * 3.3)) * W.w * kw, w1 = (0.05 + 0.05 * hsh(i * 5.1)) * W.w * kw;
+        const ex = sx + Math.cos(a0) * reach / Math.max(0.2, Math.sin(a0)), ey = hz + 2;
+        ctx.moveTo(sx - w0, sy); ctx.lineTo(sx + w0, sy); ctx.lineTo(ex + w1, ey); ctx.lineTo(ex - w1, ey); ctx.closePath();
       }
       ctx.fill();
     }
-    ctx.globalCompositeOperation = 'source-over';
+    ctx.restore();
   }
   // 虹：横过整个天空；自左脚向右脚铺开；外面一道淡淡的副虹，其间略暗（亚历山大暗带）
   function bowGeom() {
@@ -1895,6 +1895,8 @@
     intro: [{ text: '当人在世上多起来，又生女儿的时候，<br>神的儿子们看见人的女子美貌，就随意挑选，娶来为妻。', ref: '创世记 6:1–2', hold: 8 }],
     outro: 20,
     setup() {
+      // 洪水之前的地：尚存绿意，花已稀疏
+      GS.W.set('bare', 0.2, true); GS.W.set('bloom', 0.35, true);
       S = fresh();
       ensureLayout();
       const L = { deep: 1, light: 1, gather: 1, dayNight: 1, vault: 1, clouds: 0.55, land: 1, grass: 1, herbs: 1, trees: 1,

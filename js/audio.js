@@ -750,6 +750,7 @@
       over: wave([0, 0.5, 0.42, 0.36, 0, 0.2, 0, 0.11]),        // 只有 2、3、4、6、8 次泛音（避开不谐的 5、7）
       voice: wave([1, 0.46, 0.3, 0.17, 0.1, 0.06, 0.035]),      // 灵的哼鸣：有身躯的 A3，小喇叭也听得见
       grit: wave([1, 0.62, 0.45, 0.33, 0.25, 0.19, 0.14, 0.1, 0.07, 0.05]), // 低吼（经低通随充盈打开）
+      ratchet: wave([1, 0.45, 0.25, 0.14, 0.07]),                // 只有五个谐波的锯齿（作 LFO 用：无跳变）
     };
     const sum = gain(1);
     const comp = AC.createDynamicsCompressor();
@@ -835,9 +836,11 @@
     if (divNow < 0.002 && div === 0) divNow = 0;
     const thin = st >= nst - 1 ? 0.3 : 1;                 // 圣日之后：和声变薄
     const deepDuck = hk === 'human' || hk === 'behold' || hk === 'holy';
-    const duck = holding ? (deepDuck ? 0.4 : 0.7) : 1;
+    // 卷与卷之间落下幕布时，世界的声音也随之低下去
+    const curtain = clamp((lv.curtain || 0), 0, 1);
+    const duck = (holding ? (deepDuck ? 0.4 : 0.7) : 1) * (1 - 0.6 * curtain);
     set(C.duckA, duck, holding ? 0.35 : 1.4);
-    set(C.duckM, holding && deepDuck ? 0.5 : 1, holding ? 0.5 : 1.6);
+    set(C.duckM, (holding && deepDuck ? 0.5 : 1) * (1 - 0.5 * curtain), holding ? 0.5 : 1.6);
     set(C.rev, 0.5 + 0.5 * (lv.vault || 0), 2.5);      // 穹苍张开，空间变大
 
     // 底鸣
@@ -1023,7 +1026,7 @@
       k = k || 1;
       const r = rumble(h, 40, 120, 0.54 * k, 0.36), a0 = tone(h, PW.soft, F.A0);
       const n = h.nz('pink'), bp = h.f('bandpass', 170, 3), bp2 = h.f('bandpass', 480, 1.6), am = h.g(0.5), g = h.g(0), g2 = h.g(0.45);
-      h.lfo(5.3, 0.45, am.gain, 'sawtooth'); h.nlfo(0.03, 0.4, am.gain);
+      h.lfo(5.3, 0.45, am.gain, PW.ratchet); h.nlfo(0.03, 0.4, am.gain);   // 软锯齿：有棘轮般的碾动，却没有竖直的跳变
       n.connect(bp); bp.connect(am); n.connect(bp2); bp2.connect(g2); g2.connect(am); am.connect(g); g.connect(h.out);
       const cr = crackler(h, 900, 3400, 1.4, 0.15);
       return c => {
@@ -1233,7 +1236,11 @@
     hold = null;
     const t = T(), rel = ok ? 0.5 : 0.3;
     const p = h.out.gain;
-    try { p.cancelScheduledValues(t); p.setValueAtTime(p.value, t); } catch (e) { /* */ }
+    // 在此刻"握住"当前的值再放开（淡入未完时松手也不跳变）；不支持的浏览器退而取 .value
+    try {
+      if (p.cancelAndHoldAtTime) p.cancelAndHoldAtTime(t);
+      else { p.cancelScheduledValues(t); p.setValueAtTime(p.value, t); }
+    } catch (e) { /* */ }
     p.setTargetAtTime(0, t, rel / 3);
     setTimeout(() => h.kill(), (rel * 2.5 + 0.25) * 1000);
   }

@@ -144,9 +144,11 @@
   function setConstellation(pts) { constellation = pts && pts.length ? pts : null; }
   function setGoodStar(p) { goodStar = p; }
   function setTrace(pts) { trace = pts || []; }
+  // 暴风云（W.lv.storm，洪水一卷所定）遮住星辰
+  const overcast = () => 1 - clamp(W.lv.storm || 0, 0, 1);
   function starAlpha() {
     const n = clamp(W.night * 1.25 + W.dusk * 0.35, 0, 1);
-    return W.lv.stars * n;
+    return W.lv.stars * n * overcast();
   }
   function flare(ctx, x, y, r, c, a) {
     ctx.fillStyle = U.rgba(c[0], c[1], c[2], a);
@@ -178,7 +180,7 @@
     }
     if (goodStar) {
       // 甚好之星：黄昏时第一个亮起，最亮
-      const g = clamp(W.lv.stars * (W.night * 1.4 + W.dusk * 0.9), 0, 1) * clamp(W.lv.good * 3, 0, 1);
+      const g = clamp(W.lv.stars * (W.night * 1.4 + W.dusk * 0.9), 0, 1) * clamp(W.lv.good * 3, 0, 1) * overcast();
       if (g > 0.01) {
         const X = goodStar[0] * W.w, Y = goodStar[1] * W.h;
         flare(ctx, X, Y, 2.4, [255, 231, 163], g * (0.85 + 0.15 * Math.sin(W.t * 1.7)));
