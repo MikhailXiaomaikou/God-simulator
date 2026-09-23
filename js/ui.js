@@ -25,8 +25,10 @@
   }
 
   // ── 神谕：按住时逐字浮现 ────────────────────────────────────
+  let utterKind = '';
   function utterBegin(text, tint, kind) {
     utterText = text;
+    utterKind = kind || '';
     utterShown = 0;
     utterState = 'speaking';
     el.utter.className = 'layer' + (kind ? ' k-' + kind : '');
@@ -42,7 +44,9 @@
   function utterProgress(charge) {
     if (utterState !== 'speaking') return utterShown;
     const chars = el.utter.children;
-    const n = Math.min(chars.length, Math.ceil((charge / 0.85) * chars.length));
+    // 「甚好」：先看，后说——前半段只是凝视，话语在后半段才浮现
+    const f = utterKind === 'behold' ? Math.max(0, (charge - 0.45) / 0.4) : charge / 0.85;
+    const n = Math.min(chars.length, Math.ceil(f * chars.length));
     for (let i = utterShown; i < n; i++) chars[i].classList.add('on');
     if (n > utterShown) utterShown = n;
     el.utter.style.transform = 'scale(' + (0.97 + 0.05 * charge).toFixed(4) + ')';

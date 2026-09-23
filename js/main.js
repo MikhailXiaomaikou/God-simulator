@@ -227,12 +227,14 @@
       S.need = holdTime(st) / W.fast;
       W.ritual.text = st.utter;
       W.ritual.tint = st.tint;
+      W.ritual.kind = st.kind;
       GS.ui.utterBegin(st.utter, st.tint, st.kind);
       safe('audio.chargeStart', () => GS.audio.chargeStart(st.day, st.kind));
       if (st.kind === 'stars') { S.trail = []; }
     } else {
       // 安息之后：按住观看
       S.kind = 'sabbath';
+      W.ritual.kind = 'sabbath';
       S.need = 1.2 / W.fast;
       W.ritual.text = '';
       W.ritual.tint = [255, 236, 200];

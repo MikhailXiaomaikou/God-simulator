@@ -358,7 +358,8 @@
 
   // 「甚好」：整个世界染上一层温暖的金辉
   function drawGood(ctx) {
-    const g = W.lv.good;
+    // 言说「甚好」时，凝视本身已让万物微微发光
+    const g = Math.max(W.lv.good, W.ritual.holding && W.ritual.kind === 'behold' ? W.ritual.charge * 0.8 : 0);
     if (g < 0.01) return;
     ctx.globalCompositeOperation = 'lighter';
     const grd = ctx.createRadialGradient(W.w * 0.5, W.h * 0.55, 0, W.w * 0.5, W.h * 0.55, Math.hypot(W.w, W.h) * 0.6);
