@@ -1022,7 +1022,6 @@
   // ════════════════════════════════════════════════════════════
   //  布景模块
   // ════════════════════════════════════════════════════════════
-  const NEAR_UNDER = ['cave', 'oak', 'tamarisk', 'shrub', 'tent', 'altar', 'spring', 'well', 'pieces'];
   function drawKind(ctx, p) {
     switch (p.kind) {
       case 'oak': drawOak(ctx, p); break;

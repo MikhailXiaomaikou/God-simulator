@@ -418,9 +418,11 @@
     }
   }
 
+  // 幕布之后：清去上一卷残留的粒子、光环、名字（星座与甚好之星保留）
+  function clearTransient() { parts.length = 0; rings.length = 0; names.length = 0; bursts.length = 0; trace = []; }
   function reset() { parts.length = 0; rings.length = 0; names.length = 0; bursts.length = 0; trail.length = 0; trace = []; constellation = null; goodStar = null; }
 
   GS.fx = { init() { preloadFonts(); }, resize() {}, update, draw, reset, add, burst, ring, dust, sparkle, sow, name, nameStr, glyphPoints,
-    setConstellation, setGoodStar, setTrace, getConstellation: () => constellation,
+    setConstellation, setGoodStar, setTrace, getConstellation: () => constellation, clearTransient,
     get busyNames() { return names.length; } };
 })(window.GS);

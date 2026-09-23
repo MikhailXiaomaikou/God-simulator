@@ -173,6 +173,7 @@
       setTimeout(() => {
         GS.book.flush();
         GS.ui.clearNarration();
+        safe('fx.clear', () => GS.fx.clearTransient());
         enterAct(next);
         GS.ui.actCard(next, true);
         refreshHUD();
