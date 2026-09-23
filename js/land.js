@@ -1587,13 +1587,26 @@
     const invG = 1 / gustStep, lastG = gust.length - 2.001;
     const calm = W.ritual && W.ritual.holding ? 1 - 0.7 * W.ritual.charge : 1;
     const w0 = W.wind * 0.3 * calm, gk = 0.5 * calm;
-    let tone = -1;
+    // 近岸铺展面上的草簇摇得轻：隔帧重建，其余帧沿用
+    const TC = L.tc;
+    const reuse = all && TC && TC.pv === L.pv && (W.frame & 1) === 1 && W.frame - TC.f <= 2;
+    let tone = -1, pth = ctx, built = null;
+    const flush = () => {
+      if (tone < 0) return;
+      ctx.fillStyle = cols[tone];
+      if (pth === ctx) ctx.fill(); else { ctx.fill(pth); built[tone] = pth; }
+    };
     ctx.beginPath();
     for (let i = 0; i < n; i++) {
       const tn = B.tone[i];
       if (tn !== tone) {
-        if (tone >= 0) { ctx.fillStyle = cols[tone]; ctx.fill(); ctx.beginPath(); }
+        flush();
         tone = tn;
+        if (tn >= 2) {
+          if (reuse) { tone = -1; break; }
+          if (!built) built = [];
+          pth = new Path2D();
+        } else { pth = ctx; ctx.beginPath(); }
       }
       const x = B.x[i];
       let gr = 1;
@@ -1629,10 +1642,10 @@
       const w = B.w[i];
       const tx = x + bend * hh, ty = y - hh * (1 - 0.3 * bend * bend);
       const cx = x + bend * hh * 0.32, cy = y - hh * 0.58;
-      ctx.moveTo(x - w, y);
-      ctx.quadraticCurveTo(cx - w * 0.35, cy, tx, ty);
-      ctx.quadraticCurveTo(cx + w * 0.35, cy, x + w, y);
-      if (glowOn) {
+      pth.moveTo(x - w, y);
+      pth.quadraticCurveTo(cx - w * 0.35, cy, tx, ty);
+      pth.quadraticCurveTo(cx + w * 0.35, cy, x + w, y);
+      if (glowOn && tn < 2) {
         const gx = x - S.x, gy = y - S.y;
         if (gx < gR && gx > -gR && gy < gR && gy > -gR) {
           const o = i * 5;
@@ -1641,7 +1654,9 @@
         }
       }
     }
-    if (tone >= 0) { ctx.fillStyle = cols[tone]; ctx.fill(); }
+    flush();
+    if (built) L.tc = { f: W.frame, pv: L.pv, p: built };
+    else if (reuse) { for (let k = 2; k < 4; k++) if (TC.p[k]) { ctx.fillStyle = cols[k]; ctx.fill(TC.p[k]); } }
     // 夜里，灵照亮它身边的草尖
     if (ng) {
       ctx.beginPath();
