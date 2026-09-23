@@ -87,6 +87,13 @@
   let gust = new Float32Array(8), gustStep = 24;
   const fcache = { frame: -1, trees: [], perch: [], flowers: [] };
 
+  const PROF = { on: false, t: {} };
+  function pf(name, fn) {
+    if (!PROF.on) return fn();
+    const t0 = performance.now();
+    fn();
+    PROF.t[name] = (PROF.t[name] || 0) + performance.now() - t0;
+  }
   // ── 地形采样 ────────────────────────────────────────────────
   function ridgeAt(L, x) {
     const f = x / L.step;
@@ -338,7 +345,7 @@
             const rx = RR(0.04, 0.075) * (1 - 0.35 * edge) + 0.012;
             const ry = rx * RR(0.42, 0.62);
             const yy = y + edge * edge * 0.028 + RR(-0.014, 0.01) * (1 - edge * 0.5);
-            const tt = 0.34 + k * 0.022 + edge * 0.12 + R() * 0.03;   // 每层枝一抽出，叶便自内向外铺开（免得先成一根光杆）
+            const tt = 0.3 + k * 0.03 + edge * 0.1 + R() * 0.03;   // 每层枝一抽出，叶便自内向外铺开（免得先成一根光杆）
             blob(m, x, yy + ry * 0.7, rx * 1.12, ry * 1.1, RR(-0.3, 0.3), tt, 0);
             if (R() < 0.8) blob(m, x + RR(-0.01, 0.01), yy - ry * 0.1, rx, ry, RR(-0.3, 0.3), tt + 0.02, 1);
           }
@@ -542,11 +549,11 @@
 
   // ── 画一棵树（grow 0→1：先干，后冠，末了结果）─────────────────
   // 生长是一株幼苗长成大树（整体随 growScale 由小变大）：
-  //   枝干在 grow 0→0.34 间抽出，叶团在 0.22→0.78 间次第绽开，果子在 0.8→1 间结成。
+  //   枝干在 grow 0→0.34 间抽出，叶团在 0.1→0.74 间次第绽开，果子在 0.8→1 间结成。
   //   模型里各部件的 t 仍是原来的次序，这里只是把它们映射到这两段时间上——
   //   这样就不会出现"一根光秃秃的高杆子，然后才长叶"（像电线杆）的样子。
   const segT = g => (g >= 1 ? 1 : c01(g / 0.34) * 0.46);
-  const leafT = g => (g >= 1 ? 1 : 0.34 + c01((g - 0.22) / 0.56) * 0.62);
+  const leafT = g => (g >= 1 ? 1 : 0.3 + c01((g - 0.1) / 0.64) * 0.66);
   function growScale(g) {
     if (g >= 1) return 1;
     const x = c01(g / 0.9);
@@ -754,15 +761,16 @@
   const ODIR = [[-1, 0], [1, 0], [0, -1], [0, 1]];
   // 烘焙分阶段进行：昼 / 晨 / 昏 / 夜 四态各一步，剪影与四向轮廓一步——每帧只做预算内的几步，
   // 免得一棵树长成的那一帧卡顿。未烘完之前，树用生长快照来画。
-  function bakeBox(t, bsMax) {
+  function bakeBox(t, bsMax, k) {
     const m = t.model, H = t.H;
     const pad = 4 + (t.ripe ? 5 : 0);
     const bx0 = m.bx0 * H - pad, by0 = m.by0 * H - pad, bx1 = m.bx1 * H + pad, by1 = m.by1 * H + pad;
-    const bs = Math.min(W.dpr || 1, bsMax);
+    const bs = Math.min(W.dpr || 1, bsMax) * (k || 1);
     return { bx0, by0, bx1, by1, bs,
       cw: Math.max(2, Math.min(2048, Math.ceil((bx1 - bx0) * bs))), ch: Math.max(2, Math.min(2048, Math.ceil((by1 - by0) * bs))) };
   }
   function bakeStep(t) {
+    if (PROF.on) PROF.t.nBake = (PROF.t.nBake || 0) + 1;
     let J = t.job;
     if (!J || J.key !== bakeKey(t)) {
       if (J) for (const k in J.c) freeImg(J.c[k]);
@@ -836,7 +844,10 @@
   // 生长中的树：隔几帧重画一张全尺寸的快照，其余帧按此刻的 growScale 缩放着画——
   // 生长的大小始终平滑，只有叶团绽开的一瞬按快照的节奏；十几棵树同时生长也不必每帧逐棵现画
   function snapTree(t) {
-    const B = bakeBox(t, 1.25), m = t.model, H = t.H;
+    if (PROF.on) PROF.t.nSnap = (PROF.t.nSnap || 0) + 1;
+    // 快照的分辨率随此刻的大小：小树只需小图（绘制时本就缩小着画）
+    const sc = growScale(t.g);
+    const B = bakeBox(t, 1.25, Math.min(1, sc * 1.1 + 0.05)), m = t.model, H = t.H;
     const sf = surface(null, B.cw, B.ch), g = sf.g;
     g.setTransform(1, 0, 0, 1, 0, 0); g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
     g.clearRect(0, 0, B.cw, B.ch);
@@ -858,7 +869,7 @@
       if (baked) { if (t.snap) { freeImg(t.snap.img); t.snap = null; } continue; }
       const sn = t.snap;
       const st = !sn || sn.H !== t.H ? 9 : t.g - sn.g + (W.frame - sn.f) * 0.0002;
-      if (sn && sn.H === t.H && (t.g - sn.g < 0.004 && (sn.g >= 1 || W.frame - sn.f < 30))) continue;
+      if (sn && sn.H === t.H && (t.g - sn.g < 0.02 && (sn.g >= 1 || W.frame - sn.f < 45))) continue;
       SNAPC.push(st, t);
     }
     if (!SNAPC.length) return;
@@ -1415,8 +1426,8 @@
     updLight();
     if (W.t >= quietUntil) emitFronts(dt);
     updTrees();
-    processSnaps(0.5);
-    processBakes(0.9);
+    if (PROF.on) { pf('snaps', () => processSnaps(0.3)); pf('bakes', () => processBakes(0.45)); }
+    else { processSnaps(0.3); processBakes(0.45); }
     updDrift(dt);
     updDrops(dt);
     // 赐福第六日：遍地开花
@@ -2320,13 +2331,6 @@
     }
   }
 
-  const PROF = { on: false, t: {} };
-  function pf(name, fn) {
-    if (!PROF.on) return fn();
-    const t0 = performance.now();
-    fn();
-    PROF.t[name] = (PROF.t[name] || 0) + performance.now() - t0;
-  }
   function draw(ctx, pass) {
     const l = PASS_L[pass];
     if (l == null || !ready || W.lv.land <= 0) return;

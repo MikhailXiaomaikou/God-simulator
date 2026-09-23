@@ -206,7 +206,11 @@
   //  几何：局部坐标 → 屏幕；同一路径内所有子路径同向，才能以 nonzero 合并（与 beasts.js 同法）
   // ════════════════════════════════════════════════════════════
   const T = { x: 0, y: 0, s: 1, f: 1, a: 0, c: 1, n: 0 };
-  let PX = 0, PY = 0, IX = 0, IY = 0, CP = null;
+  let PX = 0, PY = 0, IX = 0, IY = 0;
+  // 路径不用 Path2D（慢）：记在一段命令缓冲里，再按组回放到 ctx（描光时整体回放一次）
+  //   0 moveTo x y · 1 lineTo x y · 2 ellipse cx cy rx ry rot（fill 自会闭合子路径，不必 closePath）
+  const CB = new Float64Array(16384);
+  let cbN = 0;
   function setT(x, y, s, f, rot) {
     T.x = x; T.y = y; T.s = s;
     T.f = Math.abs(f) < 0.14 ? (f < 0 ? -0.14 : 0.14) : f;
@@ -226,23 +230,35 @@
     const cr = Math.cos(r), sr = Math.sin(r), kx = Math.abs(T.f);
     const RX = Math.max(0.05, rx * T.s * Math.sqrt(kx * kx * cr * cr + sr * sr));
     const RY = Math.max(0.05, ry * T.s * Math.sqrt(kx * kx * sr * sr + cr * cr));
-    CP.moveTo(PX + RX * cr, PY + RX * sr);
-    CP.ellipse(PX, PY, RX, RY, r, 0, TAU);
-    CP.closePath();
+    if (cbN > 16300) return;
+    const big = RX > RY ? RX : RY;
+    if (big > 4.5) {
+      CB[cbN++] = 0; CB[cbN++] = PX + RX * cr; CB[cbN++] = PY + RX * sr;
+      CB[cbN++] = 2; CB[cbN++] = PX; CB[cbN++] = PY; CB[cbN++] = RX; CB[cbN++] = RY; CB[cbN++] = r;
+      return;
+    }
+    // 小的椭圆以多边形代之（便宜得多，看不出差别）；顺时针，与其余子路径同向
+    const U_ = big < 1.8 ? CIR5 : CIR8, n = U_.length >> 1;
+    for (let i = 0; i < n; i++) {
+      const ex = U_[2 * i] * RX, ey = U_[2 * i + 1] * RY;
+      CB[cbN++] = i ? 1 : 0; CB[cbN++] = PX + ex * cr - ey * sr; CB[cbN++] = PY + ex * sr + ey * cr;
+    }
   }
   const PB = new Float64Array(96);
+  const circ = n => { const a = new Float64Array(2 * n); for (let i = 0; i < n; i++) { a[2 * i] = Math.cos(i / n * TAU); a[2 * i + 1] = Math.sin(i / n * TAU); } return a; };
+  const CIR5 = circ(5), CIR8 = circ(8);
   function polyN(n) {
     for (let i = 0; i < n; i++) { tp(PB[2 * i], PB[2 * i + 1]); PB[2 * i] = PX; PB[2 * i + 1] = PY; }
     let area = 0;
     for (let i = 0; i < n; i++) { const j = i + 1 === n ? 0 : i + 1; area += PB[2 * i] * PB[2 * j + 1] - PB[2 * j] * PB[2 * i + 1]; }
+    if (cbN + 3 * n + 2 > 16380) return;
     if (area >= 0) {
-      CP.moveTo(PB[0], PB[1]);
-      for (let i = 1; i < n; i++) CP.lineTo(PB[2 * i], PB[2 * i + 1]);
+      CB[cbN++] = 0; CB[cbN++] = PB[0]; CB[cbN++] = PB[1];
+      for (let i = 1; i < n; i++) { CB[cbN++] = 1; CB[cbN++] = PB[2 * i]; CB[cbN++] = PB[2 * i + 1]; }
     } else {
-      CP.moveTo(PB[2 * n - 2], PB[2 * n - 1]);
-      for (let i = n - 2; i >= 0; i--) CP.lineTo(PB[2 * i], PB[2 * i + 1]);
+      CB[cbN++] = 0; CB[cbN++] = PB[2 * n - 2]; CB[cbN++] = PB[2 * n - 1];
+      for (let i = n - 2; i >= 0; i--) { CB[cbN++] = 1; CB[cbN++] = PB[2 * i]; CB[cbN++] = PB[2 * i + 1]; }
     }
-    CP.closePath();
   }
   function quad(x0, y0, x1, y1, x2, y2, x3, y3) { PB[0] = x0; PB[1] = y0; PB[2] = x1; PB[3] = y1; PB[4] = x2; PB[5] = y2; PB[6] = x3; PB[7] = y3; polyN(4); }
   function seg(x0, y0, x1, y1, w0, w1, cap) {
@@ -296,44 +312,152 @@
     IKF = Math.atan2(jx + dx - ex, jy + dy - ey);
   }
 
-  // 路径的分组：按次序填色；描光时把全部合并，向光偏移后先以边光之色填一遍
-  const OPS_P = [], OPS_K = [];
+  // 路径的分组：按次序填色；同色而相邻的组合并为一次填充；描光时把全部回放一遍，向光偏移，以边光之色先填
+  const G_KEY = [], G_A = [], G_B = [];
   let nOps = 0;
-  function op(key) { const p = new Path2D(); OPS_P[nOps] = p; OPS_K[nOps] = key; nOps++; CP = p; }
+  function op(key) { if (nOps) G_B[nOps - 1] = cbN; G_KEY[nOps] = key; G_A[nOps] = cbN; nOps++; }
+  function replay(ctx, a, b, dx, dy) {
+    for (let i = a; i < b;) {
+      const c = CB[i];
+      if (c === 0) { ctx.moveTo(CB[i + 1] + dx, CB[i + 2] + dy); i += 3; }
+      else if (c === 1) { ctx.lineTo(CB[i + 1] + dx, CB[i + 2] + dy); i += 3; }
+      else if (c === 2) { ctx.ellipse(CB[i + 1] + dx, CB[i + 2] + dy, CB[i + 3], CB[i + 4], CB[i + 5], 0, TAU); i += 6; }
+      else { ctx.closePath(); i += 1; }
+    }
+  }
   const COL = {}, CRGB = {};
+  const CSS = new Map();
+  function css(c) {
+    const r = c[0] < 0 ? 0 : c[0] > 255 ? 255 : c[0] | 0, g = c[1] < 0 ? 0 : c[1] > 255 ? 255 : c[1] | 0, b = c[2] < 0 ? 0 : c[2] > 255 ? 255 : c[2] | 0;
+    const k = (r << 16) | (g << 8) | b;
+    let v = CSS.get(k);
+    if (!v) { if (CSS.size > 4000) CSS.clear(); v = 'rgb(' + r + ',' + g + ',' + b + ')'; CSS.set(k, v); }
+    return v;
+  }
   function setCol(key, rgb, depth, extra, k) {
     const c = W.shade(rgb, depth, extra);
     if (k != null) { c[0] *= k; c[1] *= k; c[2] *= k; }
-    CRGB[key] = c; COL[key] = U.rgb(c[0], c[1], c[2]);
+    CRGB[key] = c; COL[key] = css(c);
   }
   // 自带光的颜色（天使）：一部分受环境光，一部分是自身的淡金
   function lumCol(key, rgb, depth, extra, lum, k) {
     const c = W.shade(rgb, depth, extra);
     for (let i = 0; i < 3; i++) c[i] = Math.min(255, lerp(c[i], rgb[i] * (i === 2 ? 0.88 : 0.96), lum) * (k || 1));
-    CRGB[key] = c; COL[key] = U.rgb(c[0], c[1], c[2]);
+    CRGB[key] = c; COL[key] = css(c);
   }
   function aliasCol(key, from) { COL[key] = COL[from]; CRGB[key] = CRGB[from]; }
-  const HAS_ADD = typeof Path2D !== 'undefined' && !!Path2D.prototype.addPath;
+  // 颜色每隔几帧才重算（光随时辰缓缓变化）
+  const PKEYS = ['robe', 'back', 'acc', 'hair', 'arm', 'prop', 'baby', 'wing', 'wingF'];
+  const AKEYS = ['body', 'head', 'far', 'dark', 'darkF', 'acc', 'pk1', 'pk2'];
+  function saveCols(cc, keys, ex, dp) {
+    cc = cc || { f: 0, ex: 0, dp: 0, s: {}, r: [0, 0, 0], rk: null };
+    for (let i = 0; i < keys.length; i++) cc.s[keys[i]] = COL[keys[i]];
+    const base = CRGB[keys[0]] || RC;
+    cc.r[0] = base[0]; cc.r[1] = base[1]; cc.r[2] = base[2];
+    cc.f = W.frame; cc.ex = ex; cc.dp = dp;
+    return cc;
+  }
+  function restoreCols(cc, keys) {
+    for (let i = 0; i < keys.length; i++) COL[keys[i]] = cc.s[keys[i]];
+    CRGB[keys[0]] = cc.r;
+  }
   const DBG = { noFill: false, noRim: false };
+  const RC = [0, 0, 0];
   function flushOps(ctx, rim, baseKey, after) {
-    if (DBG.noFill) { nOps = 0; return; }
+    if (nOps) G_B[nOps - 1] = cbN;
+    if (DBG.noFill || !nOps) { nOps = 0; cbN = 0; return; }
     if (DBG.noRim) rim = null;
-    if (rim && rim.a > 0.03 && nOps) {
-      const c = CRGB[baseKey] || [0, 0, 0], rc = rim.c, a = Math.min(1, rim.a);
-      ctx.fillStyle = U.rgb(c[0] + (rc[0] - c[0]) * a, c[1] + (rc[1] - c[1]) * a, c[2] + (rc[2] - c[2]) * a);
+    if (rim && rim.a > 0.03) {
+      const c = CRGB[baseKey] || RC, rc = rim.c, a = Math.min(1, rim.a);
+      RC[0] = c[0] + (rc[0] - c[0]) * a; RC[1] = c[1] + (rc[1] - c[1]) * a; RC[2] = c[2] + (rc[2] - c[2]) * a;
+      ctx.fillStyle = css(RC);
+      ctx.beginPath();
+      replay(ctx, 0, cbN, rim.dx, rim.dy);
+      ctx.fill();
+    }
+    let i = 0;
+    while (i < nOps) {
+      const col = COL[G_KEY[i]];
+      ctx.beginPath();
+      let j = i;
+      do { replay(ctx, G_A[j], G_B[j], 0, 0); j++; }
+      while (j < nOps && COL[G_KEY[j]] === col && !(after && (G_KEY[j - 1] === 'robe' || G_KEY[j] === 'robe')));
+      ctx.fillStyle = col;
+      ctx.fill();
+      if (after && G_KEY[j - 1] === 'robe') after(ctx);
+      i = j;
+    }
+    nOps = 0; cbN = 0;
+  }
+  // 发光（胸中的灵光、天使的光）：一层画完之后统一以 lighter 叠上，少切换合成模式
+  const GL = [];
+  let nGL = 0;
+  function glowAt(img, x, y, w, h, a) {
+    if (a < 0.004 || !img) return;
+    let g = GL[nGL];
+    if (!g) g = GL[nGL] = { img: null, x: 0, y: 0, w: 0, h: 0, a: 0 };
+    g.img = img; g.x = x; g.y = y; g.w = w; g.h = h; g.a = a > 1 ? 1 : a;
+    nGL++;
+  }
+  // 静止的人与牲畜：几何每隔几帧才重算一次（呼吸、张望本就缓慢），其余帧直接回放缓存的路径
+  function cacheSave(p, key0, key1, key2, key3, e0, e1, e2) {
+    if (nOps) G_B[nOps - 1] = cbN;
+    let c = p._cc;
+    if (!c || c.cb.length < cbN) c = p._cc = { _owner: p, cb: new Float64Array(Math.max(512, (cbN * 1.4) | 0)), n: 0, gk: [], ga: new Int32Array(32), gb: new Int32Array(32), gn: 0, f: 0, k0: 0, k1: 0, k2: 0, k3: 0, e0: 0, e1: 0, e2: 0 };
+    if (nOps > 32) { p._cc = null; return; }
+    c.cb.set(CB.subarray(0, cbN)); c.n = cbN; c.gn = nOps;
+    for (let i = 0; i < nOps; i++) { c.gk[i] = G_KEY[i]; c.ga[i] = G_A[i]; c.gb[i] = G_B[i]; }
+    c.f = W.frame; c.k0 = key0; c.k1 = key1; c.k2 = key2; c.k3 = key3; c.e0 = e0; c.e1 = e1; c.e2 = e2;
+    // 缓存为 Path2D：之后几帧只需 fill，不必逐条回放
+    c.paths = c.paths || [];
+    c.union = HAS_P2D ? new Path2D() : null;
+    for (let i = 0; i < nOps; i++) {
+      if (!HAS_P2D) { c.paths[i] = null; continue; }
+      const P = new Path2D();
+      replay(P, G_A[i], G_B[i], 0, 0);
+      replay(c.union, G_A[i], G_B[i], 0, 0);
+      c.paths[i] = P;
+    }
+  }
+  const HAS_P2D = typeof Path2D !== 'undefined';
+  // 以缓存的路径填色（描光：整体向光偏移先填一遍）
+  function flushCached(ctx, c, rim, baseKey) {
+    nOps = 0; cbN = 0;
+    if (DBG.noFill) return;
+    if (!c.union) { cacheLoad(c._owner); flushOps(ctx, rim, baseKey, null); return; }
+    if (DBG.noRim) rim = null;
+    if (rim && rim.a > 0.03) {
+      const col = CRGB[baseKey] || RC, rc = rim.c, a = Math.min(1, rim.a);
+      RC[0] = col[0] + (rc[0] - col[0]) * a; RC[1] = col[1] + (rc[1] - col[1]) * a; RC[2] = col[2] + (rc[2] - col[2]) * a;
+      ctx.fillStyle = css(RC);
       ctx.translate(rim.dx, rim.dy);
-      if (HAS_ADD) { const u = new Path2D(); for (let i = 0; i < nOps; i++) u.addPath(OPS_P[i]); ctx.fill(u); }
-      else for (let i = 0; i < nOps; i++) ctx.fill(OPS_P[i]);
+      ctx.fill(c.union);
       ctx.translate(-rim.dx, -rim.dy);
     }
     let last = null;
-    for (let i = 0; i < nOps; i++) {
-      const s = COL[OPS_K[i]];
-      if (s !== last) { ctx.fillStyle = s; last = s; }
-      ctx.fill(OPS_P[i]);
-      if (after && OPS_K[i] === 'robe') after(ctx, OPS_P[i]);
+    for (let i = 0; i < c.gn; i++) {
+      const col = COL[c.gk[i]];
+      if (col !== last) { ctx.fillStyle = col; last = col; }
+      ctx.fill(c.paths[i]);
     }
-    nOps = 0;
+  }
+  function cacheHit(p, key0, key1, key2, key3, K) {
+    const c = p._cc;
+    return !!c && W.frame - c.f < K && W.frame >= c.f && c.k0 === key0 && c.k1 === key1 && c.k2 === key2 && c.k3 === key3;
+  }
+  function cacheLoad(p) {
+    const c = p._cc;
+    CB.set(c.cb.subarray(0, c.n)); cbN = c.n; nOps = c.gn;
+    for (let i = 0; i < nOps; i++) { G_KEY[i] = c.gk[i]; G_A[i] = c.ga[i]; G_B[i] = c.gb[i]; }
+    return c;
+  }
+  function flushGlows(ctx) {
+    if (!nGL) return;
+    ctx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < nGL; i++) { const g = GL[i]; ctx.globalAlpha = g.a; ctx.drawImage(g.img, g.x, g.y, g.w, g.h); g.img = null; }
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 1;
+    nGL = 0;
   }
 
   // ── 光晕贴图 ────────────────────────────────────────────────
@@ -979,12 +1103,13 @@
       fUa = IKU; fFa = IKF;
     }
     const sl = p.angel || elder ? 1.12 : 1;                     // 袖宽
+    const hands = !lo && T.s >= 22;
     const arm = (jx, jy, ua, fa, bare, near) => {
       const ex = jx + Math.sin(ua) * A.UA, ey = jy + Math.cos(ua) * A.UA;
       const hx = ex + Math.sin(fa) * A.FA, hy = ey + Math.cos(fa) * A.FA;
       if (bare) limb(jx, jy, ex, ey, hx, hy, 0.052 * WK, 0.04 * WK, 0.03 * WK);
       else limb(jx, jy, ex, ey, hx, hy, 0.068 * WK * sl, 0.054 * WK * sl, 0.046 * WK * sl);
-      if (!lo) ell(hx + Math.sin(fa) * 0.014, hy + Math.cos(fa) * 0.014, 0.02 * WK, 0.024 * WK, -fa);
+      if (hands) ell(hx + Math.sin(fa) * 0.014, hy + Math.cos(fa) * 0.014, 0.02 * WK, 0.024 * WK, -fa);
       if (near) { HN[0] = hx; HN[1] = hy; HN[2] = fa; } else { HF[0] = hx; HF[1] = hy; }
     };
     const foot = (kx, ky, fxx, fyy, sh) => {
@@ -996,65 +1121,69 @@
     const robeK = bare ? 0 : p.angel ? 0.97 : woman ? (child ? 0.72 : 0.97) : child ? 0.3 : elder ? 0.85 : 0.55;
     const hemN = [nkx + Math.sin(Q[NSH]) * A.SH * robeK, nky + Math.cos(Q[NSH]) * A.SH * robeK];
     const hemF = [fkx + Math.sin(Q[FSH]) * A.SH * robeK, fky + Math.cos(Q[FSH]) * A.SH * robeK];
+    const headParts = () => {
+      seg(sx - ux * 0.012, sy - uy * 0.012, hcx - hux * hr * 0.6, hcy - huy * hr * 0.6, 0.046 * WK, 0.04 * WK);
+      ell(hcx, hcy, hr * 0.94, hr * 1.05, ha);
+      if (!lo) ell(hcx + hfx * hr * 0.36 - hux * hr * 0.22, hcy + hfy * hr * 0.36 - huy * hr * 0.22, hr * 0.6, hr * 0.62, ha);
+    };
 
-    // ── 远侧：翼、臂、腿 ──
-    if (p.wings) { op('wingF'); wing(p, sx, sy, ux, uy, fx, fy, -0.34); }
-    op('far');
-    arm(jfx, jfy, fUa, fFa, bare, false);
-    if (bare) { limb(-0.008, 0, fkx, fky, ffx, ffy, 0.1 * WK, 0.066 * WK, 0.042 * WK); if (!lo) foot(fkx, fky, ffx, ffy, Q[FSH]); }
-    else {
-      if (robeK < 0.95) seg(hemF[0], hemF[1], ffx, ffy, 0.044 * WK, 0.034 * WK);
-      if (!lo || robeK < 0.95) foot(fkx, fky, ffx, ffy, Q[FSH]);
-    }
-    // ── 背上的负载（在躯干之后）──
     const backLoad = (p.prop === 'wood' || p.prop === 'bundle') && !p.carry;
-    if (backLoad && upright > 0.5) { op('prop'); backProp(p.prop, Tl, ux, uy, fx, fy); }
-    // ── 发（长发垂于背后，短发是头后的一片暗）──
-    if (style === 'long' || (style === 'short' && !lo) || (elder && style !== 'veil' && style !== 'cloth')) {
+    const armSep = !!p.carry || (p.prop === 'coat' && !p.angel);
+    // ── 远侧的翼 ──
+    if (p.wings) { op('wingF'); wing(p, sx, sy, ux, uy, fx, fy, -0.34); }
+    // ── 发（长发垂于背后；近处的男子头后一片短发）──
+    const capHair = style === 'short' && !lo && T.s >= 24;
+    if (style === 'long' || capHair) {
       op('hair');
       if (style === 'long') {
-        const L = hr * (child ? 2.6 : 3.4), wind = (W.wind || 0) * 0.4 * (p.fd < 0 ? 1 : -1) - 0.5 * p.gait * 0.4;
+        const L = hr * (child ? 2.6 : 3.4), wind = (W.wind || 0) * 0.4 * (p.fd < 0 ? 1 : -1) - 0.2 * p.gait;
         for (let i = 0; i < 6; i++) {
           const t = i / 5;
           SP_[2 * i] = hcx - hfx * hr * (0.35 + 0.55 * t) - hux * L * t * 0.95 + wind * t * t * hr + Math.sin(W.t * 1.3 + p.phase * 9 + t * 2) * 0.12 * t * hr;
-          SP_[2 * i + 1] = hcy - hfy * hr * (0.35 + 0.55 * t) - huy * L * t * 0.95 + hr * 0.2 * (1 - t) * 0;
+          SP_[2 * i + 1] = hcy - hfy * hr * (0.35 + 0.55 * t) - huy * L * t * 0.95;
         }
         strand(SP_, 6, hr * 1.7, hr * 0.6);
         ell(hcx - hfx * hr * 0.16 + hux * hr * 0.1, hcy - hfy * hr * 0.16 + huy * hr * 0.1, hr * 1.1, hr * 1.12, ha);
       } else ell(hcx - hfx * hr * 0.2 + hux * hr * 0.16, hcy - hfy * hr * 0.2 + huy * hr * 0.16, hr * 1.02, hr * 1.0, ha);
     }
+    // ── 袍后：远侧的臂与腿；（着衣者）颈、头、近侧的小腿 ──
+    op('back');
+    arm(jfx, jfy, fUa, fFa, bare, false);
+    if (bare) { limb(-0.008, 0, fkx, fky, ffx, ffy, 0.1 * WK, 0.066 * WK, 0.042 * WK); if (!lo) foot(fkx, fky, ffx, ffy, Q[FSH]); }
+    else {
+      if (robeK < 0.95) seg(hemF[0], hemF[1], ffx, ffy, 0.044 * WK, 0.034 * WK);
+      if (!lo || robeK < 0.95) foot(fkx, fky, ffx, ffy, Q[FSH]);
+      headParts();
+      if (robeK < 0.95) seg(hemN[0], hemN[1], nfx, nfy, 0.046 * WK, 0.035 * WK);
+      foot(nkx, nky, nfx, nfy, Q[NSH]);
+    }
+    // ── 背上的负载（在躯干之后）──
+    if (backLoad && upright > 0.5) { op('prop'); backProp(p.prop, Tl, ux, uy, fx, fy); }
     // ── 袍：裙身随两腿、躯干 ──
     op('robe');
     const hipW = (woman ? 0.064 : 0.057) * WK, waW = (woman ? 0.044 : 0.05) * WK, chW = (woman ? 0.058 : 0.068) * WK, shW = (woman ? 0.054 : 0.07) * WK;
     if (!bare) {
       const flare = (woman || p.angel ? 0.15 : child ? 0.1 : elder ? 0.13 : 0.11) * WK + 0.02 * p.gait;
       const kw = (woman || p.angel ? 0.118 : 0.104) * WK;
-      limb(0.008, 0, nkx, nky, hemN[0], hemN[1], hipW * 2, kw, flare);
-      limb(-0.008, 0, fkx, fky, hemF[0], hemF[1], hipW * 2, kw, flare);
+      limb(0.008, 0, nkx, nky, hemN[0], hemN[1], hipW * 2, kw, flare, false);
+      limb(-0.008, 0, fkx, fky, hemF[0], hemF[1], hipW * 2, kw, flare, false);
       // 两腿之间的裙摆
       const nFront = hemN[0] >= hemF[0];
       const Fh = nFront ? hemN : hemF, Bh = nFront ? hemF : hemN;
       const wx = ux * Tl * 0.3, wy = uy * Tl * 0.3;
       quad(wx - fx * waW, wy - fy * waW, wx + fx * waW, wy + fy * waW, Fh[0] + flare * 0.45, Fh[1], Bh[0] - flare * 0.45, Bh[1]);
     }
-    // 躯干
+    // 躯干（肩头圆起）
     const pt = (t, w, side, i) => { PB[2 * i] = ux * Tl * t + fx * w * side; PB[2 * i + 1] = uy * Tl * t + fy * w * side; };
-    pt(0, hipW, -1, 0); pt(0.42, waW, -1, 1); pt(0.75, chW, -1, 2); pt(0.97, shW - 0.008, -1, 3);
-    pt(0.97, shW - 0.008, 1, 4); pt(0.7, chW + (woman ? 0.006 : 0), 1, 5); pt(0.42, waW, 1, 6); pt(0, hipW, 1, 7);
-    polyN(8);
-    ell(sx - ux * 0.022, sy - uy * 0.022, shW * 0.96, 0.032, lean);
+    pt(0, hipW, -1, 0); pt(0.42, waW, -1, 1); pt(0.75, chW, -1, 2); pt(0.95, shW - 0.004, -1, 3); pt(1.02, shW * 0.55, -1, 4);
+    pt(1.02, shW * 0.55, 1, 5); pt(0.95, shW - 0.004, 1, 6); pt(0.7, chW + (woman ? 0.006 : 0), 1, 7); pt(0.42, waW, 1, 8); pt(0, hipW, 1, 9);
+    polyN(10);
     if (elder && !lo) ell(sx * 0.78 - fx * 0.03, sy * 0.78 - fy * 0.03, 0.05 * WK, 0.06 * WK, lean);    // 驼背
-    if (lo && !bare) arm(jnx, jny, nUa, nFa, bare, true);
-    // ── 肤：颈、头、近侧的小腿与脚 ──
-    op('skin');
-    seg(sx - ux * 0.012, sy - uy * 0.012, hcx - hux * hr * 0.6, hcy - huy * hr * 0.6, 0.046 * WK, 0.04 * WK);
-    ell(hcx, hcy, hr * 0.94, hr * 1.05, ha);
-    if (!lo) ell(hcx + hfx * hr * 0.36 - hux * hr * 0.22, hcy + hfy * hr * 0.36 - huy * hr * 0.22, hr * 0.6, hr * 0.62, ha);
-    if (bare) { limb(0.008, 0, nkx, nky, nfx, nfy, 0.104 * WK, 0.068 * WK, 0.043 * WK); foot(nkx, nky, nfx, nfy, Q[NSH]); }
-    else {
-      if (robeK < 0.95) seg(hemN[0], hemN[1], nfx, nfy, 0.046 * WK, 0.035 * WK);
-      foot(nkx, nky, nfx, nfy, Q[NSH]);
+    if (bare) {
+      headParts();
+      limb(0.008, 0, nkx, nky, nfx, nfy, 0.104 * WK, 0.068 * WK, 0.043 * WK); foot(nkx, nky, nfx, nfy, Q[NSH]);
     }
+    if (!armSep) arm(jnx, jny, nUa, nFa, bare, true);
     // ── 头巾 / 包头 / 须 / 腰带 ──
     const beard = p.beardOpt != null ? p.beardOpt : (elder && !woman && !p.angel);
     if (style === 'veil' || style === 'cloth' || beard || (!woman && !bare && !child && !lo)) {
@@ -1100,7 +1229,7 @@
       }
     }
     // ── 近侧的臂（盖在躯干上）──
-    if (!lo || bare) { op(bare ? 'skin' : 'arm'); arm(jnx, jny, nUa, nFa, bare, true); }
+    if (armSep) { op('arm'); arm(jnx, jny, nUa, nFa, bare, true); }
     if (p.wings) { op('wing'); wing(p, sx, sy, ux, uy, fx, fy, 0.08); }
     // ── 手中之物 ──
     P_FLAME = null; P_SWORD = null;
@@ -1109,8 +1238,9 @@
       op('prop');
       handProp(p, Q, A, upright, grounded, jarOn, sx, sy, ux, uy, fx, fy);
     }
-    p._chestL = [ux * Tl * 0.68 + fx * 0.01, uy * Tl * 0.68 + fy * 0.01];
-    p._headL = [hcx, hcy];
+    const cL = p._chestL || (p._chestL = [0, 0]), hL = p._headL || (p._headL = [0, 0]);
+    cL[0] = ux * Tl * 0.68 + fx * 0.01; cL[1] = uy * Tl * 0.68 + fy * 0.01;
+    hL[0] = hcx; hL[1] = hcy;
   }
   const HN = [0, 0, 0], HF = [0, 0];
   let P_FLAME = null, P_SWORD = null;
@@ -1190,11 +1320,11 @@
 
   // 约瑟的彩衣：袍上一道道颜色（沿身体的轴线分段）
   let STRIPE_P = null;
-  function coatStripes(ctx, path) {
+  function coatStripes(ctx) {
     const s = STRIPE_P;
     if (!s) return;
     ctx.save();
-    ctx.clip(path);
+    ctx.clip();
     const n = COAT.length;
     for (let i = 0; i < n; i++) {
       const t0 = i / n, t1 = (i + 1) / n;
@@ -1210,43 +1340,61 @@
 
   function drawPerson(ctx, p, lo) {
     const h = p._h;
-    const Qv = computeQ(p);
-    let X = p._x, hipY;
-    if (p._seat) { X = p._seat[0]; hipY = p._seat[1]; }
-    else hipY = p._y - Qv[HIP] * h;
     const em = p.emerge < 1 ? easeOut(p.emerge) : 1;
-    let sink = 0;
-    if (p.from === 'dust' && em < 1) sink = (1 - em) * h * 0.95;
-    if (p.angel && !p._seat) hipY -= h * (0.07 + 0.02 * Math.sin(W.t * 1.1 + p.phase) + p.lift);
-    hipY += sink;
     const alpha = p.alpha * (p.from === 'light' ? 0.15 + 0.85 * em : 0.3 + 0.7 * em);
     if (alpha < 0.01) return;
     // 伸手的目标（世界坐标）
     targets(p);
-    setT(X, hipY, h, p.fd, Qv[ROT]);
-    nOps = 0;
-    buildPerson(p, Qv, lo);
+    const still = em >= 1 && p.poseT >= 1 && p.gait < 0.003 && p.sob < 0.003 && !p.angel && !p.wings && !p._seat &&
+      p.prop !== 'torch' && p.prop !== 'sword' && p.prop !== 'coat' && !(p._wN > 0) && !(p._wF > 0) &&
+      (p.holdW < 0.001 || p.holdW > 0.999) && !W.ritual.holding && p.pose !== 'wrestle' && p.pose !== 'embrace';
+    const lk = lo ? 1 : 0;
+    let X = p._x, hipY;
+    let hitC = null;
+    if (still && cacheHit(p, p._x, p._y, h, p.fd * 2 + lk, p.crowd ? 40 : 12)) {
+      hitC = p._cc;
+      hipY = hitC.e0;
+      setT(X, hipY, h, p.fd, hitC.e1);
+      P_FLAME = null; P_SWORD = null;
+    } else {
+      const Qv = computeQ(p);
+      if (p._seat) { X = p._seat[0]; hipY = p._seat[1]; }
+      else hipY = p._y - Qv[HIP] * h;
+      if (p.from === 'dust' && em < 1) hipY += (1 - em) * h * 0.95;
+      if (p.angel && !p._seat) hipY -= h * (0.07 + 0.02 * Math.sin(W.t * 1.1 + p.phase) + p.lift);
+      setT(X, hipY, h, p.fd, Qv[ROT]);
+      nOps = 0; cbN = 0;
+      buildPerson(p, Qv, lo);
+      if (still) cacheSave(p, p._x, p._y, h, p.fd * 2 + lk, hipY, Qv[ROT], 0);
+    }
+    const sink = p.from === 'dust' && em < 1 ? (1 - em) * h * 0.95 : 0;
     // 颜色
     const depth = W.LAYERS[p.layer] ? W.LAYERS[p.layer].depth : 0;
     const rim = rimAt(X, hipY - h * 0.3, true);
-    let ex = RIM.extra;
+    const ex = RIM.extra;
+    const pk = p.prop;
+    const cc = p._colc;
+    if (cc && W.frame - cc.f < 4 && W.frame >= cc.f && Math.abs(cc.ex - ex) < 0.015 && cc.dp === depth) restoreCols(cc, PKEYS);
+    else {
     if (p.angel) {
       const lum = 0.42 + 0.4 * W.night;
-      lumCol('robe', p.robe, depth, ex, lum); lumCol('far', p.robe, depth, ex, lum, 0.84);
-      lumCol('skin', ANGEL_SKIN, depth, ex, lum, 0.96); lumCol('acc', accentOf(p), depth, ex, lum, 1.02);
-      lumCol('wing', ANGEL_WING, depth, ex, lum); lumCol('wingF', ANGEL_WING, depth, ex, lum, 0.8);
+      lumCol('robe', p.robe, depth, ex, lum); lumCol('back', ANGEL_SKIN, depth, ex, lum, 0.86);
+      lumCol('acc', accentOf(p), depth, ex, lum, 1.02);
+      if (p.wings) { lumCol('wing', ANGEL_WING, depth, ex, lum); lumCol('wingF', ANGEL_WING, depth, ex, lum, 0.8); }
       rim.a = Math.max(rim.a * 0.6, 0.35 + 0.3 * W.night); rim.c[0] = 255; rim.c[1] = 240; rim.c[2] = 200;
+    } else if (p.bare) {
+      setCol('robe', SKIN, depth, ex); setCol('back', SKIN, depth, ex, 0.76);
+      setCol('acc', accentOf(p), depth, ex);
     } else {
-      const robe = p.bare ? SKIN : p.robe;
-      setCol('robe', robe, depth, ex); setCol('far', robe, depth, ex, 0.76);
-      setCol('skin', SKIN, depth, ex); setCol('acc', accentOf(p), depth, ex);
+      setCol('robe', p.robe, depth, ex); setCol('back', SKIN, depth, ex);
+      setCol('acc', accentOf(p), depth, ex);
     }
-    setCol('hair', p.age === 'elder' ? GREY : HAIR, depth, ex, p.age === 'elder' ? 0.85 : 1);
-    if (p.prop === 'coat' && !p.angel) { setCol('arm', COAT[1], depth, ex); }
-    else aliasCol('arm', 'robe');
-    const pk = p.prop;
-    setCol('prop', pk === 'jar' ? CLAY : pk === 'bundle' ? CLOTH : pk === 'sword' ? [200, 190, 170] : WOOD, depth, ex);
-    setCol('baby', p.carry === 'lamb' ? LAMB : SWADDLE, depth, ex + 0.05);
+    if (styleOf(p) === 'long' || (!lo && h >= 24)) setCol('hair', p.age === 'elder' ? GREY : HAIR, depth, ex, p.age === 'elder' ? 0.85 : 1);
+    if (pk === 'coat' && !p.angel) setCol('arm', COAT[1], depth, ex); else aliasCol('arm', 'robe');
+    if (pk) setCol('prop', pk === 'jar' ? CLAY : pk === 'bundle' ? CLOTH : pk === 'sword' ? [200, 190, 170] : WOOD, depth, ex);
+    if (p.carry) setCol('baby', p.carry === 'lamb' ? LAMB : SWADDLE, depth, ex + 0.05);
+    p._colc = saveCols(p._colc, PKEYS, ex, depth);
+    }
     // 彩衣
     STRIPE_P = null;
     if (pk === 'coat' && !p.angel) {
@@ -1256,7 +1404,7 @@
       STRIPE_P = { x0: sx0 - dx / L * h * 0.04, y0: sy0 - dy / L * h * 0.04, x1: hx0 + dx / L * h * 0.52, y1: hy0 + dy / L * h * 0.52, nx: -dy / L, ny: dx / L, w: h * 0.4, depth, extra: ex, odd: false };
     }
     ctx.globalAlpha = alpha;
-    const clip = sink > 0.5;
+    const clip = sink > 0.5;   // 自尘土升起：地面以下的部分不画
     if (clip) { ctx.save(); ctx.beginPath(); ctx.rect(X - h * 2, p._y - h * 3, h * 4, h * 3 + 0.5); ctx.clip(); }
     // 天使：身后柔和的光
     if (p.angel) {
@@ -1270,30 +1418,24 @@
       ctx.globalAlpha = alpha;
     }
     const lowRim = h < 9 || ((W.quality || 1) < 0.75 && (p.layer < 2 || p.crowd));
-    flushOps(ctx, lowRim ? null : rim, 'robe', STRIPE_P ? coatStripes : null);
+    if (hitC) flushCached(ctx, hitC, lowRim ? null : rim, 'robe');
+    else flushOps(ctx, lowRim ? null : rim, 'robe', STRIPE_P ? coatStripes : null);
     if (clip) ctx.restore();
-    // 胸中灵的微光（人）/ 头上的光（天使）
-    if (p.glow > 0.01 || p.angel) {
-      ctx.globalCompositeOperation = 'lighter';
-      if (p.angel) {
-        tp(p._headL[0], p._headL[1]);
-        const r = h * 0.2;
-        ctx.globalAlpha = alpha * (0.18 + 0.3 * W.night);
-        ctx.drawImage(glowSprite('pale', [255, 246, 222], 1), PX - r, PY - r, r * 2, r * 2);
-      } else {
-        tp(p._chestL[0], p._chestL[1]);
-        const g = p.glow * (0.45 + 0.55 * W.night + 0.2 * W.dusk);
-        const s = h * (0.5 + 0.12 * W.night);
-        ctx.globalAlpha = Math.min(1, alpha * g * 0.7);
-        ctx.drawImage(glowSprite('inner', INNER, 0.95), PX - s / 2, PY - s / 2, s, s);
-      }
-      if (p.from === 'light' && em < 1) {
-        tp(p._chestL[0], p._chestL[1]);
-        const r = h * (0.6 + (1 - em) * 0.8);
-        ctx.globalAlpha = (1 - em) * 0.8 * p.alpha;
-        ctx.drawImage(glowSprite('pale', [255, 246, 222], 1), PX - r, PY - r, r * 2, r * 2);
-      }
-      ctx.globalCompositeOperation = 'source-over';
+    // 胸中灵的微光（人）/ 头上的光（天使）：记下，整层画完再叠
+    if (p.angel) {
+      tp(p._headL[0], p._headL[1]);
+      const r = h * 0.2;
+      glowAt(glowSprite('pale', [255, 246, 222], 1), PX - r, PY - r, r * 2, r * 2, alpha * (0.18 + 0.3 * W.night));
+    } else if (p.glow > 0.01) {
+      tp(p._chestL[0], p._chestL[1]);
+      const g = p.glow * (0.45 + 0.55 * W.night + 0.2 * W.dusk);
+      const sz = h * (0.5 + 0.12 * W.night);
+      glowAt(glowSprite('inner', INNER, 0.95), PX - sz / 2, PY - sz / 2, sz, sz, alpha * g * 0.7);
+    }
+    if (p.from === 'light' && em < 1) {
+      tp(p._chestL[0], p._chestL[1]);
+      const r = h * (0.6 + (1 - em) * 0.8);
+      glowAt(glowSprite('pale', [255, 246, 222], 1), PX - r, PY - r, r * 2, r * 2, (1 - em) * 0.8 * p.alpha);
     }
     if (P_FLAME) drawFlame(ctx, P_FLAME[0], P_FLAME[1], h, alpha);
     if (P_SWORD) drawSword(ctx, h, alpha);
@@ -1400,11 +1542,8 @@
     flushOps(ctx, rim, 'baby');
     if (p.glow > 0.01) {
       tp(0, upright ? -0.15 : -0.05);
-      const s = H * 0.4;
-      ctx.globalCompositeOperation = 'lighter';
-      ctx.globalAlpha = Math.min(1, p.alpha * p.glow * (0.5 + 0.5 * W.night));
-      ctx.drawImage(glowSprite('inner', INNER, 0.95), PX - s / 2, PY - s / 2, s, s);
-      ctx.globalCompositeOperation = 'source-over';
+      const sz = H * 0.4;
+      glowAt(glowSprite('inner', INNER, 0.95), PX - sz / 2, PY - sz / 2, sz, sz, p.alpha * p.glow * (0.5 + 0.5 * W.night));
     }
     ctx.globalAlpha = 1;
   }
@@ -1412,6 +1551,7 @@
   // ════════════════════════════════════════════════════════════
   //  画牲畜：与 beasts.js 同一种剪影语言
   // ════════════════════════════════════════════════════════════
+  function seatAt(a, x, y) { const st = a._seatL || (a._seatL = [0, 0]); st[0] = x; st[1] = y; }
   function legQ(M, x0, y0, L, front, ph, A, g, lie) {
     const s = Math.sin(ph), c = Math.cos(ph);
     const th = A * s, lift = Math.max(0, c) * g;
@@ -1552,7 +1692,7 @@
     }
     if (M.tail === 'tuft') { op('dark'); ell(a._tuftX, a._tuftY + 0.5, 1.1, 1.6, 0); }
     // 骑者之座
-    a._seatL = M.key === 'donkey' ? [-bl * 0.02, by - bh * 0.5 - (a.pack ? 1.2 : 0)] : [-bl * 0.02, by - bh * 0.52];
+    seatAt(a, -bl * 0.02, M.key === 'donkey' ? by - bh * 0.5 - (a.pack ? 1.2 : 0) : by - bh * 0.52);
   }
   // 骆驼：长腿、宽蹄、单峰、弯颈
   function buildCamel(a) {
@@ -1613,7 +1753,7 @@
       ell(hx0 + rxh * 0.42, by + bh * 0.12, bl * 0.07, bh * 0.26, 0);
       seg(hx0 - rxh * 0.66, by + bh * 0.2, hx0 + rxh * 0.66, by + bh * 0.2, 1.0, 1.0);
     }
-    a._seatL = [-bl * 0.04, by - bh * (a.pack ? 1.08 : 1.0)];
+    seatAt(a, -bl * 0.04, by - bh * (a.pack ? 1.08 : 1.0));
   }
   // 车：两轮，辕向前（创 45:19）
   function buildWagon(a) {
@@ -1634,7 +1774,7 @@
       seg(-Math.cos(ang) * r, -r - Math.sin(ang) * r, Math.cos(ang) * r, -r + Math.sin(ang) * r, 0.9, 0.9);
     }
     ell(0, -r, 1.6, 1.6, 0);
-    a._seatL = [-2, -21.5];
+    seatAt(a, -2, -21.5);
   }
 
   function drawAnimal(ctx, a) {
@@ -1643,19 +1783,32 @@
     const alpha = a.alpha * (0.2 + 0.8 * em);
     if (alpha < 0.01) return;
     setT(a._x, a._y, s, a.fd, 0);
-    nOps = 0;
-    if (M.type === 'c') buildCamel(a); else if (M.type === 'w') buildWagon(a); else buildQuad(a);
+    const still = em >= 1 && a.gait < 0.003 && (a.lie < 0.002 || a.lie > 0.998);
+    let hitC = null;
+    if (still && cacheHit(a, a._x, a._y, s, a.fd, a.crowd ? 24 : 10)) {
+      hitC = a._cc;
+      a._seatL[0] = hitC.e0; a._seatL[1] = hitC.e1;
+    } else {
+      nOps = 0; cbN = 0;
+      if (M.type === 'c') buildCamel(a); else if (M.type === 'w') buildWagon(a); else buildQuad(a);
+      if (still) cacheSave(a, a._x, a._y, s, a.fd, a._seatL[0], a._seatL[1], 0);
+    }
     const rim = rimAt(a._x, a._y - M.top * s * 0.5, false);
     const ex = RIM.extra;
-    setCol('body', a.col, depth, ex); aliasCol('head', 'body');
-    setCol('far', a.col, depth, ex, 0.74);
-    setCol('dark', a.col2, depth, ex); setCol('darkF', a.col2, depth, ex, 0.72);
-    setCol('acc', a.acc, depth, ex + 0.05);
-    setCol('pk1', M.type === 'w' ? [196, 170, 128] : [150, 52, 46], depth, ex);
-    setCol('pk2', M.type === 'w' ? [150, 118, 84] : [58, 70, 112], depth, ex);
+    const cc = a._colc;
+    if (cc && W.frame - cc.f < 4 && W.frame >= cc.f && Math.abs(cc.ex - ex) < 0.015 && cc.dp === depth) restoreCols(cc, AKEYS);
+    else {
+      setCol('body', a.col, depth, ex); aliasCol('head', 'body');
+      setCol('far', a.col, depth, ex, 0.74);
+      setCol('dark', a.col2, depth, ex); setCol('darkF', a.col2, depth, ex, 0.72);
+      setCol('acc', a.acc, depth, ex + 0.05);
+      if (a.pack) { setCol('pk1', M.type === 'w' ? [196, 170, 128] : [150, 52, 46], depth, ex); setCol('pk2', M.type === 'w' ? [150, 118, 84] : [58, 70, 112], depth, ex); }
+      a._colc = saveCols(a._colc, AKEYS, ex, depth);
+    }
     if (a.layer === 1) rim.a *= 0.7;
     ctx.globalAlpha = alpha;
-    flushOps(ctx, (W.quality || 1) < 0.75 && a.layer < 2 ? null : rim, 'body');
+    const rimA = (W.quality || 1) < 0.75 && a.layer < 2 ? null : rim;
+    if (hitC) flushCached(ctx, hitC, rimA, 'body'); else flushOps(ctx, rimA, 'body');
     ctx.globalAlpha = 1;
     tp(a._seatL[0], a._seatL[1]);
     a._seatX = PX; a._seatY = PY; a._seatOK = true;
@@ -1690,8 +1843,8 @@
   }
   function drawShadows(ctx, list, pass) {
     if (LT.sh < 0.01) return;
-    const path = new Path2D();
     let any = false;
+    ctx.beginPath();
     const sunDx = clamp((W.sun.x - W.w * 0.5) / (W.w * 0.5), -1, 1) * (W.daylight > 0.3 ? 1 : 0);
     for (const e of list) {
       if (e.alpha < 0.3 || e.angel || e.mount || e.ny != null || e.attach) continue;
@@ -1704,14 +1857,14 @@
         if (LOW[q]) ox = (q === 'fall' ? 0.12 : -0.12) * e._h * (e.fd >= 0 ? 1 : -1);
       }
       ox -= sunDx * w * 0.25;
-      path.moveTo(e._x + ox + w, e._y + 0.5);
-      path.ellipse(e._x + ox, e._y + 0.5, w, Math.max(0.6, hh), 0, 0, TAU);
-      path.closePath();
+      ctx.moveTo(e._x + ox + w, e._y + 0.5);
+      ctx.ellipse(e._x + ox, e._y + 0.5, w, Math.max(0.6, hh), 0, 0, TAU);
+      ctx.closePath();
       any = true;
     }
     if (!any) return;
     ctx.fillStyle = U.rgba(8, 10, 16, LT.sh * (pass === 'near' ? 1 : 0.6));
-    ctx.fill(path);
+    ctx.fill();
   }
   function drawPools(ctx, list) {
     // 天使脚下的一片光
@@ -1744,12 +1897,13 @@
       if (p.isAnimal) { drawAnimal(ctx, p); continue; }
       if (p.mount) {
         const m = people.get(p.mount);
-        if (m && m._vis && m._seatOK) { p._seat = [m._seatX, m._seatY]; p._x = m._x; p._y = m._y; }
+        if (m && m._vis && m._seatOK) { const st = p._seatA || (p._seatA = [0, 0]); st[0] = m._seatX; st[1] = m._seatY; p._seat = st; p._x = m._x; p._y = m._y; }
       }
       if (p.age === 'baby') { drawBaby(ctx, p); continue; }
       const lo = p._h < 15 || (loQ && !!p.crowd);
       drawPerson(ctx, p, lo);
     }
+    flushGlows(ctx);
     ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = 'source-over';
   }

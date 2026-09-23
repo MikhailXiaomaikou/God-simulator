@@ -36,9 +36,9 @@
   const X = {
     spring: 0.405, shrub: 0.442, pieces: 0.47, sleep: 0.556, look: 0.575,
     moreh: 0.52, altarS: 0.548,                                   // 示剑
-    altarB: 0.6, tentB: 0.628, tentL: 0.656,                      // 伯特利
-    oakA: 0.675, tent: 0.72, oakB: 0.768, altarM: 0.8,            // 幔利（希伯仑）
-    cave: 0.855, tamarisk: 0.9, wellN: 0.95,
+    tentL: 0.575, altarB: 0.603, tentB: 0.632,                    // 伯特利
+    oakA: 0.672, tent: 0.742, oakB: 0.8, altarM: 0.83,            // 幔利（希伯仑）
+    cave: 0.875, tamarisk: 0.918, wellN: 0.958,
     // 中景（盐海岸边的平原）
     lotTent: 0.505, sodom: 0.53, gomorrah: 0.578, salt: 0.618, zoar: 0.668,
   };
@@ -76,11 +76,26 @@
   function relabel(id, label) { const f = fig(id); if (f) f.label = label; }
   function setAge(id, age, scale) { const f = fig(id); if (f) { f.age = age; if (scale != null) f.scale = scale; } }
   function glow(id, v) { if (has(id)) C().glow(id, v); }
-  function carry(id, p) {          // 手中之物（柴、火把、水瓶、包袱）——人物模块若支持则显出
+  function hold(id, p) {           // 手中之物（柴、火把、水瓶、包袱、帕子）
     const c = C();
     if (c.prop) { U.safe('cast.prop', () => c.prop(id, p || null)); return; }
     const f = fig(id); if (f) f.prop = p || null;
   }
+  function babe(id, what) {        // 怀中抱着婴孩
+    const c = C();
+    if (c.carry) { U.safe('cast.carry', () => c.carry(id, what || null)); return; }
+    const f = fig(id); if (f) f.carry = what || null;
+  }
+  const ride = (id, m) => { const c = C(); if (c.ride) U.safe('cast.ride', () => c.ride(id, m || null)); };
+  const embrace = (a, b, o) => { const c = C(); if (c.embrace) U.safe('cast.embrace', () => c.embrace(a, b, o)); else { pose(a, 'stand'); pose(b, 'stand'); } };
+  const attach = (id, fn) => { const c = C(); if (c.attach) c.attach(id, fn || null); };
+  // 羊群、牛群（人物模块若支持）
+  function herd(gid, o) {
+    const c = C();
+    if (!c.herd || hasCrowd(gid)) return;
+    U.safe('cast.herd', () => c.herd(gid, Object.assign({ from: W.replaying ? 'none' : 'fade' }, o)));
+  }
+  function mill(gid, on) { const c = C(); const g = c.crowds && c.crowds.get && c.crowds.get(gid); if (g) g.members.forEach(m => { m.mill = on; }); }
   // 牲口（人物模块若支持动物则有骆驼、驴、羊；否则只是不显出）
   function animal(id, kind, x, o) {
     const c = C();
@@ -98,6 +113,21 @@
     if (o.lot !== false) q('lot', -0.026);
     if (hasCrowd('hh')) C().crowdWalk('hh', clamp(x + 0.07 * d, 0.36, 1.12), clamp(x + 0.12 * d, 0.36, 1.14), { speed: sp });
     ANIMALS.forEach((id, i) => q(id, 0.085 + i * 0.026));
+    for (const [gid, a, b] of [['flock', 0.11, 0.17], ['flock2', 0.1, 0.19], ['herdC', 0.16, 0.22]]) {
+      if (hasCrowd(gid)) C().crowdWalk(gid, clamp(x + a * d, 0.36, 1.16), clamp(x + b * d, 0.36, 1.2), { speed: sp });
+    }
+  }
+
+  // 回到幔利的帐棚：各人各归其位；仆婢、骆驼、羊群在帐棚东边的草场
+  function home(o) {
+    o = o || {};
+    const sp = o.speed || 0.022, t = X.tent;
+    const q = (id, x) => walk(id, x, { speed: sp });
+    q('abram', t - 0.028); q('sarai', t + 0.016); q('hagar', t + 0.04); q('ishmael', t + 0.056); q('isaac', t + 0.028);
+    if (hasCrowd('hh')) C().crowdWalk('hh', t - 0.15, t - 0.11, { speed: sp });
+    q('cam1', t - 0.17); q('cam2', t - 0.195); q('cam3', t - 0.132); q('don1', t - 0.095);
+    if (hasCrowd('flock2')) C().crowdWalk('flock2', t - 0.28, t - 0.2, { speed: sp });
+    if (hasCrowd('herdC')) C().crowdWalk('herdC', t - 0.25, t - 0.19, { speed: sp });
   }
 
   // 旁白（情节里补充的经文；瞬间重演时不念）
@@ -155,6 +185,13 @@
     p.ta = 0; p.dying = true;
   }
   const getP = id => P.get(id) || null;
+  // 坛顶（柴上）的一点：以撒被放在坛的柴上（22:9）
+  function altarTop(id) {
+    const p = P.get(id);
+    if (!p) return null;
+    const s = LS(p.layer) * p.size, y = gY(p.layer, p.x) + 1.5 * s - 0.98 * 12 * s - (p.wood ? 4.5 * s : 0);
+    return [p.x * W.w, y];
+  }
 
   // 转瞬的光（不属于世界的状态；重演时不放）
   const FXL = [];
@@ -208,9 +245,13 @@
     },
     cave(p) {
       const r = U.mulberry32(p.seed + 99), pts = [];
-      for (let i = 0; i <= 12; i++) { const t = i / 12; pts.push([-1 + 2 * t, -Math.sin(t * Math.PI) * (0.78 + r() * 0.22) - (r() - 0.5) * 0.08]); }
-      const trees = [[-1.25, 0.7], [1.2, 0.85], [1.55, 0.6]];
-      return { pts, trees };
+      for (let i = 0; i <= 16; i++) { const t = i / 16; pts.push([-1.1 + 2.2 * t + (r() - 0.5) * 0.05, -Math.pow(Math.sin(t * Math.PI), 0.7) * (0.62 + r() * 0.3) * (t < 0.5 ? 1 : 0.8)]); }
+      pts[0][1] = 0; pts[16][1] = 0;
+      const rocks = [[-1.35, 0.22], [1.3, 0.28], [1.55, 0.16], [-1.6, 0.13]];
+      const trees = [[-1.95, 0.9], [1.95, 1.05], [2.3, 0.75]];
+      const cracks = [];
+      for (let i = 0; i < 5; i++) cracks.push([(r() - 0.5) * 1.4, -0.2 - r() * 0.4, (r() - 0.5) * 0.3, 0.1 + r() * 0.15]);
+      return { pts, trees, rocks, cracks };
     },
     tamarisk(p) {
       const r = U.mulberry32(p.seed + 5), strands = [];
@@ -572,7 +613,7 @@
       ctx.beginPath(); ctx.ellipse(x, y - 4.4 * s, 9.5 * s, 2.8 * s, 0, 0, TAU); ctx.fill();
       // 槽
       ctx.fillStyle = css([110, 96, 80], l);
-      ctx.fillRect(x + 17 * s, y - 2.5 * s, 16 * s, 3 * s);
+      ctx.fillRect(x - 33 * s, y - 2.5 * s, 16 * s, 3 * s);
     } else {
       // 泉：一汪水与几茎芦苇
       ctx.fillStyle = css([40, 62, 84], l, 0.95);
@@ -631,7 +672,7 @@
   }
 
   function drawCave(ctx, p) {
-    const l = p.layer, s = LS(l) * p.size, x = p.x * W.w, y = gY(l, p.x) + 4 * s, hw = 38 * s, h = 34 * s, m = p.model;
+    const l = p.layer, s = LS(l) * p.size, x = p.x * W.w, y = gY(l, p.x) + 4 * s, hw = 34 * s, h = 36 * s, m = p.model;
     ctx.globalAlpha = p.a;
     // 田间四围的树木
     ctx.fillStyle = css([42, 60, 40], l);
@@ -639,10 +680,17 @@
     for (const t of m.trees) { const tx = x + t[0] * hw, ty = gY(l, tx / W.w) + 2 * s, th = t[1] * h * 1.4; ctx.moveTo(tx, ty - th); ctx.quadraticCurveTo(tx + 5 * s, ty - th * 0.5, tx + 3 * s, ty); ctx.lineTo(tx - 3 * s, ty); ctx.quadraticCurveTo(tx - 5 * s, ty - th * 0.5, tx, ty - th); }
     ctx.fill();
     // 磐石
-    ctx.fillStyle = css([118, 104, 88], l);
+    ctx.fillStyle = css([112, 106, 98], l);
     ctx.beginPath();
     m.pts.forEach((q, i) => { const X1 = x + q[0] * hw, Y1 = y + q[1] * h; if (i) ctx.lineTo(X1, Y1); else ctx.moveTo(X1, Y1); });
     ctx.closePath(); ctx.fill();
+    ctx.beginPath();
+    for (const r of m.rocks) { const rx = x + r[0] * hw, rr = r[1] * h; ctx.moveTo(rx + rr * 1.3, y); ctx.ellipse(rx, y, rr * 1.3, rr, 0, Math.PI, 0); }
+    ctx.fill();
+    ctx.strokeStyle = css([70, 64, 58], l, 0.7); ctx.lineWidth = Math.max(0.6, 0.9 * s);
+    ctx.beginPath();
+    for (const c of m.cracks) { const cx = x + c[0] * hw, cy = y + c[1] * h; ctx.moveTo(cx, cy); ctx.lineTo(cx + c[2] * hw, cy + c[3] * h); }
+    ctx.stroke();
     const d = litX() >= x ? 1 : -1;
     ctx.strokeStyle = css([214, 196, 168], l, 0.45 * (0.3 + 0.7 * W.daylight), 0.2); ctx.lineWidth = Math.max(0.6, 1.2 * s);
     ctx.beginPath();
@@ -1117,8 +1165,8 @@
     W.setPop('fish', 110, W.w * 0.15, W.h * 0.8, true);
     W.setPop('whale', 2, W.w * 0.12, W.h * 0.78, true);
     W.setPop('bird', 34, W.w * 0.6, W.h * 0.3, true);
-    W.setPop('cattle', 8, lx, ly, true);
-    W.setPop('beast', 3, lx, ly, true);
+    W.setPop('cattle', 4, lx, ly, true);
+    W.setPop('beast', 2, lx, ly, true);
     W.setPop('creeper', 26, lx, ly, true);
     W.setPop('human', 0, lx, ly, true);
     resetScene();
@@ -1144,6 +1192,7 @@
     c.crowd('hh', { n: 4, x0: 0.92, x1: 0.99, layer: 2, label: '仆婢', from: 'none', mill: false });
     animal('cam1', 'camel', 0.975, { facing: -1 });
     animal('cam2', 'camel', 0.94, { facing: -1 });
+    herd('flock', { kind: 'sheep', n: 5, x0: 0.955, x1: 0.995, layer: 2, label: '羊群', from: 'none' });
   }
 
   // ════════════════════════════════════════════════════════════
@@ -1166,6 +1215,7 @@
           [4.5, () => { pose('abram', 'stand'); unprop('tH1'); unprop('tH2'); }],
           [6, b => {
             family(X.moreh + 0.03, { speed: 0.016 });
+            W.goTo(0.4, 20, b.instant);
             sfx(b, 'camel');
           }],
           [27, b => say(b, [{ text: '亚伯兰经过那地，到了示剑地方、摩利橡树那里。<br>那时迦南人住在那地。', ref: '创世记 12:6', hold: 6.5 }])],
@@ -1187,13 +1237,14 @@
           [1.2, () => pose('abram', 'kneel')],
           [2.5, b => { walk('abram', X.altarS - 0.018, { speed: 0.02 }); prop('altarS', 'altar', { x: X.altarS, grow: 1, label: '坛' }); sfx(b, 'build'); }],
           [6.5, b => { prop('altarS', null, { fire: 1 }); pose('abram', 'pray'); sfx(b, 'fire'); }],
-          [11, () => { pose('abram', 'stand'); family(X.tentB - 0.035, { speed: 0.02 }); }],
+          [11, b => { pose('abram', 'stand'); family(X.tentB - 0.035, { speed: 0.02 }); W.goTo(0.5, 12, b.instant); }],
           [15, b => { prop('tentB', 'tent', { x: X.tentB, label: '帐棚' }); prop('tentL', 'tent', { x: X.tentL, size: 0.85, label: '罗得的帐棚' }); prop('altarS', null, { fire: 0 }); sfx(b, 'build'); }],
           [17, () => { walk('abram', X.altarB - 0.018, { speed: 0.02 }); prop('altarB', 'altar', { x: X.altarB, grow: 1, label: '坛' }); }],
           [21, b => { prop('altarB', null, { fire: 1 }); pose('abram', 'pray'); sfx(b, 'fire'); }],
           // 饥荒：下埃及
           [26, b => { W.set('abDrought', 1, b.instant); prop('altarB', null, { fire: 0 }); say(b, [{ text: '那地遭遇饥荒。因饥荒甚大，<br>亚伯兰就下埃及去，要在那里暂居。', ref: '创世记 12:10', hold: 6.5 }]); }],
-          [29, () => { unprop('tentB'); unprop('tentL'); pose('abram', 'stand'); family(1.08, { speed: 0.024, dir: 1 }); walk('lot', 1.1, { speed: 0.024 }); }],
+          [29, () => { unprop('tentB'); unprop('tentL'); pose('abram', 'stand'); mill('flock', false); family(1.08, { speed: 0.024, dir: 1 }); walk('lot', 1.1, { speed: 0.024 }); }],
+          [44, () => { C().removeCrowd('flock'); }],
         ]);
       },
     },
@@ -1211,13 +1262,16 @@
           [3.2, b => { sfx(b, 'thunder'); }],
           [6, b => {
             W.set('abDrought', 0, b.instant);
+            W.goTo(0.64, 24, b.instant);
             // 从埃及上来：多了使女夏甲、骆驼、驴与牛羊
             if (!has('hagar')) add('hagar', { label: '夏甲', sex: 'f', age: 'adult', x: 1.1, facing: -1, robe: ROBE.hagar, glow: 0.15, from: 'none' });
             animal('cam3', 'camel', 1.14, { facing: -1 });
             animal('don1', 'donkey', 1.12, { facing: -1 });
-            family(X.tentB - 0.035, { speed: 0.03, lot: false });
             walk('lot', X.tentL + 0.02, { speed: 0.03 });
-            W.setPop('cattle', 14, W.w * 0.97, W.ridgeBaseY(2, W.w * 0.97), b.instant);
+            C().removeCrowd('flock');
+            herd('flock2', { kind: 'sheep', n: 7, x0: 1.12, x1: 1.2, layer: 2, label: '羊群' });
+            herd('herdC', { kind: 'cow', n: 3, x0: 1.16, x1: 1.24, layer: 2, label: '牛群' });
+            family(X.tentB - 0.035, { speed: 0.03, lot: false });
             sfx(b, 'camel');
           }],
           [19, b => { prop('tentB', 'tent', { x: X.tentB, label: '帐棚' }); prop('tentL', 'tent', { x: X.tentL, size: 0.85, label: '罗得的帐棚' }); prop('altarB', null, { fire: 1 }); walk('abram', X.altarB - 0.018, { speed: 0.02, pose: 'pray' }); sfx(b, 'fire'); }],
@@ -1235,8 +1289,11 @@
             walk('lot', 0.41, { speed: 0.022 });
             if (!hasCrowd('lh')) C().crowd('lh', { mill: false, n: 2, x0: X.tentL + 0.03, x1: X.tentL + 0.06, layer: 2, label: '罗得的牧人', from: W.replaying ? 'none' : 'fade' });
             C().crowdWalk('lh', 0.43, 0.46, { speed: 0.022 });
+            herd('lotflock', { kind: 'goat', n: 3, x0: X.tentL + 0.02, x1: X.tentL + 0.08, layer: 2, label: '罗得的羊群' });
+            mill('lotflock', false);
+            C().crowdWalk('lotflock', 0.42, 0.47, { speed: 0.022 });
           }],
-          [45, () => { rm('lot'); C().removeCrowd('lh'); }],
+          [45, () => { rm('lot'); C().removeCrowd('lh'); C().removeCrowd('lotflock'); }],
           [48, b => {
             add('lotM', { label: '罗得', sex: 'm', age: 'adult', layer: 1, x: X.lotTent + 0.025, facing: 1, robe: ROBE.lot, glow: 0.15, from: 'fade' });
             prop('tentLm', 'tent', { x: X.lotTent, layer: 1, size: 0.9, label: '罗得的帐棚' });
@@ -1256,7 +1313,7 @@
       ],
       apply(c) {
         T(c, [
-          [0.2, b => { beamOn(b, 'abram'); pose('abram', 'raise'); }],
+          [0.2, b => { beamOn(b, 'abram'); pose('abram', 'raise'); W.goTo(0.71, 10, b.instant); }],
           [1.2, b => {
             const f = fig('abram'), ax = f ? f.nx : X.tentB;
             flash(b, { type: 'sweep', l: 2, x0: ax, x1: 0.36, dur: 3.2 });
@@ -1277,7 +1334,7 @@
               fx().sparkle(x, W.ridgeBaseY(2, x) - 4, 6, [255, 236, 190], 20, 'near');
             }
           }],
-          [14, () => { pose('abram', 'stand'); unprop('tentB'); family(X.tent - 0.03, { speed: 0.022, lot: false }); }],
+          [14, () => { pose('abram', 'stand'); unprop('tentB'); home({ speed: 0.022 }); }],
           [22, b => { prop('tentM', 'tent', { x: X.tent, size: 1.08, label: '亚伯兰的帐棚' }); sfx(b, 'build'); }],
           [23, () => { walk('abram', X.altarM - 0.02, { speed: 0.02 }); prop('altarM', 'altar', { x: X.altarM, grow: 1, label: '坛' }); }],
           [27, b => { prop('altarM', null, { fire: 1 }); pose('abram', 'pray'); sfx(b, 'fire'); }],
@@ -1285,6 +1342,7 @@
           [33, b => {
             prop('altarM', null, { fire: 0 });
             prop('sodom', null, { fire: 0.55 });
+            W.goTo(0.79, 7, b.instant);
             flash(b, { type: 'battle', dur: 6 });
             sfx(b, 'crowd');
             unprop('tentLm');
@@ -1312,9 +1370,10 @@
             beamOn(b, 'abram', { dur: 4 });
             sfx(b, 'crowd');
           }],
-          [2.5, () => { walk('abram', 0.42, { speed: 0.045 }); C().crowdWalk('men', 0.43, 0.52, { speed: 0.045 }); }],
+          [2.5, b => { walk('abram', 0.42, { speed: 0.045 }); C().crowdWalk('men', 0.43, 0.52, { speed: 0.045 }); W.goTo(0.93, 6, b.instant); }],
           [7, b => { C().removeCrowd('men'); flash(b, { type: 'battle', dur: 5 }); prop('sodom', null, { fire: 0 }); }],
           [11, b => {
+            W.goTo(0.33, 7, b.instant);
             C().crowd('men2', { mill: false, n: 8, x0: 0.4, x1: 0.47, layer: 2, label: '精练的壮丁', robe: [96, 80, 66], from: b.instant ? 'none' : 'fade' });
             C().crowdWalk('men2', 0.45, 0.52, { speed: 0.03 });
             walk('abram', X.look + 0.012, { speed: 0.03 });
@@ -1322,7 +1381,7 @@
           }],
           [15, b => {
             add('mel', { label: '麦基洗德', sex: 'm', age: 'elder', x: X.moreh + 0.03, facing: -1, robe: ROBE.mel, glow: 0.6, from: 'light' });
-            carry('mel', 'jar');
+            hold('mel', 'jar');
             walk('mel', X.look + 0.036, { speed: 0.012 });
             face('abram', 1);
             sfx(b, 'harp');
@@ -1332,7 +1391,7 @@
             pose('mel', 'stand');
             if (!b.instant) { const a = headOf('abram', 14), m = headOf('mel', 18); const tg = []; for (let i = 0; i < 10; i++) tg.push([m[0] + rand(-4, 4), m[1] + rand(-4, 4), 1.6]); fx().sow(a[0], a[1], tg, [255, 222, 150], { stagger: 1.2, dur: 1.8, pass: 'top' }); }
           }],
-          [29, () => { pose('abram', 'stand'); rm('mel'); C().crowdWalk('men2', X.tent + 0.05, X.tent + 0.14, { speed: 0.025 }); family(X.tent - 0.03, { speed: 0.022, lot: false }); }],
+          [29, () => { pose('abram', 'stand'); rm('mel'); C().crowdWalk('men2', X.tent + 0.05, X.tent + 0.14, { speed: 0.025 }); home({ speed: 0.022 }); }],
           [37, b => { C().removeCrowd('men2'); W.goTo(0.76, 9, b.instant); }],
           [41, b => say(b, [{ text: '这事以后，耶和华在异象中有话对亚伯兰说：<br>「亚伯兰，你不要惧怕！我是你的盾牌，必大大地赏赐你。」', ref: '创世记 15:1', hold: 7 }])],
         ]);
@@ -1359,7 +1418,7 @@
         }
         T(c, [
           [0.5, () => { pose('abram', 'stand'); walk('abram', X.tent - 0.075, { speed: 0.018 }); }],
-          [5.5, () => { face('abram', -1); pose('abram', 'raise'); }],
+          [5.5, () => { face('abram', -1); pose('abram', 'gaze'); }],
           [9, b => sfx(b, 'harp')],
           [17, () => pose('abram', 'kneel')],
           [22, () => { S.bloom = false; }],
@@ -1392,7 +1451,7 @@
             sfx(b, 'seal');
           }],
           [31, () => { pose('abram', 'stand'); }],
-          [33, b => { W.goTo(0.3, 8, b.instant); family(X.tent - 0.03, { speed: 0.022, lot: false }); }],
+          [33, b => { W.goTo(0.3, 8, b.instant); home({ speed: 0.022 }); }],
           // 16:1—6 撒莱与夏甲；夏甲逃走
           [37, b => say(b, [{ text: '亚伯兰的妻子撒莱不给他生儿女。<br>撒莱有一个使女，名叫夏甲，是埃及人。', ref: '创世记 16:1', hold: 6 }])],
           [43, b => {
@@ -1419,10 +1478,9 @@
           }],
           [4, () => { pose('hagar', 'kneel'); face('hagar', 1); }],
           [13, b => { prop('spring', null, { lit: 0.3, label: '庇耳拉海莱' }); rm('angel'); if (!b.instant) fx().sparkle((X.spring + 0.058) * W.w, gY(2, X.spring + 0.058) - 20 * LS(2), 30, [255, 244, 220], 14, 'top'); }],
-          [15, () => { pose('hagar', 'stand'); walk('hagar', X.tent + 0.046, { speed: 0.028 }); }],
+          [15, b => { pose('hagar', 'stand'); walk('hagar', X.tent + 0.046, { speed: 0.028 }); W.goTo(0.42, 12, b.instant); }],
           [27, b => {
-            add('ishmael', { label: '以实玛利', sex: 'm', age: 'baby', x: X.tent + 0.058, facing: -1, robe: ROBE.ishmael, glow: 0.3, from: 'light' });
-            pose('hagar', 'carry');
+            babe('hagar', 'baby');
             if (!b.instant) fx().ring((X.tent + 0.05) * W.w, gY(2, X.tent + 0.05) - 12 * LS(2), [255, 236, 200], M() * 0.25, 2, 2);
             say(b, [{ text: '后来夏甲给亚伯兰生了一个儿子；亚伯兰给他起名叫以实玛利。', ref: '创世记 16:15', hold: 6 }]);
           }],
@@ -1439,8 +1497,9 @@
       ],
       apply(c) {
         // 十三年过去了
-        setAge('abram', 'elder'); setAge('sarai', 'elder'); setAge('ishmael', 'child', 1.1);
-        pose('hagar', 'stand');
+        setAge('abram', 'elder'); setAge('sarai', 'elder');
+        babe('hagar', null);
+        if (!has('ishmael')) add('ishmael', { label: '以实玛利', sex: 'm', age: 'child', scale: 1.12, x: X.tent + 0.062, facing: -1, robe: ROBE.ishmael, glow: 0.2, from: c.instant ? 'none' : 'fade' });
         T(c, [
           [0.1, b => { beamOn(b, 'abram', { dur: 7, w: 110, r: 0.6 }); if (!b.instant) W.flash = 0.45; sfx(b, 'harp'); }],
           [1.1, () => pose('abram', 'fall')],
@@ -1511,16 +1570,16 @@
         { text: '撒拉心里暗笑，说：<br>「我既已衰败，我主也老迈，岂能有这喜事呢？」', ref: '创世记 18:12', hold: 6.5 },
       ],
       apply(c) {
-        const vx = [X.oakA - 0.016, X.oakA + 0.004, X.oakA + 0.024];
+        const vx = [X.oakA - 0.032, X.oakA - 0.013, X.oakA + 0.006];
         T(c, [
           [0, b => {
             W.goTo(0.5, 3, b.instant);
             ['v1', 'v2', 'v3'].forEach((id, i) => add(id, { label: '三人', sex: 'm', age: 'adult', x: vx[i], facing: 1, robe: ROBE.angel, glow: 0.75, angel: true, from: 'light' }));
             sfx(b, 'harp');
           }],
-          [8, () => { pose('abram', 'stand'); walk('abram', X.oakA + 0.05, { speed: 0.06, pose: 'bow' }); face('abram', -1); }],
+          [8, () => { pose('abram', 'stand'); walk('abram', X.oakA + 0.028, { run: true, speed: 0.08, pose: 'fall' }); face('abram', -1); }],
           [13, () => { ['v1', 'v2', 'v3'].forEach(id => pose(id, 'sit')); pose('abram', 'stand'); walk('abram', X.tent - 0.012, { speed: 0.05 }); }],
-          [15.5, () => { walk('abram', X.oakA + 0.048, { speed: 0.04, pose: 'carry' }); }],
+          [15.5, () => { walk('abram', X.oakA + 0.03, { speed: 0.04, pose: 'carry' }); }],
           [19, () => { pose('abram', 'stand'); face('abram', -1); walk('sarai', X.tent + 0.014, { speed: 0.02 }); face('sarai', -1); }],
           [18.5, b => { if (!b.instant) { const h = headOf('v2', 20); fx().sparkle(h[0], h[1], 18, [255, 240, 210], 10, 'top'); } }],
           [26, b => { sfx(b, 'laugh'); if (!b.instant) { const h = headOf('sarai', 16); fx().sparkle(h[0], h[1], 14, [255, 226, 180], 8, 'top'); } pose('sarai', 'bow'); }],
@@ -1546,7 +1605,8 @@
           }],
           [3, () => { pose('sarai', 'bow'); }],
           [8, () => { pose('sarai', 'stand'); glow('sarai', 0.5); prop('tentM', null, { lit: 0.35 }); }],
-          [13, () => {
+          [13, b => {
+            W.goTo(0.63, 14, b.instant);
             ['v1', 'v2', 'v3'].forEach((id, i) => { pose(id, 'stand'); walk(id, X.look - 0.02 - i * 0.02, { speed: 0.024 }); });
             walk('abram', X.look + 0.012, { speed: 0.024 });
           }],
@@ -1579,7 +1639,7 @@
         }]);
         T(c, steps.concat([
           [23, b => { pose('abram', 'stand'); rm('v1'); if (!b.instant) { const h = headOf('v1', 18); fx().sparkle(h[0], h[1], 36, [255, 244, 220], 16, 'top'); } }],
-          [24.5, b => { family(X.tent - 0.03, { speed: 0.022, lot: false }); say(b, [{ text: '耶和华与亚伯拉罕说完了话就走了；<br>亚伯拉罕也回到自己的地方去了。', ref: '创世记 18:33', hold: 5.5 }]); }],
+          [24.5, b => { home({ speed: 0.022 }); say(b, [{ text: '耶和华与亚伯拉罕说完了话就走了；<br>亚伯拉罕也回到自己的地方去了。', ref: '创世记 18:33', hold: 5.5 }]); }],
           [28, b => { W.goTo(0.77, 8, b.instant); }],
           [33, b => {
             add('a2', { label: '天使', sex: 'm', age: 'adult', layer: 1, x: X.sodom + 0.05, facing: -1, robe: ROBE.angel, glow: 0.8, angel: true, from: 'light' });
@@ -1639,7 +1699,7 @@
           [31, b => { face('abram', -1); say(b, [{ text: '亚伯拉罕清早起来，……向所多玛和蛾摩拉与平原的全地观看，<br>不料，那地方烟气上腾，如同烧窑一般。', ref: '创世记 19:27–28', hold: 7 }]); }],
           [36, () => { walk('lotM', 0.75, { speed: 0.014 }); walk('d1', 0.76, { speed: 0.014 }); walk('d2', 0.77, { speed: 0.014 }); }],
           [39, b => say(b, [{ text: '当神毁灭平原诸城的时候，他纪念亚伯拉罕，<br>正在倾覆罗得所住之城的时候，就打发罗得从倾覆之中出来。', ref: '创世记 19:29', hold: 7 }])],
-          [44, () => { rm('lotM'); rm('d1'); rm('d2'); family(X.tent - 0.03, { speed: 0.02, lot: false }); }],
+          [44, b => { rm('lotM'); rm('d1'); rm('d2'); home({ speed: 0.02 }); W.goTo(0.4, 10, b.instant); }],
           [47, b => { W.set('abSmoke', 0.4, b.instant); prop('sodom', null, { fire: 0 }); prop('gomorrah', null, { fire: 0 }); say(b, [{ text: '亚伯拉罕从那里向南地迁去，<br>寄居在加低斯和书珥中间的基拉耳。', ref: '创世记 20:1', hold: 5.5 }]); }],
           [54, b => say(b, [{ text: '亚伯拉罕祷告神，神就医好了亚比米勒和他的妻子，<br>并他的众女仆，她们便能生育。', ref: '创世记 20:17', hold: 6 }])],
         ]);
@@ -1659,32 +1719,33 @@
         T(c, [
           [0.1, b => { W.goTo(0.42, 4, b.instant); W.set('abSmoke', 0.25, b.instant); walk('sarai', X.tent + 0.014, { speed: 0.03 }); beamOn(b, 'sarai', { dur: 6 }); sfx(b, 'harp'); }],
           [1.8, b => {
-            add('isaac', { label: '以撒', sex: 'm', age: 'baby', x: X.tent + 0.024, facing: -1, robe: ROBE.isaac, glow: 0.7, from: 'light' });
-            pose('sarai', 'carry');
+            babe('sarai', 'baby');
+            glow('sarai', 0.8);
             prop('tentM', null, { lit: 0.6 });
           }],
           [3.5, () => { walk('abram', X.tent - 0.004, { speed: 0.03, pose: 'raise' }); }],
           [13.5, b => {
             if (b.instant) return;
-            const sz = M() * 0.06, at = nameAt(X.tent, W.h * 0.4, sz, 2), h = headOf('isaac', 10);
+            const sz = M() * 0.06, at = nameAt(X.tent, W.h * 0.4, sz, 2), h = headOf('sarai', 14);
             fx().nameStr('以撒', at[0], at[1], sz, [255, 226, 150], () => [h[0] + rand(-30, 30), h[1] + rand(-16, 8), [255, 230, 170]], { hold: 3 });
           }],
           [21, b => { sfx(b, 'laugh'); if (!b.instant) { for (let i = 0; i < 5; i++) { const x = (X.tent + rand(-0.06, 0.08)) * W.w; fx().sparkle(x, gY(2, x / W.w) - 30 * LS(2), 10, [255, 232, 180], 20, 'top'); } } pose('abram', 'stand'); }],
           // 断奶的筵席；夏甲与以实玛利被打发走
           [27, b => {
-            setAge('isaac', 'child', 0.8); pose('sarai', 'stand'); prop('tentM', null, { lit: 0.3 });
+            babe('sarai', null); glow('sarai', 0.4); prop('tentM', null, { lit: 0.3 });
+            add('isaac', { label: '以撒', sex: 'm', age: 'child', scale: 0.8, x: X.tent + 0.03, facing: -1, robe: ROBE.isaac, glow: 0.5, from: b.instant ? 'none' : 'fade' });
             C().crowd('feast', { n: 6, x0: X.tent + 0.07, x1: X.tent + 0.17, layer: 2, label: '赴筵的人', from: b.instant ? 'none' : 'fade' });
             sfx(b, 'crowd');
             say(b, [{ text: '孩子渐长，就断了奶。<br>以撒断奶的日子，亚伯拉罕设摆丰盛的筵席。', ref: '创世记 21:8', hold: 5.5 }]);
           }],
           [34, b => {
             C().removeCrowd('feast');
-            carry('hagar', 'bundle');
+            hold('hagar', 'bundle');
             say(b, [{ text: '亚伯拉罕清早起来，拿饼和一皮袋水，给了夏甲，搭在她的肩上，<br>又把孩子交给她，打发她走。<br>夏甲就走了，在别是巴的旷野走迷了路。', ref: '创世记 21:14', hold: 8 }]);
             pose('hagar', 'stand');
             walk('hagar', X.shrub - 0.005, { speed: 0.02 }); walk('ishmael', X.shrub + 0.012, { speed: 0.02 });
           }],
-          [50, () => { pose('ishmael', 'lie'); walk('hagar', X.spring + 0.028, { speed: 0.012, pose: 'sit' }); face('hagar', 1); prop('spring', null, { lit: 0 }); }],
+          [50, () => { pose('ishmael', 'lie'); walk('hagar', X.spring + 0.028, { speed: 0.012, pose: 'sit' }); pose('hagar', 'sit', { weep: true }); face('hagar', 1); prop('spring', null, { lit: 0 }); }],
         ]);
       },
     },
@@ -1700,16 +1761,17 @@
       apply(c) {
         T(c, [
           [0, b => { walk('ishmael', X.shrub + 0.012, { speed: 0.04, pose: 'lie' }); walk('hagar', X.spring + 0.028, { speed: 0.04, pose: 'sit' }); beam(b, X.spring + 0.026, 2, { dur: 7, w: 90 }); sfx(b, 'harp'); }],
-          [2, b => { pose('hagar', 'stand'); prop('spring', null, { lit: 1 }); if (!b.instant) fx().sparkle(X.spring * W.w, gY(2, X.spring), 30, [220, 240, 255], 14, 'top'); sfx(b, 'splash'); }],
+          [2, b => { pose('hagar', 'stand', { weep: false }); prop('spring', null, { lit: 1 }); if (!b.instant) fx().sparkle(X.spring * W.w, gY(2, X.spring), 30, [220, 240, 255], 14, 'top'); sfx(b, 'splash'); }],
           [3.5, () => { walk('hagar', X.spring + 0.012, { speed: 0.02, pose: 'kneel' }); }],
           [8, () => { walk('hagar', X.shrub - 0.004, { speed: 0.02, pose: 'kneel' }); }],
           [11.5, () => { pose('ishmael', 'stand'); face('ishmael', -1); }],
           [15, b => { setAge('ishmael', 'adult', 1); if (!b.instant) { const h = headOf('ishmael', 16); fx().sparkle(h[0], h[1], 26, [255, 236, 190], 14, 'top'); } pose('hagar', 'stand'); prop('spring', null, { lit: 0.35 }); }],
-          [19, () => { walk('ishmael', 0.37, { speed: 0.014 }); walk('hagar', 0.355, { speed: 0.014 }); carry('hagar', null); }],
+          [19, () => { walk('ishmael', 0.37, { speed: 0.014 }); walk('hagar', 0.355, { speed: 0.014 }); hold('hagar', null); }],
           [25, b => {
             rm('ishmael'); rm('hagar');
             walk('abram', X.tamarisk - 0.02, { speed: 0.02 });
             prop('tamarisk', 'tamarisk', { x: X.tamarisk, grow: 1, label: '垂丝柳树' });
+            W.goTo(0.56, 12, b.instant);
             say(b, [{ text: '亚伯拉罕在别是巴栽上一棵垂丝柳树，<br>又在那里求告耶和华永生神的名。', ref: '创世记 21:33', hold: 6 }]);
           }],
           [30, () => pose('abram', 'pray')],
@@ -1735,7 +1797,7 @@
             pose('abram', 'stand');
             setAge('isaac', 'adult', 0.84);
             C().crowd('sv', { mill: false, n: 2, x0: X.tent + 0.03, x1: X.tent + 0.06, layer: 2, label: '仆人', from: b.instant ? 'none' : 'fade' });
-            carry('isaac', 'wood'); carry('abram', 'torch');
+            hold('isaac', 'wood'); hold('abram', 'torch');
           }],
           [9, b => {
             walk('abram', 0.9, { speed: 0.015 }); walk('isaac', 0.915, { speed: 0.015 });
@@ -1762,14 +1824,15 @@
             rm('abram', true); rm('isaac', true);
             add('abramM', { label: '亚伯拉罕', sex: 'm', age: 'elder', layer: 1, x: 1.03, facing: -1, robe: ROBE.abram, glow: 0.4, from: b.instant ? 'none' : 'fade' });
             add('isaacM', { label: '以撒', sex: 'm', age: 'adult', layer: 1, x: 1.05, facing: -1, robe: ROBE.isaac, glow: 0.35, scale: 0.84, from: b.instant ? 'none' : 'fade' });
-            carry('isaacM', 'wood'); carry('abramM', 'torch');
+            hold('isaacM', 'wood'); hold('abramM', 'torch');
             walk('abramM', mo + 0.018, { speed: 0.02 }); walk('isaacM', mo + 0.034, { speed: 0.02 });
           }],
           [37, b => say(b, [{ text: '以撒对他父亲亚伯拉罕说：「父亲哪！」亚伯拉罕说：「我儿，我在这里。」<br>以撒说：「请看，火与柴都有了，但燔祭的羊羔在哪里呢？」', ref: '创世记 22:7', hold: 7.5 }])],
           [45.5, b => say(b, [{ text: '亚伯拉罕说：「我儿，神必自己预备作燔祭的羊羔。」<br>于是二人同行。', ref: '创世记 22:8', hold: 6 }])],
-          [48, b => { prop('altarMo', 'altar', { x: mo, layer: 1, grow: 1, wood: 1, size: 1.2, label: '坛' }); carry('isaacM', null); sfx(b, 'build'); }],
+          [48, b => { prop('altarMo', 'altar', { x: mo, layer: 1, grow: 1, wood: 1, size: 1.2, label: '坛' }); hold('isaacM', null); sfx(b, 'build'); }],
           [53, b => {
             walk('isaacM', mo, { speed: 0.01, pose: 'lie' });
+            attach('isaacM', () => altarTop('altarMo'));
             walk('abramM', mo + 0.02, { speed: 0.01, pose: 'raise' });
             face('abramM', -1);
             say(b, [{ text: '他们到了神所指示的地方，亚伯拉罕在那里筑坛，把柴摆好，<br>捆绑他的儿子以撒，放在坛的柴上。', ref: '创世记 22:9', hold: 7 }]);
@@ -1792,7 +1855,7 @@
         T(c, [
           [0, b => { beam(b, mo, 1, { dur: 8, w: 120, r: 0.7 }); if (!b.instant) W.flash = 0.6; sfx(b, 'harp'); }],
           [1.4, () => { pose('abramM', 'kneel'); }],
-          [4.5, () => { pose('isaacM', 'stand'); pose('abramM', 'stand'); pose('abramM', 'embrace'); pose('isaacM', 'embrace'); face('isaacM', 1); }],
+          [4.5, () => { attach('isaacM', null); pose('isaacM', 'stand'); pose('abramM', 'stand'); embrace('abramM', 'isaacM'); }],
           [9, b => {
             prop('thicket', 'thicket', { x: mo + 0.036, layer: 1, label: '稠密的小树' });
             prop('ram', 'ram', { x: mo + 0.036, layer: 1, label: '公羊' });
@@ -1827,7 +1890,7 @@
             rm('abramM', true); rm('isaacM', true); prop('altarMo', null, { fire: 0 });
             add('abram', { label: '亚伯拉罕', sex: 'm', age: 'elder', x: 1.04, facing: -1, robe: ROBE.abram, glow: 0.45, from: b.instant ? 'none' : 'fade' });
             add('isaac', { label: '以撒', sex: 'm', age: 'adult', x: 1.06, facing: -1, robe: ROBE.isaac, glow: 0.4, scale: 0.84, from: b.instant ? 'none' : 'fade' });
-            carry('abram', null); carry('isaac', null);
+            hold('abram', null); hold('isaac', null);
             walk('abram', X.tent - 0.03, { speed: 0.022 }); walk('isaac', X.tent - 0.05, { speed: 0.022 });
             C().crowdWalk('sv', X.tent + 0.1, X.tent + 0.14, { speed: 0.022 });
             walk('don1', X.tent + 0.17, { speed: 0.022 });
@@ -1850,10 +1913,10 @@
         T(c, [
           [0, b => { W.goTo(0.745, 6, b.instant); walk('sarai', X.tent + 0.02, { speed: 0.02, pose: 'lie' }); glow('sarai', 0.25); }],
           [3, b => { walk('abram', X.tent + 0.042, { speed: 0.02, pose: 'kneel' }); face('abram', -1); walk('isaac', X.tent - 0.012, { speed: 0.02, pose: 'kneel' }); sfx(b, 'weep'); }],
-          [7, () => { pose('abram', 'weep'); }],
+          [7, () => { pose('abram', 'kneel', { weep: true }); }],
           [12, b => {
             C().crowd('heth', { n: 5, x0: X.cave - 0.07, x1: X.cave + 0.06, layer: 2, label: '赫人', robe: [118, 100, 90], from: b.instant ? 'none' : 'fade' });
-            pose('abram', 'stand'); walk('abram', X.cave - 0.1, { speed: 0.02, pose: 'bow' });
+            pose('abram', 'stand', { weep: false }); walk('abram', X.cave - 0.1, { speed: 0.02, pose: 'bow' });
           }],
           [18, b => {
             pose('abram', 'stand');
@@ -1890,32 +1953,31 @@
         T(c, [
           [0, b => {
             add('servant', { label: '老仆人', sex: 'm', age: 'elder', x: X.tent + 0.04, facing: 1, robe: ROBE.servant, glow: 0.2, from: b.instant ? 'none' : 'fade' });
-            animal('cam1', 'camel', X.tent + 0.08); animal('cam2', 'camel', X.tent + 0.11); animal('cam3', 'camel', X.tent + 0.14);
             pose('abram', 'raise');
           }],
           [2, b => {
             pose('abram', 'stand');
             W.goTo(0.74, 13, b.instant);
             walk('servant', X.wellN - 0.04, { speed: 0.02 });
-            walk('cam1', X.wellN - 0.012, { speed: 0.02 }); walk('cam2', X.wellN + 0.018, { speed: 0.02 }); walk('cam3', X.wellN + 0.046, { speed: 0.02 });
+            walk('cam1', X.wellN - 0.075, { speed: 0.022, pose: 'lie' }); walk('cam2', X.wellN - 0.1, { speed: 0.022, pose: 'lie' }); walk('cam3', X.wellN - 0.125, { speed: 0.022, pose: 'lie' });
             sfx(b, 'camel');
           }],
           [8, () => { prop('wellN', 'well', { x: X.wellN, label: '水井' }); }],
           [15, b => {
             pose('servant', 'pray');
             add('rebekah', { label: '利百加', sex: 'f', age: 'adult', x: 1.06, facing: -1, robe: ROBE.rebekah, glow: 0.35, from: b.instant ? 'none' : 'fade' });
-            carry('rebekah', 'jar');
+            hold('rebekah', 'jar');
             walk('rebekah', X.wellN + 0.012, { speed: 0.028 });
             say(b, [{ text: '话还没有说完，不料，利百加肩头上扛着水瓶出来。', ref: '创世记 24:15', hold: 5.5 }]);
           }],
           [20, () => { pose('servant', 'stand'); walk('servant', X.wellN - 0.018, { speed: 0.03 }); face('rebekah', -1); pose('rebekah', 'carry'); }],
           [23.5, b => {
             say(b, [{ text: '女子给他喝了，就说：「我再为你的骆驼打水，叫骆驼也喝足。」', ref: '创世记 24:19', hold: 6 }]);
-            walk('rebekah', X.wellN + 0.03, { speed: 0.03, pose: 'carry' });
+            walk('rebekah', X.wellN - 0.034, { speed: 0.03, pose: 'carry' });
             prop('wellN', null, { lit: 0.5 });
           }],
           [27, () => walk('rebekah', X.wellN + 0.012, { speed: 0.03 })],
-          [30, () => walk('rebekah', X.wellN + 0.05, { speed: 0.03, pose: 'carry' })],
+          [30, () => walk('rebekah', X.wellN - 0.034, { speed: 0.03, pose: 'carry' })],
           [33, b => {
             walk('rebekah', X.wellN + 0.014, { speed: 0.03 });
             pose('servant', 'bow');
@@ -1924,28 +1986,30 @@
             sfx(b, 'harp');
           }],
           [41, b => {
-            pose('servant', 'stand'); pose('rebekah', 'stand'); carry('rebekah', null);
+            pose('servant', 'stand'); pose('rebekah', 'stand'); hold('rebekah', null);
+            walk('rebekah', X.wellN - 0.072, { speed: 0.03 }); walk('servant', X.wellN - 0.05, { speed: 0.03 });
             say(b, [{ text: '就叫了利百加来，问她说：「你和这人同去吗？」<br>利百加说：「我去。」', ref: '创世记 24:58', hold: 6 }]);
           }],
+          [43.5, () => { ride('rebekah', 'cam1'); }],
           // 夜里起程，次日天将晚到了南地
           [45, b => {
             W.goTo(0.22, 6, b.instant);
             prop('wellN', null, { lit: 0 }); unprop('wellN');
-            walk('servant', 0.66, { speed: 0.02 }); walk('rebekah', 0.64, { speed: 0.02 });
+            walk('servant', 0.66, { speed: 0.02 });
             walk('cam1', 0.685, { speed: 0.02 }); walk('cam2', 0.715, { speed: 0.02 }); walk('cam3', 0.745, { speed: 0.02 });
             setAge('isaac', 'adult', 1);
             walk('isaac', X.spring + 0.02, { speed: 0.025 });
           }],
           [52, b => { W.goTo(0.76, 9, b.instant); walk('isaac', 0.585, { speed: 0.02, pose: 'pray' }); }],
           [60, b => { pose('isaac', 'stand'); face('isaac', 1); say(b, [{ text: '天将晚，以撒出来在田间默想，举目一看，见来了些骆驼。', ref: '创世记 24:63', hold: 6 }]); }],
-          [63, () => { walk('rebekah', 0.605, { speed: 0.02 }); carry('rebekah', 'coat'); }],
+          [63, () => { ride('rebekah', null); walk('rebekah', 0.64, { speed: 0.02 }); hold('rebekah', 'coat'); }],
           [68, b => {
             walk('isaac', X.tent - 0.012, { speed: 0.014 }); walk('rebekah', X.tent + 0.012, { speed: 0.014 });
             walk('servant', X.tent + 0.05, { speed: 0.014 });
             prop('tentM', null, { lit: 0.8 });
             say(b, [{ text: '以撒便领利百加进了他母亲撒拉的帐棚，娶了她为妻，并且爱她。<br>以撒自从他母亲不在了，这才得了安慰。', ref: '创世记 24:67', hold: 8 }]);
           }],
-          [78, b => { carry('rebekah', null); prop('tentM', null, { lit: 0.2 }); if (!b.instant) fx().ring(X.tent * W.w, gY(2, X.tent) - 20 * LS(2), [255, 220, 170], M() * 0.35, 2.4, 2); }],
+          [78, b => { hold('rebekah', null); prop('tentM', null, { lit: 0.2 }); if (!b.instant) fx().ring(X.tent * W.w, gY(2, X.tent) - 20 * LS(2), [255, 220, 170], M() * 0.35, 2.4, 2); }],
         ]);
       },
     },
@@ -1962,7 +2026,7 @@
       apply(c) {
         T(c, [
           [0, b => { W.goTo(0.745, 7, b.instant); walk('abram', X.tent - 0.02, { speed: 0.02, pose: 'lie' }); glow('abram', 0.6); }],
-          [3, b => { walk('isaac', X.tent - 0.045, { speed: 0.02, pose: 'kneel' }); walk('rebekah', X.tent + 0.01, { speed: 0.02, pose: 'kneel' }); sfx(b, 'weep'); }],
+          [3, b => { walk('isaac', X.tent - 0.045, { speed: 0.02, pose: 'kneel' }); walk('rebekah', X.tent + 0.01, { speed: 0.02, pose: 'kneel' }); pose('isaac', 'kneel', { weep: true }); sfx(b, 'weep'); }],
           [7.5, b => {
             S.abStar = [0.3 + 0.4 * ((X.tent - 0.4) / 0.6), 0.22];
             if (!b.instant) { const h = headOf('abram', 8); fx().sow(h[0], h[1], [[S.abStar[0] * W.w, S.abStar[1] * W.horizonY, 2.4]], [255, 236, 190], { stagger: 0, dur: 4.5, pass: 'sky' }); fx().sparkle(h[0], h[1], 30, [255, 236, 200], 12, 'top'); }
@@ -1979,7 +2043,7 @@
             prop('cave', null, { seal: 0, lit: 0.5 });
             prop('bier', 'bier', { x, label: '亚伯拉罕' });
             prop('bier', null, { tx: X.cave - 0.01, spd: 0.013 });
-            pose('isaac', 'stand'); pose('rebekah', 'stand');
+            pose('isaac', 'stand', { weep: false }); pose('rebekah', 'stand');
             walk('isaac', X.cave - 0.024, { speed: 0.013 }); walk('ishmael', X.cave + 0.004, { speed: 0.013 });
           }],
           [28, b => { unprop('bier'); prop('cave', null, { seal: 1, lit: 0 }); pose('isaac', 'kneel'); pose('ishmael', 'kneel'); sfx(b, 'seal'); }],

@@ -692,18 +692,18 @@
           const u = (t - 0.7) / 0.3;
           x = b1[0] - 0.05 * u + sw * u * u - 0.012 * Math.sin(u * 3); y = b1[1] + 0.12 * u - 0.02 * u * u;
         }
-        const w = 0.02 * (t < 0.12 ? 0.35 + 0.65 * (t / 0.12) : 1) * (t > 0.9 ? 0.85 + (t - 0.9) * 1.2 : 1);
-        pts.push([T0.tkx + x * s, T0.tky + y * s, Math.max(1.7, w * s)]);
+        const w = 0.026 * (t < 0.14 ? 0.3 + 0.7 * (t / 0.14) : 1) * (t > 0.86 ? 0.8 + (t - 0.86) * 3.2 : 1);
+        pts.push([T0.tkx + x * s, T0.tky + y * s, Math.max(t < 0.14 ? 1.2 : 2.2, w * s)]);
       }
       ctx.globalAlpha = aTree;
-      ctx.strokeStyle = W.shadeCSS([96, 104, 62], 0, null, 0.08);
+      ctx.strokeStyle = W.shadeCSS([62, 76, 42], 0, null, 0.04);
       for (let i = 0; i < N; i++) {
         ctx.lineWidth = pts[i][2];
         ctx.beginPath(); ctx.moveTo(pts[i][0], pts[i][1]); ctx.lineTo(pts[i + 1][0], pts[i + 1][1]); ctx.stroke();
       }
       // 背上一线微光，使它在浓叶间可辨
-      ctx.strokeStyle = W.shadeCSS([214, 222, 160], 0, 0.55, 0.25);
-      ctx.lineWidth = Math.max(0.6, pts[N >> 1][2] * 0.28);
+      ctx.strokeStyle = W.shadeCSS([196, 206, 140], 0, 0.38, 0.2);
+      ctx.lineWidth = Math.max(0.6, pts[N >> 1][2] * 0.22);
       ctx.beginPath();
       for (let i = 0; i <= N; i++) { const q = pts[i]; if (i === 0) ctx.moveTo(q[0], q[1] - q[2] * 0.36); else ctx.lineTo(q[0], q[1] - q[2] * 0.36); }
       ctx.stroke();
@@ -716,8 +716,8 @@
           const ph = i * 0.42 - W.t * 2.4;
           const k = (Math.sin(ph) + 1) / 2, k2 = (Math.sin(ph * 0.7 + 2) + 1) / 2;
           const c = mix(mix(C[0], C[1], k), C[2], k2 * 0.6);
-          ctx.strokeStyle = rgba(c, aTree * sh * (0.25 + 0.55 * Math.pow((Math.sin(i * 0.8 - W.t * 3.1) + 1) / 2, 3)));
-          ctx.lineWidth = Math.max(0.8, pts[i][2] * 0.5);
+          ctx.strokeStyle = rgba(c, aTree * sh * (0.3 + 0.65 * Math.pow((Math.sin(i * 0.8 - W.t * 3.1) + 1) / 2, 3)));
+          ctx.lineWidth = Math.max(0.9, pts[i][2] * 0.55);
           ctx.beginPath(); ctx.moveTo(pts[i][0], pts[i][1] - pts[i][2] * 0.2); ctx.lineTo(pts[i + 1][0], pts[i + 1][1] - pts[i + 1][2] * 0.2); ctx.stroke();
         }
         const hd = pts[N];
@@ -857,7 +857,7 @@
   }
   function swordGeo() {
     const cx = P.cx * W.w, gy = gY(cx), Hc = 86 * P.s;
-    return { x: cx, y: gy - Hc * 0.66, L: Hc * 0.5, gy, Hc, ang: W.t * 2.3 + Math.sin(W.t * 0.6) * 0.7 };
+    return { x: cx, y: gy - Hc * 1.02, L: Hc * 0.46, gy, Hc, ang: W.t * 2.3 + Math.sin(W.t * 0.6) * 0.7 };
   }
   function drawSword(ctx, sg, a) {
     if (a <= 0.01) return;
@@ -868,10 +868,10 @@
     drawGlow(ctx, 'fire', sg.x, sg.y, sg.L * 1.7, sg.L * 1.7, 0.5 * a * flick);
     const L = sg.L * (0.4 + 0.6 * U.easeOut(a));
     // 四面转动：剑经过之处留下一圈火的轨迹
-    ctx.strokeStyle = rgba([255, 150, 70], 0.16 * a * flick);
+    ctx.strokeStyle = rgba([255, 150, 70], 0.24 * a * flick);
     ctx.lineWidth = Math.max(1, 3 * P.s);
     ctx.beginPath(); ctx.arc(sg.x, sg.y, L * 0.94, 0, TAU); ctx.stroke();
-    ctx.strokeStyle = rgba([255, 214, 140], 0.1 * a);
+    ctx.strokeStyle = rgba([255, 214, 140], 0.14 * a);
     ctx.lineWidth = Math.max(0.8, 1.2 * P.s);
     ctx.beginPath(); ctx.arc(sg.x, sg.y, L * 0.55, 0, TAU); ctx.stroke();
     for (let k = 13; k >= 0; k--) {

@@ -940,7 +940,7 @@
   function herdOf(a) { const h = HERD[herdKey(a)]; return h && h.n ? h : null; }
   // 各从其类：每一类在原野上有自己的一片家园（沿该层陆地的比例位置），群心在其左右缓缓游移；
   // 生灵在灵所在之处出生，其后慢慢散回各自的家园——于是全地都有活物，而不是挤成一堆
-  const HOME = { sheep: 0.5, goat: 0.8, cow: 0.3, deer: 0.66, horse: 0.5, elephant: 0.9, rabbit: 0.2 };
+  const HOME = { sheep: 0.5, goat: 0.8, cow: 0.3, deer: 0.66, horse: 0.5, elephant: 0.86, rabbit: 0.2 };
   function homeX(sp, layer) {
     const f = HOME[sp];
     if (f == null) return null;
@@ -1016,6 +1016,10 @@
     const M = a.M;
     a.S = LK[a.layer] * cu() * depthK(a.layer, a.v) * a.size;
     a.y = footY(a.layer, a.x, a.v);
+    // 随地势微微倾斜（岸边、丘上）：身子顺着坡，不悬在坡外
+    const sd = 5 * a.S + 1;
+    const sl = (footY(a.layer, a.x + sd, a.v) - footY(a.layer, a.x - sd, a.v)) / (2 * sd);
+    a.tilt = approach(a.tilt || 0, isFinite(sl) ? clamp(Math.atan(sl) * 0.75, -0.3, 0.3) : 0, 5, dt);
     if (a.eT < EM) {
       a.eT += dt * fastK();
       if (a.eT >= EM) { a.motes = null; setSt(a, 'look', rnd(1.2, 2.2)); a.shake = 0.9; }
@@ -1039,7 +1043,7 @@
       faceT = sgn(dxs);
       neckT = lookAngleAt(a, sp.x, sp.y);
       lieT = a.lie > 0.5 ? 1 : 0;
-      if (lieT) neckT = Math.max(0.2, neckT);
+      if (lieT) neckT = clamp(neckT, 0.2, M.up + 0.4);          // 卧着的只抬起头来，不整个仰起
     } else if (mode === 'flee') {
       a.fleeT -= dt;
       faceT = a.fleeDir; spdT = M.walk * 3.4; run = 1; neckT = M.up + 0.1;
@@ -1057,6 +1061,7 @@
       }
       lieT = a.lie > 0.5 && a.sp === 'lion' ? 1 : 0;
       if (a.st === 'sleep' || a.st === 'rest') lieT = a.lie > 0.5 ? 1 : 0;
+      if (lieT) neckT = clamp(neckT, 0.2, M.up + 0.4);
     } else if (mode === 'joy') {
       a.joy -= dt;
       faceT = sgn(a.joyX - cx); neckT = M.up + 0.45;
@@ -1252,7 +1257,7 @@
     h.y = footY(2, h.x, h.v);
     const sp = W.spirit;
     let base = h.pose, spdT = 0, faceT = h.dir;
-    h.raiseT = 0; h.reachT = 0; h.lookT = 0; h.holding = false;
+    h.raiseT = 0; h.reachT = 0; h.lookT = 0; h.holding = false; h._vOnly = false;
     if (h.blessT > 0) { h.blessT -= dt; h.raiseT = 1; }
     // ── 成形：尘 → 卧着的人形 → 灵的气息流入胸口 → 坐起 → 站立 → 仰望 ──
     if (h.eT < EMH) {
@@ -1331,10 +1336,13 @@
     for (const h of HU) { if (h.kind === 'child' || h.eT < EMH) continue; const d = Math.hypot(h.x - sp.x, h.y - sp.y); if (d < bd) { bd = d; best = h; } }
     return best;
   }
+  // 走到 (tx, tv)：横向到了而纵深未到时，便朝前 / 朝后走（原野的远近），到了才算到
   function walkTo(h, dt, spd) {
-    const d = h.tx - h.x;
-    if (Math.abs(d) < 1.2) return true;
-    h.dir = sgn(d);
+    const d = h.tx - h.x, dv = h.tv - h.v;
+    const xOk = Math.abs(d) < 1.2, vOk = Math.abs(dv) < 0.025;
+    if (xOk && vOk) return true;
+    if (!xOk) h.dir = sgn(d);
+    h._vOnly = xOk;
     return false;
   }
   function doAct(h, dt) {
@@ -1409,6 +1417,7 @@
         if (!a || AN.indexOf(a) < 0) { h.actT = h.actDur + 1; break; }
         const side = h.x < a.x ? -1 : 1;
         h.tx = clampX(2, a.x + side * (a.M.len * a.S * 0.5 + 12 * u), 6 * u);
+        h.tv = clamp(a.v + 0.02, 0.02, VMAX[2]);          // 站在它身旁（同一远近），不是隔着半片原野
         if (h.phase === 0) {
           if (walkTo(h, dt)) { h.phase = 1; h.phT = 0; }
           else { r.pose = 'walk'; r.spd = W_; r.face = h.dir; }
@@ -1515,8 +1524,8 @@
     h.face = approach(h.face, faceT, 6, dt);
     const mv = turning ? h.spd * 0.2 : h.spd;
     if (mv > 0) {
-      h.x = clampX(2, h.x + h.dir * mv * h.S * dt, 6 * cu());
-      h.v = approach(h.v, h.tv, 0.4, dt);
+      if (!h._vOnly) h.x = clampX(2, h.x + h.dir * mv * h.S * dt, 6 * cu());
+      h.v = approach(h.v, h.tv, h._vOnly ? 1.4 : 0.55, dt);
     }
     h.gait = c01(h.spd / 15);
     h.ph += (h.spd / 7.5) * Math.PI * dt;
@@ -1791,7 +1800,7 @@
     }
     const s = a.S;
     if (alpha > 0.01) {
-      setT(a.x, a.y, s, a.face, 0);
+      setT(a.x, a.y, s, a.face, (a.tilt || 0) * clamp(a.face, -1, 1));
       nOps = 0;
       if (a.type === 'q') buildQuad(a); else if (a.type === 'e') buildEle(a); else buildRabbit(a);
       const cy = a.y - M.top * s * 0.5;
@@ -1852,9 +1861,9 @@
         tp(h._chest[0], h._chest[1]);
         const cx = PX, cy = PY;
         const on = (h.breathed || !emerging ? 1 : 0) * alpha, n = W.night;
-        let a = on * (0.1 + 0.3 * n + 0.1 * W.dusk);                 // 晕
-        let r = (8 + 6 * n) * s;
-        const ac = on * (0.42 + 0.5 * n + 0.1 * W.dusk), rc = (2.3 + 0.6 * n) * s;   // 核
+        let a = on * (0.09 + 0.24 * n + 0.08 * W.dusk);                // 晕
+        let r = Math.max((8 + 8 * n) * s, 7 * n);
+        const ac = on * (0.36 + 0.3 * n + 0.08 * W.dusk), rc = Math.max((2.3 + 0.6 * n) * s, 1.3 + 0.6 * n);   // 核
         if (h.flash >= 0) { const k = h.flash / 1.4; r = lerp(40, 10, eOut(k)) * cu(); a = Math.max(a, (1 - k) * 0.9); }
         if (a > 0.01 || ac > 0.01) {
           ctx.globalCompositeOperation = 'lighter';
