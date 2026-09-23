@@ -20,7 +20,9 @@
   const U = GS.util, W = GS.W;
   const { clamp, lerp, smoothstep } = U;
   const Ctx = window.AudioContext || window.webkitAudioContext;
-  const NST = () => (GS.story && GS.story.STAGES ? GS.story.STAGES.length : 28);
+  // 七日的终点：第一卷「七日」最后一句之后（其后各卷的话语接在 STAGES 后面，造物主的底鸣不再回来）
+  const NST = () => (GS.book && GS.book.ACTS && GS.book.ACTS[0] ? GS.book.ACTS[0].last + 1
+    : GS.story && GS.story.STAGES ? GS.story.STAGES.length : 28);
   const PUNCT = /[，。、；：！？「」『』（）…—,.;:!?\s]/;
 
   // ── 音高（A 调）──────────────────────────────────────────
@@ -146,8 +148,8 @@
   // 同时发声数的上限：prio 0 可舍（环境点缀）· 1 一般 · 2 必需
   function voice(prio) {
     if (!AC || hidden || !running()) return null;
-    const base = W.quality < 0.75 ? 30 : 46;
-    const cap = prio >= 2 ? 96 : prio === 1 ? base : base * 0.6;
+    const lowQ = W.quality < 0.75, base = lowQ ? 30 : 44;
+    const cap = prio >= 2 ? (lowQ ? 46 : 64) : prio === 1 ? base : base * 0.6;
     if (live >= cap) return null;
     live++;
     const v = new Voice();
@@ -777,7 +779,7 @@
     beds.air.want((lv.vault || 0) * LV.air * thin * divNow, 3);
     beds.earth.want((lv.land || 0) * LV.earth * thin * divNow, 3);
     beds.human.want((W.popN('human') > 0 ? 1 : 0) * LV.human * thin * divNow, 4);
-    const eve = st >= nst && W.freeClock ? (W.dusk || 0) * (W.tod > 0.5 ? 1 : 0) : 0;
+    const eve = st >= nst && W.freeClock && !(W.act > 0) ? (W.dusk || 0) * (W.tod > 0.5 ? 1 : 0) : 0;
     beds.sunset.want(eve * LV.sunset, 3);
 
     // 海
@@ -1059,6 +1061,20 @@
       n.connect(lp); lp.connect(g); g.connect(h.out);
       return c => to(g.gain, 0.2 * c, 0.15);
     },
+    // 七日之后：神对人说话——温暖的低音垫随充盈度打开，底下一口气息
+    word(h) {
+      const lp = h.f('lowpass', 300, 0.7), g = h.g(0);
+      [[F.A2, 'sine', 0.8, 0], [F.E3, 'triangle', 0.35, -0.25], [F.A3, 'triangle', 0.25, 0.25]].forEach(([f, ty, gg, p]) => {
+        const o = h.o(ty, f); o.detune.value = rnd(-3, 3);
+        const og = h.g(gg), pn = h.p(p);
+        o.connect(og); og.connect(pn); pn.connect(lp);
+      });
+      lp.connect(g); g.connect(h.out);
+      const n = h.nz('pink'), bp = h.f('bandpass', 700, 0.8), am = h.g(0.8), ng = h.g(0);
+      h.lfo(0.25, 0.25, am.gain);
+      n.connect(bp); bp.connect(am); am.connect(ng); ng.connect(h.out);
+      return c => { to(lp.frequency, 300 + 1100 * c, 0.12); to(g.gain, 0.1 * Math.pow(c, 1.2), 0.12); to(ng.gain, 0.12 * c, 0.12); };
+    },
     // 安息后的观看：温暖的金色低吟
     sabbath(h) {
       const gs = [[F.A4, 0.035, -0.2], [F.E5, 0.022, 0.2], [F.A5, 0.012, 0]].map(([f, g, p]) => [tone(h, 'sine', f, p), g]);
@@ -1075,6 +1091,7 @@
       case 'rest': return null;
     }
     const idx = W.stage | 0;
+    if (idx >= NST()) return 'word';                    // 七日之后各卷的话语
     const byIdx = { 5: 'wind', 6: 'wind', 8: 'grind', 9: 'names3', 10: 'rustle', 11: 'growth', 13: 'shimmer', 14: 'moon', 17: 'underwater', 18: 'flutter', 21: 'heave' };
     const st = GS.story && GS.story.STAGES && GS.story.STAGES[idx];
     if (st && st.day === day && byIdx[idx]) return byIdx[idx];

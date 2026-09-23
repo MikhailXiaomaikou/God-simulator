@@ -248,19 +248,23 @@ vec3 starLayer(vec2 p, float cell, float prob, float rad, float b0, float b1, fl
 vec3 milky(vec2 p, out float dens) {
   dens = 0.0;
   vec2 q = p / RES.y;
-  vec2 c0 = vec2(0.56 * ASPECT, 0.12);
+  vec2 c0 = vec2(0.5 * ASPECT, 0.26);
   vec2 dir = vec2(0.906, -0.423);            // 约 25°，自左下升向右上
   vec2 v2 = q - c0;
   float u = dot(v2, dir);
   float v = dot(v2, vec2(-dir.y, dir.x)) + 0.07 * u * u;
-  if (abs(v) > 0.3) return vec3(0.0);
+  if (abs(v) > 0.34) return vec3(0.0);
+  // 蜿蜒的中线：带子不是一根直尺
+  v += (vnoise(vec2(u * 3.2, 1.7)) - 0.5) * 0.09;
   float n1 = fbm(q * 4.2 + vec2(3.0, 1.7), max(OCT - 1.0, 2.0));
   float n2 = vnoise(q * 13.0 + 7.3);
-  float core = exp(-v * v / 0.004);
-  float halo = exp(-v * v / 0.022);
-  float band = halo * (0.12 + 0.95 * n1 * n1) + core * (0.2 + 0.7 * n1);
-  float rift = exp(-sq((v + 0.008 + 0.05 * (n1 - 0.5)) / 0.016)) * sst(0.3, 0.62, n1 * 0.6 + n2 * 0.4);
-  band *= (1.0 - 0.75 * rift) * (0.7 + 0.6 * n2);
+  float core = exp(-v * v / 0.006);
+  float halo = exp(-v * v / 0.024);
+  float band = halo * (0.08 + 0.95 * n1 * n1) + core * n1 * n1 * 0.9;
+  // 暗隙：随星云团块断续
+  float rv = v + 0.004 + 0.04 * (n2 - 0.5);
+  float rift = exp(-rv * rv / 0.0004) * smoothstep(0.38, 0.62, n1);
+  band *= (1.0 - 0.6 * rift) * (0.7 + 0.6 * n2);
   dens = clamp(band * 1.2, 0.0, 1.0);
   vec3 c = mix(vec3(0.561, 0.651, 0.847), vec3(0.86, 0.80, 0.70), clamp(core * n1 * 0.8, 0.0, 1.0));
   return c * band;
@@ -314,27 +318,29 @@ vec3 sky(vec2 px, vec2 n, float lm) {
   if (VAULT > 0.001) {
     if (above > 0.0) {
       waCover = WA_OP * smoothstep(0.0, 0.02, above);
-      float den = above * 3.0 + 0.12;
+      float den = above * 2.2 + 0.3;
       float Zc = 1.0 / den;                         // 天花板透视：近膜处最远
-      vec2 Pc = vec2((n.x - 0.5) * ASPECT * Zc, Zc * 1.6);
-      float att = 1.0 - smoothstep(0.08, 0.5, 12.5 / (den * den * RES.y));
+      vec2 Pc = vec2((n.x - 0.5) * ASPECT * Zc, Zc * 2.0);
       float t = TIME * 0.2;
-      float sw = fbm(Pc * vec2(0.7, 1.1) + vec2(t * 0.2, t * 0.45), 2.0);
-      float swell = mix(0.5, 0.5 + 0.5 * sin(Pc.y * 2.2 + Pc.x * 0.45 - t * 1.4 + sw * 4.0), att);
-      float c1 = 1.0 - abs(sin(Pc.x * 2.9 + Pc.y * 1.6 + sw * 6.0 - t * 1.1));
-      float c2 = 1.0 - abs(sin(-Pc.x * 2.2 + Pc.y * 2.5 + sw * 5.0 + t * 0.9));
-      float caus = pow(c1 * c2, 5.0) * att;
-      float nearF = exp(-above * 24.0);
+      float sw = fbm(Pc * vec2(1.1, 1.6) + vec2(t * 0.16, t * 0.4), 2.0);
+      // 与穹顶平行的长涌，缓缓向膜线推进
+      float swell = 0.5 + 0.5 * sin(Pc.y * 3.4 - t * 1.3 + sw * 4.0);
+      float nearF = exp(-above * 26.0);
       float farF = smoothstep(0.02, 0.3, above);
-      vec3 wc = WA_COL * (0.5 + 0.65 * sw + 0.4 * swell) * (1.0 - 0.35 * farF);
-      wc += WA_COL * 0.8 * nearF;
-      wc += vec3(0.45, 0.66, 0.96) * WA_GLOW * (caus * (0.3 + 0.9 * swell) + 0.1 * swell * sw) * (1.0 - 0.5 * farF);
+      vec3 wc = WA_COL * (0.5 + 0.75 * sw + 0.18 * swell) * (1.0 - 0.3 * farF);
+      wc += WA_COL * 0.55 * nearF;
+      // 透过上层水的零星微光（屏幕空间的柔圆点，缓慢明灭）
+      vec2 gc = px / (26.0 + 0.0 * MPX);
+      vec3 hg = h32(floor(gc) + 5.3);
+      vec2 gf = fract(gc) - 0.25 - 0.5 * hg.yz;
+      float glint = step(0.86, hg.x) * exp(-dot(gf, gf) * 90.0) * sq(sq(0.5 + 0.5 * sin(TIME * (0.5 + hg.y) + hg.z * 30.0)));
+      wc += vec3(0.5, 0.7, 1.0) * WA_GLOW * (0.16 * swell * sw * (1.0 - 0.6 * farF) + glint * 0.8);
       col = mix(col, wc, waCover);
       tremble = VAULT;
     }
     // 水膜：发光的一线
     float dv = n.y - dy;
-    float film = exp(-dv * dv / 0.0005) * 0.055 + exp(-dv * dv / 0.000007) * 0.42;
+    float film = exp(-dv * dv / 0.0004) * 0.045 + exp(-dv * dv / 0.000007) * 0.42;
     float shim = 0.7 + 0.3 * sin(n.x * ASPECT * 38.0 - TIME * 1.1 + sin(n.x * 9.0 + TIME * 0.37) * 2.0);
     col += vec3(0.81, 0.90, 1.0) * film * FILM * shim;
   }
@@ -359,7 +365,7 @@ vec3 sky(vec2 px, vec2 n, float lm) {
       st += starLayer(rp + 311.0, 21.0, 0.16, 0.7, 0.32, 1.0, 0.0, a);
       st += starLayer(rp + 877.0, 70.0, 0.2, 1.0, 0.8, 2.0, 0.18, a);
       vec3 tint = mix(vec3(1.0), vec3(0.8, 0.9, 1.0), tremble * step(0.0, above));
-      col += (st * tint + mw * 0.12) * vis;
+      col += (st * tint + mw * 0.34) * vis;
     }
   }
 
@@ -382,7 +388,7 @@ vec3 sky(vec2 px, vec2 n, float lm) {
       // 夜：不透明的月盘（遮住身后的星，暗面有一点地照）
       col = mix(col, mc * 1.12 + vec3(0.012, 0.016, 0.026) * (1.0 - lit), disc * MOON_AMT);
       // 昼：月光叠加在天色上——淡淡的一枚白月
-      col += mc * vec3(0.92, 0.96, 1.0) * disc * MOON_DAY * 0.42;
+      col += mc * vec3(0.9, 0.95, 1.0) * disc * MOON_DAY * 0.3;
     }
   }
 
@@ -401,24 +407,26 @@ vec3 sky(vec2 px, vec2 n, float lm) {
   if (CLOUDS > 0.002) {
     float top = dy + 0.035;
     float bot = HZ - 0.016;
-    float band = smoothstep(top, top + 0.09, n.y) * sst(bot, bot - 0.1, n.y);
+    float band = smoothstep(top, top + 0.12, n.y) * sst(bot, bot - 0.1, n.y);
     if (band > 0.001) {
-      float Zc = 0.3 / (HZ - n.y + 0.03);
-      vec2 P = vec2((n.x - 0.5) * ASPECT * Zc * 1.3 + CDRIFT, Zc * 3.1);
-      vec2 wq = vec2(vnoise(P * 0.55 + vec2(3.1, 1.3)), vnoise(P * 0.55 + vec2(8.3, 5.7)));
-      P += (wq - 0.5) * 1.2;
-      float d0 = fbm(P, OCT);
-      float cov = 0.5 + 0.14 * (1.0 - band);
-      float den = smoothstep(cov, cov + 0.2, d0) * CLOUDS;
+      // 云的空间：横向随距离压缩，纵向取对数（近地平处扁而不碎）
+      float h = HZ - n.y;
+      vec2 P = vec2((n.x - 0.5) * ASPECT * 1.25 / (h + 0.12) + CDRIFT, 2.6 * log(h + 0.02));
+      vec2 wq = vec2(vnoise(P * 0.6 + vec2(3.1, 1.3)), vnoise(P * 0.6 + vec2(8.3, 5.7)));
+      P += (wq - 0.5) * 0.9;
+      float d0 = fbm(P * 1.3, OCT);
+      float cov = 0.53 + 0.34 * (1.0 - band);
+      float den = smoothstep(cov, cov + 0.11, d0) * CLOUDS;
       if (den > 0.002) {
         vec2 kd = vec2(KEYX, KEYY) - px;
         vec2 ld = kd / (length(kd) + 1.0);
-        // 朝向主光（与天光自上而下）偏移取样：迎光的边缘更亮
-        float d1 = fbm(P + ld * 0.26 + vec2(0.0, -0.1), 2.0);
-        float lit = clamp(0.58 + (d0 - d1) * 4.2, 0.0, 1.0);
-        vec3 cc = mix(CL_SH, CL_LIT, lit);
+        // 朝向主光（与天光自上而下）偏移取样：迎光的边缘更亮，厚处的云底更暗
+        float d1 = fbm((P + vec2(ld.x, -ld.y) * 0.2 + vec2(0.0, 0.07)) * 1.3, 2.0);
+        float lit = clamp(0.6 + (d0 - d1) * 4.8, 0.0, 1.0);
+        float thick = smoothstep(cov + 0.05, cov + 0.3, d0);
+        vec3 cc = mix(CL_SH, CL_LIT, lit * (1.0 - 0.4 * thick));
         cc += gl * (1.0 - den) * 1.3;         // 边缘透光（银边）
-        col = mix(col, cc * max(lm, 0.02), den * 0.94);
+        col = mix(col, cc * max(lm, 0.02), den * (0.94 - 0.4 * NIGHTW));
         cden = den;
       }
     }
@@ -545,7 +553,7 @@ vec3 sea(vec2 px, vec2 n, float lm) {
     float rip = sin(rr * 90.0 - SP_T * 2.6);
     rip = pow(max(rip, 0.0), 4.0) * exp(-r * 10.0) * smoothstep(0.0, 0.035, r) * (0.3 + 0.7 * crest);
     rip *= RIPPLE;
-    float I = pool * (0.2 + 0.5 * spk) + cx * cy * streak * 0.5 + rip * 0.6;
+    float I = pool * 0.2 + pool * pool * spk * 0.6 + cx * cy * streak * 0.5 + rip * 0.6;
     col += PAL_SPIRIT * SP_AMT * I * DEEP;
   }
 
