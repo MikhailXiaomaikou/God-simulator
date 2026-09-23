@@ -34,7 +34,7 @@
 
   // ── 地上的位置（画面宽度的比例）：左 = 东（盐海与平原），右 = 西（往埃及、往哈兰的路）──
   const X = {
-    spring: 0.405, shrub: 0.442, pieces: 0.47, sleep: 0.556, look: 0.575,
+    spring: 0.405, shrub: 0.442, pieces: 0.492, sleep: 0.582, look: 0.575,
     moreh: 0.52, altarS: 0.548,                                   // 示剑
     tentL: 0.575, altarB: 0.603, tentB: 0.632,                    // 伯特利
     oakA: 0.672, tent: 0.742, oakB: 0.8, altarM: 0.83,            // 幔利（希伯仑）
@@ -303,10 +303,10 @@
     g.fillStyle = vt; g.fillRect(0, 0, 64, 256);
     SP.beam = b;
     // 银河：数不过来的众星汇成的光雾
-    const m = cnv(512, 256), mg = m.getContext('2d'), rr = U.mulberry32(1505);
+    const m = cnv(768, 384), mg = m.getContext('2d'), rr = U.mulberry32(1505);
     mg.globalCompositeOperation = 'lighter';
-    for (let i = 0; i < 520; i++) {
-      const t = rr(), x = t * 512, y = (0.12 + t * 0.62) * 256 + (rr() + rr() + rr() - 1.5) * 34, s = 6 + rr() * 26;
+    for (let i = 0; i < 900; i++) {
+      const t = rr(), x = t * 768, y = (0.12 + t * 0.62) * 384 + (rr() + rr() + rr() - 1.5) * 46, s = 7 + rr() * 30;
       const gr = mg.createRadialGradient(x, y, 0, x, y, s);
       const c = rr() < 0.3 ? '255,226,196' : '206,220,255';
       gr.addColorStop(0, 'rgba(' + c + ',0.07)'); gr.addColorStop(1, 'rgba(' + c + ',0)');
@@ -321,11 +321,11 @@
   let starA = null, starHit = null;
   function buildStars() {
     const r = U.mulberry32(1505);
-    for (let i = 0; i < 760; i++) {
+    for (let i = 0; i < 1400; i++) {
       let x, y;
-      if (i < 300) { const t = r(); x = t; y = 0.12 * 0.6 + t * 0.62 * 0.6 + (r() + r() + r() - 1.5) * 0.05; }
+      if (i < 620) { const t = r(); x = t; y = 0.12 * 0.6 + t * 0.62 * 0.6 + (r() + r() + r() - 1.5) * 0.05; }
       else { x = r(); y = Math.pow(r(), 1.2) * 0.56; }
-      STARS.push({ x, y: clamp(y, 0.012, 0.56), m: Math.pow(r(), 2.6), rank: r(), tw: r() * TAU, sp: 0.7 + r() * 2.4, warm: r() < 0.22 });
+      STARS.push({ x, y: clamp(y, 0.012, 0.56), m: Math.pow(r(), 3.2), rank: r(), tw: r() * TAU, sp: 0.7 + r() * 2.4, warm: r() < 0.22 });
     }
     starA = new Float32Array(STARS.length);
     starHit = new Uint8Array(STARS.length);
@@ -789,33 +789,37 @@
     if (!pc || k <= 0.001 || k >= 0.999) return;
     const env = smoothstep(0, 0.08, k) * (1 - smoothstep(0.88, 1, k));
     if (env < 0.01) return;
-    const s = LS(2), xf = lerp(pc.x - 0.11, pc.x + 0.1, k), x = xf * W.w, y = gY(2, xf) + 1 * s - 9 * s + Math.sin(W.t * 1.6) * 1.5 * s;
+    const s = LS(2) * 1.5, xf = lerp(pc.x - 0.085, pc.x + 0.085, k), x = xf * W.w;
+    const y = gY(2, xf) + 1.5 * LS(2) - 11 * s + Math.sin(W.t * 1.6) * 1.5 * s;
     SP || sprites();
     // 照亮肉块之间的地
     ctx.globalCompositeOperation = 'lighter';
-    ctx.globalAlpha = env * 0.55;
-    const g = 150 * s;
-    ctx.drawImage(SP.warm, x - g / 2, y - g / 2, g, g);
+    ctx.globalAlpha = env * 0.7;
+    const g = 190 * s;
+    ctx.drawImage(SP.warm, x + 10 * s - g / 2, y - g / 2, g, g);
+    ctx.globalAlpha = env * 0.35;
+    ctx.drawImage(SP.gold, x + 10 * s - g, y - g * 0.9, g * 2, g * 2);
     ctx.globalCompositeOperation = 'source-over';
     // 炉：陶的，口里有火，冒着浓烟
-    smoke(ctx, x, y - 10 * s, env, 150 * s + W.h * 0.1, 6 * s, 3, true, 0.11);
+    smoke(ctx, x, y - 10 * s, env, 190 * s + W.h * 0.12, 7 * s, 3, true, 0.11);
     ctx.globalAlpha = env;
-    ctx.fillStyle = 'rgb(58,40,32)';
+    ctx.fillStyle = 'rgb(62,42,32)';
     ctx.beginPath();
-    ctx.moveTo(x - 7 * s, y); ctx.quadraticCurveTo(x - 9 * s, y - 7 * s, x - 4.5 * s, y - 10 * s); ctx.lineTo(x + 4.5 * s, y - 10 * s);
-    ctx.quadraticCurveTo(x + 9 * s, y - 7 * s, x + 7 * s, y); ctx.closePath(); ctx.fill();
+    ctx.moveTo(x - 7 * s, y); ctx.quadraticCurveTo(x - 9.5 * s, y - 7 * s, x - 4.5 * s, y - 10.5 * s); ctx.lineTo(x + 4.5 * s, y - 10.5 * s);
+    ctx.quadraticCurveTo(x + 9.5 * s, y - 7 * s, x + 7 * s, y); ctx.closePath(); ctx.fill();
     ctx.globalCompositeOperation = 'lighter';
-    ctx.fillStyle = 'rgb(255,120,48)';
-    ctx.globalAlpha = env * (0.7 + 0.3 * Math.sin(W.t * 11));
-    ctx.beginPath(); ctx.ellipse(x, y - 10 * s, 4.2 * s, 1.4 * s, 0, 0, TAU); ctx.fill();
-    ctx.fillRect(x - 2 * s, y - 5 * s, 4 * s, 2.4 * s);
+    ctx.fillStyle = 'rgb(255,128,52)';
+    ctx.globalAlpha = env * (0.75 + 0.25 * Math.sin(W.t * 11));
+    ctx.beginPath(); ctx.ellipse(x, y - 10.5 * s, 4.4 * s, 1.5 * s, 0, 0, TAU); ctx.fill();
+    ctx.fillRect(x - 2.2 * s, y - 5.5 * s, 4.4 * s, 2.6 * s);
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
+    flame(ctx, x, y - 10.5 * s, 7 * s, env * 0.8, 11);
     // 火把：在前
-    const tx = x + 22 * s, ty = y - 4 * s + Math.sin(W.t * 2.1 + 1) * 1.5 * s;
-    ctx.strokeStyle = U.rgba(80, 56, 36, env); ctx.lineWidth = Math.max(1, 1.8 * s); ctx.lineCap = 'round';
-    ctx.beginPath(); ctx.moveTo(tx - 2 * s, ty + 9 * s); ctx.lineTo(tx, ty - 3 * s); ctx.stroke();
-    flame(ctx, tx, ty - 2 * s, 15 * s, env, 7);
+    const tx = x + 24 * s, ty = y - 5 * s + Math.sin(W.t * 2.1 + 1) * 1.5 * s;
+    ctx.strokeStyle = U.rgba(84, 58, 38, env); ctx.lineWidth = Math.max(1, 1.8 * s); ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(tx - 2 * s, ty + 10 * s); ctx.lineTo(tx, ty - 3 * s); ctx.stroke();
+    flame(ctx, tx, ty - 2 * s, 17 * s, env, 7);
   }
 
   // 以实玛利十二族的营火（25:16），在远山上
@@ -848,7 +852,7 @@
     const band = W.lv.abStars;
     ctx.globalCompositeOperation = 'lighter';
     if (band > 0.01) {
-      ctx.globalAlpha = A * band * 0.32;
+      ctx.globalAlpha = A * band * 0.24;
       ctx.drawImage(SP.band, 0, 0, W.w, W.horizonY);
     }
     for (let b = 0; b < BUCK; b++) bucketPaths[b].length = 0;
@@ -858,7 +862,7 @@
       if (a0 < 0.02) continue;
       const st = STARS[i];
       const tw = 0.72 + 0.28 * Math.sin(W.t * st.sp + st.tw);
-      const a = a0 * (0.3 + 0.7 * st.m) * tw * (1 - smoothstep(0.42, 0.58, st.y));
+      const a = a0 * (0.42 + 0.58 * st.m) * tw * (1 - smoothstep(0.42, 0.58, st.y));
       const bi = Math.min(BUCK - 1, Math.floor(a * BUCK));
       if (a < 0.03) continue;
       bucketPaths[bi].push(i);
@@ -870,7 +874,7 @@
       ctx.fillStyle = 'rgb(255,248,232)';
       ctx.beginPath();
       for (const i of list) {
-        const st = STARS[i], s = (0.55 + st.m * 1.5) * u;
+        const st = STARS[i], s = (0.6 + st.m * 1.7) * u;
         ctx.rect(st.x * W.w - s / 2, st.y * W.h - s / 2, s, s);
       }
       ctx.fill();

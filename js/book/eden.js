@@ -102,7 +102,6 @@
   // ════════════════════════════════════════════════════════════
   //  模型：以树高为 1 的归一化坐标（y 向上为负），Path2D 缓存
   // ════════════════════════════════════════════════════════════
-  function circ(path, x, y, r) { path.moveTo(x + r, y); path.arc(x, y, r, 0, TAU); }
   function strip(path, pts) {
     const Lp = [], Rp = [];
     for (let i = 0; i < pts.length; i++) {

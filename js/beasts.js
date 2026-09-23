@@ -795,9 +795,21 @@
     } else {
       // 人在原野的中景：比走兽更近，受造之冠，一眼可见
       x = anchorX + (kind === 'man' ? -9 : 9) * u;
-      v = VMAX[2] * 0.42 + (kind === 'woman' ? 0.015 : 0);
+      v = kind === 'woman' && adults.length ? adults[0].v + 0.015 : VMAX[2] * 0.42;
     }
     x = clampX(2, x, 10 * u);
+    if (!instant && kind !== 'child') {
+      // 万物为人让出地方：近处的走兽退向两旁；人在它们之前成形，不被遮住
+      let vFront = 0;
+      for (const a of AN) {
+        if (a.layer !== 2 || a.eT < EM) continue;
+        const dx = a.x - x;
+        if (Math.abs(dx) > a.M.len * a.S * 0.5 + 34 * u) continue;
+        vFront = Math.max(vFront, a.v);
+        if (a.st !== 'sleep') { a.tx = clampX(2, x + (dx >= 0 ? 1 : -1) * rnd(80, 130) * u, a.M.len * 0.5 * u); a.tv = a.v; setSt(a, 'walk', 25); }
+      }
+      if (kind === 'man') v = clamp(Math.max(v, vFront + 0.1), 0.05, VMAX[2]);
+    }
     const h = newHuman(kind, x, v, instant);
     h.face = h.dir = kind === 'woman' ? -1 : 1;
     HU.push(h);
