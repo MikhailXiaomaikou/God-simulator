@@ -29,6 +29,7 @@
     life:     ['exp', 0.5],   // 水中的生命之光（1:20）
     good:     ['exp', 0.6],   // 「甚好」的辉光（1:31），缓缓回落
     sabbath:  ['exp', 0.25],  // 安息（2:1-3）
+    given:    ['exp', 0.35],  // 神的灵将自己的光分给了人（1:26-27）：灵的光晕从此略小
   };
 
   const W = (GS.W = {
@@ -60,7 +61,9 @@
     // 言说
     ritual: { holding: false, charge: 0, text: '', tint: [255, 250, 235] },
     shake: 0,
-    flash: 0,                // 成就时的闪光（0..1，快速衰减）
+    flash: 0,
+    pull: 0,                 // 黄昏被言说拉近的量（时辰偏移）
+    reduced: false,          // prefers-reduced-motion                // 成就时的闪光（0..1，快速衰减）
     fast: 1,                 // 调试：加速
     REST: 0.42,              // 白昼时的静止时辰
   });
@@ -98,6 +101,29 @@
   };
   // 新的话语成就时若夜还未尽，催促黎明（不跳变，只加速）
   W.hurryClock = function () { if (W.cycling) W.clockDur = Math.min(W.clockDur, W.clockT * W.clockDur + 3.5); };
+
+  // ── 一轮昼夜的节奏：时间→时辰偏移。黄昏与黎明流连，子夜稍驻，首尾缓起缓收。
+  // 以"每段时辰所占的时间权重"积分再反求，得到单调平滑的映射表。
+  const CYC_N = 512, cycTab = new Float32Array(CYC_N + 1);
+  (function buildCycle() {
+    const wgt = o => 1 + 1.7 * Math.exp(-Math.pow((o - 0.33) / 0.07, 2)) + 1.3 * Math.exp(-Math.pow((o - 0.83) / 0.07, 2)) +
+      0.7 * Math.exp(-Math.pow((o - 0.58) / 0.12, 2)) + 1.4 * Math.exp(-Math.pow(o / 0.07, 2)) + 1.4 * Math.exp(-Math.pow((1 - o) / 0.09, 2));
+    const M = 4096, T = new Float32Array(M + 1);
+    for (let i = 1; i <= M; i++) T[i] = T[i - 1] + wgt((i - 0.5) / M) / M;
+    for (let i = 0; i <= M; i++) T[i] /= T[M];
+    let j = 0;
+    for (let k = 0; k <= CYC_N; k++) {
+      const t = k / CYC_N;
+      while (j < M && T[j + 1] < t) j++;
+      const a = T[j], b = T[Math.min(M, j + 1)];
+      cycTab[k] = (j + (b > a ? (t - a) / (b - a) : 0)) / M;
+    }
+    cycTab[0] = 0; cycTab[CYC_N] = 1;
+  })();
+  function cycleOff(t) {
+    const f = clamp(t, 0, 1) * CYC_N, i = Math.floor(f), r = f - i;
+    return i >= CYC_N ? 1 : cycTab[i] + (cycTab[i + 1] - cycTab[i]) * r;
+  }
 
   // ── 大地：三层剪影（远山、中丘、近岸），归一化高度场 ─────────
   // 每层：ridge(x) 为地表的高度比例；waterline 为其与海相接的水线。
@@ -211,6 +237,18 @@
     return alpha == null ? U.rgb(c[0], c[1], c[2]) : U.rgba(c[0], c[1], c[2], alpha);
   };
 
+  // 月相：创世之周是满月（第一个夜晚应当辉煌）；安息之后随真实的月相（避开朔月，总留一弯）
+  const SYNODIC = 29.530588853, NEW_MOON_2000 = Date.UTC(2000, 0, 6, 18, 14) / 86400000;
+  let realPhase = null;
+  function moonPhase() {
+    if (!W.freeClock) return 0.5;
+    if (realPhase == null) {
+      const days = Date.now() / 86400000 - NEW_MOON_2000;
+      realPhase = fract(days / SYNODIC);
+    }
+    return clamp(realPhase, 0.1, 0.9);
+  }
+
   // ── 视口 ────────────────────────────────────────────────────
   W.resize = function (w, h, dpr) {
     W.w = w; W.h = h; W.dpr = dpr;
@@ -245,16 +283,16 @@
     // 时辰
     if (W.cycling) {
       W.clockT = Math.min(1, W.clockT + (dt * W.fast) / W.clockDur);
-      // 在黄昏与黎明放慢，在深夜略快：以 easeInOut 为主干
-      const e = U.easeInOut(W.clockT);
-      W.clock = lerp(W.clockFrom, W.clockTo, e);
+      // 在黄昏、深夜、黎明各自流连片刻（见 cycleOff）
+      W.clock = lerp(W.clockFrom, W.clockTo, cycleOff(W.clockT));
       if (W.clockT >= 1) { W.cycling = false; W.clock = W.clockTo; }
     } else if (W.freeClock) {
       W.clock += (dt * W.fast) / 150;       // 安息之后：一日约两分半
     }
-    W.tod = fract(W.clock);
 
     // 日与月的位置：东（左）升西（右）落
+    // 言说「有晚上，有早晨」时，按住的力量把黄昏拉近（W.pull，松手即回）
+    W.tod = fract(W.clock + (W.pull || 0));
     const a = (W.tod - 0.25) * TAU;
     const elev = Math.sin(a);
     const sx = 0.5 - 0.46 * Math.cos(a);
@@ -271,7 +309,7 @@
     W.moon.y = (W.HZ - melev * 0.42) * W.h;
     W.moon.elev = melev;
     W.moon.vis = W.lv.moon;
-    W.moon.phase = 0.62;                     // 月相（0 新月 → 0.5 满月 → 1）
+    W.moon.phase = moonPhase();              // 月相（0 新月 → 0.5 满月 → 1）
 
     const df = lerp(1, smoothstep(-0.20, 0.24, elev), dn);
     W.dayFactor = df;

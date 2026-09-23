@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────
- * main.js —— 运行：输入、言说的仪式、每帧的世界、存档
+ * main.js —— 运行：输入、言说的仪式、每帧的世界、黎明、安息、存档
  * ───────────────────────────────────────────────────────────── */
 (function (GS) {
   'use strict';
@@ -7,31 +7,41 @@
   const { clamp, safe } = U;
   const STAGES = GS.story.STAGES;
   const SAVE_KEY = 'godsim.v2';
+  const ORDINAL = ['', '头一日', '第二日', '第三日', '第四日', '第五日', '第六日'];
 
   // 绘制次序：由远及近。每个模块在每一"层"画属于它的东西。
   const PASSES = ['sky', 'seaFar', 'far', 'seaMid', 'mid', 'seaNear', 'near', 'air', 'top'];
   const MODS = ['land', 'sea', 'beasts', 'air', 'fx'];
 
-  const skyCanvas = document.getElementById('sky');
   const canvas = document.getElementById('world');
   const ctx = canvas.getContext('2d');
+  const skyCanvas = () => document.getElementById('sky');   // 天幕可能在 WebGL 失效时被替换
 
   // ── 参数 ────────────────────────────────────────────────────
   const params = new URLSearchParams(location.search + '&' + location.hash.replace(/^#/, ''));
   W.fast = clamp(parseFloat(params.get('fast')) || 1, 0.1, 20);
   W.quality = params.get('q') ? clamp(parseFloat(params.get('q')) || 1, 0.5, 1) : 1;
   const LOCK_Q = params.has('q');           // 指定画质时不再自动降级（截图 / 测试用）
+  try { W.reduced = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { W.reduced = false; }
 
   // ── 状态 ────────────────────────────────────────────────────
   const S = {
     mode: 'title',          // 'title' | 'play' | 'rest'（安息之后）
-    holding: false, holdSrc: '', charge: 0, need: 1,
+    holding: false, holdSrc: '', charge: 0, need: 1, kind: '',
     cooldown: 0,
     muted: false,
     restartArmed: 0,
     lastT: 0,
-    perf: { acc: 0, n: 0, slow: 0 },
-    started: false,
+    perf: { acc: 0, n: 0 },
+    choices: {},            // 每句话成就时的选择（归一化），存档用
+    sealed: 0,              // 已在黎明封存的日数
+    trail: [],              // 撒星时灵的轨迹
+    breaths: 0, still: 0,   // 第七日：静止的息
+    wasCycling: false,
+    idle: 0,                // 距上次言说的秒数（用于轻声提醒）
+    pendingHold: null,      // 余韵中按下、尚未松开的输入
+    pointerType: 'mouse',
+    keys: new Set(),
   };
 
   // ── 存档 ────────────────────────────────────────────────────
@@ -39,54 +49,90 @@
     try { return JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); } catch (e) { return null; }
   }
   function save() {
-    try { localStorage.setItem(SAVE_KEY, JSON.stringify({ stage: W.stage, day: currentDay(), muted: S.muted, v: 2 })); } catch (e) { /* 隐私模式 */ }
+    try {
+      localStorage.setItem(SAVE_KEY, JSON.stringify({ v: 2, stage: W.stage, day: currentDay(), muted: S.muted, choices: S.choices }));
+    } catch (e) { /* 隐私模式：不存也无妨 */ }
   }
   function clearSave() {
-    try { const s = load(); localStorage.setItem(SAVE_KEY, JSON.stringify({ stage: 0, day: 0, muted: s ? s.muted : false, v: 2 })); } catch (e) { /* */ }
+    try { const s = load(); localStorage.setItem(SAVE_KEY, JSON.stringify({ v: 2, stage: 0, day: 0, muted: s ? !!s.muted : false, choices: {} })); } catch (e) { /* */ }
   }
 
   // ── 日的记号 ────────────────────────────────────────────────
+  const stageNow = () => STAGES[W.stage];
+  const isRestStage = () => !!(stageNow() && stageNow().kind === 'rest');
   function currentDay() { return W.stage < STAGES.length ? STAGES[W.stage].day : 7; }
-  function sealedDays() {
-    let n = 0;
-    for (let i = 0; i < W.stage; i++) if (STAGES[i].evening) n++;
-    if (W.stage >= STAGES.length) n = 7;
-    return n;
+  function goods() {
+    const g = [0, 0, 0, 0, 0, 0, 0, 0];
+    for (let i = 0; i < W.stage; i++) if (STAGES[i].good) g[STAGES[i].day] += STAGES[i].good;
+    return g;
   }
   function refreshHUD() {
     W.day = currentDay();
-    GS.ui.setDays(W.day, sealedDays(), W.stage >= STAGES.length);
+    GS.ui.setDays(W.day, S.sealed, W.stage >= STAGES.length, goods(), S.mode === 'play' && isRestStage() ? S.breaths : null);
     GS.ui.renderLedger(STAGES, W.stage);
   }
 
   // ── 布局 ────────────────────────────────────────────────────
   function resize() {
-    const w = window.innerWidth, h = window.innerHeight;
+    const w = Math.max(1, window.innerWidth), h = Math.max(1, window.innerHeight);
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     canvas.width = Math.floor(w * dpr);
     canvas.height = Math.floor(h * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     W.resize(w, h, dpr);
-    safe('sky.resize', () => GS.sky.resize(skyCanvas, w, h, dpr));
+    safe('sky.resize', () => GS.sky.resize(skyCanvas(), w, h, dpr));
     for (const m of MODS) safe(m + '.resize', () => GS[m].resize());
+  }
+
+  // ── 言说的时长与震颤 ────────────────────────────────────────
+  function holdTime(st) {
+    if (st.hold) return st.hold;
+    const n = Array.from(st.utter).length;
+    if (st.kind === 'refrain') return 0.42 * n;            // 叠句：一字一钟
+    if (st.kind === 'bless') return 0.8 + 0.15 * n;        // 赐福：更缓
+    return 0.55 + 0.11 * n;
+  }
+  // 每一日的言说有它自己的分量：第三日最沉（地壳升起），第四日无声的光，第六日以后越来越轻
+  function shakeAmp(st) {
+    if (!st) return 0;
+    switch (st.kind) {
+      case 'first': case 'stars': case 'human': case 'behold': case 'holy': case 'rest': return 0;
+      case 'refrain': return 0.5;
+      case 'bless': return 0.4;
+    }
+    return [0, 2.2, 2.2, 3.0, 0.3, 0.8, 1.4, 0][st.day] || 0;
   }
 
   // ── 话语成就 ────────────────────────────────────────────────
   function fulfill() {
-    const st = STAGES[W.stage];
+    const st = stageNow();
     if (!st) return;
     const x = W.spirit.x, y = W.spirit.y;
+    if (W.pull) { W.clock += W.pull; W.pull = 0; }      // 被言说拉近的黄昏就此成真
     W.hurryClock();
-    safe('stage.apply', () => st.apply({ instant: false, x, y }));
+    let choice = null;
+    safe('stage.apply', () => { choice = st.apply({ instant: false, x, y, trail: S.trail.slice() }); });
+    if (choice) S.choices[st.index] = choice;
     W.stage++;
-    W.shake = 1;
+    S.trail = [];
+    safe('fx.trace', () => GS.fx.setTrace([]));
+    W.shake = shakeAmp(st) > 0 ? 1 : 0;
     GS.ui.narrate(st.verse);
-    safe('audio.fulfill', () => GS.audio.fulfill(st.day, st.index));
+    safe('audio.fulfill', () => GS.audio.fulfill(st.day, st.index, st.kind));
     bus.emit('fulfill', { stage: st, x, y });
+    if (S.pointerType !== 'mouse' && navigator.vibrate) { try { navigator.vibrate([30, 40, 60]); } catch (e) { /* */ } }
+    S.idle = 0;
     refreshHUD();
     save();
 
     if (st.index === 0) enterPlay();
+    if (st.kind === 'holy') {
+      S.breaths = 0; S.still = 0;
+      setTimeout(() => {
+        if (isRestStage()) GS.ui.hint('第七日 —— 不必再说。放手，静候。', 8);
+        refreshHUD();
+      }, 9000 / W.fast);
+    }
     if (st.final) enterRest();
   }
 
@@ -100,56 +146,97 @@
   function enterRest() {
     S.mode = 'rest';
     W.freeClock = true;
-    setTimeout(() => { GS.ui.finale(true); safe('audio.finale', () => GS.audio.finale()); }, 9500 / W.fast);
-    setTimeout(() => GS.ui.finale(false), 19000 / W.fast);
-    setTimeout(() => GS.ui.hint('按住画面，为所经过之处赐福', 6), 21000 / W.fast);
+    safe('audio.rest', () => GS.audio.rest());
+    refreshHUD();
+    setTimeout(() => { GS.ui.finale(true); safe('audio.finale', () => GS.audio.finale()); }, 15500 / W.fast);
+    setTimeout(() => GS.ui.finale(false), 27000 / W.fast);
+    setTimeout(() => GS.ui.hint('安息 · 灵经过之处，万物显出其名；按住，观看它被造时的话', 7), 30000 / W.fast);
+  }
+
+  // 黎明：一日圆满——日数由晨光（前三日）或星光（后三日）写在地平线上
+  function onDawn() {
+    let d = 0, ev = null;
+    for (let i = W.stage - 1; i >= 0; i--) if (STAGES[i].evening) { d = STAGES[i].day; ev = STAGES[i]; break; }
+    if (!d || d <= S.sealed) return;
+    S.sealed = d;
+    refreshHUD();
+    const M = Math.min(W.w, W.h);
+    const size = M * 0.075, cy = W.horizonY - M * 0.1;
+    if (d <= 3) {
+      GS.fx.nameStr(ORDINAL[d], W.w / 2, cy, size, [255, 222, 180],
+        () => [W.sun.x + U.rand(-1, 1) * W.w * 0.3, W.horizonY - U.rand(0, 1) * M * 0.05], { dot: 1.8 });
+    } else {
+      GS.fx.nameStr(ORDINAL[d], W.w / 2, cy, size, [236, 240, 255],
+        () => [U.rand(0, W.w), U.rand(0, W.horizonY * 0.6)], { dot: 1.8 });
+    }
+    safe('audio.dawn', () => GS.audio.dawn(d));
+    bus.emit('dawn', { day: d });
+    if (ev && ev.after) GS.ui.narrate(ev.after, { delay: 5 });
   }
 
   // 恢复到第 n 句话语之后的世界（瞬间，无动画）
-  function restore(n) {
+  function restore(n, choices) {
     n = clamp(n | 0, 0, STAGES.length);
-    for (let i = 0; i < n; i++) safe('restore ' + i, () => STAGES[i].apply({ instant: true, x: W.w * 0.72, y: W.h * 0.55 }));
+    S.choices = choices || {};
+    for (let i = 0; i < n; i++) {
+      safe('restore ' + i, () => {
+        const r = STAGES[i].apply({ instant: true, x: W.w * 0.72, y: W.h * 0.55, choice: S.choices[i] || null, trail: [] });
+        if (r && !S.choices[i]) S.choices[i] = r;
+      });
+    }
     W.snapAll();
     W.stage = n;
+    S.sealed = 0;
+    for (let i = 0; i < n; i++) if (STAGES[i].evening) S.sealed = STAGES[i].day;
+    if (n >= STAGES.length) S.sealed = 7;
     for (const m of MODS) safe(m + '.restore', () => GS[m].restore && GS[m].restore());
-    refreshHUD();
     if (n > 0) {
       enterPlay();
-      if (n >= STAGES.length) { S.mode = 'rest'; W.freeClock = true; }
+      if (n >= STAGES.length) { S.mode = 'rest'; W.freeClock = true; safe('audio.rest', () => GS.audio.rest()); }
       const nx = STAGES[n];
       setTimeout(() => {
-        if (nx) GS.ui.hint(GS.ui.DAY_NAME[nx.day] + ' · 按住画面，继续言说', 5);
-        else GS.ui.hint('安息 · 按住画面，为所经过之处赐福', 5);
+        if (nx && nx.kind === 'rest') GS.ui.hint('第七日 —— 不必再说。放手，静候。', 8);
+        else if (nx) GS.ui.hint(GS.ui.DAY_NAME[nx.day] + ' · 按住画面，继续言说', 5);
+        else GS.ui.hint('安息 · 按住画面，观看万物被造时的话', 6);
       }, 1800 / W.fast);
     }
+    refreshHUD();
   }
 
   // ── 言说的把持与松开 ────────────────────────────────────────
   function holdStart(src) {
     initAudio();
-    if (S.holding || S.cooldown > 0) return;
+    S.still = 0;
+    if (S.holding) return;
+    if (S.cooldown > 0) { S.pendingHold = src; return; }   // 刚成就的余韵中按下：余韵一过便开始言说
     if (GS.ui.panelOpen()) return;
     if (S.mode === 'title') {
       const sv = load();
-      if (sv && sv.stage > 0) { beginContinue(sv); return; }
+      if (sv && sv.stage > 0) { restore(sv.stage, sv.choices); return; }
+    }
+    const st = stageNow();
+    if (st && st.kind === 'rest') {                 // 第七日：不再言说
+      GS.ui.hint('第七日 —— 不必再说。放手，静候。', 4);
+      return;
     }
     S.holding = true;
     S.holdSrc = src;
     S.charge = 0;
-    const st = STAGES[W.stage];
     if (st) {
-      const len = Array.from(st.utter).length;
-      S.need = (0.45 + len * 0.1) / W.fast;
+      S.kind = st.kind;
+      S.need = holdTime(st) / W.fast;
       W.ritual.text = st.utter;
       W.ritual.tint = st.tint;
-      GS.ui.utterBegin(st.utter, st.tint);
-      safe('audio.chargeStart', () => GS.audio.chargeStart(st.day));
+      GS.ui.utterBegin(st.utter, st.tint, st.kind);
+      safe('audio.chargeStart', () => GS.audio.chargeStart(st.day, st.kind));
+      if (st.kind === 'stars') { S.trail = []; }
     } else {
-      // 安息之后：按住为所经之处赐福
-      S.need = 1.1 / W.fast;
+      // 安息之后：按住观看
+      S.kind = 'sabbath';
+      S.need = 1.2 / W.fast;
       W.ritual.text = '';
       W.ritual.tint = [255, 236, 200];
-      safe('audio.chargeStart', () => GS.audio.chargeStart(7, true));
+      safe('audio.chargeStart', () => GS.audio.chargeStart(7, 'sabbath'));
     }
     W.ritual.holding = true;
     GS.ui.hideHint();
@@ -157,6 +244,7 @@
   }
 
   function holdEnd(src) {
+    if (S.pendingHold === src) S.pendingHold = null;
     if (!S.holding || src !== S.holdSrc) return;
     S.holding = false;
     W.ritual.holding = false;
@@ -166,32 +254,43 @@
       if (full) {
         GS.ui.utterFulfill();
         safe('audio.chargeEnd', () => GS.audio.chargeEnd(true));
-        S.cooldown = 0.9;
+        S.cooldown = 1.0;
         fulfill();
       } else {
         GS.ui.utterCancel();
         if (S.mode === 'title') GS.ui.dimTitle(false);
         safe('audio.chargeEnd', () => GS.audio.chargeEnd(false));
-        if (W.stage === 0 || S.charge < 0.25) GS.ui.hint('按住不放，直到话语说完', 2.8);
+        S.trail = [];
+        safe('fx.trace', () => GS.fx.setTrace([]));
+        if (W.stage <= 2 || S.charge < 0.25) GS.ui.hint('按住不放，直到话语说完', 2.8);
       }
     } else {
       safe('audio.chargeEnd', () => GS.audio.chargeEnd(full));
-      if (S.charge > 0.45) bless(W.spirit.x, W.spirit.y, S.charge);
+      if (S.charge > 0.45) behold(W.spirit.x, W.spirit.y, S.charge);
     }
     S.charge = 0;
   }
 
   function cancelHold() { if (S.holding) holdEnd(S.holdSrc); }
 
-  function bless(x, y, power) {
-    GS.fx.ring(x, y, [255, 232, 190], Math.min(W.w, W.h) * (0.25 + 0.35 * power), 2.2, 2);
-    GS.fx.sparkle(x, y, 40, [255, 240, 210], 30);
-    bus.emit('bless', { x, y, r: Math.min(W.w, W.h) * (0.25 + 0.35 * power) });
-    safe('audio.bless', () => GS.audio.bless());
+  // 安息之后的「观看」：灵所在之物显出它被造时的话，并受一圈祝福的光
+  function pickAt(x, y, r) {
+    let best = null;
+    for (const m of ['beasts', 'air', 'sea', 'land']) {
+      const p = safe(m + '.pick', () => GS[m].pick && GS[m].pick(x, y, r));
+      if (p && isFinite(p.d) && (!best || p.d < best.d)) best = p;
+    }
+    return best;
   }
-
-  function beginContinue(sv) {
-    restore(sv.stage);
+  function behold(x, y, power) {
+    const p = pickAt(x, y, 70 * Math.max(0.7, W.unit));
+    const b = GS.story.beholdAt(x, y, p ? p.label : null);
+    const r = Math.min(W.w, W.h) * (0.22 + 0.3 * power);
+    GS.fx.ring(x, y, [255, 232, 190], r, 2.2, 2);
+    GS.fx.sparkle(x, y, 36, [255, 240, 210], 26);
+    bus.emit('bless', { x, y, r });
+    if (b.verse) GS.ui.narrate([b.verse]);
+    safe('audio.behold', () => GS.audio.behold(b.kind));
   }
 
   function newCreation() {
@@ -199,7 +298,7 @@
     location.replace(location.pathname);   // 最干净的重新创世：回到起初
   }
 
-  // ── 声音 ────────────────────────────────────────────────────
+  // ── 声音 / 全屏 / 留影 ──────────────────────────────────────
   function initAudio() {
     safe('audio.init', () => { GS.audio.init(); GS.audio.setMuted(S.muted); });
   }
@@ -211,49 +310,87 @@
     save();
   }
   function toggleFull() {
-    const d = document;
+    const d = document, de = d.documentElement;
     try {
-      if (!d.fullscreenElement && !d.webkitFullscreenElement) {
-        (d.documentElement.requestFullscreen || d.documentElement.webkitRequestFullscreen).call(d.documentElement);
-      } else {
-        (d.exitFullscreen || d.webkitExitFullscreen).call(d);
-      }
+      if (!d.fullscreenElement && !d.webkitFullscreenElement) (de.requestFullscreen || de.webkitRequestFullscreen).call(de);
+      else (d.exitFullscreen || d.webkitExitFullscreen).call(d);
     } catch (e) { /* 不支持 */ }
+  }
+  // 留影：把天幕与世界合成一张图（须在同一任务里先画天幕，WebGL 的缓冲才可读）
+  function snapshot() {
+    try {
+      const c = document.createElement('canvas');
+      c.width = canvas.width; c.height = canvas.height;
+      const g = c.getContext('2d');
+      g.fillStyle = '#000'; g.fillRect(0, 0, c.width, c.height);
+      safe('sky.render', () => GS.sky.render());
+      try { g.drawImage(skyCanvas(), 0, 0, c.width, c.height); } catch (e) { /* */ }
+      g.drawImage(canvas, 0, 0);
+      const k = c.width / W.w;
+      g.scale(k, k);
+      g.font = '13px "Songti SC", "STSong", "Noto Serif CJK SC", serif';
+      g.textAlign = 'right';
+      g.fillStyle = 'rgba(250,246,236,0.72)';
+      g.shadowColor = 'rgba(0,0,0,0.8)'; g.shadowBlur = 4;
+      const label = W.stage >= STAGES.length ? '安息' : GS.ui.DAY_NAME[currentDay()];
+      g.fillText('七日 · God Simulator · ' + label, W.w - 18, W.h - 16);
+      c.toBlob(b => {
+        if (!b) return;
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(b);
+        a.download = '七日-' + label + '.png';
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+      }, 'image/png');
+      GS.ui.hint('已留影', 2);
+    } catch (e) { GS.ui.hint('此处无法留影', 2); }
   }
 
   // ── 输入 ────────────────────────────────────────────────────
+  let lastMX = -1, lastMY = -1;
   function moveTo(x, y) {
     const sp = W.spirit;
-    sp.tx = x; sp.ty = y;
+    sp.tx = clamp(x, 0, W.w); sp.ty = clamp(y, 0, W.h);
     sp.guided = true;
     sp.lastInput = W.t;
+    if (Math.abs(x - lastMX) + Math.abs(y - lastMY) > 3) { S.still = 0; lastMX = x; lastMY = y; }
   }
-  window.addEventListener('pointermove', e => moveTo(e.clientX, e.clientY), { passive: true });
+  // 触屏时灵悬在指尖上方，手指不会遮住它
+  const touchLift = e => (e.pointerType === 'touch' ? 56 : 0);
+  window.addEventListener('pointermove', e => { S.pointerType = e.pointerType || 'mouse'; moveTo(e.clientX, e.clientY - touchLift(e)); }, { passive: true });
   window.addEventListener('pointerdown', e => {
+    S.pointerType = e.pointerType || 'mouse';
     if (e.target.closest && e.target.closest('button, #ledger, #help')) return;
-    if (e.pointerType !== 'mouse') moveTo(e.clientX, e.clientY);
+    if (e.pointerType !== 'mouse') moveTo(e.clientX, e.clientY - touchLift(e));
     if (e.button != null && e.button > 0) return;
     holdStart('pointer');
   });
   window.addEventListener('pointerup', () => holdEnd('pointer'));
   window.addEventListener('pointercancel', () => holdEnd('pointer'));
+  document.addEventListener('pointerleave', () => holdEnd('pointer'));
   window.addEventListener('contextmenu', e => e.preventDefault());
-  window.addEventListener('blur', cancelHold);
+  window.addEventListener('blur', () => { cancelHold(); S.keys.clear(); });
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) cancelHold();
     safe('audio.visibility', () => GS.audio.visibility && GS.audio.visibility(!document.hidden));
   });
+  const MOVE_KEYS = { ArrowLeft: 1, ArrowRight: 1, ArrowUp: 1, ArrowDown: 1, KeyA: 1, KeyD: 1, KeyW: 1, KeyS: 1 };
   window.addEventListener('keydown', e => {
     if (e.code === 'Space' || e.code === 'Enter') {
+      if (e.target.closest && e.target.closest('button')) return;
       e.preventDefault();
       if (!e.repeat) holdStart('key');
       return;
     }
-    if (e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (MOVE_KEYS[e.code]) { S.keys.add(e.code); S.still = 0; e.preventDefault(); return; }
+    if (e.repeat) return;
+    S.still = 0;
     switch (e.code) {
       case 'KeyL': initAudio(); GS.ui.toggleLedger(); break;
       case 'KeyM': toggleMute(); break;
       case 'KeyF': toggleFull(); break;
+      case 'KeyP': snapshot(); break;
       case 'KeyH': case 'Slash': GS.ui.toggleHelp(); break;
       case 'Escape': GS.ui.toggleLedger(false); GS.ui.toggleHelp(false); break;
       case 'KeyR':
@@ -266,19 +403,19 @@
   });
   window.addEventListener('keyup', e => {
     if (e.code === 'Space' || e.code === 'Enter') holdEnd('key');
+    S.keys.delete(e.code);
   });
   window.addEventListener('resize', resize);
 
   function wireButtons() {
     const el = GS.ui.el;
-    const stop = b => {
-      b.addEventListener('pointerdown', e => e.stopPropagation());
-    };
-    [el.bLedger, el.bSound, el.bFull, el.bHelp].forEach(stop);
-    el.bLedger.addEventListener('click', () => GS.ui.toggleLedger());
+    const stop = b => b && b.addEventListener('pointerdown', e => e.stopPropagation());
+    [el.bLedger, el.bSound, el.bFull, el.bHelp, el.bShot].forEach(stop);
+    el.bLedger.addEventListener('click', () => { initAudio(); GS.ui.toggleLedger(); });
     el.bSound.addEventListener('click', toggleMute);
     el.bFull.addEventListener('click', toggleFull);
     el.bHelp.addEventListener('click', () => GS.ui.toggleHelp());
+    if (el.bShot) el.bShot.addEventListener('click', snapshot);
     el.help.addEventListener('click', () => GS.ui.toggleHelp(false));
     el.ledger.addEventListener('click', e => {
       const t = e.target;
@@ -289,8 +426,19 @@
   // ── 每帧 ────────────────────────────────────────────────────
   function updateSpirit(dt) {
     const sp = W.spirit;
-    // 久未受引领（或尚在标题）时，灵自行盘旋于水面之上
-    const idle = !sp.guided || (W.t - (sp.lastInput || 0) > 40 && !S.holding);
+    // 键盘也能引领神的灵
+    if (S.keys.size) {
+      const v = 340 * dt;
+      let dx = 0, dy = 0;
+      if (S.keys.has('ArrowLeft') || S.keys.has('KeyA')) dx -= v;
+      if (S.keys.has('ArrowRight') || S.keys.has('KeyD')) dx += v;
+      if (S.keys.has('ArrowUp') || S.keys.has('KeyW')) dy -= v;
+      if (S.keys.has('ArrowDown') || S.keys.has('KeyS')) dy += v;
+      if (!sp.guided) { sp.tx = sp.x; sp.ty = sp.y; }
+      moveTo(sp.tx + dx, sp.ty + dy);
+    }
+    // 久未受引领（或尚在标题）时，灵自行盘旋于水面之上；第七日静候时则缓缓安歇
+    const idle = !sp.guided || (W.t - (sp.lastInput || 0) > 45 && !S.holding && !isRestStage());
     if (idle) {
       const t = W.t;
       sp.tx = W.w / 2 + Math.cos(t * 0.23) * W.w * 0.22 + Math.cos(t * 0.07) * W.w * 0.06;
@@ -305,24 +453,63 @@
   }
 
   function updateRitual(dt) {
-    if (S.cooldown > 0) S.cooldown -= dt;
+    if (S.cooldown > 0) {
+      S.cooldown -= dt;
+      if (S.cooldown <= 0 && S.pendingHold) { const src = S.pendingHold; S.pendingHold = null; holdStart(src); }
+    }
     if (S.restartArmed > 0) S.restartArmed -= dt;
+
+    // 叠句：按住的力量把黄昏拉近；松手未满则回到白昼
+    const pullTarget = S.holding && S.kind === 'refrain' ? S.charge * 0.12 : 0;
+    W.pull = U.approach(W.pull, pullTarget, S.holding ? 2.5 : 1.5, dt);
+    if (Math.abs(W.pull) < 1e-4 && !pullTarget) W.pull = 0;
+
     if (!S.holding) return;
     S.charge = Math.min(1, S.charge + dt / S.need);
     W.ritual.charge = S.charge;
-    GS.ui.utterProgress(S.charge);
-    safe('audio.charge', () => GS.audio.charge(S.charge));
+    const shown = GS.ui.utterProgress(S.charge);
+    safe('audio.charge', () => GS.audio.charge(S.charge, shown));
+
+    // 撒星：灵在天上划过的轨迹即是星的归宿
+    if (S.kind === 'stars') {
+      const sp = W.spirit, tr = S.trail;
+      if (sp.y < W.horizonY - 10 && tr.length < 40) {
+        const last = tr[tr.length - 1];
+        if (!last || Math.hypot(sp.x - last[0], sp.y - last[1]) > 26 * Math.max(0.6, W.unit)) {
+          tr.push([sp.x, sp.y]);
+          safe('fx.trace', () => GS.fx.setTrace(tr));
+        }
+      }
+    }
+  }
+
+  // 第七日：静止即安息。每静四秒为一息，七息而毕；一动，未完的那一息便散去
+  function updateRest(dt) {
+    if (S.mode !== 'play' || !isRestStage()) return;
+    if (GS.ui.panelOpen()) return;
+    S.still += dt * W.fast;
+    if (S.still >= 4) {
+      S.still = 0;
+      S.breaths++;
+      safe('audio.breath', () => GS.audio.breath(S.breaths));
+      refreshHUD();
+      if (S.breaths >= 7) { S.breaths = 0; GS.ui.hideHint(); fulfill(); }
+    }
+  }
+
+  // 轻声提醒：久无言说时
+  function updateIdle(dt) {
+    if (S.mode !== 'play' || S.holding || isRestStage()) { S.idle = 0; return; }
+    if (GS.ui.narrating() || GS.ui.panelOpen()) { S.idle = Math.min(S.idle, 10); return; }
+    S.idle += dt;
+    if (S.idle > 28) { S.idle = 0; GS.ui.hint('按住 · 言说', 4); }
   }
 
   function updateTags() {
     if (S.mode !== 'rest' || S.holding) { GS.ui.tag(''); return; }
     const sp = W.spirit;
-    if (sp.speed > 600) return;
-    let best = null;
-    for (const m of ['beasts', 'air', 'sea']) {
-      const r = safe(m + '.pick', () => GS[m].pick && GS[m].pick(sp.x, sp.y, 60 * Math.max(0.7, W.unit)));
-      if (r && (!best || r.d < best.d)) best = r;
-    }
+    if (sp.speed > 600) { GS.ui.tag(''); return; }
+    const best = pickAt(sp.x, sp.y, 60 * Math.max(0.7, W.unit));
     if (best) GS.ui.tag(best.label, best.x, best.y - 12);
     else GS.ui.tag('');
   }
@@ -331,9 +518,12 @@
     if (LOCK_Q || document.hidden) return;
     const P = S.perf;
     P.acc += dt; P.n++;
-    if (P.acc > 2) {
+    if (P.acc > 2.5) {
       const avg = P.acc / P.n;
-      if (avg > 0.028 && W.quality > 0.5) { W.quality = Math.max(0.5, W.quality - 0.25); safe('sky.quality', () => GS.sky.resize(skyCanvas, W.w, W.h, W.dpr)); }
+      if (avg > 0.026 && W.quality > 0.5) {
+        W.quality = Math.max(0.5, W.quality - 0.25);
+        safe('sky.quality', () => GS.sky.resize(skyCanvas(), W.w, W.h, W.dpr));
+      }
       P.acc = 0; P.n = 0;
     }
   }
@@ -347,11 +537,21 @@
     updateSpirit(dt);
     updateRitual(dt);
     W.update(dt);
+    // 黎明：日出的一刻（或这一轮昼夜被催促结束时）
+    if (W.cycling && S.prevTod != null && S.prevTod < 0.25 && W.tod >= 0.25 && W.tod < 0.5) safe('dawn', onDawn);
+    if (S.wasCycling && !W.cycling) safe('dawn', onDawn);
+    S.wasCycling = W.cycling;
+    S.prevTod = W.tod;
+    updateRest(dt);
+    updateIdle(dt);
     for (const m of MODS) safe(m + '.update', () => GS[m].update(dt));
     safe('audio.update', () => GS.audio.update(dt));
 
-    // 大地震颤：言说时渐强，成就时一震
-    const tremor = S.holding ? S.charge * S.charge * 2.4 : W.shake * W.shake * 6;
+    // 大地震颤：言说时渐强，成就时一震（减弱动效时几乎不动）
+    const st = stageNow();
+    const amp = shakeAmp(S.holding ? st : null) || 0;
+    let tremor = S.holding ? S.charge * S.charge * amp : W.shake * W.shake * 5;
+    if (W.reduced) { tremor *= 0.2; W.flash = Math.min(W.flash, 0.35); }
     W.jx = tremor > 0.01 ? Math.sin(W.t * 91.3) * tremor : 0;
     W.jy = tremor > 0.01 ? Math.cos(W.t * 77.7) * tremor : 0;
 
@@ -361,7 +561,7 @@
     ctx.clearRect(0, 0, W.w, W.h);
     ctx.translate(W.jx, W.jy);
     for (const p of PASSES) {
-      if (p === 'top') { ctx.translate(-W.jx, -W.jy); }
+      if (p === 'top') ctx.translate(-W.jx, -W.jy);
       for (const m of MODS) safe(m + '.draw.' + p, () => GS[m].draw(ctx, p));
     }
     ctx.restore();
@@ -375,21 +575,27 @@
   function boot() {
     GS.ui.init();
     wireButtons();
-    safe('sky.init', () => GS.sky.init(skyCanvas));
+    safe('sky.init', () => GS.sky.init(skyCanvas()));
     for (const m of MODS) safe(m + '.init', () => GS[m].init());
     resize();
 
     const sv = load();
     S.muted = !!(sv && sv.muted);
     GS.ui.setSoundButton(S.muted);
-    bus.on('scripture', () => safe('audio.bell', () => GS.audio.bell()));
+    bus.on('scripture', line => {
+      safe('audio.bell', () => GS.audio.bell());
+      // 「神看着是好的」——好的动机；「甚好」——完整的和弦
+      if (/甚好/.test(line.text)) setTimeout(() => safe('audio.good', () => GS.audio.good(true)), 700);
+      else if (/是好的/.test(line.text)) setTimeout(() => safe('audio.good', () => GS.audio.good(false)), 700);
+    });
 
     const jump = params.get('stage');
     if (jump != null) {
-      restore(parseInt(jump, 10) || 0);
-      if ((parseInt(jump, 10) || 0) === 0) GS.ui.showTitle(null);
+      const n = parseInt(jump, 10) || 0;
+      restore(n, sv && sv.stage === n ? sv.choices : null);
+      if (n === 0) GS.ui.showTitle(null);
     } else {
-      GS.ui.showTitle(sv && sv.stage > 0 ? sv : null, newCreation, () => beginContinue(sv));
+      GS.ui.showTitle(sv && sv.stage > 0 ? sv : null, newCreation, () => restore(sv.stage, sv.choices));
     }
     refreshHUD();
     requestAnimationFrame(frame);
@@ -400,17 +606,18 @@
     next() {
       if (W.stage >= STAGES.length) return false;
       initAudio();
-      const st = STAGES[W.stage];
+      const st = stageNow();
       W.ritual.tint = st.tint;
-      GS.ui.utterBegin(st.utter, st.tint); GS.ui.utterProgress(1); GS.ui.utterFulfill();
+      if (st.utter) { GS.ui.utterBegin(st.utter, st.tint, st.kind); GS.ui.utterProgress(1); GS.ui.utterFulfill(); }
       fulfill();
       return true;
     },
     jump: n => { restore(n); },
-    state: () => ({ stage: W.stage, day: W.day, mode: S.mode, lv: Object.assign({}, W.lv), tod: W.tod, quality: W.quality }),
+    dawn: () => onDawn(),
+    state: () => ({ stage: W.stage, day: W.day, mode: S.mode, sealed: S.sealed, breaths: S.breaths, lv: Object.assign({}, W.lv), tod: W.tod, quality: W.quality }),
     S,
   };
-  GS.main = { restore, fulfill, newCreation, PASSES, MODS };
+  GS.main = { restore, fulfill, newCreation, snapshot, PASSES, MODS };
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();

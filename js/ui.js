@@ -19,17 +19,17 @@
       utter: $('utter'), scripture: $('scripture'), hint: $('hint'), days: $('days'),
       ledger: $('ledger'), title: $('title'), titleBtns: $('titleBtns'), titlePrompt: $('titlePrompt'),
       help: $('help'), tools: $('tools'), tag: $('tag'), finale: $('finale'),
-      bLedger: $('bLedger'), bSound: $('bSound'), bFull: $('bFull'), bHelp: $('bHelp'),
+      bLedger: $('bLedger'), bSound: $('bSound'), bFull: $('bFull'), bHelp: $('bHelp'), bShot: $('bShot'),
     };
-    el.days.innerHTML = DAY_CH.map(c => '<span>' + c + '</span>').join('');
+    el.days.innerHTML = DAY_CH.map(c => '<span><b>' + c + '</b><i class="g"></i></span>').join('');
   }
 
   // ── 神谕：按住时逐字浮现 ────────────────────────────────────
-  function utterBegin(text, tint) {
+  function utterBegin(text, tint, kind) {
     utterText = text;
     utterShown = 0;
     utterState = 'speaking';
-    el.utter.classList.remove('scatter');
+    el.utter.className = 'layer' + (kind ? ' k-' + kind : '');
     el.utter.innerHTML = Array.from(text).map(ch =>
       ch === ' ' ? '<span class="ch">&nbsp;</span>' : '<span class="ch">' + ch + '</span>').join('');
     el.utter.style.opacity = '1';
@@ -38,14 +38,16 @@
     el.utter.style.setProperty('--utter-glow', U.rgba(c[0], c[1], c[2], 0.6));
   }
   // charge 0..1：按比例显出文字（在 0.85 时说完，余下的是"充盈"）
+  // 返回当前显出的字数
   function utterProgress(charge) {
-    if (utterState !== 'speaking') return;
+    if (utterState !== 'speaking') return utterShown;
     const chars = el.utter.children;
     const n = Math.min(chars.length, Math.ceil((charge / 0.85) * chars.length));
     for (let i = utterShown; i < n; i++) chars[i].classList.add('on');
     if (n > utterShown) utterShown = n;
     el.utter.style.transform = 'scale(' + (0.97 + 0.05 * charge).toFixed(4) + ')';
     el.utter.style.filter = charge >= 1 ? 'brightness(1.25)' : '';
+    return utterShown;
   }
   // 说满松手：话语成就——文字化光而去
   function utterFulfill() {
@@ -118,14 +120,22 @@
   function hideHint() { clearTimeout(hintTimer); el.hint.classList.remove('show'); }
 
   // ── 七日之印 ────────────────────────────────────────────────
-  function setDays(day, sealed, holy) {
+  // day：当前第几日；sealed：已封存（黎明已至）的日数；holy：第七日已定为圣日
+  // goods[d]：第 d 日已出现几次「神看着是好的」（2 = 甚好）；breaths：第七日静止的息数（0..7，null 为不显示）
+  function setDays(day, sealed, holy, goods, breaths) {
     const spans = el.days.children;
     for (let i = 0; i < 7; i++) {
       const s = spans[i];
-      s.className = '';
-      if (holy && i === 6) s.classList.add('holy');
-      else if (i < sealed) s.classList.add('done');
-      else if (i === day - 1) s.classList.add('now');
+      let cls = '';
+      if (breaths != null) cls = i < breaths ? 'breath' : '';
+      else if (holy && i === 6) cls = 'holy';
+      else if (i < sealed) cls = 'done';
+      else if (i === day - 1) cls = 'now';
+      if (s.className !== cls) s.className = cls;
+      const g = goods ? goods[i + 1] || 0 : 0;
+      const gi = s.querySelector('.g');
+      const want = g >= 2 ? '<em></em><em class="big"></em>' : '<em></em>'.repeat(g);
+      if (gi.innerHTML !== want) gi.innerHTML = want;
     }
   }
   function showDays(on) { el.days.classList.toggle('show', !!on); }
@@ -133,6 +143,12 @@
 
   // ── 创世日志：God is the first vibecoder ─────────────────────
   // 每一句话语是一条命令；每一日是一次提交。
+  // 每一次言说都是一次提交：一个由句序决定的短哈希
+  function hash(i) {
+    let h = (i + 1) * 2654435761 >>> 0;
+    h ^= h >>> 13; h = Math.imul(h, 0x5bd1e995) >>> 0; h ^= h >>> 15;
+    return ('000000' + (h >>> 0).toString(16)).slice(-7);
+  }
   function renderLedger(stages, done) {
     const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
     let html = '<h2>创世日志</h2><div class="sub">~/heavens-and-earth · branch: main</div>';
@@ -147,11 +163,13 @@
         html += '<div class="day">' + DAY_NAME[s.day] + '</div>';
       }
       const isNew = i === done - 1;
-      html += '<div class="ln' + (isNew ? ' new' : '') + '"><span class="p">' + (i === 0 ? '$ ' : '✓ ') +
+      html += '<div class="ln' + (isNew ? ' new' : '') + '"><span class="h">' + hash(i) + '</span> <span class="p">' + (i === 0 ? '$ ' : '✓ ') +
         '</span><span class="c">' + esc(s.cmd) + '</span>  <span class="r"># ' + esc(s.ref || '') + '</span></div>';
     }
     if (done >= stages.length) {
       html += '<div class="ok">✓ build passed · 神看着一切所造的都甚好</div>';
+      html += '<div class="ln"><span class="r">7 日 · ' + (stages.length - 1) + ' 句话 · 0 个 bug</span></div>';
+      html += '<div class="ln"><span class="r">God is the first vibecoder.</span></div>';
       html += '<div class="ln" style="margin-top:14px"><span class="p">$ </span><span class="c cursor"></span></div>';
       html += '<div style="margin-top:26px"><button data-act="restart" class="restart">重新创世</button></div>';
     } else {

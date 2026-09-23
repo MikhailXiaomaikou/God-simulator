@@ -91,18 +91,88 @@
     return pts;
   }
   const NAME_GATHER = 1.7, NAME_HOLD = 2.8, NAME_FADE = 2.0;
+  // srcFn() → [x, y] 或 [x, y, rgb]（逐粒指定颜色：万物各以其质料）
+  // opts: { delay, dark（以黑暗为质料）, hold（驻留秒数）, step（取点稀疏度 1=全部） }
   function name(ch, cx, cy, size, c, srcFn, opts) {
     opts = opts || {};
-    names.push({
-      born: W.t + (opts.delay || 0), c,
-      pts: glyphPoints(ch).map(([ox, oy]) => {
-        const s = srcFn();
-        return { tx: cx + ox * size, ty: cy + oy * size, sx: s[0], sy: s[1], seed: Math.random() * TAU };
-      }),
-    });
-    return NAME_GATHER + NAME_HOLD + NAME_FADE + (opts.delay || 0);
+    // 小字取点更疏，免得微尘挤成一团（取点网格在 200px 字号下间距 3px）
+    const spacing = (3 * size) / 200;
+    const all = glyphPoints(ch), step = opts.step || Math.max(1, Math.round(Math.pow(2.3 / Math.max(0.3, spacing), 2)));
+    const pts = [];
+    for (let i = 0; i < all.length; i += step) {
+      const [ox, oy] = all[i];
+      const s = srcFn();
+      pts.push({ tx: cx + ox * size, ty: cy + oy * size, sx: s[0], sy: s[1], c: s[2] || null, seed: Math.random() * TAU });
+    }
+    names.push({ born: W.t + (opts.delay || 0), c, dark: !!opts.dark, hold: opts.hold || NAME_HOLD, dot: opts.dot || 2.4, pts });
+    return NAME_GATHER + (opts.hold || NAME_HOLD) + NAME_FADE + (opts.delay || 0);
   }
   name.DURATION = NAME_GATHER + NAME_HOLD + NAME_FADE;
+  // 一串字（如「头一日」）：逐字排开，同时聚成
+  function nameStr(str, cx, cy, size, c, srcFn, opts) {
+    const chars = Array.from(str), gap = size * 1.08;
+    const x0 = cx - (gap * (chars.length - 1)) / 2;
+    let d = 0;
+    chars.forEach((ch, i) => { d = Math.max(d, name(ch, x0 + i * gap, cy, size, c, srcFn, Object.assign({}, opts, { delay: (opts && opts.delay || 0) + i * 0.12 }))); });
+    return d;
+  }
+
+  // ── 你的星座（又造众星时灵划过的轨迹）与「甚好」之星 ─────────
+  let constellation = null;   // [[nx, ny], ...]
+  let goodStar = null;        // [nx, ny]
+  let trace = [];             // 言说撒星时，灵在天上留下的意念（像素点）
+  function setConstellation(pts) { constellation = pts && pts.length ? pts : null; }
+  function setGoodStar(p) { goodStar = p; }
+  function setTrace(pts) { trace = pts || []; }
+  function starAlpha() {
+    const n = clamp(W.night * 1.25 + W.dusk * 0.35, 0, 1);
+    return W.lv.stars * n;
+  }
+  function flare(ctx, x, y, r, c, a) {
+    ctx.fillStyle = U.rgba(c[0], c[1], c[2], a);
+    ctx.beginPath(); ctx.arc(x, y, r * 0.55, 0, TAU); ctx.fill();
+    ctx.fillStyle = U.rgba(c[0], c[1], c[2], a * 0.45);
+    ctx.fillRect(x - r * 3.2, y - 0.5, r * 6.4, 1);
+    ctx.fillRect(x - 0.5, y - r * 3.2, 1, r * 6.4);
+    ctx.fillStyle = U.rgba(c[0], c[1], c[2], a * 0.12);
+    ctx.beginPath(); ctx.arc(x, y, r * 2.4, 0, TAU); ctx.fill();
+  }
+  function drawHeavens(ctx) {
+    const A = starAlpha();
+    ctx.globalCompositeOperation = 'lighter';
+    if (constellation && A > 0.01) {
+      // 星座的连线：只在深夜隐约可见，像一张星图
+      ctx.strokeStyle = U.rgba(200, 215, 255, 0.07 * A);
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let i = 0; i < constellation.length; i++) {
+        const X = constellation[i][0] * W.w, Y = constellation[i][1] * W.h;
+        if (i === 0) ctx.moveTo(X, Y); else ctx.lineTo(X, Y);
+      }
+      ctx.stroke();
+      for (let i = 0; i < constellation.length; i++) {
+        const X = constellation[i][0] * W.w, Y = constellation[i][1] * W.h;
+        const tw = 0.75 + 0.25 * Math.sin(W.t * (1.3 + (i % 5) * 0.37) + i * 2.1);
+        flare(ctx, X, Y, 1.5 + (i % 3) * 0.35, [244, 247, 255], A * tw);
+      }
+    }
+    if (goodStar) {
+      // 甚好之星：黄昏时第一个亮起，最亮
+      const g = clamp(W.lv.stars * (W.night * 1.4 + W.dusk * 0.9), 0, 1) * clamp(W.lv.good * 3, 0, 1);
+      if (g > 0.01) {
+        const X = goodStar[0] * W.w, Y = goodStar[1] * W.h;
+        flare(ctx, X, Y, 2.4, [255, 231, 163], g * (0.85 + 0.15 * Math.sin(W.t * 1.7)));
+      }
+    }
+    if (trace.length > 1) {
+      ctx.strokeStyle = 'rgba(244, 247, 255, 0.25)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      trace.forEach((p, i) => (i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])));
+      ctx.stroke();
+    }
+    ctx.globalCompositeOperation = 'source-over';
+  }
 
   // ── 更新 ────────────────────────────────────────────────────
   function update(dt) {
@@ -158,14 +228,14 @@
 
   function drawNames(ctx) {
     if (!names.length) return;
-    ctx.globalCompositeOperation = 'lighter';
     for (let ni = names.length - 1; ni >= 0; ni--) {
       const nm = names[ni];
       const age = W.t - nm.born;
       if (age < 0) continue;
-      if (age > NAME_GATHER + NAME_HOLD + NAME_FADE) { names.splice(ni, 1); continue; }
-      const c = nm.c;
-      const pts = nm.pts;
+      const HOLD = nm.hold;
+      if (age > NAME_GATHER + HOLD + NAME_FADE) { names.splice(ni, 1); continue; }
+      ctx.globalCompositeOperation = nm.dark ? 'source-over' : 'lighter';
+      const c = nm.c, pts = nm.pts, dot = nm.dot, hd = dot / 2;
       for (let k = 0; k < pts.length; k++) {
         const p = pts[k];
         let X, Y, A;
@@ -175,18 +245,33 @@
           X = p.sx + (p.tx - p.sx) * q;
           Y = p.sy + (p.ty - p.sy) * q;
           A = e * 0.8;
-        } else if (age < NAME_GATHER + NAME_HOLD) {      // 驻：微微呼吸、闪烁
+        } else if (age < NAME_GATHER + HOLD) {           // 驻：微微呼吸、闪烁
           X = p.tx + Math.sin(W.t * 2.1 + p.seed) * 0.8;
           Y = p.ty + Math.cos(W.t * 1.7 + p.seed * 2) * 0.8;
           A = 0.65 + 0.3 * Math.sin(W.t * 3 + p.seed * 3);
         } else {                                          // 散：轻扬而去，归于世界
-          const e = (age - NAME_GATHER - NAME_HOLD) / NAME_FADE;
-          X = p.tx + Math.sin(p.seed) * 70 * e * e;
-          Y = p.ty - 50 * e * e + Math.cos(p.seed * 2) * 24 * e;
+          const e = (age - NAME_GATHER - HOLD) / NAME_FADE;
+          if (p.c) {                                      // 各归其所：回到来处
+            const q = e * e * (3 - 2 * e);
+            X = p.tx + (p.sx - p.tx) * q;
+            Y = p.ty + (p.sy - p.ty) * q;
+          } else {
+            X = p.tx + Math.sin(p.seed) * 70 * e * e;
+            Y = p.ty - 50 * e * e + Math.cos(p.seed * 2) * 24 * e;
+          }
           A = (1 - e) * (1 - e) * 0.8;
         }
-        ctx.fillStyle = U.rgba(c[0], c[1], c[2], A);
-        ctx.fillRect(X - 1.2, Y - 1.2, 2.4, 2.4);
+        const cc = p.c || c;
+        if (nm.dark) {
+          // 暗的质料：墨色的尘，带一丝冷光的边
+          ctx.fillStyle = U.rgba(58, 74, 112, A * 0.55);
+          ctx.fillRect(X - hd - 0.8, Y - hd - 0.8, dot + 1.6, dot + 1.6);
+          ctx.fillStyle = U.rgba(cc[0], cc[1], cc[2], Math.min(1, A * 1.15));
+          ctx.fillRect(X - hd, Y - hd, dot, dot);
+        } else {
+          ctx.fillStyle = U.rgba(cc[0], cc[1], cc[2], A);
+          ctx.fillRect(X - hd, Y - hd, dot, dot);
+        }
       }
     }
     ctx.globalCompositeOperation = 'source-over';
@@ -204,7 +289,7 @@
       ctx.fillRect(p.x - p.s, p.y - p.s, p.s * 2, p.s * 2);
     }
     // 光晕：言说时更亮、更凝聚
-    const rad = (120 + ch * 50) * Math.max(0.6, W.unit);
+    const rad = (120 + ch * 50) * Math.max(0.6, W.unit) * (1 - 0.12 * W.lv.given);
     const breath = 0.92 + 0.08 * Math.sin(W.t * 1.3);
     const g = ctx.createRadialGradient(x, y, 0, x, y, rad);
     const tint = R.tint || [255, 250, 235];
@@ -302,12 +387,14 @@
       drawBursts(ctx);
       drawFlash(ctx);
     } else {
+      if (pass === 'sky') drawHeavens(ctx);
       drawParts(ctx, pass);
     }
   }
 
-  function reset() { parts.length = 0; rings.length = 0; names.length = 0; bursts.length = 0; trail.length = 0; }
+  function reset() { parts.length = 0; rings.length = 0; names.length = 0; bursts.length = 0; trail.length = 0; trace = []; constellation = null; goodStar = null; }
 
-  GS.fx = { init() {}, resize() {}, update, draw, reset, add, burst, ring, dust, sparkle, sow, name, glyphPoints,
+  GS.fx = { init() {}, resize() {}, update, draw, reset, add, burst, ring, dust, sparkle, sow, name, nameStr, glyphPoints,
+    setConstellation, setGoodStar, setTrace, getConstellation: () => constellation,
     get busyNames() { return names.length; } };
 })(window.GS);
