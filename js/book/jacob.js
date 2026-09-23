@@ -1519,6 +1519,8 @@
   // ════════════════════════════════════════════════════════════
   function resetScene() { P.clear(); FXL.length = 0; sorted = []; sortedN = -1; S = fresh(); }
   function setup() {
+    // 迦南与哈兰：牧场
+    GS.W.set('bare', 0.18, true); GS.W.set('bloom', 0.55, true);
     const lv = { deep: 1, light: 1, gather: 1, dayNight: 1, vault: 1, clouds: 0.45, land: 1, grass: 1, herbs: 1, trees: 0.42, lights: 1, moon: 1, stars: 1, life: 1, good: 0, given: 1, sabbath: 0.2,
       jbLadder: 0, jbDrought: 0, jbDew: 0, jbShadow: 0, jbSeir: 0 };
     for (const k in lv) if (!W.hasLevel || W.hasLevel(k)) W.set(k, lv[k], true);

@@ -1103,6 +1103,10 @@
     outro: 42,
 
     setup() {
+
+      // 地必为你的缘故受咒诅：土更硬、草更黄，花也稀了
+
+      GS.W.set('bare', 0.38, true); GS.W.set('bloom', 0.2, true);
       S = fresh();
       MOTES.length = 0;
       shadowX = null;

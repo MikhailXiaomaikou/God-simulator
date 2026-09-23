@@ -35,7 +35,12 @@
 
   // ── 色板 ────────────────────────────────────────────────────
   const SOIL = [[52, 48, 56], [110, 79, 51], [90, 65, 40]];
-  const SOD = [[30, 80, 46], [72, 106, 58], [70, 108, 52]];          // 草覆之地
+  const SOD = [[30, 80, 46], [72, 106, 58], [70, 108, 52]];
+  // 后来各卷的大地：W.lv.bare（0..1）使土与草枯黄（地受咒诅、饥荒）；W.lv.bloom（0..1）使遍地的花隐去
+  W.defineLevel('bare', 'exp', 0.35, 0);
+  W.defineLevel('bloom', 'exp', 0.5, 1);
+  const DRY = [168, 142, 92];
+  const dry = c => { const b = W.lv.bare || 0; if (b < 0.002) return c; const k = Math.min(1, b) * 0.75; return [c[0] + (DRY[0] - c[0]) * k, c[1] + (DRY[1] - c[1]) * k, c[2] + (DRY[2] - c[2]) * k]; };          // 草覆之地
   const BLADE = [null, [[72, 104, 56], [138, 170, 100]], [[44, 78, 34], [118, 162, 78]]];
   const TUFT = [[36, 64, 28], [100, 142, 64]];
   const HERB = { stem: [70, 102, 50], leaf: [58, 96, 44], seed: [216, 194, 122], ctr: [236, 196, 92] };
@@ -1471,7 +1476,7 @@
   // ════════════════════════════════════════════════════════════
   function groundColors(L) {
     const d = depthOf(L.i);
-    let soil = W.shade(SOIL[L.i], d), sod = W.shade(SOD[L.i], d);
+    let soil = W.shade(dry(SOIL[L.i]), d), sod = W.shade(dry(SOD[L.i]), d);
     if (L.wet > 0) {
       // 湿土更深、略冷
       const k = 1 - 0.3 * L.wet;
@@ -1941,7 +1946,7 @@
     const bc = L.i === 2 ? [BLADE[2][0], BLADE[2][1], TUFT[0], TUFT[1]] : [BLADE[1][0], BLADE[1][1], BLADE[1][0], BLADE[1][1]];
     const rimW = c01(FL.ww * 1.3) * FL.sun.a;
     const cols = bc.map((c, k) => {
-      let s = W.shade(c, d, k === 1 || k === 3 ? 0.06 : 0);
+      let s = W.shade(dry(c), d, k === 1 || k === 3 ? 0.06 : 0);
       if ((k === 1) && rimW > 0.05) s = mix(s, mix(FL.sun.col, s, 0.4), rimW * 0.55);
       return css(s);
     });
@@ -2067,8 +2072,8 @@
     }
     const d = depthOf(L.i), u = uu(), near = L.i === 2;
     ctx.lineCap = 'round';
-    if (G.nSt) { ctx.strokeStyle = css(W.shade(HERB.stem, d)); ctx.lineWidth = Math.max(0.6, (near ? 1.05 : 0.7) * u); ctx.stroke(G.st); }
-    if (G.nLf) { ctx.fillStyle = css(W.shade(HERB.leaf, d)); ctx.fill(G.lf); }
+    if (G.nSt) { ctx.strokeStyle = css(W.shade(dry(HERB.stem), d)); ctx.lineWidth = Math.max(0.6, (near ? 1.05 : 0.7) * u); ctx.stroke(G.st); }
+    if (G.nLf) { ctx.fillStyle = css(W.shade(dry(HERB.leaf), d)); ctx.fill(G.lf); }
     if (G.nSd) { ctx.fillStyle = css(W.shade(HERB.seed, d, 0.08)); ctx.fill(G.sd); }
     if (G.nBu) { ctx.fillStyle = css(W.shade(mix(HERB.leaf, [140, 120, 90], 0.4), d)); ctx.fill(G.bu); }
     for (let c = 0; c < 4; c++) if (G.pn[c]) { ctx.fillStyle = css(W.shade(FLOWER[c], d, 0.14)); ctx.fill(G.pe[c]); }
@@ -2197,6 +2202,15 @@
   // 赐福开出的花
   const bloomG = [null, null, null];
   function drawBlooms(ctx, layer) {
+    const a = W.lv.bloom == null ? 1 : W.lv.bloom;
+    if (a < 0.01 || !blooms.length) return;
+    if (a > 0.995) { drawBloomsInner(ctx, layer); return; }
+    const ga = ctx.globalAlpha;
+    ctx.globalAlpha = ga * a;
+    drawBloomsInner(ctx, layer);
+    ctx.globalAlpha = ga;
+  }
+  function drawBloomsInner(ctx, layer) {
     if (!blooms.length) return;
     const L = LY[layer];
     if (L.spanA < 0) return;

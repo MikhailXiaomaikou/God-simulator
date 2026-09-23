@@ -195,6 +195,7 @@
     if (a.index > 0) { W.freeClock = false; }
     const prev = W.replaying;
     W.replaying = true;
+    GS.book.resetActLevels();
     if (a.setup) safe('act.setup ' + a.id, () => a.setup({ instant: true }));
     W.replaying = prev;
     W.snapAll();
@@ -256,6 +257,7 @@
       const a = ACTS[st.act];
       if (a.index > 0 && i === a.first && a.index <= lastAct) {
         W.act = a.index; W.freeClock = false;
+        GS.book.resetActLevels();
         if (a.setup) safe('act.setup ' + a.id, () => a.setup({ instant: true }));
       }
       if (i >= n) break;

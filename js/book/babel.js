@@ -1052,6 +1052,8 @@
     intro: [{ text: '挪亚的儿子闪、含、雅弗的后代记在下面。<br>洪水以后，他们都生了儿子。', ref: '创世记 10:1', hold: 6 }],
     outro: 34,
     setup() {
+      // 示拿的平原：干燥的土地
+      GS.W.set('bare', 0.3, true); GS.W.set('bloom', 0.3, true);
       S = fresh();
       glyphs.length = 0; emitAcc = 0;
       const L = { deep: 1, light: 1, gather: 1, dayNight: 1, vault: 1, clouds: 1, land: 1, grass: 1, herbs: 1, trees: 0.24,

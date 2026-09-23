@@ -86,7 +86,7 @@
   // ── 颜色 ────────────────────────────────────────────────────
   const WOOD = [170, 128, 84], RIB = [126, 92, 60], PITCH = [52, 42, 36], CABIN = [156, 118, 78], CABIN_P = [78, 62, 50];
   const ROOF = [108, 82, 60], ROOF_P = [64, 52, 44], SCAF = [168, 136, 96], DARK = [24, 18, 14], RIMC = [255, 232, 196];
-  const ROCK = [112, 101, 96], SNOW = [238, 242, 250], SEA = [24, 42, 62], FOAM = [232, 240, 248];
+  const ROCK = [112, 101, 96], SNOW = [210, 218, 232], SEA = [24, 42, 62], FOAM = [232, 240, 248];
   const STONE = [152, 142, 128], VINE = [72, 108, 52], GRAPE = [92, 52, 96], TENT = [74, 60, 50];
   const TINT = [196, 216, 240];
   const ROBE = {
@@ -215,6 +215,12 @@
     const r = c01(f - i);
     return MT.H[i] + (MT.H[i + 1] - MT.H[i]) * r;
   }
+  // 此刻露出水面的山的横向范围
+  function mtSpan(dy) {
+    let a = -1, b = -1;
+    for (let i = 0; i < MT.n; i++) if (MT.H[i] > dy + 0.5) { if (a < 0) a = i; b = i; }
+    return a < 0 ? null : [a * MT.step, b * MT.step];
+  }
   const mtSink = () => (1 - c01(W.lv.ararat)) * (MT.Hm + 0.02 * W.h);
   function surfY(x) { return MT.wl - mtH(x) + mtSink(); }
 
@@ -253,7 +259,7 @@
       else if (open) { open = false; closeSnow(i - 1); }
     }
     if (open) closeSnow(n - 1);
-    ctx.fillStyle = W.shadeCSS(SNOW, dp * 0.8, 1, 0.12);
+    ctx.fillStyle = W.shadeCSS(SNOW, dp * 0.8, 1, 0.04);
     ctx.fill();
     // 背光的一面：以峰顶为界，一明一暗
     const sunLeft = W.sun.x < MT.xg;
@@ -298,8 +304,14 @@
     ctx.lineWidth = 1.2;
     ctx.stroke();
     ctx.restore();
-    // 水线：山与水相接处的一道白沫
+    // 水线：山与水相接处，水里一道暗影与一道白沫
     if (e < 0.999) {
+      const ga = ctx.createLinearGradient(0, wl, 0, wl + 0.03 * W.h);
+      ga.addColorStop(0, U.rgba(6, 12, 20, 0.35));
+      ga.addColorStop(1, U.rgba(6, 12, 20, 0));
+      ctx.fillStyle = ga;
+      const span = mtSpan(dy);
+      if (span) ctx.fillRect(span[0], wl, span[1] - span[0], 0.03 * W.h);
       ctx.beginPath();
       let on = false;
       for (let i = 0; i < n; i++) {
@@ -1029,6 +1041,13 @@
           g.beginPath(); g.ellipse(x + ox, y + oy, rad, rad * 0.5, 0, 0, TAU); g.fill();
         }
       }
+      // 上下两端渐隐，免得贴图的边成一道直线
+      g.globalCompositeOperation = 'destination-in';
+      const fade = g.createLinearGradient(0, 0, 0, ch);
+      fade.addColorStop(0, 'rgba(0,0,0,0)'); fade.addColorStop(0.12, 'rgba(0,0,0,1)');
+      fade.addColorStop(0.7, 'rgba(0,0,0,1)'); fade.addColorStop(1, 'rgba(0,0,0,0)');
+      g.fillStyle = fade; g.fillRect(0, 0, cw, ch);
+      g.globalCompositeOperation = 'source-over';
       return c;
     } catch (e) { return null; }
   }
@@ -1081,19 +1100,21 @@
     const r = W.lv.rain;
     if (r > 0.02) {
       const slant = (0.05 + 0.08 * W.lv.flWind) * W.w;
-      ctx.beginPath();
-      for (let k = 0; k < 6; k++) {
-        const cx = (((hsh(k + 3.7) * 1.3 + S.clock * 0.006 * (1 + W.lv.flWind)) % 1.3) - 0.15) * W.w;
-        const top2 = (0.2 + 0.1 * hsh(k * 2.1)) * W.h, w = (0.05 + 0.06 * hsh(k * 5.3)) * W.w;
-        ctx.moveTo(cx - w / 2, top2); ctx.lineTo(cx + w / 2, top2); ctx.lineTo(cx + w / 2 + slant, hz + 2); ctx.lineTo(cx - w / 2 + slant, hz + 2); ctx.closePath();
-      }
       const gc = ctx.createLinearGradient(0, 0.2 * W.h, 0, hz);
       const rc = U.mixRGB([40, 46, 58], [150, 158, 172], day);
       gc.addColorStop(0, rgba(rc, 0));
-      gc.addColorStop(0.3, rgba(rc, 0.22 * r));
-      gc.addColorStop(1, rgba(rc, 0.08 * r));
+      gc.addColorStop(0.35, rgba(rc, 0.09 * r));
+      gc.addColorStop(1, rgba(rc, 0.035 * r));
       ctx.fillStyle = gc;
-      ctx.fill();
+      for (const kw of [1, 0.66, 0.36]) {
+        ctx.beginPath();
+        for (let k = 0; k < 6; k++) {
+          const cx = (((hsh(k + 3.7) * 1.3 + S.clock * 0.006 * (1 + W.lv.flWind)) % 1.3) - 0.15) * W.w;
+          const top2 = (0.2 + 0.1 * hsh(k * 2.1)) * W.h + (1 - kw) * 0.04 * W.h, w = (0.05 + 0.06 * hsh(k * 5.3)) * W.w * kw;
+          ctx.moveTo(cx - w / 2, top2); ctx.lineTo(cx + w / 2, top2); ctx.lineTo(cx + w / 2 + slant, hz + 2); ctx.lineTo(cx - w / 2 + slant, hz + 2); ctx.closePath();
+        }
+        ctx.fill();
+      }
     }
   }
   function makeBolt() {
@@ -1138,22 +1159,25 @@
     const reach = Math.hypot(W.w, W.h) * 0.9;
     const g = ctx.createRadialGradient(sx, sy, 0, sx, sy, reach);
     g.addColorStop(0, U.rgba(255, 240, 210, 0));
-    g.addColorStop(0.12, U.rgba(255, 238, 200, 0.16 * k));
-    g.addColorStop(0.55, U.rgba(255, 232, 190, 0.07 * k));
+    g.addColorStop(0.1, U.rgba(255, 238, 200, 0.05 * k));
+    g.addColorStop(0.4, U.rgba(255, 232, 190, 0.028 * k));
     g.addColorStop(1, 'rgba(255,230,190,0)');
-    ctx.beginPath();
     const base = Math.atan2(W.h - sy, W.w * 0.5 - sx);
-    for (let i = 0; i < 7; i++) {
-      const a0 = base - 0.75 + i * 0.25 + 0.05 * Math.sin(S.clock * 0.15 + i * 1.7);
-      const wdt = 0.035 + 0.03 * hsh(i * 3.3);
-      ctx.moveTo(sx, sy);
-      ctx.lineTo(sx + Math.cos(a0 - wdt) * reach, sy + Math.sin(a0 - wdt) * reach);
-      ctx.lineTo(sx + Math.cos(a0 + wdt) * reach, sy + Math.sin(a0 + wdt) * reach);
-      ctx.closePath();
-    }
     ctx.globalCompositeOperation = 'lighter';
     ctx.fillStyle = g;
-    ctx.fill();
+    // 每道光以三层由宽到窄叠成：边缘柔和
+    for (const kw of [1, 0.6, 0.3]) {
+      ctx.beginPath();
+      for (let i = 0; i < 8; i++) {
+        const a0 = base - 0.8 + i * 0.22 + 0.05 * Math.sin(S.clock * 0.15 + i * 1.7);
+        const wdt = (0.03 + 0.03 * hsh(i * 3.3)) * kw;
+        ctx.moveTo(sx, sy);
+        ctx.lineTo(sx + Math.cos(a0 - wdt) * reach, sy + Math.sin(a0 - wdt) * reach);
+        ctx.lineTo(sx + Math.cos(a0 + wdt) * reach, sy + Math.sin(a0 + wdt) * reach);
+        ctx.closePath();
+      }
+      ctx.fill();
+    }
     ctx.globalCompositeOperation = 'source-over';
   }
   // 虹：横过整个天空；自左脚向右脚铺开；外面一道淡淡的副虹，其间略暗（亚历山大暗带）
@@ -1737,6 +1761,14 @@
 
   function drawUnder(ctx, pass) {
     if (!cur()) return;
+    if (pass === 'seaFar') {
+      // 天上的一切画在 'seaFar' 层的最前：仍在一切陆地之后，却盖过天幕上（'sky' 层）的星与星座——乌云之下看不见星
+      drawSkyTints(ctx);
+      drawStormSky(ctx);
+      drawRays(ctx, false);
+      drawRainbow(ctx);
+      drawBolt(ctx);
+    }
     if (pass === 'seaFar' || pass === 'seaMid' || pass === 'seaNear') drawSeaRough(ctx, pass);
     else if (pass === 'near') {
       drawVineyard(ctx);
@@ -1749,13 +1781,7 @@
   function draw(ctx, pass) {
     if (!cur()) return;
     ensureLayout();
-    if (pass === 'sky') {
-      drawSkyTints(ctx);
-      drawStormSky(ctx);
-      drawRays(ctx, false);
-      drawRainbow(ctx);
-      drawBolt(ctx);
-    } else if (pass === 'seaNear') {
+    if (pass === 'seaNear') {
       drawMountain(ctx);
       const A = arkNow();
       if (A.vis && A.mount) drawArk(ctx, A);

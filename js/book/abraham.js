@@ -1185,6 +1185,8 @@
   //  幕后布置：哈兰的清晨
   // ════════════════════════════════════════════════════════════
   function setup() {
+    // 迦南的丘陵：半干的草场
+    GS.W.set('bare', 0.26, true); GS.W.set('bloom', 0.45, true);
     const lv = { deep: 1, light: 1, gather: 1, dayNight: 1, vault: 1, clouds: 0.5, land: 1, grass: 1, herbs: 1, trees: 0.5, lights: 1, moon: 1, stars: 1, life: 1, good: 0, given: 1,
       abStars: 0, abDrought: 0, abDark: 0, abPass: 0, abFire: 0, abSmoke: 0, abTwelve: 0 };
     for (const k in lv) if (!W.hasLevel || W.hasLevel(k)) W.set(k, lv[k], true);

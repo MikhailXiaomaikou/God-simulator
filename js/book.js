@@ -145,5 +145,9 @@
   // 本卷是否正在进行（布景只在自己的卷里画）
   const current = id => ACTS[W.act] && ACTS[W.act].id === id;
 
-  GS.book = { ACTS, act, actOf, timeline, flush, busy, after, resync, current, CN_NUM, scenes };
+  // 每一卷开始时，这些"卷内"的程度先回到默认，再由该卷的 setup 自行设定（前一卷的枯黄、花隐等不会误带过来）
+  const ACT_DEFAULTS = { bare: 0, bloom: 1 };
+  function resetActLevels() { for (const k in ACT_DEFAULTS) if (W.hasLevel(k)) W.set(k, ACT_DEFAULTS[k], true); }
+
+  GS.book = { ACTS, act, actOf, timeline, flush, busy, after, resync, current, resetActLevels, ACT_DEFAULTS, CN_NUM, scenes };
 })(window.GS);

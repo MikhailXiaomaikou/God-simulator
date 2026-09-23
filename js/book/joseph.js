@@ -1074,8 +1074,10 @@
     const c = W.shade(U.mixRGB(SAND[l], [188, 160, 118], fam * 0.35), dep, 0.06);
     const col = a => U.rgba(c[0], c[1], c[2], clamp(a, 0, 1));
     const g = ctx.createLinearGradient(0, 0, W.w, 0);
-    g.addColorStop(0, col(Ae)); g.addColorStop(clamp(xb - 0.035, 0, 1), col(Ae));
-    g.addColorStop(clamp(xb + 0.04, 0, 1), col(Af)); g.addColorStop(1, col(Af));
+    g.addColorStop(0, col(Ae)); g.addColorStop(clamp(xb - 0.03, 0, 1), col(Ae));
+    g.addColorStop(clamp(xb + 0.03, 0, 1), col(Math.max(Af, Ae * 0.55)));
+    g.addColorStop(clamp(xb + 0.075, 0, 1), col(Math.max(Af, Ae * 0.18)));
+    g.addColorStop(clamp(xb + 0.11, 0, 1), col(Af)); g.addColorStop(1, col(Af));
     ctx.fillStyle = g;
     landPath(ctx, l, 0.25, 1.0, l === 2 ? 56 : 40);
     ctx.fill();
@@ -1137,7 +1139,7 @@
     const dx = 3 * u * u * (x1 - x0) + 6 * u * t * (x2 - x1) + 3 * t * t * (x3 - x2), dy = 3 * u * u * (y1 - y0) + 6 * u * t * (y2 - y1) + 3 * t * t * (y3 - y2), L = Math.hypot(dx, dy) || 1;
     return [px, py, -dy / L, dx / L];
   }
-  const nileW = (t, k) => (0.004 + 0.062 * Math.pow(t, 1.5)) * W.w * k;
+  const nileW = (t, k) => (0.006 + 0.07 * Math.pow(t, 1.4)) * W.w * k;
   function drawNile(ctx) {
     const k = W.lv.jsNile;
     if (k < 0.01) return;
@@ -1154,8 +1156,8 @@
     const s = LS(2);
     ctx.globalAlpha = Math.min(1, k * 1.4);
     // 湿沙与泥滩
-    ctx.globalAlpha = Math.min(1, k * 1.4) * 0.55;
-    ctx.fillStyle = css(U.mixRGB([176, 146, 100], [190, 160, 116], fam), 2);
+    ctx.globalAlpha = Math.min(1, k * 1.4) * 0.35;
+    ctx.fillStyle = css(U.mixRGB([150, 124, 86], [190, 160, 116], fam), 2);
     edge(1.7, 6 * s * (1 + fam));
     ctx.fill();
     ctx.globalAlpha = Math.min(1, k * 1.4);
@@ -2367,7 +2369,7 @@
           [L[3] + 2, b => {
             // 一夜之间：左边的地化作埃及
             W.set('jsEgypt', 1, b.instant); W.set('jsNile', 1, b.instant);
-            landLevels(b, { grass: 0.25, herbs: 0.22, trees: 0.26, clouds: 0.22 });
+            landLevels(b, { grass: 0.3, herbs: 0.26, trees: 0.28, clouds: 0.22 });
             egyptProps();
             unprop('coat2');
           }],
@@ -2897,7 +2899,7 @@
           [L[2], b => {
             walk('jacob', X.bed + 0.02, { speed: 0.03 }); walk('joseph', X.jhouse - 0.004, { speed: 0.03 });
             W.set('jsGoshen', 1, b.instant); W.set('jsFamine', 0, b.instant); W.set('jsNile', 1, b.instant);
-            landLevels(b, { grass: 0.25, herbs: 0.22, trees: 0.3, clouds: 0.3 });
+            landLevels(b, { grass: 0.3, herbs: 0.26, trees: 0.3, clouds: 0.3 });
             fields({ dry: 0, gold: 0.5 });
             prop('tentG1', 'tent', { x: X.tentG1, size: 0.88, label: '以色列人的帐棚' });
             prop('tentG2', 'tent', { x: X.tentG2, size: 0.8, label: '以色列人的帐棚' });
