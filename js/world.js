@@ -63,6 +63,9 @@
     shake: 0,
     flash: 0,
     pull: 0,                 // 黄昏被言说拉近的量（时辰偏移）
+    clockEase: 'cycle',      // 'cycle'：昼夜一轮的流连节奏；'ease'：走到某一时辰
+    replaying: false,        // 正在瞬间重演（恢复存档 / 快进未完的情节）：一切动作直接到位，不放特效
+    act: 0,                  // 当前所在的卷（0 = 七日）
     reduced: false,          // prefers-reduced-motion                // 成就时的闪光（0..1，快速衰减）
     fast: 1,                 // 调试：加速
     REST: 0.42,              // 白昼时的静止时辰
@@ -77,6 +80,12 @@
     if (instant) W.lv[name] = target;
   };
   W.snapAll = function () { for (const k in LEVELS) W.lv[k] = W.lt[k]; };
+  // 后来各卷可以定义自己的程度（如 flood 洪水、rain 雨、desert 旱）而不必改动本文件
+  W.defineLevel = function (name, mode, rate, initial) {
+    if (!(name in LEVELS)) { LEVELS[name] = [mode || 'exp', rate || 0.5]; W.lv[name] = W.lt[name] = initial || 0; }
+    else LEVELS[name] = [mode || LEVELS[name][0], rate || LEVELS[name][1]];
+  };
+  W.hasLevel = name => name in LEVELS;
   W.setOrigin = function (name, x, y) { W.origin[name] = { x, y }; };
   W.setPop = function (kind, n, x, y, instant) {
     const p = W.pop[kind] || (W.pop[kind] = { n: 0, x: 0, y: 0, instant: false });
@@ -98,9 +107,23 @@
     W.clockT = 0;
     W.clockDur = dur || 18;
     W.cycling = true;
+    W.clockEase = 'cycle';
   };
   // 新的话语成就时若夜还未尽，催促黎明（不跳变，只加速）
   W.hurryClock = function () { if (W.cycling) W.clockDur = Math.min(W.clockDur, W.clockT * W.clockDur + 3.5); };
+  // 让时辰向前走到某一刻（tod 0..1），用 dur 秒；不倒流。instant 则立即到达。
+  W.goTo = function (tod, dur, instant) {
+    const base = W.cycling ? W.clockTo : W.clock;
+    let to = Math.floor(base) + tod;
+    if (to < base - 1e-6) to += 1;
+    if (instant || !dur) { W.clock = W.clockFrom = W.clockTo = to; W.cycling = false; W.clockT = 1; W.clockEase = 'cycle'; return; }
+    W.clockFrom = W.clock;
+    W.clockTo = to;
+    W.clockT = 0;
+    W.clockDur = dur;
+    W.cycling = true;
+    W.clockEase = 'ease';
+  };
 
   // ── 一轮昼夜的节奏：时间→时辰偏移。黄昏与黎明流连，子夜稍驻，首尾缓起缓收。
   // 以"每段时辰所占的时间权重"积分再反求，得到单调平滑的映射表。
@@ -284,8 +307,8 @@
     if (W.cycling) {
       W.clockT = Math.min(1, W.clockT + (dt * W.fast) / W.clockDur);
       // 在黄昏、深夜、黎明各自流连片刻（见 cycleOff）
-      W.clock = lerp(W.clockFrom, W.clockTo, cycleOff(W.clockT));
-      if (W.clockT >= 1) { W.cycling = false; W.clock = W.clockTo; }
+      W.clock = lerp(W.clockFrom, W.clockTo, W.clockEase === 'ease' ? U.easeInOut(W.clockT) : cycleOff(W.clockT));
+      if (W.clockT >= 1) { W.cycling = false; W.clock = W.clockTo; W.clockEase = 'cycle'; }
     } else if (W.freeClock) {
       W.clock += (dt * W.fast) / 150;       // 安息之后：一日约两分半
     }

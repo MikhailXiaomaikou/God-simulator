@@ -345,8 +345,8 @@
         { text: '至于地上的走兽和空中的飞鸟，并各样爬在地上有生命的物，<br>我将青草赐给它们作食物。」事就这样成了。', ref: '创世记 1:30', hold: 7 },
       ],
       apply(c) {
+        // 赐福是命令与应许，不是立刻多出人来：此刻仍是二人（其后各卷里，他们的后裔才一代代出现）
         const hp = W.pop.human || { x: c.x, y: c.y };
-        W.setPop('human', 6, hp.x, hp.y, c.instant);
         if (!c.instant) { fx().ring(hp.x, hp.y - 14 * W.unit, [255, 231, 163], Math.hypot(W.w, W.h), 3.2, 2); au().bless && au().bless(); }
       },
     },

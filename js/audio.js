@@ -1456,6 +1456,7 @@
     _dbg: () => ({ ctx: AC, out: N && N.out, sum: N && N.sum, live, errs: errs.slice(), hold: hold ? hold.hk : null,
       beds: Object.keys(beds).filter(k => beds[k].x), breathN, LV, divine: divNow,
       drone: beds.drone && beds.drone.x ? [beds.drone.x.c.chaos.v, beds.drone.x.c.sub.v] : null }),
+    _t: { note, burst, grains, tollBell, bells, chord, whaleSong, birdPhrase },     // 测试用：直接调用配方
   };
 
   // 他处发出的声音事件

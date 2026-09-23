@@ -19,6 +19,7 @@
       utter: $('utter'), scripture: $('scripture'), hint: $('hint'), days: $('days'),
       ledger: $('ledger'), title: $('title'), titleBtns: $('titleBtns'), titlePrompt: $('titlePrompt'),
       help: $('help'), tools: $('tools'), tag: $('tag'), finale: $('finale'),
+      act: $('act'), actcard: $('actcard'),
       bLedger: $('bLedger'), bSound: $('bSound'), bFull: $('bFull'), bHelp: $('bHelp'), bShot: $('bShot'),
     };
     el.days.innerHTML = DAY_CH.map(c => '<span><b>' + c + '</b><i class="g"></i></span>').join('');
@@ -175,16 +176,21 @@
     h ^= h >>> 13; h = Math.imul(h, 0x5bd1e995) >>> 0; h ^= h >>> 15;
     return ('000000' + (h >>> 0).toString(16)).slice(-7);
   }
-  function renderLedger(stages, done) {
+  function renderLedger(stages, done, acts) {
     const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
     let html = '<h2>创世日志</h2><div class="sub">~/heavens-and-earth · branch: main</div>';
     if (done <= 0) {
       html += '<div class="ln"><span class="r"># 空虚混沌。按住画面，说出第一句话。</span></div>';
     }
-    let lastDay = -1;
+    let lastDay = -1, lastAct = 0;
     for (let i = 0; i < Math.min(done, stages.length); i++) {
       const s = stages[i];
-      if (s.day !== lastDay && s.day > 0) {
+      if (s.act > 0 && s.act !== lastAct && acts && acts[s.act]) {
+        lastAct = s.act;
+        const a = acts[s.act];
+        html += '<div class="act">' + a.numeral + ' · ' + a.title + '<span>' + esc(a.sub || '') + '</span></div>';
+        html += '<div class="ln"><span class="p">$ </span><span class="c">git checkout -b ' + esc(a.id) + '</span></div>';
+      } else if (s.act === 0 && s.day !== lastDay && s.day > 0) {
         lastDay = s.day;
         html += '<div class="day">' + DAY_NAME[s.day] + '</div>';
       }
@@ -192,9 +198,13 @@
       html += '<div class="ln' + (isNew ? ' new' : '') + '"><span class="h">' + hash(i) + '</span> <span class="p">' + (i === 0 ? '$ ' : '✓ ') +
         '</span><span class="c">' + esc(s.cmd) + '</span>  <span class="r"># ' + esc(s.ref || '') + '</span></div>';
     }
+    if (acts && acts.length > 1 && done > acts[0].last && (done < stages.length)) {
+      // 七日已成：在第一卷之后留一行
+    }
     if (done >= stages.length) {
-      html += '<div class="ok">✓ build passed · 神看着一切所造的都甚好</div>';
-      html += '<div class="ln"><span class="r">7 日 · ' + (stages.length - 1) + ' 句话 · 0 个 bug</span></div>';
+      const spoken = stages.filter(s => s.utter).length;
+      html += '<div class="ok">✓ build passed · 创世记 50 章</div>';
+      html += '<div class="ln"><span class="r">' + spoken + ' 句话 · 0 个 bug</span></div>';
       html += '<div class="ln"><span class="r">God is the first vibecoder.</span></div>';
       html += '<div class="ln" style="margin-top:14px"><span class="p">$ </span><span class="c cursor"></span></div>';
       html += '<div style="margin-top:26px"><button data-act="restart" class="restart">重新创世</button></div>';
@@ -231,7 +241,7 @@
     if (saved && saved.stage > 0) {
       el.titlePrompt.textContent = '按住画面 · 继续创世';
       const cont = document.createElement('button');
-      cont.textContent = '继续 · ' + (saved.stage >= GS.story.STAGES.length ? '安息' : DAY_NAME[saved.day] || '');
+      cont.textContent = '继续 · ' + (saved.label || (saved.stage >= GS.story.STAGES.length ? '终' : DAY_NAME[saved.day] || ''));
       const neo = document.createElement('button');
       neo.textContent = '重新创世';
       [cont, neo].forEach(b => {
@@ -265,9 +275,39 @@
   }
 
   // ── 终幕 ────────────────────────────────────────────────────
-  function finale(on) {
+  // 终幕：opts = { title（两三字，毛笔写出）, sub, foot }
+  function finale(on, opts) {
+    if (on && opts) {
+      const f1 = el.finale.querySelector('.f1'), f2 = el.finale.querySelector('.f2'), f3 = el.finale.querySelector('.f3');
+      f1.innerHTML = Array.from(opts.title || '').map((ch, k) => '<span class="brush" style="--k:' + k + '">' + ch + '</span>').join('');
+      f2.textContent = opts.sub || '';
+      f3.textContent = opts.foot || '';
+      el.finale.classList.remove('drawn');
+      void el.finale.offsetWidth;
+    }
     if (on) el.finale.classList.add('drawn');
     el.finale.classList.toggle('show', !!on);
+  }
+
+  // ── 卷：顶部的卷名，与卷首的大字 ─────────────────────────────
+  function setAct(a) {
+    if (!el.act) return;
+    if (!a) { el.act.classList.remove('show'); showDays(true); return; }
+    showDays(false);
+    const html = '<b>' + a.numeral + '</b>' + a.title + '<span>' + (a.sub || '') + '</span>';
+    if (el.act.dataset.id !== a.id) { el.act.innerHTML = html; el.act.dataset.id = a.id; }
+    el.act.classList.add('show');
+  }
+  function actCard(a, on) {
+    const c = el.actcard;
+    if (!c) return;
+    if (on) {
+      c.innerHTML = '<div class="n">' + a.numeral + '</div><div class="t">' +
+        Array.from(a.title).map((ch, k) => '<span class="brush" style="--k:' + k + '">' + ch + '</span>').join('') +
+        '</div><div class="s">' + (a.sub || '') + '</div>';
+      c.classList.remove('show'); void c.offsetWidth;
+    }
+    c.classList.toggle('show', !!on);
   }
 
   function setSoundButton(muted) { el.bSound.classList.toggle('off', !!muted); }
@@ -276,7 +316,7 @@
     init, utterBegin, utterProgress, utterFulfill, utterCancel,
     narrate, clearNarration, narrating, hint, hideHint,
     setDays, showDays, showTools, renderLedger, toggleLedger, toggleHelp, panelOpen,
-    showTitle, hideTitle, setTitlePrompt, dimTitle, tag, finale, setSoundButton,
+    showTitle, hideTitle, setTitlePrompt, dimTitle, tag, finale, setSoundButton, setAct, actCard,
     DAY_NAME,
     get el() { return el; },
   };

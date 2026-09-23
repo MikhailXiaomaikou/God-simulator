@@ -17,7 +17,7 @@
   const hx = s => [parseInt(s.slice(1, 3), 16) / 255, parseInt(s.slice(3, 5), 16) / 255, parseInt(s.slice(5, 7), 16) / 255];
   const PAL = {
     // 第一日：没有空气的光——无源的珍珠色（没有蓝）
-    pearlTop: hx('#5d5f66'), pearlMid: hx('#a5a4a1'), pearlHz: hx('#ddd8cd'),
+    pearlTop: hx('#6c6a70'), pearlMid: hx('#b0aca6'), pearlHz: hx('#e6e0d4'),
     pearlNTop: hx('#030304'), pearlNMid: hx('#060608'), pearlNHz: hx('#0c0c0f'),
     pearlDTop: hx('#2b2731'), pearlDMid: hx('#6e5a5f'), pearlDHz: hx('#b8927e'),
     // 穹苍之后：有了空气，天才是蓝的
@@ -114,7 +114,7 @@ uniform vec4 U[${NU}];
 #define W_FAR    U[18].rgb
 #define GLIT     U[18].w
 #define W_NEAR   U[19].rgb
-#define WIND     U[19].w
+#define DAWN     U[19].w
 #define HAZE     U[20].rgb
 #define PEARL    U[20].w
 #define CORE_COL U[21].rgb
@@ -135,6 +135,10 @@ uniform vec4 U[${NU}];
 #define SP_T     U[29].w
 
 #define ASPECT (RES.x / RES.y)
+
+// 平滑阶跃：两端可以倒置（GLSL 的 smoothstep 在 e0 >= e1 时未定义）
+float sst(float a, float b, float x) { float t = clamp((x - a) / (b - a), 0.0, 1.0); return t * t * (3.0 - 2.0 * t); }
+float sq(float x) { return x * x; }
 
 float h12(vec2 p) {
   vec3 p3 = fract(vec3(p.xyx) * 0.1031);
@@ -174,7 +178,7 @@ float domeY(float x) {
 float lightMask(vec2 px) {
   if (LIGHT <= 0.0005) return 0.0;
   float d = length(px - LORIG) / MPX;
-  return LIGHT * smoothstep(LIGHT_R, LIGHT_R - 0.5, d);
+  return LIGHT * sst(LIGHT_R, LIGHT_R - 0.5, d);
 }
 
 // 天空的底色：昼 / 夜（JS 已按 dayFactor 混好）+ 黄昏的色带（按太阳所在一侧加权）
@@ -189,8 +193,8 @@ vec3 skyGrad(float xpx, float a) {
     float side = exp(-dx * dx * 1.4);
     float w = DUSK * (0.38 + 0.62 * side) * (1.0 - 0.45 * smoothstep(0.15, 1.0, a));
     c = mix(c, d, clamp(w, 0.0, 1.0));
-    // 对日一侧：地影之上的一抹粉带
-    float band = exp(-pow((a - 0.13) / 0.07, 2.0));
+    // 对日一侧：地影之上的一抹粉带（维纳斯带）
+    float band = exp(-sq((a - 0.13) / 0.07));
     c += DUSK * (1.0 - side) * band * vec3(0.16, 0.08, 0.11) * (0.3 + 0.7 * VAULT);
   }
   return c;
@@ -209,11 +213,11 @@ vec3 glows(vec2 px) {
   }
   if (SUN_AMT > 0.001) {
     float d = length(px - SUN) / MPX;
-    c += SUN_GLOW * SUN_AMT * (exp(-18.0 * d) * 0.40 + exp(-4.0 * d) * 0.14 + exp(-55.0 * d) * 0.75);
+    c += SUN_GLOW * SUN_AMT * (exp(-18.0 * d) * 0.40 + exp(-4.0 * d) * (0.14 + 0.10 * SUN_LOW) + exp(-55.0 * d) * 0.75);
   }
   if (MOON_HALO > 0.001) {
     float d = length(px - MOON) / MPX;
-    c += vec3(0.62, 0.71, 0.85) * MOON_HALO * (exp(-8.0 * d) * 0.07 + exp(-28.0 * d) * 0.12);
+    c += vec3(0.62, 0.71, 0.85) * MOON_HALO * (exp(-6.0 * d) * 0.06 + exp(-24.0 * d) * 0.13);
   }
   return c;
 }
@@ -225,40 +229,46 @@ vec3 starLayer(vec2 p, float cell, float prob, float rad, float b0, float b1, fl
   vec3 h = h32(id);
   if (h.x > prob) return vec3(0.0);
   vec3 k = h32(id + 71.3);
-  vec2 d = (fract(g) - (0.18 + 0.64 * h.yz)) * cell;
-  float r = max(rad, 0.55 * CSSPX.x);
+  vec2 d = (fract(g) - (0.2 + 0.6 * h.yz)) * cell;
+  float r = max(rad, 0.6 * CSSPX.x);
   float e = (rad * rad) / (r * r);
-  float b = mix(b0, b1, k.x * k.x) * e;
-  float amp = 0.22 + 0.4 * (1.0 - smoothstep(0.0, 0.35, a));
-  b *= 1.0 + amp * sin(TIME * (1.3 + 3.7 * k.y) + k.z * 60.0);
+  float b = mix(b0, b1, k.x * k.x * k.x) * e;
+  float amp = 0.2 + 0.45 * (1.0 - smoothstep(0.0, 0.35, a));
+  b *= 1.0 + amp * sin(TIME * (1.1 + 3.4 * k.y) + k.z * 60.0);
   float I = b * exp(-dot(d, d) / (r * r));
-  if (flare > 0.0) {
+  if (flare > 0.0 && k.x > 0.55) {
     vec2 ad = abs(d);
-    I += b * flare * (exp(-ad.x * 0.75 - d.y * d.y * 1.6) + exp(-ad.y * 0.75 - d.x * d.x * 1.6));
+    I += b * flare * (exp(-ad.x * 0.8 - d.y * d.y * 2.2) + exp(-ad.y * 0.8 - d.x * d.x * 2.2));
   }
-  vec3 tint = k.z < 0.15 ? vec3(1.0, 0.886, 0.722) : (k.z < 0.30 ? vec3(0.749, 0.831, 1.0) : vec3(0.957, 0.969, 1.0));
+  vec3 tint = k.z < 0.16 ? vec3(1.0, 0.886, 0.722) : (k.z < 0.34 ? vec3(0.749, 0.831, 1.0) : vec3(0.957, 0.969, 1.0));
   return tint * I;
 }
 
-// 银河：斜贯天穹的一条微光带，中有暗隙
-vec3 milky(vec2 p) {
+// 银河：斜贯天穹的一条微光带——团簇的星云、中间一道暗隙
+vec3 milky(vec2 p, out float dens) {
+  dens = 0.0;
   vec2 q = p / RES.y;
-  vec2 c0 = vec2(0.52 * ASPECT, 0.16);
-  vec2 dir = vec2(0.906, -0.423);            // 约 25°
+  vec2 c0 = vec2(0.56 * ASPECT, 0.12);
+  vec2 dir = vec2(0.906, -0.423);            // 约 25°，自左下升向右上
   vec2 v2 = q - c0;
-  float v = dot(v2, vec2(-dir.y, dir.x));
-  if (abs(v) > 0.32) return vec3(0.0);
   float u = dot(v2, dir);
-  float n1 = fbm(vec2(u * 2.6, v * 7.0) + 3.0, max(OCT - 1.0, 2.0));
-  float band = exp(-v * v / 0.02) * (0.25 + 1.4 * n1 * n1) + exp(-v * v / 0.0035) * 0.35 * n1;
-  float lane = exp(-pow((v - 0.012 + 0.05 * (n1 - 0.5)) / 0.022, 2.0));
-  band *= 1.0 - 0.65 * lane * smoothstep(0.35, 0.65, n1);
-  return vec3(0.561, 0.651, 0.847) * band;
+  float v = dot(v2, vec2(-dir.y, dir.x)) + 0.07 * u * u;
+  if (abs(v) > 0.3) return vec3(0.0);
+  float n1 = fbm(q * 4.2 + vec2(3.0, 1.7), max(OCT - 1.0, 2.0));
+  float n2 = vnoise(q * 13.0 + 7.3);
+  float core = exp(-v * v / 0.004);
+  float halo = exp(-v * v / 0.022);
+  float band = halo * (0.12 + 0.95 * n1 * n1) + core * (0.2 + 0.7 * n1);
+  float rift = exp(-sq((v + 0.008 + 0.05 * (n1 - 0.5)) / 0.016)) * sst(0.3, 0.62, n1 * 0.6 + n2 * 0.4);
+  band *= (1.0 - 0.75 * rift) * (0.7 + 0.6 * n2);
+  dens = clamp(band * 1.2, 0.0, 1.0);
+  vec3 c = mix(vec3(0.561, 0.651, 0.847), vec3(0.86, 0.80, 0.70), clamp(core * n1 * 0.8, 0.0, 1.0));
+  return c * band;
 }
 
 // 海浪：返回 (高度, dh/dX, dh/dZ)，按像素足迹衰减以免远处闪烁
 vec3 waveAdd(vec2 P, vec2 d, float k, float w, float amp, vec2 fp) {
-  float att = smoothstep(2.2, 0.6, k * (abs(d.x) * fp.x + abs(d.y) * fp.y));
+  float att = sst(2.2, 0.6, k * (abs(d.x) * fp.x + abs(d.y) * fp.y));
   float ph = dot(d, P) * k + TIME * w;
   return vec3(sin(ph), cos(ph) * k * d) * amp * att;
 }
@@ -272,12 +282,14 @@ vec3 waves(vec2 P, vec2 fp) {
   return r;
 }
 
-// 天空的底色（含珍珠光的虹彩与「光暗分开」的聚拢）——天空与倒影共用
+// 天空的底色（含珍珠光的晕彩与「光暗分开」的聚拢）——天空与倒影共用
 vec3 skyBase(vec2 px, float a) {
   vec3 col = skyGrad(px.x, a);
   if (PEARL > 0.01) {
-    float s = vnoise(px / MPX * 0.7 + vec2(TIME * 0.012, -TIME * 0.008));
-    col *= 1.0 + PEARL * 0.022 * vec3(sin(s * 5.0 + 1.0), sin(s * 5.0 + 3.1), sin(s * 5.0 + 5.2));
+    // 珍珠母的晕彩：奶白与淡紫之间缓缓流转（不带绿）
+    float s = vnoise(px / MPX * 0.8 + vec2(TIME * 0.012, -TIME * 0.008));
+    vec3 sheen = mix(vec3(1.03, 0.996, 0.968), vec3(0.972, 0.982, 1.036), s);
+    col *= mix(vec3(1.0), sheen, PEARL);
   }
   float gv = GATHER * (1.0 - 0.8 * VAULT);
   if (gv > 0.001) {
@@ -294,7 +306,7 @@ vec3 sky(vec2 px, vec2 n, float lm) {
   float a = clamp((HZ - n.y) / HZ, 0.0, 1.0);
   vec3 col = skyBase(px, a) * lm;
 
-  // 穹苍以上的水
+  // 穹苍以上的水：倒悬的海，幽暗、缓缓涌动；焦散的微光在其中游走
   float dy = domeY(n.x);
   float above = dy - n.y;
   float tremble = 0.0;
@@ -302,27 +314,27 @@ vec3 sky(vec2 px, vec2 n, float lm) {
   if (VAULT > 0.001) {
     if (above > 0.0) {
       waCover = WA_OP * smoothstep(0.0, 0.02, above);
-      // 倒悬的海：幽暗、缓缓起伏的水体，越近膜线越亮
-      float Zc = 1.0 / (above * 2.6 + 0.2);
-      vec2 Pc = vec2((n.x - 0.5) * ASPECT * Zc, Zc * 1.5);
+      float den = above * 3.0 + 0.12;
+      float Zc = 1.0 / den;                         // 天花板透视：近膜处最远
+      vec2 Pc = vec2((n.x - 0.5) * ASPECT * Zc, Zc * 1.6);
+      float att = 1.0 - smoothstep(0.08, 0.5, 12.5 / (den * den * RES.y));
       float t = TIME * 0.2;
-      float sw = fbm(Pc * vec2(0.8, 1.3) + vec2(t * 0.22, t * 0.5), 2.0);
-      float bands = 0.5 + 0.5 * sin(Pc.y * 2.4 + Pc.x * 0.7 - t * 1.6 + sw * 5.5);
-      float nearF = exp(-above * 16.0);
-      vec3 wc = WA_COL * (0.5 + 0.75 * sw + 0.3 * bands) * mix(1.0, 0.7, smoothstep(0.02, 0.25, above));
-      wc += WA_COL * 1.4 * nearF;
-      // 微微的闪光：透过上层水的光
-      vec2 gc = vec2(Pc.x * 9.0, Pc.y * 7.0);
-      vec3 hg = h32(floor(gc));
-      vec2 gf = fract(gc) - 0.5 - (hg.yz - 0.5) * 0.5;
-      float glint = step(0.8, hg.x) * exp(-dot(gf, gf) * 30.0) * pow(0.5 + 0.5 * sin(TIME * (0.8 + hg.y * 1.6) + hg.z * 30.0), 5.0);
-      wc += vec3(0.42, 0.62, 0.9) * WA_GLOW * (bands * sw * 0.35 + glint * 0.9) * (0.4 + 0.6 * nearF + 0.4 * sw);
+      float sw = fbm(Pc * vec2(0.7, 1.1) + vec2(t * 0.2, t * 0.45), 2.0);
+      float swell = mix(0.5, 0.5 + 0.5 * sin(Pc.y * 2.2 + Pc.x * 0.45 - t * 1.4 + sw * 4.0), att);
+      float c1 = 1.0 - abs(sin(Pc.x * 2.9 + Pc.y * 1.6 + sw * 6.0 - t * 1.1));
+      float c2 = 1.0 - abs(sin(-Pc.x * 2.2 + Pc.y * 2.5 + sw * 5.0 + t * 0.9));
+      float caus = pow(c1 * c2, 5.0) * att;
+      float nearF = exp(-above * 24.0);
+      float farF = smoothstep(0.02, 0.3, above);
+      vec3 wc = WA_COL * (0.5 + 0.65 * sw + 0.4 * swell) * (1.0 - 0.35 * farF);
+      wc += WA_COL * 0.8 * nearF;
+      wc += vec3(0.45, 0.66, 0.96) * WA_GLOW * (caus * (0.3 + 0.9 * swell) + 0.1 * swell * sw) * (1.0 - 0.5 * farF);
       col = mix(col, wc, waCover);
       tremble = VAULT;
     }
     // 水膜：发光的一线
     float dv = n.y - dy;
-    float film = exp(-dv * dv / 0.0006) * 0.10 + exp(-dv * dv / 0.000007) * 0.42;
+    float film = exp(-dv * dv / 0.0005) * 0.055 + exp(-dv * dv / 0.000007) * 0.42;
     float shim = 0.7 + 0.3 * sin(n.x * ASPECT * 38.0 - TIME * 1.1 + sin(n.x * 9.0 + TIME * 0.37) * 2.0);
     col += vec3(0.81, 0.90, 1.0) * film * FILM * shim;
   }
@@ -337,17 +349,17 @@ vec3 sky(vec2 px, vec2 n, float lm) {
     float cr = cos(STAR_ROT), sr = sin(STAR_ROT);
     vec2 rp = sp - pole;
     rp = vec2(cr * rp.x - sr * rp.y, sr * rp.x + cr * rp.y) + pole;
-    float rev = smoothstep(STAR_R, STAR_R - 0.35, length(px - SOW) / MPX);
-    float vis = STAR_VIS * rev * smoothstep(0.0, 0.12, a) * (1.0 - 0.35 * waCover);
+    float rev = sst(STAR_R, STAR_R - 0.35, length(px - SOW) / MPX);
+    float vis = STAR_VIS * rev * smoothstep(0.0, 0.14, a) * (1.0 - 0.35 * waCover);
     if (vis > 0.002) {
       vec3 mw = vec3(0.0);
-      float bandB = 0.0;
-      if (MILKY > 0.01) { mw = milky(rp) * MILKY; bandB = clamp(mw.b * 2.2, 0.0, 1.0); }
-      vec3 st = starLayer(rp, 9.0, 0.08 + 0.22 * bandB, 0.5, 0.08, 0.42, 0.0, a);
-      st += starLayer(rp + 311.0, 24.0, 0.14, 0.72, 0.3, 0.85, 0.0, a);
-      st += starLayer(rp + 877.0, 78.0, 0.17, 1.0, 0.75, 1.7, 0.16, a);
+      float dens = 0.0;
+      if (MILKY > 0.01) { mw = milky(rp, dens) * MILKY; dens *= MILKY; }
+      vec3 st = starLayer(rp, 7.0, 0.06 + 0.34 * dens, 0.5, 0.12, 0.55, 0.0, a);
+      st += starLayer(rp + 311.0, 21.0, 0.16, 0.7, 0.32, 1.0, 0.0, a);
+      st += starLayer(rp + 877.0, 70.0, 0.2, 1.0, 0.8, 2.0, 0.18, a);
       vec3 tint = mix(vec3(1.0), vec3(0.8, 0.9, 1.0), tremble * step(0.0, above));
-      col += (st * tint + mw * 0.2) * vis;
+      col += (st * tint + mw * 0.12) * vis;
     }
   }
 
@@ -362,13 +374,15 @@ vec3 sky(vec2 px, vec2 n, float lm) {
       vec3 N = vec3(dm.x, -dm.y, z);
       float ph = MOON_PH * 6.2831853;
       vec3 Ld = normalize(vec3(sin(ph), 0.12, -cos(ph)));
-      float lit = smoothstep(-0.05, 0.12, dot(N, Ld));
+      float lit = smoothstep(-0.04, 0.1, dot(N, Ld));
       float disc = clamp((1.0 - r) * MOON_R / CSSPX.x * 0.9 + 0.5, 0.0, 1.0);
-      float mar = smoothstep(0.45, 0.7, vnoise(dm * 1.5 + vec2(3.2, 7.1))) * 0.2
-                + smoothstep(0.55, 0.8, vnoise(dm * 3.3 + vec2(1.3, 4.4))) * 0.09;
-      vec3 mc = MOON_COL * (1.0 - mar) * (0.84 + 0.16 * z) * lit;
-      col = mix(col, mc * 1.08 + vec3(0.014, 0.018, 0.028) * (1.0 - lit), disc * MOON_AMT);
-      col = mix(col, max(col, mc * vec3(0.9, 0.95, 1.0) * 0.98), disc * MOON_DAY * 0.6 * lit);
+      float mar = smoothstep(0.42, 0.7, vnoise(dm * 1.6 + vec2(3.2, 7.1))) * 0.22
+                + smoothstep(0.55, 0.8, vnoise(dm * 3.4 + vec2(1.3, 4.4))) * 0.1;
+      vec3 mc = MOON_COL * (1.0 - mar) * (0.8 + 0.2 * z) * lit;
+      // 夜：不透明的月盘（遮住身后的星，暗面有一点地照）
+      col = mix(col, mc * 1.12 + vec3(0.012, 0.016, 0.026) * (1.0 - lit), disc * MOON_AMT);
+      // 昼：月光叠加在天色上——淡淡的一枚白月
+      col += mc * vec3(0.92, 0.96, 1.0) * disc * MOON_DAY * 0.42;
     }
   }
 
@@ -382,25 +396,29 @@ vec3 sky(vec2 px, vec2 n, float lm) {
     col += PAL_SPIRIT * SP_AMT * 0.045 / (1.0 + dot(ds, ds) * 22.0);
   }
 
-  // 云：穹苍以下的水汽
+  // 云：穹苍以下的水汽——透视压扁的一片团云，向光的一面亮
   float cden = 0.0;
   if (CLOUDS > 0.002) {
     float top = dy + 0.035;
-    float bot = HZ - 0.022;
-    float band = smoothstep(top, top + 0.08, n.y) * smoothstep(bot, bot - 0.12, n.y);
+    float bot = HZ - 0.016;
+    float band = smoothstep(top, top + 0.09, n.y) * sst(bot, bot - 0.1, n.y);
     if (band > 0.001) {
-      float Zc = 0.3 / (HZ - n.y + 0.035);
-      vec2 P = vec2((n.x - 0.5) * ASPECT * Zc * 2.1 + CDRIFT, Zc * 4.6);
+      float Zc = 0.3 / (HZ - n.y + 0.03);
+      vec2 P = vec2((n.x - 0.5) * ASPECT * Zc * 1.3 + CDRIFT, Zc * 3.1);
+      vec2 wq = vec2(vnoise(P * 0.55 + vec2(3.1, 1.3)), vnoise(P * 0.55 + vec2(8.3, 5.7)));
+      P += (wq - 0.5) * 1.2;
       float d0 = fbm(P, OCT);
-      float den = smoothstep(0.52, 0.80, d0 - (1.0 - band) * 0.3) * CLOUDS;
+      float cov = 0.5 + 0.14 * (1.0 - band);
+      float den = smoothstep(cov, cov + 0.2, d0) * CLOUDS;
       if (den > 0.002) {
         vec2 kd = vec2(KEYX, KEYY) - px;
         vec2 ld = kd / (length(kd) + 1.0);
-        float d1 = fbm(P + vec2(ld.x, -ld.y * 0.6) * 0.22, 2.0);
-        float lit = clamp(0.5 + (d0 - d1) * 4.5, 0.0, 1.0);
+        // 朝向主光（与天光自上而下）偏移取样：迎光的边缘更亮
+        float d1 = fbm(P + ld * 0.26 + vec2(0.0, -0.1), 2.0);
+        float lit = clamp(0.58 + (d0 - d1) * 4.2, 0.0, 1.0);
         vec3 cc = mix(CL_SH, CL_LIT, lit);
-        cc += gl * (1.0 - den) * 1.2;         // 边缘透光
-        col = mix(col, cc * max(lm, 0.02), den * 0.93);
+        cc += gl * (1.0 - den) * 1.3;         // 边缘透光（银边）
+        col = mix(col, cc * max(lm, 0.02), den * 0.94);
         cden = den;
       }
     }
@@ -436,19 +454,20 @@ vec3 sky(vec2 px, vec2 n, float lm) {
   return col;
 }
 
-// 光的粼光之路：低处的光拉出长长的路
-vec3 glitter(vec2 px, vec2 n, float dz, vec2 s, float spk, vec2 L, vec3 lc, float amt, float soft) {
+// 光的粼光之路：从镜像点一直铺向地平线；光越低，路越长
+vec3 glitter(float pxx, float am, float dz, vec2 s, float spk, vec2 L, vec3 lc, float amt, float soft) {
   float aL = (HZ - L.y / RES.y) / HZ;
-  if (aL < -0.03 || amt < 0.001) return vec3(0.0);
-  float am = (n.y - HZ) / HZ;
-  float low = 1.0 - smoothstep(0.0, 0.55, aL);
-  float ar = am + s.y * (0.045 + 0.10 * low) * (0.4 + dz);
-  float dA = (ar - max(aL, 0.0)) / mix(0.16, 0.9, low);
-  float dX = (px.x + s.x * 26.0 * (0.25 + dz) - L.x) / RES.y;
-  float wx = 0.006 + 0.075 * dz * (0.6 + 0.4 * low) + 0.01 * (1.0 - low);
-  float env = exp(-dX * dX / (wx * wx)) * exp(-dA * dA);
-  float fade = smoothstep(-0.03, 0.03, aL);
-  return lc * amt * fade * env * (soft * 0.28 + spk * 2.4);
+  if (aL < -0.04 || amt < 0.001) return vec3(0.0);
+  float low = 1.0 - smoothstep(0.0, 0.5, aL);
+  float ar = am + s.y * (0.05 + 0.12 * low) * (0.35 + dz);
+  float d = ar - max(aL, 0.0);
+  float sd = d > 0.0 ? mix(0.13, 0.55, low) : mix(0.1 + 0.55 * aL, 1.2, low);
+  float ev = exp(-sq(d / sd));
+  float dX = (pxx + s.x * 30.0 * (0.25 + dz) - L.x) / RES.y;
+  float wx = 0.004 + 0.075 * dz * (0.55 + 0.45 * low) + 0.012 * (1.0 - low);
+  float env = exp(-sq(dX / wx)) * ev;
+  float fade = smoothstep(-0.04, 0.03, aL);
+  return lc * amt * fade * env * (soft * 0.26 + spk * 2.6);
 }
 
 vec3 sea(vec2 px, vec2 n, float lm) {
@@ -456,14 +475,22 @@ vec3 sea(vec2 px, vec2 n, float lm) {
   float Z = 1.0 / (dz + 0.016);
   vec2 fp = vec2(Z / RES.y, Z * Z / ((1.0 - HZ) * RES.y));
   vec2 P = vec2((n.x - 0.5) * ASPECT * Z, Z);
+  float lz = log(Z);
   vec3 wv = waves(P, fp);
   vec2 s = wv.yz * 0.12;
-  // 细碎的闪点（远处趋于平滑）
-  float nz = vnoise(vec2(P.x * 7.0, log(Z) * 26.0) + vec2(TIME * 0.35, -TIME * 0.9));
-  float nz2 = vnoise(vec2(P.x * 16.0, log(Z) * 55.0) + vec2(-TIME * 0.5, -TIME * 1.4));
-  float crest = clamp(0.5 + 0.32 * wv.x + 0.45 * (nz - 0.5) + 0.35 * (nz2 - 0.5), 0.0, 1.0);
-  float spk = pow(crest, 7.0);
-  spk = mix(spk, 0.12, smoothstep(0.012, 0.06, fp.y));
+  // 浪尖：随浪起伏的亮处（远处趋于平滑）
+  float nz = vnoise(vec2(P.x * 9.0, lz * 34.0) + vec2(TIME * 0.35, -TIME * 0.9));
+  float crest = clamp(0.5 + 0.32 * wv.x + 0.45 * (nz - 0.5), 0.0, 1.0);
+  float spk = pow(crest, 8.0) * 0.8;
+  // 细碎的闪点：贴在水面上的短横，越远越小；过小则化为平均亮度
+  vec2 gq = vec2(P.x * 15.0, lz * 40.0 - TIME * 0.35);
+  vec3 gh = h32(floor(gq) + 17.0);
+  vec2 gf = fract(gq) - 0.25 - 0.5 * gh.xy;
+  float tw = 0.5 + 0.5 * sin(TIME * (1.5 + 2.6 * gh.z) + gh.x * 40.0);
+  float dash = exp(-(gf.x * gf.x * 10.0 + gf.y * gf.y * 14.0)) * step(0.4, gh.z) * tw * tw;
+  float rowPx = (1.0 - HZ) * RES.y / (40.0 * Z) / CSSPX.y;
+  spk += dash * 1.1 * smoothstep(1.6, 4.0, rowPx);
+  spk = mix(spk, 0.1, smoothstep(0.012, 0.06, fp.y));
 
   // 渊面（光之前）：几乎看不见的暗水
   vec3 vw = mix(vec3(0.016, 0.024, 0.043), vec3(0.008, 0.013, 0.027), dz);
@@ -482,16 +509,17 @@ vec3 sea(vec2 px, vec2 n, float lm) {
   if (VAULT > 0.001) {
     float dyr = domeY(xr / RES.x);
     float mv = HZ - am * HZ;
-    refl = mix(refl, WA_COL * 0.8, WA_OP * 0.6 * smoothstep(dyr + 0.01, dyr - 0.03, mv));
+    refl = mix(refl, WA_COL * 0.8, WA_OP * 0.6 * sst(dyr + 0.01, dyr - 0.03, mv));
   }
   float fr = 0.05 + 0.95 * pow(1.0 - dz, 3.2);
   vec3 lit = mix(water, refl * 0.92, fr);
   // 光暗分开：暗沉入海的深处
   lit *= mix(1.0, 1.0 - 0.45 * dz, GATHER * (1.0 - 0.7 * VAULT));
   // 光核 / 日 / 月的粼光
-  lit += glitter(px, n, dz, s, spk, CORE, CORE_COL, CORE_AMT * GLIT * GATHER, 1.0);
-  lit += glitter(px, n, dz, s, spk, SUN, SUN_GLOW, SUN_AMT * GLIT, 0.7);
-  lit += glitter(px, n, dz, s, spk, MOON, MOON_COL * 0.85, MOON_AMT * 0.8, 0.8);
+  float amR = (n.y - HZ) / HZ;
+  lit += glitter(px.x, amR, dz, s, spk, CORE, CORE_COL, CORE_AMT * GLIT * GATHER, 1.0);
+  lit += glitter(px.x, amR, dz, s, spk, SUN, SUN_GLOW, SUN_AMT * GLIT, 0.7);
+  lit += glitter(px.x, amR, dz, s, spk, MOON, MOON_COL * 0.85, MOON_AMT * 0.8, 0.8);
   vec3 col = mix(vw, lit, lm);
 
   // 神的灵：倒影光柱与涟漪
@@ -512,29 +540,33 @@ vec3 sea(vec2 px, vec2 n, float lm) {
     float below = (px.y - c.y) / MPX;
     float cy = smoothstep(topY, topY + 10.0, px.y) * (below < 0.0 ? exp(below * (over > 0.5 ? 14.0 : 3.0)) : exp(-below * 4.0));
     float streak = 0.35 + 0.65 * clamp(crest * 1.6 - 0.2, 0.0, 1.0);
-    float rip = sin(r * 95.0 - SP_T * 2.6);
-    rip = pow(max(rip, 0.0), 3.0) * exp(-r * 11.0) * smoothstep(0.0, 0.035, r) * (0.55 + 0.45 * crest);
+    // 涟漪：被浪扰动的细环，静时极淡，言说时随力量扩开
+    float rr = r + (s.x * 0.7 + s.y) * 0.012;
+    float rip = sin(rr * 90.0 - SP_T * 2.6);
+    rip = pow(max(rip, 0.0), 4.0) * exp(-r * 10.0) * smoothstep(0.0, 0.035, r) * (0.3 + 0.7 * crest);
     rip *= RIPPLE;
-    float I = pool * (0.2 + 0.55 * spk) + cx * cy * streak * 0.5 + rip * 0.55;
+    float I = pool * (0.2 + 0.5 * spk) + cx * cy * streak * 0.5 + rip * 0.6;
     col += PAL_SPIRIT * SP_AMT * I * DEEP;
   }
 
-  // 生命之光：夜海里的青色荧光
-  if (BIO > 0.002 && dz > 0.1) {
-    vec2 g = vec2(P.x * 30.0, log(Z) * 30.0);
+  // 生命之光：夜海里的青色荧光，灵经过处更盛
+  if (BIO > 0.002 && dz > 0.08) {
+    vec2 g = vec2(P.x * 30.0, lz * 30.0);
     g.y += TIME * 0.05;
     vec2 ds = (px - SPIRIT) / MPX;
     float prox = 1.0 / (1.0 + dot(ds, ds) * 22.0);
-    float patch = smoothstep(0.58, 0.9, vnoise(vec2(P.x * 1.6, log(Z) * 5.0) + vec2(TIME * 0.03, TIME * 0.02)));
+    float patch = smoothstep(0.58, 0.9, vnoise(vec2(P.x * 1.6, lz * 5.0) + vec2(TIME * 0.03, TIME * 0.02)));
     float prob = 0.012 + 0.13 * patch + 0.4 * prox;
     vec2 id = floor(g);
     vec3 hh = h32(id + 13.7);
+    float near = smoothstep(0.08, 0.25, dz);
     if (hh.x < prob) {
       vec2 f = fract(g) - 0.5 - (hh.yz - 0.5) * 0.6;
-      float tw = pow(0.5 + 0.5 * sin(TIME * (0.9 + hh.y * 2.2) + hh.z * 40.0), 6.0);
-      float I = exp(-dot(f, f) * 42.0) * tw * smoothstep(0.1, 0.25, dz);
+      float tw = pow(0.5 + 0.5 * sin(TIME * (0.7 + hh.y * 1.8) + hh.z * 40.0), 6.0);
+      float I = exp(-dot(f, f) * 42.0) * tw * near;
       col += vec3(0.435, 0.949, 0.863) * I * BIO * (0.07 + 0.38 * patch + 2.4 * prox);
     }
+    col += vec3(0.30, 0.80, 0.74) * BIO * near * (prox * 0.03 + patch * 0.006) * (0.5 + crest);
   }
 
   // 地平雾
@@ -552,13 +584,16 @@ void main() {
   vec2 n = px / RES;
   float lm = lightMask(px);
   vec3 col = n.y < HZ ? sky(px, n, lm) : sea(px, n, lm);
-  // 甚好：金色；安息：柔和、温暖、高调
+  // 甚好：温暖而明亮的金色空气（不是发灰的暖滤镜）
   if (GOOD > 0.001) {
-    float hzW = exp(-abs(n.y - HZ) * 3.5);
-    col = mix(col, col * vec3(1.07, 1.0, 0.93), GOOD * 0.6);
-    col += vec3(1.0, 0.7, 0.36) * GOOD * lm * (0.035 + 0.075 * hzW) * (0.3 + 0.7 * DAYF);
+    float hzW = exp(-abs(n.y - HZ) * 3.2);
+    col += vec3(1.0, 0.72, 0.4) * GOOD * lm * (0.02 + 0.1 * hzW) * (0.3 + 0.7 * DAYF);
+    col *= mix(vec3(1.0), vec3(1.05, 1.01, 0.95), GOOD);
   }
-  col = mix(col, col * 0.9 + vec3(0.075, 0.064, 0.048) * lm * (0.25 + 0.75 * DAYF), SABBATH * 0.5);
+  // 安息：柔和、温暖、高调——暗部被轻轻托起，对比降一成
+  if (SABBATH > 0.001) {
+    col = mix(col, col * 0.88 + vec3(1.0, 0.94, 0.82) * 0.1 * lm * (0.25 + 0.75 * DAYF), SABBATH * 0.6);
+  }
   col = tone(max(col, 0.0));
   col += (h12(gl_FragCoord.xy + fract(TIME * 7.13) * 91.0) - 0.5) * (2.4 / 255.0);
   gl_FragColor = vec4(col, 1.0);
@@ -601,7 +636,7 @@ void main() {
     // 天色
     const dayT = mix3(PAL.pearlTop, PAL.dayTop, V), dayM = mix3(PAL.pearlMid, PAL.dayMid, V);
     let dayH = mix3(PAL.pearlHz, PAL.dayHz, V);
-    dayH = mix3(dayH, PAL.goldHz, lv.good * 0.28);
+    dayH = mix3(dayH, PAL.goldHz, lv.good * 0.16);
     const nT = mix3(PAL.pearlNTop, PAL.nightTop, V), nM = mix3(PAL.pearlNMid, PAL.nightMid, V), nH = mix3(PAL.pearlNHz, PAL.nightHz, V);
     F.cTop = mix3(nT, dayT, df); F.cMid = mix3(nM, dayM, df); F.cHz = mix3(nH, dayH, df);
     F.dTop = mix3(PAL.pearlDTop, PAL.duskTop, V); F.dMid = mix3(PAL.pearlDMid, PAL.duskMid, V); F.dHz = mix3(PAL.pearlDHz, PAL.duskHz, V);
@@ -625,14 +660,14 @@ void main() {
     F.moonAmt = mo * nightness;
     F.moonDay = mo * (1 - nightness) * 0.85;
     F.moonHalo = mo * (0.25 + 0.75 * nightness);
-    F.moonR = Math.max(10, 0.021 * M);
+    F.moonR = Math.max(10, 0.023 * M);
     F.moonCol = mix3(PAL.moon, PAL.moonLow, 1 - smoothstep(0.0, 0.3, mEl));
     F.moonPh = W.moon.phase == null ? 0.5 : W.moon.phase;
 
     // 星
     const s = lv.stars;
     const sowing = 4 * s * (1 - s) * (1 - smoothstep(0.0, 0.5, 1 - df));
-    const starNight = dn * smoothstep(0.36, 0.0, df);
+    const starNight = dn * smoothstep(0.5, 0.02, df);
     F.starVis = s * (starNight + sowing * 0.55);
     const diagM = Math.hypot(w, h) / M;        // 以 min(w,h) 为单位的对角线：揭示半径须覆盖整幅
     F.diagM = diagM;
@@ -684,7 +719,7 @@ void main() {
     F.spAmt = (0.35 + 0.65 * (1 - clamp(W.daylight, 0, 1) * 0.85)) * (1 + ch * 0.9);
     S.spT += dt * (1 + ch * 2.5);
     F.spT = S.spT % (Math.PI * 2 / 2.6 * 400);   // 与涟漪的周期对齐，取模不跳变
-    F.ripple = clamp(0.4 - (+W.spirit.speed || 0) / 1500, 0, 0.4) + ch * 0.8;
+    F.ripple = clamp(0.22 - (+W.spirit.speed || 0) / 2000, 0, 0.22) + ch * 0.85;
 
     // 流星：每 25–45 秒一颗，0.6 秒
     F.shoot = null;
@@ -783,7 +818,7 @@ void main() {
     putC(16, F.dMid, F.mist);
     putC(17, F.dHz, F.waGlow);
     putC(18, F.wFar, F.glit);
-    putC(19, F.wNear, W.wind || 0);
+    putC(19, F.wNear, 0);
     putC(20, F.haze, F.pearl);
     putC(21, F.coreCol, F.ripple);
     putC(22, F.sunCol, F.sunDisc);

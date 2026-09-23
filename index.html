@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#000000">
-<meta name="description" content="七日 · God Simulator —— 按住言说，话语成就，亲手走完创世的七日。">
-<title>七日 · God Simulator</title>
+<meta name="description" content="创世记 · God Simulator —— 按住言说，话语成就：从起初的七日，到伊甸、洪水、巴别，到亚伯拉罕、雅各与约瑟，走完整部创世记。">
+<title>创世记 · God Simulator</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23000'/%3E%3Ccircle cx='32' cy='30' r='12' fill='%23fff6de'/%3E%3Ccircle cx='32' cy='30' r='22' fill='none' stroke='%23fff6de' stroke-opacity='.35' stroke-width='2'/%3E%3Crect y='44' width='64' height='20' fill='%23101a33'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="css/style.css">
 </head>
@@ -17,6 +17,8 @@
   <p id="scripture" class="layer" aria-live="polite"></p>
   <p id="hint" class="layer"></p>
   <div id="days" class="layer" aria-label="七日"></div>
+  <div id="act" class="layer" aria-live="polite"></div>
+  <div id="actcard" class="layer" aria-live="polite"></div>
   <div id="tag" class="layer"></div>
 
   <div id="tools" class="layer">
@@ -39,8 +41,8 @@
   </div>
 
   <div id="title" class="layer">
-    <h1 class="t1"><span class="brush" style="--k:0">七</span><span class="brush" style="--k:1">日</span></h1>
-    <div class="t2">God Simulator · 创世记 1:1 — 2:3</div>
+    <h1 class="t1"><span class="brush" style="--k:0">创</span><span class="brush" style="--k:1">世</span><span class="brush" style="--k:2">记</span></h1>
+    <div class="t2">God Simulator · 从「起初」到约瑟</div>
     <div class="t3">God is the first vibecoder.</div>
     <div class="t4" id="titlePrompt">按住画面 · 说「起初」</div>
     <div class="t5" id="titleBtns"></div>
@@ -65,6 +67,16 @@
   <script src="js/beasts.js"></script>
   <script src="js/fx.js"></script>
   <script src="js/story.js"></script>
+  <script src="js/book.js"></script>
+  <script src="js/cast.js"></script>
+  <!-- 创世记其后各卷（依次登记在七日之后） -->
+  <script src="js/book/eden.js"></script>
+  <script src="js/book/cain.js"></script>
+  <script src="js/book/flood.js"></script>
+  <script src="js/book/babel.js"></script>
+  <script src="js/book/abraham.js"></script>
+  <script src="js/book/jacob.js"></script>
+  <script src="js/book/joseph.js"></script>
   <script src="js/ui.js"></script>
   <script src="js/main.js"></script>
 </body>
