@@ -33,11 +33,48 @@
     E5: 659.25, Fs5: 739.99, A5: 880, B5: 987.77, Cs6: 1108.73, E6: 1318.51, Fs6: 1479.98, A6: 1760,
     B6: 1975.53, Cs7: 2217.46, E7: 2637.02, A7: 3520,
   };
+  Object.assign(F, {                                   // 其后各卷用到的音（仍在 A 上：小三度、b6、#4、Hijaz 的 b2）
+    D2: 73.42, Bb2: 116.54, C3: 130.81, D3: 146.83, F3: 174.61, Fs3: 185, G3: 196, Bb3: 233.08, C4: 261.63,
+    Ds4: 311.13, F4: 349.23, G4: 392, Gs4: 415.3, C5: 523.25, D5: 587.33, Ds5: 622.25, Gs5: 830.61,
+  });
   const PENT = [0, 2, 4, 7, 9];                       // A 大调五声：A B C# E F#
   const pent = (base, i) => base * Math.pow(2, (PENT[((i % 5) + 5) % 5] + 12 * Math.floor(i / 5)) / 12);
   const rnd = (a, b) => a + Math.random() * (b - a);
   const rint = (a, b) => Math.floor(rnd(a, b + 1));
   const fin = v => typeof v === 'number' && isFinite(v);
+  // 音阶（自 A 起的半音）：各卷各有其色彩，却始终在 A 上——一首连续的曲子
+  const SC = {
+    maj: [0, 2, 4, 7, 9],                // 大调五声（伊甸、牧场、应许）
+    min: [0, 3, 5, 7, 10],               // 小调五声（该隐：田间的暗）
+    grief: [0, 2, 3, 7, 9],              // 多利亚五声（洪水之前的忧伤）
+    sus: [0, 2, 5, 7, 9],                // 没有三音（堕落之后：悬而未决）
+    lyd: [0, 2, 4, 6, 7, 11],            // 利底亚（旷野的星空：#4 的惊奇）
+    hijaz: [0, 1, 4, 5, 7, 8, 10],       // Hijaz（埃及：b2 与增二度）
+  };
+  const deg = (sc, base, i) => base * Math.pow(2, (sc[((i % sc.length) + sc.length) % sc.length] + 12 * Math.floor(i / sc.length)) / 12);
+  const semi = (base, s) => base * Math.pow(2, s / 12);
+  const lvl = k => { const v = W.lv[k]; return fin(v) ? v : 0; };      // 他卷定义的程度（可能尚不存在）
+  const lvlOr = (k, d) => { const v = W.lv[k]; return fin(v) ? v : d; };
+  // 当前的卷
+  const ACT_IDS = ['eden', 'cain', 'flood', 'babel', 'abraham', 'jacob', 'joseph'];
+  function actId() {
+    const A = GS.book && GS.book.ACTS, a = A && A[W.act | 0];
+    return a && a.id ? a.id : (W.act | 0) > 0 ? ACT_IDS[Math.min(ACT_IDS.length, W.act | 0) - 1] : 'seven';
+  }
+  const bookLen = () => (GS.story && GS.story.STAGES ? GS.story.STAGES.length : 1e9);
+  // 此刻的音阶（随卷、随卷中的光景而变）
+  function scaleNow() {
+    switch (actId()) {
+      case 'eden': return lvlOr('edenGlow', 1) < 0.5 ? SC.sus : SC.maj;
+      case 'cain': return Math.max(lvl('cainCall'), lvl('cainWalk'), lvl('cainComfort')) > 0.5 ? SC.maj : SC.min;
+      case 'flood': return lvl('rainbow') > 0.2 || lvl('ararat') > 0.5 || lvl('flGrace') > 0.5 ? SC.maj : SC.grief;
+      case 'abraham': return lvl('abDark') > 0.5 ? SC.min : (W.night || 0) > 0.5 || lvl('abStars') > 0.3 ? SC.lyd : SC.maj;
+      case 'joseph': return lvl('jsEgypt') > 0.5 && lvl('jsPromise') < 0.5 && lvl('jsGoshen') < 0.5 ? SC.hijaz : SC.maj;
+      default: return SC.maj;
+    }
+  }
+  // 此刻和弦的三音：C#（大）或 C（小）
+  const thirdNow = () => (scaleNow().indexOf(4) >= 0 ? 4 : scaleNow().indexOf(3) >= 0 ? 3 : 5);
 
   // ── 状态 ────────────────────────────────────────────────
   let AC = null, N = null, NB = null, PW = null;
@@ -385,9 +422,10 @@
     }
   }
   // 斑鸠：低柔的两声「咕—咕」
-  function dove(at, pan, g) {
-    note({ f: F.E5 * 0.5, path: [[F.Cs5 * 0.5, 0.35]], g, a: 0.08, s: 0.15, r: 0.25, lp: 900, at, pan, rev: 0.35, bus: 'amb', prio: 0 });
-    note({ f: F.E5 * 0.5, path: [[F.Cs5 * 0.5, 0.5]], g: g * 0.8, a: 0.08, s: 0.25, r: 0.3, lp: 900, at: (at || 0) + 0.7, pan, rev: 0.35, bus: 'amb', prio: 0 });
+  function dove(at, pan, g, bus) {
+    const pr = bus ? 1 : 0;
+    note({ f: F.E5 * 0.5, path: [[F.Cs5 * 0.5, 0.35]], g, a: 0.08, s: 0.15, r: 0.25, lp: 900, at, pan, rev: 0.35, bus: bus || 'amb', prio: pr });
+    note({ f: F.E5 * 0.5, path: [[F.Cs5 * 0.5, 0.5]], g: g * 0.8, a: 0.08, s: 0.25, r: 0.3, lp: 900, at: (at || 0) + 0.7, pan, rev: 0.35, bus: bus || 'amb', prio: pr });
   }
   // 鲸歌：正弦 90→60→75Hz 的滑音，0.3Hz ±8Hz 颤音，经 800Hz 低通，上方五度叠一声
   function whaleSong(at, pan, g, bus) {
@@ -412,7 +450,7 @@
     v.play(t, end);
   }
   // 牛：锯齿 110→98Hz 经 500 / 900Hz 共振峰，1.2s
-  function cow(at, pan, g, far) {
+  function cow(at, pan, g, far, bus) {
     if (!(g > 0)) return;
     const v = voice(1);
     if (!v) return;
@@ -423,21 +461,21 @@
     const f1 = v.f('bandpass', 500, 4), f2 = v.f('bandpass', 900, 5), lp = v.f('lowpass', far ? 1100 : 2200, 0.7), env = v.g(0);
     o.connect(f1); o.connect(f2); f1.connect(lp); f2.connect(lp); lp.connect(env);
     const end = swell(env.gain, t, 0.18, g, 0.65, 0.45);
-    v.out(env, 'amb', pan, far ? 0.5 : 0.3);
+    v.out(env, bus || 'amb', pan, far ? 0.5 : 0.3);
     v.play(t, end);
   }
   // 羊：锯齿 220Hz，6Hz 颤音，共振峰 800 / 1200Hz，0.6s
-  function sheep(at, pan, g, far) {
+  function sheep(at, pan, g, far, bus, fr) {
     if (!(g > 0)) return;
     const v = voice(1);
     if (!v) return;
-    const t = T() + (at || 0) + 0.02, f = rnd(210, 236);
+    const t = T() + (at || 0) + 0.02, f = fr || rnd(210, 236);
     const o = v.o(PW.reed, f);
     v.lfo(6, f * 0.035, o.frequency);
     const f1 = v.f('bandpass', 800, 4), f2 = v.f('bandpass', 1200, 5), lp = v.f('lowpass', far ? 1600 : 3000, 0.7), env = v.g(0);
     o.connect(f1); o.connect(f2); f1.connect(lp); f2.connect(lp); lp.connect(env);
     const end = swell(env.gain, t, 0.06, g, 0.4, 0.2);
-    v.out(env, 'amb', pan, far ? 0.5 : 0.3);
+    v.out(env, bus || 'amb', pan, far ? 0.5 : 0.3);
     v.play(t, end);
   }
   // 远处的狮子：噪声 + 70Hz 锯齿，经 300Hz 低通，1.5s 的涌起
