@@ -43,11 +43,26 @@
   const gauss = () => (Math.random() + Math.random() + Math.random() - 1.5) / 1.5;
 
   // ── 噪声（值噪声，平滑，确定性）──────────────────────────────
+  // 一维哈希：[0,256) 内沿用最初的公式（大地的轮廓由它确定，保持不变）；
+  // 其余输入改用 32 位整数运算——旧公式的大整数相乘超出双精度，会退化成常数
   function hash1(n) {
-    n = (n << 13) ^ n;
-    return (1.0 - ((n * (n * n * 15731 + 789221) + 1376312589) & 0x7fffffff) / 1073741824.0) * 0.5 + 0.5;
+    n |= 0;
+    if (n >= 0 && n < 256) {
+      n = (n << 13) ^ n;
+      return (1.0 - ((n * (n * n * 15731 + 789221) + 1376312589) & 0x7fffffff) / 1073741824.0) * 0.5 + 0.5;
+    }
+    let h = Math.imul(n ^ 0x9e3779b9, 0x85ebca6b);
+    h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35);
+    h ^= h >>> 16;
+    return (h >>> 0) / 4294967296;
   }
-  const hash2 = (x, y) => hash1((x | 0) * 374761393 + (y | 0) * 668265263);
+  // 二维哈希：全程 32 位整数运算（Math.imul），任何输入都均匀
+  function hash2(x, y) {
+    let h = (Math.imul(x | 0, 374761393) + Math.imul(y | 0, 668265263)) | 0;
+    h = Math.imul(h ^ (h >>> 13), 1274126177);
+    h ^= h >>> 16;
+    return (h >>> 0) / 4294967296;
+  }
   function noise1(x) {
     const i = Math.floor(x), f = x - i;
     const u = f * f * (3 - 2 * f);
