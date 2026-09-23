@@ -28,7 +28,7 @@
 
   // ── 色板 ────────────────────────────────────────────────────
   const SOIL = [[52, 48, 56], [110, 79, 51], [90, 65, 40]];
-  const SOD = [[30, 80, 46], [80, 114, 64], [70, 108, 52]];          // 草覆之地
+  const SOD = [[30, 80, 46], [72, 106, 58], [70, 108, 52]];          // 草覆之地
   const BLADE = [null, [[72, 104, 56], [138, 170, 100]], [[44, 78, 34], [118, 162, 78]]];
   const TUFT = [[36, 64, 28], [100, 142, 64]];
   const HERB = { stem: [70, 102, 50], leaf: [58, 96, 44], seed: [216, 194, 122], ctr: [236, 196, 92] };
@@ -101,7 +101,6 @@
     const i = f | 0, r = f - i;
     return L.base[i] + (L.base[i + 1] - L.base[i]) * r;
   }
-  function bottomOf(L) { return L.i === 2 ? W.h : L.wl; }
 
   function updRidge(L) {
     const e = W.layerRise(L.i);
@@ -146,9 +145,19 @@
   }
 
   // ── 生长的前沿 ──────────────────────────────────────────────
+  // 前沿推进到最远的陆地（近岸与中丘的两端）时恰好 lv=1
+  function frontSpan(ox) {
+    let D = 1;
+    for (let l = 1; l < 3; l++) {
+      const L = LY[l];
+      if (!L.sb) continue;
+      D = Math.max(D, Math.abs(ox - L.sb[0]), Math.abs(L.sb[1] - ox));
+    }
+    return D;
+  }
   function frontR(lv, ox, delay, feather) {
     const e = 1 - Math.pow(1 - c01(lv), 1.6);
-    const span = Math.max(ox, W.w - ox) + feather * 2;
+    const span = frontSpan(ox) + feather * 2;
     return e * (span + delay) - delay;
   }
   function updFronts() {
@@ -230,7 +239,7 @@
       const a = Math.PI + (i + 0.5) / nb * Math.PI + (R() - 0.5) * 0.3;
       const rr = lerp(r0, r1, R()) * 1.05;
       blob(m, cx + Math.cos(a) * rx * 0.72, cy + Math.sin(a) * ry * 0.7 - ry * 0.05, rr, rr * (flat || 0.84), (R() - 0.5) * 0.6,
-        0.36 + 0.3 * R(), 0);
+        0.46 + 0.28 * R(), 0);
     }
     for (const p of pts) {
       const rr = lerp(r0, r1, R());
@@ -489,7 +498,7 @@
     P.back = css(sh(back)); P.mid = css(md);
     let hiA = 0, rim = null, dx = 0, dy = -1, glowA = 0, warm = 0, gradK = 0;
     const rimDay = mix(sh(leaf, 0.45), RIM_DAY, 0.3), rimWarm = mix(sh(leaf, 0.85), RIM_WARM, 0.6);
-    if (variant === 'day') { hiA = 0.55; dx = -0.35; dy = -1; rim = rimDay; glowA = 0; gradK = 1; }
+    if (variant === 'day') { hiA = 0.55; dx = -0.35; dy = -1; rim = rimDay; glowA = 0.1; gradK = 1; }
     else if (variant === 'morn' || variant === 'eve') {
       hiA = 0.35; dx = variant === 'morn' ? -1 : 1; dy = -0.4; warm = 1;
       rim = rimWarm; glowA = 0.18; gradK = 1;
@@ -498,7 +507,7 @@
       hiA = 0.55 * FL.wd + 0.35 * FL.ww;
       dx = lx; dy = ly; warm = c01(FL.ww * 1.4);
       rim = FL.wd + FL.ww > 0.15 ? mix(rimDay, rimWarm, warm) : null;
-      glowA = 0.18 * FL.ww + 0.3 * FL.wn;
+      glowA = 0.1 * FL.wd + 0.18 * FL.ww + 0.3 * FL.wn;
       gradK = 1 - 0.75 * FL.wn;
     }
     const dl = Math.hypot(dx, dy) || 1;
@@ -514,8 +523,15 @@
     P.rim = rim ? css(rim) : null;
     const rimPx = layer === 2 ? 1.4 : 1.0;
     P.rdx = P.ldx * rimPx; P.rdy = P.ldy * rimPx;
-    const fe = variant === 'night' ? (ripe ? 0.16 : 0.03) : 0.12;
-    P.fruit = K.fruit.map(c => css(sh(ripe ? mix(c, [255, 150, 70], K.ripeMix == null ? 0.15 : K.ripeMix) : c, fe)));
+    const fe = variant === 'night' ? 0.03 : 0.12;
+    // 熟透的果子在夜里自己发出温暖的微光（像小小的灯），而不是暗色的洞
+    const nightW = variant === 'night' ? 1 : variant === 'live' ? FL.wn : 0;
+    P.fruit = K.fruit.map(c => {
+      const base = sh(ripe ? mix(c, [255, 150, 70], K.ripeMix == null ? 0.15 : K.ripeMix) : c, fe);
+      if (!ripe || nightW <= 0) return css(base);
+      const glowC = mul(mix(c, [255, 196, 128], 0.55), 0.62 * (K.ripeMix != null ? 0.55 : 1));
+      return css(mix(base, glowC, 0.85 * nightW));
+    });
     P.fruitHi = css(sh([255, 236, 210], 0.2), 0.5);
     P.bloom = (K.bloom || [[255, 255, 255]]).map(c => css(sh(c, 0.2)));
     P.glowA = ripe ? glowA : 0;
@@ -527,8 +543,9 @@
   // ── 画一棵树（grow 0→1：先干，后冠，末了结果）─────────────────
   function paintTree(g, m, grow, P, H, ripe) {
     const tr = new Path2D(), bk = new Path2D(), md = new Path2D();
+    const trR = P.rim ? new Path2D() : null;
     const hi = P.hiA > 0.02 ? new Path2D() : null;
-    let nTr = 0, nBk = 0, nMd = 0, nHi = 0;
+    let nTr = 0, nBk = 0, nMd = 0, nHi = 0, nTrR = 0;
     for (let i = 0; i < m.segs.length; i++) {
       const s = m.segs[i];
       const p = c01((grow - s.t0) / (s.t1 - s.t0 || 0.01));
@@ -543,6 +560,12 @@
       tr.lineTo(x1 - nx * w1, y1 - ny * w1); tr.lineTo(x0 - nx * w0, y0 - ny * w0); tr.closePath();
       if (w1 > 0.6) { tr.moveTo(x1 + w1, y1); tr.arc(x1, y1, w1, 0, TAU, true); }
       nTr++;
+      // 细枝不描光（否则一两像素的枝条会整根发白）
+      if (trR && w0 > 1.4) {
+        trR.moveTo(x0 + nx * w0, y0 + ny * w0); trR.lineTo(x1 + nx * w1, y1 + ny * w1);
+        trR.lineTo(x1 - nx * w1, y1 - ny * w1); trR.lineTo(x0 - nx * w0, y0 - ny * w0); trR.closePath();
+        nTrR++;
+      }
     }
     for (let i = 0; i < m.blobs.length; i++) {
       const b = m.blobs[i];
@@ -591,7 +614,7 @@
     if (P.rim) {
       g.save(); g.translate(P.rdx, P.rdy);
       g.fillStyle = P.rim; g.strokeStyle = P.rim;
-      if (nBk) g.fill(bk); if (nTr) g.fill(tr); if (nMd) g.fill(md);
+      if (nBk) g.fill(bk); if (nTrR) g.fill(trR); if (nMd) g.fill(md);
       if (fr0) { g.lineWidth = lwF + 0.6; g.lineCap = 'round'; g.stroke(fr0); g.stroke(fr1); }
       g.restore();
     }
@@ -725,7 +748,7 @@
     let n = 0;
     // 先烘焙那些正以「现画」代替的
     bakeQ.sort((a, b) => (a.bake && a.bake.H === a.H ? 1 : 0) - (b.bake && b.bake.H === b.H ? 1 : 0));
-    while (bakeQ.length && (n === 0 || performance.now() - t0 < 5)) {
+    while (bakeQ.length && (n === 0 || performance.now() - t0 < 2.5)) {
       const t = bakeQ.shift();
       t.queued = false;
       if (t.g >= 1 && t.bakeKey !== bakeKey(t)) { U.safe('land.bake', () => bakeTree(t)); n++; }
@@ -766,6 +789,16 @@
       return t;
     };
     const ox = treeOxN * W.w;
+    // 树不长在陡坡上：若坡太陡，向内陆（右）挪到平缓处
+    const gentle = (L, x, lim) => {
+      const e = 3;
+      for (let k = 0; k < 80; k++) {
+        const sl = Math.abs(baseAt(L, x + e) - baseAt(L, x - e)) / (2 * e);
+        if (sl < lim || x > W.w - 10) break;
+        x += 3;
+      }
+      return x;
+    };
     // 近岸
     const Ln = LY[2];
     const sp = baseSpan(Ln, W.h * 0.03);
@@ -780,7 +813,7 @@
       mk(2, oxc, 'fig', 4242, Hb * 1.38, 0, 0.42, true);
       for (let k = 0; k < N; k++) {
         const r = U.mulberry32(1000 + k * 7919);
-        const x = a + (k + 0.5) * spc + (r() - 0.5) * 0.5 * spc;
+        const x = gentle(Ln, a + (k + 0.5) * spc + (r() - 0.5) * 0.5 * spc, 0.55);
         if (Math.abs(x - oxc) < 0.62 * spc) continue;
         let kind = KSEQ[(k * 5 + 3) % KSEQ.length];
         if (k === 0 || (k === 1 && N >= 9 && r() < 0.7)) kind = 'palm';
@@ -800,8 +833,8 @@
       const Hb = 108 * u * 0.52 * portrait;
       for (let k = 0; k < N; k++) {
         const r = U.mulberry32(2000 + k * 7919);
-        const x = a + (k + 0.5) * spc + (r() - 0.5) * 0.6 * spc;
-        let kind = KSEQ[(k * 2 + 1) % KSEQ.length];
+        const x = gentle(Lm, a + (k + 0.5) * spc + (r() - 0.5) * 0.6 * spc, 0.6);
+        let kind = KSEQ[(k * 5 + 2) % KSEQ.length];
         if (k === 0) kind = 'palm';
         const H = Hb * KIND[kind].h * (0.8 + 0.3 * r());
         mk(1, x, kind, 7000 + k * 173, H, 0.12 + 0.55 * Math.abs(x - ox) / D, 0.3, false);
@@ -813,7 +846,7 @@
   function treeGrowth(t) { return c01((W.lv.trees - t.start) / t.dur); }
 
   function buildBlades(L) {
-    L.nb = 0; L.B = null;
+    L.nb = 0; L.B = null; L.tc = null;
     if (L.i === 0) return;
     const sp = baseSpan(L, 0.5);
     if (!sp) return;
@@ -864,7 +897,7 @@
   }
 
   function buildHerbs(L) {
-    L.herbs = [];
+    L.herbs = []; L.hg = null;
     if (L.i === 0) return;
     const near = L.i === 2;
     const sp = baseSpan(L, near ? W.h * 0.01 : W.h * 0.004);
@@ -1162,7 +1195,6 @@
   }
 
   function update(dt) {
-    if (!ready) return;
     if (W.w !== lastW || W.h !== lastH) resize();
     if (!ready) return;
     if (Math.abs((W.quality || 1) - lastQ) > 0.01) {
@@ -1343,8 +1375,11 @@
     const top = Math.min(L.minY, bot - 2);
     const og = ctx.createLinearGradient(0, top, 0, bot);
     if (L.i === 2) {
-      og.addColorStop(0, 'rgba(0,0,0,0)');
-      og.addColorStop(0.35, 'rgba(4,6,4,0.1)');
+      // 坡顶受光，向下渐入阴影
+      const sa = FL.sun.a;
+      og.addColorStop(0, css(FL.sun.col, 0.1 * sa));
+      og.addColorStop(0.22, css(FL.sun.col, 0));
+      og.addColorStop(0.45, 'rgba(4,6,4,0.1)');
       og.addColorStop(1, 'rgba(4,6,4,0.4)');
     } else {
       const hz = W.haze, a = L.i === 0 ? 0.6 : 0.22;
@@ -1354,6 +1389,17 @@
     }
     ctx.fillStyle = og;
     ctx.fill(P.land);
+    // 刚出水的地：下半仍罩着一层流下的水膜，随晾干而退去
+    if (L.wet > 0.02) {
+      const band = (bot - top) * (0.25 + 0.5 * (1 - L.rise));
+      const wg = ctx.createLinearGradient(0, bot - band, 0, bot);
+      const wc = mix(W.shade([70, 120, 170], depthOf(L.i) * 0.6, 0.2), W.haze, 0.2);
+      wg.addColorStop(0, css(wc, 0));
+      wg.addColorStop(0.7, css(wc, 0.18 * L.wet));
+      wg.addColorStop(1, css(wc, 0.38 * L.wet));
+      ctx.fillStyle = wg;
+      ctx.fill(P.land);
+    }
   }
 
   // 脊线描光的路径：朝光 / 背光两段；光走过几像素或大地变了才重建
@@ -1440,11 +1486,24 @@
     const cur = L.cur, st = L.step, wl = L.wl;
     if (L.i < 2) {
       const ls = L.i === 0 ? 0.45 : 0.75;
+      const baseA = lit * ((L.i === 0 ? 0.24 : 0.3) * (0.6 + 0.4 * br) + 0.3 * L.wet);
+      // 一线连续的细沫
       ctx.beginPath();
       let pen = false;
+      for (let i = L.spanA; i <= L.spanB; i += 2) {
+        const x = i * st;
+        if (cur[i] >= wl - 0.4) { pen = false; continue; }
+        if (!pen) { ctx.moveTo(x, wl - 0.2); pen = true; } else ctx.lineTo(x, wl - 0.2);
+      }
+      ctx.lineWidth = (L.i === 0 ? 0.7 : 0.9) + (L.wet > 0 ? L.wet * 0.8 : 0);
+      ctx.strokeStyle = css(fc, baseA);
+      ctx.stroke();
+      // 其上一簇簇较亮的浪花，随潮缓缓漂移、呼吸
+      ctx.beginPath();
+      pen = false;
       for (let i = L.spanA; i <= L.spanB; i++) {
         const x = i * st;
-        const on = cur[i] < wl - 0.4 && U.noise1(x * 0.018 + t * 0.16 + L.i * 13) > -0.6 + 0.3 * br;
+        const on = cur[i] < wl - 0.4 && U.noise1(x * 0.022 + t * 0.12 + L.i * 13) > 0.2 - 0.25 * br;
         if (!on) { pen = false; continue; }
         if (!pen) { ctx.moveTo(x, wl - 0.2); pen = true; } else ctx.lineTo(x, wl - 0.2 + Math.sin(x * 0.3 + t) * 0.25);
       }
@@ -1463,8 +1522,8 @@
         ctx.lineTo(lp[0] + lp[1] * (2 + 7 * b2) * ls * u, wl + 1.6 * ls);
       }
       ctx.lineCap = 'round';
-      ctx.lineWidth = (L.i === 0 ? 0.8 : 1.25) * (0.85 + 0.3 * br) + (L.wet > 0 ? L.wet * 0.8 : 0);
-      ctx.strokeStyle = css(fc, lit * ((L.i === 0 ? 0.28 : 0.4) * (0.6 + 0.4 * br) + 0.35 * L.wet));
+      ctx.lineWidth = (L.i === 0 ? 0.9 : 1.35) * (0.85 + 0.3 * br) + (L.wet > 0 ? L.wet * 0.8 : 0);
+      ctx.strokeStyle = css(fc, Math.min(1, baseA * 1.25 + 0.06 * lit));
       ctx.stroke();
       ctx.lineCap = 'butt';
     } else {
@@ -1677,7 +1736,6 @@
   }
 
   // 结种子的菜蔬：麦穗形、伞形、开花的
-  const _hp = { st: null, lf: null, sd: null, pe: [null, null, null, null], ce: null, bu: null };
   function drawHerbs(ctx, L) {
     const hs = L.herbs;
     if (!hs.length || W.lv.herbs <= 0 || L.spanA < 0) return;
@@ -1964,6 +2022,21 @@
     if (l == null || !ready || W.lv.land <= 0) return;
     const L = LY[l];
     if (L.spanA < 0) return;
+    if (PROF.on) { drawProf(ctx, l, L); return; }
+    if (l < 2) drawReflection(ctx, L);
+    drawGround(ctx, L);
+    drawRims(ctx, L);
+    if (l === 0) { drawTexels(ctx); drawFoam(ctx, L); drawRivulets(ctx, L); return; }
+    drawTrees(ctx, l);
+    drawBlades(ctx, L);
+    drawHerbs(ctx, L);
+    drawBlooms(ctx, l);
+    drawDrift(ctx, l);
+    drawFoam(ctx, L);
+    drawRivulets(ctx, L);
+  }
+  // 与 draw 相同，但逐段计时（GS.land.prof.on = true 时）
+  function drawProf(ctx, l, L) {
     if (l < 2) pf('refl', () => drawReflection(ctx, L));
     pf('ground', () => drawGround(ctx, L));
     pf('rims', () => drawRims(ctx, L));
@@ -1990,6 +2063,7 @@
       for (let i = 0; i < n; i++) L.base[i] = W.ridgeBaseY(L.i, i * L.step);
       L.wl = W.waterlineY(L.i);
       L.dirty = true;
+      L.sb = baseSpan(L, 0.5);
       buildFolds(L);
       updRidge(L);
     }
