@@ -23,15 +23,19 @@
  *   GS.cast.follow(id, otherId, dx)   // 跟随：目标 = other.x − dx × other.facing（dx>0 跟在后面；省略时为 −0.03，沿用旧义）
  *   GS.cast.glow(id, v)   GS.cast.remove(id, { fade })   GS.cast.clear({ fade:false })   has / get / list
  *   GS.cast.prop(id, kind|null)   GS.cast.carry(id, 'baby'|'lamb'|null)
- *   GS.cast.holdHands(id1, id2, on=true)   // 二人并立或同行时手牵手（相距约一身之内）
- *   GS.cast.embrace(id1, id2, { run, weep })  // 二人相向走近、相拥（可同时哭泣）；也可各自 face 对方后 pose 'embrace'
+ *   GS.cast.holdHands(id1, id2, on=true)   // 二人并立或同行时手牵手（相距不到约 0.8 身高时相握：近地 1280 宽约 0.02 以内）
+ *   GS.cast.embrace(id1, id2, { run, weep, at })  // 二人相向走近（at：相拥之处 0..1，省略则在二人之间）、相拥（可同时哭泣）；
+ *                                                 // 也可各自 face 对方后都 pose 'embrace'——相隔尚远时二人自会走近
  *   GS.cast.ride(id, mountId|null)     // 骑上骆驼 / 驴，坐上车；null 下来
  *   GS.cast.fly(id, x, y|null, { dur, pose })  // 升空 / 飞到 (x, y)（y 为画面高度的比例）；y 为 null 则落回地面（以诺被取去、天梯上的使者）
  *   GS.cast.attach(id, fn|null)        // 每帧由 fn() → [px, py] 给出脚下的位置（站在方舟上、梯子上……）
  *
  *   pose：'stand' 'walk' 'run' 'kneel' 'bow' 'lie' 'sit' 'seat'（坐在座上） 'raise'（举手） 'pray' 'carry' 'point'
- *         'wrestle' 'fall'（仆倒、脸伏于地） 'weep'（低头、掩面、双肩抽动） 'embrace'（向前相拥） 'gaze'（仰望）
- *   姿势之间平滑过渡（躺下经由坐、俯伏经由跪）；行走的步伐与移动的距离相合；站着时有细微的呼吸。
+ *         'wrestle'（二人相对，会伸手角力） 'fall'（仆倒、脸伏于地） 'weep'（低头、掩面、双肩抽动）
+ *         'embrace'（向前相拥） 'gaze'（仰望） 'ride'（由 ride() 自动设定）
+ *   姿势之间平滑过渡（躺下经由坐、俯伏经由跪）；行走的步伐与移动的距离相合；站着时有细微的呼吸；
+ *   神言说时，站着的人转向神的灵并仰首。重演时：正在走的先走到再换姿势，面朝去向，跟随者随之到位。
+ *   性能：静止的人与牲畜每隔若干帧才重算一次几何，其余帧以缓存的 Path2D 直接填色。
  *
  * ── 牲畜 ────────────────────────────────────────────────────
  *   GS.cast.animal(id, { kind:'camel'|'donkey'|'ram'|'sheep'|'cow'|'goat'|'wagon', x, layer, label, facing,
@@ -39,7 +43,9 @@
  *                        speckled: bool, col:[r,g,b], v })
  *     别名：ox/calf → cow，lamb/ewe → sheep，kid → goat，ass → donkey，cart → wagon（小者自动缩小）。
  *     walk / run / place / pose / face / follow / remove 对牲畜同样有效（同一个 id 空间）。
- *   GS.cast.herd(gid, { kind, n, x0, x1, layer, label, speckled, pose, from })   // 一群羊 / 牛：crowdWalk / crowdPose / scatter / removeCrowd 通用
+ *   GS.cast.herd(gid, { kind, n, x0, x1, layer, label, speckled, pose, from, mill })   // 一群羊 / 牛：crowdWalk / crowdPose / scatter / removeCrowd 通用
+ *     speckled: true | 0..1（有斑点的比例，创 30:32）；mill:false 则不自行走动吃草
+ *   GS.cast.POSES / GS.cast.KINDS：可用的姿势 / 牲畜种类
  *
  * ── 人群 ────────────────────────────────────────────────────
  *   GS.cast.crowd(gid, { n, x0, x1, layer, label, robe, pose, glow, from, mill })   GS.cast.crowdWalk(gid, x0, x1, { speed, pose })
@@ -65,7 +71,7 @@
   const AGE_H = { adult: 1, elder: 0.96, child: 0.62, baby: 0.34 };
   const ROBE_M = [120, 92, 70], ROBE_F = [150, 108, 96];
   const SKIN = [70, 52, 42], HAIR = [36, 27, 22], GREY = [214, 208, 198];
-  const WOOD = [104, 76, 50], CLAY = [184, 122, 78], SWADDLE = [236, 228, 210], LAMB = [238, 232, 218], CLOTH = [150, 120, 88];
+  const WOOD = [104, 76, 50], FIREWOOD = [164, 124, 80], CLAY = [184, 122, 78], SWADDLE = [236, 228, 210], LAMB = [238, 232, 218], CLOTH = [150, 120, 88];
   const ANGEL = [240, 224, 184], ANGEL_SKIN = [236, 216, 180], ANGEL_ACC = [252, 232, 188], ANGEL_WING = [246, 232, 200];
   const COAT = [[184, 58, 50], [226, 172, 60], [66, 104, 168], [84, 140, 82], [146, 80, 146], [228, 206, 150]];
   const CROWD_ROBES = [[132, 104, 78], [110, 86, 70], [150, 118, 90], [96, 80, 72], [120, 100, 84], [104, 96, 110], [140, 96, 80], [158, 138, 108]];
@@ -393,7 +399,7 @@
   const GL = [];
   let nGL = 0;
   function glowAt(img, x, y, w, h, a) {
-    if (a < 0.004 || !img) return;
+    if (a < 0.03 || !img) return;         // 太淡的光不画（白昼里人群的微光）
     let g = GL[nGL];
     if (!g) g = GL[nGL] = { img: null, x: 0, y: 0, w: 0, h: 0, a: 0 };
     g.img = img; g.x = x; g.y = y; g.w = w; g.h = h; g.a = a > 1 ? 1 : a;
@@ -632,6 +638,7 @@
     if (o.layer != null) p.layer = o.layer;
     const running = o.run || (o.speed && o.speed >= 0.07);
     if (W.replaying) {
+      if (Math.abs(x - p.nx) > 1e-4) p.facing = p.fd = x > p.nx ? 1 : -1;     // 看着走完时也是面朝去向
       p.nx = x; p.tx = null; p.fly = null; setPose(p, o.pose || 'stand');
       if (p.faceTo) faceNow(p);
       settleFollowers(id);
@@ -656,7 +663,10 @@
       }
     }
     p.prevPose = p.pose; p.pose = pose; p.poseT = W.replaying ? 1 : 0;
-    if (W.replaying && !p.isAnimal) { p.gait = pose === 'walk' || pose === 'run' ? 1 : 0; p.run = pose === 'run' ? 1 : 0; }
+    if (W.replaying) {
+      p.gait = pose === 'walk' || pose === 'run' ? 1 : 0; p.run = pose === 'run' ? 1 : 0;
+      if (p.isAnimal) { p.lie = pose === 'lie' ? 1 : 0; p.neck = pose === 'graze' ? p.M.grazeA : p.M.up; }
+    }
   }
   function animalPose(ps) {
     if (ps === 'walk' || ps === 'run' || ps === 'lie' || ps === 'graze' || ps === 'stand') return ps;
@@ -669,6 +679,7 @@
     const p = people.get(id); if (!p) return;
     o = o || {};
     if (o.weep != null) p.sobbing = !!o.weep;
+    else if (ps !== 'embrace' && ps !== 'fall' && ps !== 'kneel' && ps !== 'bow' && ps !== 'weep') p.sobbing = false;
     if (ps === 'run' && p.tx != null && !W.replaying) { p.speed = Math.max(p.speed, 0.085); setPose(p, 'run'); return; }
     if (p.tx != null && !o.stop && !W.replaying) { p.afterWalk = ps; return; }
     // 重演时（下一句话提前成就）：正走着的先走到，再换姿势——与看完时一样
@@ -713,8 +724,10 @@
     if (o.weep != null) { A.sobbing = B.sobbing = !!o.weep; }
     const h = 34 * W.layerScale(A.layer) * boost();
     const gap = (h * 0.3) / Math.max(1, W.w);
-    const left = A.nx <= B.nx ? A : B, right = left === A ? B : A;
-    const mid = o.at != null ? o.at : (left.nx + right.nx) / 2;
+    // 重演时，正在走的人按其去处来算（与看着走完一致）
+    const ax = W.replaying && A.tx != null ? A.tx : A.nx, bx = W.replaying && B.tx != null ? B.tx : B.nx;
+    const left = ax <= bx ? A : B, right = left === A ? B : A;
+    const mid = o.at != null ? o.at : (ax + bx) / 2;
     const go = (p, x, dir) => {
       p.faceTo = (p === A ? b : a);
       if (Math.abs(p.nx - x) < 0.004 || W.replaying) { p.nx = x; p.tx = null; p.facing = dir; if (W.replaying) p.fd = dir; setPose(p, 'embrace'); p.faceTo = null; }
@@ -736,7 +749,7 @@
     return best;
   }
   function closeGap(p, instant) {
-    const e = embracePartner(p); if (!e) return;
+    const e = embracePartner(p); if (!e || e.tx != null) return;     // 对方还在走来：等他到了再说
     const gap = scaleOf(p) * 0.3 / Math.max(1, W.w);
     const d = e.nx - p.nx, s = Math.sign(d) || p.facing;
     if (Math.abs(d) <= gap * 1.5) return;
@@ -844,7 +857,7 @@
     const g = crowds.get(gid); if (!g) return;
     g.members.forEach((m, i) => {
       const x = lerp(x0, x1, (i + Math.random()) / g.members.length);
-      if (W.replaying) { m.nx = x; m.tx = null; setPose(m, (o && o.pose) || (m.isAnimal ? 'graze' : 'stand')); }
+      if (W.replaying) { if (Math.abs(x - m.nx) > 1e-4) m.facing = m.fd = x > m.nx ? 1 : -1; m.nx = x; m.tx = null; setPose(m, (o && o.pose) || (m.isAnimal ? 'graze' : 'stand')); }
       else {
         m.tx = x; m.speed = (o && o.speed) || 0.03 + Math.random() * 0.01; m.afterWalk = (o && o.pose) || (m.isAnimal ? 'graze' : 'stand');
         setPose(m, o && o.run ? 'run' : 'walk'); m.facing = x >= m.nx ? 1 : -1;
@@ -1269,17 +1282,22 @@
     }
   }
   function backProp(kind, Tl, ux, uy, fx, fy) {
+    const lean = Math.atan2(fy, fx);
     if (kind === 'bundle') {
       const cx = ux * Tl * 0.7 - fx * 0.078, cy = uy * Tl * 0.7 - fy * 0.078;
       ell(cx, cy, 0.062, 0.074, Math.atan2(fy, fx));
       ell(cx + ux * 0.07, cy + uy * 0.07, 0.022, 0.02, 0);
     } else {
-      for (let i = 0; i < 5; i++) {
-        const b = 0.05 + 0.014 * i, a = -0.08 + 0.04 * i;
-        const x0 = ux * Tl * 0.12 - fx * (b + 0.03) , y0 = uy * Tl * 0.12 - fy * (b + 0.03);
-        const x1 = ux * Tl * (1.12 + a * 0.3) - fx * (b - 0.04 + a * 0.2), y1 = uy * Tl * (1.12 + a * 0.3) - fy * (b - 0.04 + a * 0.2);
-        seg(x0, y0, x1, y1, 0.02, 0.017);
+      // 燔祭的柴（创 22:6）：几根长柴斜捆在背上，上端越过肩头
+      const px = ux * Tl * 0.12 - fx * 0.07, py = uy * Tl * 0.12 - fy * 0.07;
+      for (let i = 0; i < 4; i++) {
+        const t = 0.3 + 0.075 * i, c = Math.cos(t), sn = Math.sin(t);
+        const dx = ux * c - fx * sn, dy = uy * c - fy * sn;
+        const ox = -fx * 0.012 * i, oy = -fy * 0.012 * i;
+        seg(px + ox - dx * 0.1, py + oy - dy * 0.1, px + ox + dx * (0.5 + 0.04 * (i % 2)), py + oy + dy * (0.5 + 0.04 * (i % 2)), 0.026, 0.021);
       }
+      const t = 0.38, c = Math.cos(t), sn = Math.sin(t), mx = px + (ux * c - fx * sn) * 0.2, my = py + (uy * c - fy * sn) * 0.2;
+      ell(mx - fx * 0.02, my - fy * 0.02, 0.05, 0.016, lean + 0.1);
     }
   }
   function handProp(p, Q, A, upright, grounded, jarOn, sx, sy, ux, uy, fx, fy) {
@@ -1395,9 +1413,10 @@
       setCol('robe', p.robe, depth, ex); setCol('back', SKIN, depth, ex);
       setCol('acc', accentOf(p), depth, ex);
     }
+    if (p.wings && !p.angel) { setCol('wing', ANGEL_WING, depth, ex + 0.1); setCol('wingF', ANGEL_WING, depth, ex, 0.8); }
     if (styleOf(p) === 'long' || (!lo && h >= 24)) setCol('hair', p.age === 'elder' ? GREY : HAIR, depth, ex, p.age === 'elder' ? 0.85 : 1);
     if (pk === 'coat' && !p.angel) setCol('arm', COAT[1], depth, ex); else aliasCol('arm', 'robe');
-    if (pk) setCol('prop', pk === 'jar' ? CLAY : pk === 'bundle' ? CLOTH : pk === 'sword' ? [200, 190, 170] : WOOD, depth, ex);
+    if (pk) setCol('prop', pk === 'jar' ? CLAY : pk === 'bundle' ? CLOTH : pk === 'sword' ? [200, 190, 170] : pk === 'wood' ? FIREWOOD : WOOD, depth, ex);
     if (p.carry) setCol('baby', p.carry === 'lamb' ? LAMB : SWADDLE, depth, ex + 0.05);
     p._colc = saveCols(p._colc, PKEYS, ex, depth);
     }

@@ -34,7 +34,7 @@
 
   // ── 地上的位置（画面宽度的比例）：左 = 东（盐海与平原），右 = 西（往埃及、往哈兰的路）──
   const X = {
-    spring: 0.405, shrub: 0.442, pieces: 0.492, sleep: 0.582, look: 0.575,
+    spring: 0.424, shrub: 0.46, pieces: 0.492, sleep: 0.582, look: 0.575,
     moreh: 0.52, altarS: 0.548,                                   // 示剑
     tentL: 0.575, altarB: 0.603, tentB: 0.632,                    // 伯特利
     oakA: 0.672, tent: 0.742, oakB: 0.8, altarM: 0.83,            // 幔利（希伯仑）
@@ -128,6 +128,15 @@
     q('cam1', t + 0.1); q('cam2', t + 0.124); q('cam3', t + 0.148); q('don1', t + 0.078);
     if (hasCrowd('flock2')) C().crowdWalk('flock2', t + 0.17, t + 0.25, { speed: sp });
     if (hasCrowd('herdC')) C().crowdWalk('herdC', t + 0.2, t + 0.245, { speed: sp });
+  }
+
+  // 牧人把牲畜赶到西边（左）的草场去（帐棚与麦比拉那边留给情节）
+  function pasture(o) {
+    const sp = (o && o.speed) || 0.02;
+    if (hasCrowd('hh')) C().crowdWalk('hh', 0.5, 0.54, { speed: sp });
+    if (hasCrowd('flock2')) C().crowdWalk('flock2', 0.44, 0.53, { speed: sp });
+    if (hasCrowd('herdC')) C().crowdWalk('herdC', 0.47, 0.52, { speed: sp });
+    ['cam1', 'cam2', 'cam3'].forEach((id, i) => walk(id, 0.545 + i * 0.024, { speed: sp }));
   }
 
   // 旁白（情节里补充的经文；瞬间重演时不念）
@@ -321,15 +330,20 @@
   let starA = null, starHit = null;
   function buildStars() {
     const r = U.mulberry32(1505);
-    for (let i = 0; i < 1400; i++) {
+    for (let i = 0; i < 1200; i++) {
       let x, y;
-      if (i < 620) { const t = r(); x = t; y = 0.12 * 0.6 + t * 0.62 * 0.6 + (r() + r() + r() - 1.5) * 0.05; }
+      if (i < 540) { const t = r(); x = t; y = 0.12 * 0.6 + t * 0.62 * 0.6 + (r() + r() + r() - 1.5) * 0.05; }
       else { x = r(); y = Math.pow(r(), 1.2) * 0.56; }
       STARS.push({ x, y: clamp(y, 0.012, 0.56), m: Math.pow(r(), 3.2), rank: r(), tw: r() * TAU, sp: 0.7 + r() * 2.4, warm: r() < 0.22 });
     }
     starA = new Float32Array(STARS.length);
     starHit = new Uint8Array(STARS.length);
+    for (const st of STARS) { st.base = (0.42 + 0.58 * st.m) * (1 - smoothstep(0.42, 0.58, st.y)); st.sz = 0.6 + st.m * 1.7; st.tw = st.tw / TAU * 256; st.sp = st.sp / TAU * 256; }
+    for (let b = 0; b < BUCK; b++) BUCKETS.push(new Int16Array(STARS.length));
   }
+  const SIN = new Float32Array(256);
+  for (let i = 0; i < 256; i++) SIN[i] = Math.sin(i / 256 * TAU);
+  const BUCK = 5, BUCKETS = [], BN = new Int32Array(BUCK);
   function starTarget(i) { return (STARS[i].rank < W.lv.abStars || starHit[i]) ? 1 : 0; }
 
   // ════════════════════════════════════════════════════════════
@@ -495,48 +509,56 @@
 
   function drawCity(ctx, p) {
     const l = p.layer, s = LS(l), u = 110 * s, x = p.x * W.w, m = p.model, ruin = p.ruin;
-    const base = [186, 160, 124], burnt = [58, 46, 40];
-    const body = U.mixRGB(base, burnt, ruin), side = U.mixRGB([150, 124, 96], [40, 32, 28], ruin);
+    const bodyC = css(U.mixRGB([186, 160, 124], [58, 46, 40], ruin), l), sideC = css(U.mixRGB([150, 124, 96], [40, 32, 28], ruin), l);
     ctx.globalAlpha = p.a;
     // 城墙
     const wx0 = x - m.half * u, wx1 = x + m.half * u, wh = 0.07 * u * (1 - 0.5 * ruin);
-    ctx.fillStyle = css(side, l);
+    ctx.fillStyle = sideC;
     ctx.beginPath();
     ctx.moveTo(wx0, gY(l, wx0 / W.w) + 2);
     for (let i = 0; i <= 8; i++) { const xx = lerp(wx0, wx1, i / 8); ctx.lineTo(xx, gY(l, xx / W.w) - wh * (ruin > 0.2 && i % 2 ? 0.5 : 1)); }
     ctx.lineTo(wx1, gY(l, wx1 / W.w) + 2);
     ctx.closePath(); ctx.fill();
-    // 房屋（平顶、少许圆顶）与一座高台
-    const lx = litX() >= x ? 1 : -1;
-    const drawBox = (ox, w, h, dome, br) => {
-      const hx = x + ox * u, g = gY(l, hx / W.w) + 2, hh = h * u * (1 - 0.74 * ruin * br), ww = w * u;
-      ctx.fillStyle = css(body, l);
-      if (ruin > 0.15) {
-        ctx.beginPath();
-        ctx.moveTo(hx - ww / 2, g); ctx.lineTo(hx - ww / 2, g - hh);
-        ctx.lineTo(hx - ww * 0.15, g - hh * (0.7 + 0.2 * br)); ctx.lineTo(hx + ww * 0.1, g - hh * 0.9); ctx.lineTo(hx + ww / 2, g - hh * 0.55);
-        ctx.lineTo(hx + ww / 2, g); ctx.closePath(); ctx.fill();
+    // 房屋（平顶、少许圆顶）与一座高台：先画一切房身，再画背光的一侧
+    const lx = litX() >= x ? 1 : -1, broken = ruin > 0.15;
+    const g0 = gY(l, p.x) + 2;
+    const box = (h, ox, w, hgt, dome, o) => {
+      const hx = x + ox * u, hh = hgt * u * (1 - 0.74 * ruin * h), ww = w * u, g0 = gY(l, hx / W.w) + 2;
+      if (o) o._g = g0;
+      if (broken) {
+        ctx.moveTo(hx - ww / 2, g0); ctx.lineTo(hx - ww / 2, g0 - hh);
+        ctx.lineTo(hx - ww * 0.15, g0 - hh * (0.7 + 0.2 * h)); ctx.lineTo(hx + ww * 0.1, g0 - hh * 0.9); ctx.lineTo(hx + ww / 2, g0 - hh * 0.55);
+        ctx.lineTo(hx + ww / 2, g0); ctx.closePath();
       } else {
-        ctx.fillRect(hx - ww / 2, g - hh, ww, hh);
-        if (dome) { ctx.beginPath(); ctx.ellipse(hx, g - hh, ww * 0.4, ww * 0.36, 0, Math.PI, 0); ctx.fill(); }
+        ctx.rect(hx - ww / 2, g0 - hh, ww, hh);
+        if (dome) { ctx.moveTo(hx + ww * 0.4, g0 - hh); ctx.ellipse(hx, g0 - hh, ww * 0.4, ww * 0.36, 0, 0, Math.PI, true); }
       }
-      ctx.fillStyle = css(side, l, 0.8);
-      ctx.fillRect(lx > 0 ? hx - ww / 2 : hx + ww * 0.2, g - hh * (ruin > 0.15 ? 0.6 : 1), ww * 0.3, hh * (ruin > 0.15 ? 0.6 : 1));
-      return [hx, g - hh, ww, hh];
+      return hh;
     };
+    ctx.fillStyle = bodyC;
+    ctx.beginPath();
     const tw = m.tower;
-    drawBox(tw.ox, tw.w, tw.h, false, 1);
-    const wins = [];
-    for (const h of m.hs) { const r = drawBox(h.ox, h.w, h.h, h.dome, h.br); if (h.win) wins.push([r, h]); }
+    box(1, tw.ox, tw.w, tw.h, false, null);
+    for (const h of m.hs) h._hh = box(h.br, h.ox, h.w, h.h, h.dome, h);
+    ctx.fill();
+    ctx.fillStyle = sideC;
+    ctx.globalAlpha = p.a * 0.8;
+    ctx.beginPath();
+    for (const h of m.hs) {
+      const hx = x + h.ox * u, ww = h.w * u, hh = h._hh * (broken ? 0.6 : 1);
+      ctx.rect(lx > 0 ? hx - ww / 2 : hx + ww * 0.2, h._g - hh, ww * 0.3, hh);
+    }
+    ctx.fill();
     // 夜里的窗
     const nk = nightK();
     if (nk > 0.05 && ruin < 0.5) {
       ctx.globalCompositeOperation = 'lighter';
       ctx.fillStyle = 'rgb(255,178,96)';
-      for (const [r, h] of wins) {
+      const ws = Math.max(1, 2.2 * s);
+      for (const h of m.hs) {
+        if (!h.win) continue;
         ctx.globalAlpha = p.a * nk * (1 - ruin * 2) * (0.55 + 0.35 * Math.sin(W.t * 0.8 + h.tw));
-        const ws = Math.max(1, 2.2 * s);
-        ctx.fillRect(r[0] - ws / 2, r[1] + r[3] * 0.35, ws, ws * 1.4);
+        ctx.fillRect(x + h.ox * u - ws / 2, h._g - h._hh * 0.65, ws, ws * 1.4);
       }
       ctx.globalCompositeOperation = 'source-over';
     }
@@ -547,10 +569,10 @@
       const g = u * (1.1 + 0.9 * p.fire);
       ctx.globalCompositeOperation = 'lighter';
       ctx.globalAlpha = p.fire * (0.45 + 0.2 * Math.sin(W.t * 5 + p.seed));
-      ctx.drawImage(SP.ember, x - g / 2, gY(l, p.x) - u * 0.12 - g / 2, g, g);
+      ctx.drawImage(SP.ember, x - g / 2, g0 - u * 0.12 - g / 2, g, g);
       ctx.globalCompositeOperation = 'source-over';
       ctx.globalAlpha = 1;
-      for (let i = 0; i < m.hs.length; i += 2) { const h = m.hs[i]; const hx = x + h.ox * u; flame(ctx, hx, gY(l, hx / W.w) - h.h * u * (1 - 0.74 * ruin * h.br), 9 * s * (0.6 + p.fire), p.fire * 0.9, p.seed + i); }
+      for (let i = 0; i < m.hs.length; i += 2) { const h = m.hs[i]; flame(ctx, x + h.ox * u, h._g - h._hh, 9 * s * (0.6 + p.fire), p.fire * 0.9, p.seed + i); }
     }
   }
 
@@ -721,7 +743,7 @@
   }
 
   function drawThicket(ctx, p) {
-    const l = p.layer, s = LS(l), x = p.x * W.w, y = gY(l, p.x) + 1, u = 16 * s;
+    const l = p.layer, s = LS(l) * p.size, x = p.x * W.w, y = gY(l, p.x) + 1, u = 16 * s;
     ctx.globalAlpha = p.a;
     ctx.strokeStyle = css([60, 56, 40], l); ctx.lineWidth = Math.max(0.6, 1.1 * s); ctx.lineCap = 'round';
     ctx.beginPath();
@@ -735,7 +757,7 @@
   }
   // 两角扣在稠密小树中的公羊（22:13）
   function drawRam(ctx, p) {
-    const l = p.layer, s = LS(l) * 1.05, x = p.x * W.w, y = gY(l, p.x) + 1, f = -1;
+    const l = p.layer, s = LS(l) * 1.05 * p.size, x = p.x * W.w, y = gY(l, p.x) + 1, f = -1;
     ctx.globalAlpha = p.a;
     const wool = css([222, 214, 196], l), dark = css([70, 60, 52], l);
     ctx.strokeStyle = dark; ctx.lineWidth = Math.max(0.8, 1.5 * s); ctx.lineCap = 'round';
@@ -773,7 +795,7 @@
   function drawHalo(ctx, p) {
     if (p.lit < 0.01) return;
     SP || sprites();
-    const l = p.layer, s = LS(l), x = p.x * W.w, y = gY(l, p.x) - 8 * s, g = 120 * s;
+    const l = p.layer, s = LS(l), x = p.x * W.w, y = gY(l, p.x) - 8 * s, g = 170 * s;
     ctx.globalCompositeOperation = 'lighter';
     ctx.globalAlpha = p.lit * p.a * (0.5 + 0.1 * Math.sin(W.t * 1.4));
     ctx.drawImage(SP.gold, x - g / 2, y - g / 2, g, g);
@@ -843,8 +865,6 @@
   }
 
   // 数不过来的众星
-  const BUCK = 5;
-  const bucketPaths = [[], [], [], [], []];
   function drawStars(ctx) {
     const A = W.lv.stars * clamp(W.night * 1.3 + W.dusk * 0.28, 0, 1) * (1 - W.lv.abDark * 0.9);
     if (A < 0.01 || !starA) return;
@@ -855,26 +875,27 @@
       ctx.globalAlpha = A * band * 0.24;
       ctx.drawImage(SP.band, 0, 0, W.w, W.horizonY);
     }
-    for (let b = 0; b < BUCK; b++) bucketPaths[b].length = 0;
-    const u = Math.max(0.7, W.unit), hz = W.horizonY;
-    for (let i = 0; i < STARS.length; i++) {
+    BN.fill(0);
+    const u = Math.max(0.7, W.unit), hz = W.horizonY, T = W.t;
+    const stepQ = W.quality < 0.75 ? 2 : 1;
+    for (let i = 0; i < STARS.length; i += stepQ) {
       const a0 = starA[i];
       if (a0 < 0.02) continue;
       const st = STARS[i];
-      const tw = 0.72 + 0.28 * Math.sin(W.t * st.sp + st.tw);
-      const a = a0 * (0.42 + 0.58 * st.m) * tw * (1 - smoothstep(0.42, 0.58, st.y));
-      const bi = Math.min(BUCK - 1, Math.floor(a * BUCK));
+      const a = a0 * st.base * (0.72 + 0.28 * SIN[(T * st.sp + st.tw) & 255]);
       if (a < 0.03) continue;
-      bucketPaths[bi].push(i);
+      const bi = a >= 0.8 ? 4 : (a * BUCK) | 0;
+      BUCKETS[bi][BN[bi]++] = i;
     }
+    ctx.fillStyle = 'rgb(255,248,232)';
     for (let b = 0; b < BUCK; b++) {
-      const list = bucketPaths[b];
-      if (!list.length) continue;
+      const n = BN[b];
+      if (!n) continue;
+      const list = BUCKETS[b];
       ctx.globalAlpha = A * (b + 0.7) / BUCK;
-      ctx.fillStyle = 'rgb(255,248,232)';
       ctx.beginPath();
-      for (const i of list) {
-        const st = STARS[i], s = (0.6 + st.m * 1.7) * u;
+      for (let j = 0; j < n; j++) {
+        const st = STARS[list[j]], s = st.sz * u;
         ctx.rect(st.x * W.w - s / 2, st.y * W.h - s / 2, s, s);
       }
       ctx.fill();
@@ -1090,8 +1111,9 @@
           const sk = W.lv.abSmoke;
           if (sk > 0.01) {
             const s = LS(1);
-            smoke(ctx, X.sodom * W.w, gY(1, X.sodom) - 10 * s, sk, W.h * 0.42, 22 * s, 11, true, 0.045);
-            smoke(ctx, X.gomorrah * W.w, gY(1, X.gomorrah) - 8 * s, sk * 0.85, W.h * 0.36, 18 * s, 23, true, 0.05);
+            smoke(ctx, X.sodom * W.w, gY(1, X.sodom) - 10 * s, sk, W.h * 0.46, 44 * s, 11, true, 0.04);
+            smoke(ctx, (X.sodom + 0.02) * W.w, gY(1, X.sodom + 0.02) - 8 * s, sk * 0.8, W.h * 0.38, 34 * s, 17, true, 0.047);
+            smoke(ctx, X.gomorrah * W.w, gY(1, X.gomorrah) - 8 * s, sk * 0.85, W.h * 0.4, 38 * s, 23, true, 0.043);
           }
         }
         if (pass === 'near') {
@@ -1122,6 +1144,12 @@
       for (const [id, p] of P) { if (p.dying) { P.delete(id); continue; } p.a = p.ta; snap(p); }
       FXL.length = 0;
       if (starA) for (let i = 0; i < STARS.length; i++) starA[i] = starTarget(i);
+    },
+    // 调试：本卷布景的状态（测试"看完"与"恢复"是否一致）
+    dump() {
+      const out = {};
+      for (const p of P.values()) if (!p.dying) out[p.id] = [p.kind, +p.x.toFixed(3), p.layer, +p.ta.toFixed(2), +p.tfire.toFixed(2), +p.tlit.toFixed(2), +p.truin.toFixed(2), +p.tseal.toFixed(2), p.label];
+      return { props: out, abStar: S.abStar, moriah: S.moriah };
     },
     pick(x, y, r) {
       if (!isCur()) return null;
@@ -1476,11 +1504,11 @@
       ],
       apply(c) {
         T(c, [
-          [0, b => { walk('hagar', X.spring + 0.022, { speed: 0.04, pose: 'sit' }); prop('spring', null, { lit: 1 }); beam(b, X.spring + 0.05, 2, { dur: 6 }); sfx(b, 'harp'); }],
-          [1.6, () => {
+          [0, b => { walk('hagar', X.spring + 0.022, { speed: 0.075, pose: 'sit' }); prop('spring', null, { lit: 1 }); beam(b, X.spring + 0.05, 2, { dur: 7 }); sfx(b, 'harp'); }],
+          [3.2, () => {
             add('angel', { label: '耶和华的使者', sex: 'm', age: 'adult', x: X.spring + 0.058, facing: -1, robe: ROBE.angel, glow: 1, angel: true, from: 'light' });
           }],
-          [4, () => { pose('hagar', 'kneel'); face('hagar', 1); }],
+          [5, () => { pose('hagar', 'kneel'); face('hagar', 1); }],
           [13, b => { prop('spring', null, { lit: 0.3, label: '庇耳拉海莱' }); rm('angel'); if (!b.instant) fx().sparkle((X.spring + 0.058) * W.w, gY(2, X.spring + 0.058) - 20 * LS(2), 30, [255, 244, 220], 14, 'top'); }],
           [15, b => { pose('hagar', 'stand'); walk('hagar', X.tent + 0.046, { speed: 0.028 }); W.goTo(0.42, 12, b.instant); }],
           [27, b => {
@@ -1801,6 +1829,7 @@
             pose('abram', 'stand');
             setAge('isaac', 'adult', 0.84);
             C().crowd('sv', { mill: false, n: 2, x0: X.tent + 0.03, x1: X.tent + 0.06, layer: 2, label: '仆人', from: b.instant ? 'none' : 'fade' });
+            pasture();
             hold('isaac', 'wood'); hold('abram', 'torch');
           }],
           [9, b => {
@@ -1826,18 +1855,18 @@
           }],
           [34, b => {
             rm('abram', true); rm('isaac', true);
-            add('abramM', { label: '亚伯拉罕', sex: 'm', age: 'elder', layer: 1, x: 1.03, facing: -1, robe: ROBE.abram, glow: 0.4, from: b.instant ? 'none' : 'fade' });
-            add('isaacM', { label: '以撒', sex: 'm', age: 'adult', layer: 1, x: 1.05, facing: -1, robe: ROBE.isaac, glow: 0.35, scale: 0.84, from: b.instant ? 'none' : 'fade' });
+            add('abramM', { label: '亚伯拉罕', sex: 'm', age: 'elder', layer: 1, x: 1.03, facing: -1, robe: ROBE.abram, glow: 0.45, scale: 1.4, from: b.instant ? 'none' : 'fade' });
+            add('isaacM', { label: '以撒', sex: 'm', age: 'adult', layer: 1, x: 1.05, facing: -1, robe: ROBE.isaac, glow: 0.4, scale: 1.18, from: b.instant ? 'none' : 'fade' });
             hold('isaacM', 'wood'); hold('abramM', 'torch');
-            walk('abramM', mo + 0.018, { speed: 0.02 }); walk('isaacM', mo + 0.034, { speed: 0.02 });
+            walk('abramM', mo + 0.022, { speed: 0.02 }); walk('isaacM', mo + 0.04, { speed: 0.02 });
           }],
           [37, b => say(b, [{ text: '以撒对他父亲亚伯拉罕说：「父亲哪！」亚伯拉罕说：「我儿，我在这里。」<br>以撒说：「请看，火与柴都有了，但燔祭的羊羔在哪里呢？」', ref: '创世记 22:7', hold: 7.5 }])],
           [45.5, b => say(b, [{ text: '亚伯拉罕说：「我儿，神必自己预备作燔祭的羊羔。」<br>于是二人同行。', ref: '创世记 22:8', hold: 6 }])],
-          [48, b => { prop('altarMo', 'altar', { x: mo, layer: 1, grow: 1, wood: 1, size: 1.2, label: '坛' }); hold('isaacM', null); sfx(b, 'build'); }],
+          [48, b => { prop('altarMo', 'altar', { x: mo, layer: 1, grow: 1, wood: 1, size: 1.6, label: '坛' }); hold('isaacM', null); sfx(b, 'build'); }],
           [53, b => {
             walk('isaacM', mo, { speed: 0.01, pose: 'lie' });
             attach('isaacM', () => altarTop('altarMo'));
-            walk('abramM', mo + 0.02, { speed: 0.01, pose: 'raise' });
+            walk('abramM', mo + 0.024, { speed: 0.01, pose: 'raise' });
             face('abramM', -1);
             say(b, [{ text: '他们到了神所指示的地方，亚伯拉罕在那里筑坛，把柴摆好，<br>捆绑他的儿子以撒，放在坛的柴上。', ref: '创世记 22:9', hold: 7 }]);
           }],
@@ -1861,14 +1890,14 @@
           [1.4, () => { pose('abramM', 'kneel'); }],
           [4.5, () => { attach('isaacM', null); pose('isaacM', 'stand'); pose('abramM', 'stand'); embrace('abramM', 'isaacM'); }],
           [9, b => {
-            prop('thicket', 'thicket', { x: mo + 0.036, layer: 1, label: '稠密的小树' });
-            prop('ram', 'ram', { x: mo + 0.036, layer: 1, label: '公羊' });
+            prop('thicket', 'thicket', { x: mo + 0.04, layer: 1, size: 1.4, label: '稠密的小树' });
+            prop('ram', 'ram', { x: mo + 0.04, layer: 1, size: 1.4, label: '公羊' });
             pose('abramM', 'stand'); pose('isaacM', 'stand');
             face('abramM', 1); face('isaacM', 1);
             sfx(b, 'bleat');
           }],
-          [15, () => { walk('abramM', mo + 0.03, { speed: 0.008 }); }],
-          [17.5, () => { unprop('ram'); walk('abramM', mo + 0.014, { speed: 0.008, pose: 'pray' }); walk('isaacM', mo - 0.014, { speed: 0.008, pose: 'kneel' }); }],
+          [15, () => { walk('abramM', mo + 0.032, { speed: 0.008 }); }],
+          [17.5, () => { unprop('ram'); walk('abramM', mo + 0.02, { speed: 0.008, pose: 'pray' }); walk('isaacM', mo - 0.02, { speed: 0.008, pose: 'kneel' }); }],
           [20, b => { prop('altarMo', null, { fire: 1 }); sfx(b, 'fire'); }],
           [25, b => {
             if (b.instant) return;
@@ -1915,7 +1944,7 @@
       ],
       apply(c) {
         T(c, [
-          [0, b => { W.goTo(0.745, 6, b.instant); walk('sarai', X.tent + 0.02, { speed: 0.02, pose: 'lie' }); glow('sarai', 0.25); }],
+          [0, b => { W.goTo(0.745, 6, b.instant); walk('sarai', X.tent + 0.02, { speed: 0.02, pose: 'lie' }); glow('sarai', 0.25); pasture(); walk('don1', 0.6, { speed: 0.02 }); }],
           [3, b => { walk('abram', X.tent + 0.042, { speed: 0.02, pose: 'kneel' }); face('abram', -1); walk('isaac', X.tent - 0.012, { speed: 0.02, pose: 'kneel' }); sfx(b, 'weep'); }],
           [7, () => { pose('abram', 'kneel', { weep: true }); }],
           [12, b => {
@@ -2029,7 +2058,7 @@
       ],
       apply(c) {
         T(c, [
-          [0, b => { W.goTo(0.745, 7, b.instant); walk('abram', X.tent - 0.02, { speed: 0.02, pose: 'lie' }); glow('abram', 0.6); }],
+          [0, b => { W.goTo(0.745, 7, b.instant); walk('abram', X.tent - 0.02, { speed: 0.02, pose: 'lie' }); glow('abram', 0.6); pasture(); }],
           [3, b => { walk('isaac', X.tent - 0.045, { speed: 0.02, pose: 'kneel' }); walk('rebekah', X.tent + 0.01, { speed: 0.02, pose: 'kneel' }); pose('isaac', 'kneel', { weep: true }); sfx(b, 'weep'); }],
           [7.5, b => {
             S.abStar = [0.3 + 0.4 * ((X.tent - 0.4) / 0.6), 0.22];

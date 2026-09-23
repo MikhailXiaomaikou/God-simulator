@@ -2051,7 +2051,7 @@
     const sp = W.spirit;
     const fast = sp.speed > 150 && sp.y > L.minY - 90 * uu() && sp.y < (L.i === 2 ? W.h : L.wl) + 60;
     if (!G || !FR.herbAll || G.pv !== L.pv || G.n !== hs.length || fast || (W.frame + L.i) % 3 === 0 || W.frame - G.f > 3) {
-      G = L.hg = buildHerbs2(L);
+      if (PROF.on) { const t0 = performance.now(); G = L.hg = buildHerbs2(L); PROF.t.hb = (PROF.t.hb || 0) + performance.now() - t0; PROF.t.nhb = (PROF.t.nhb || 0) + 1; } else G = L.hg = buildHerbs2(L);
     }
     const d = depthOf(L.i), u = uu(), near = L.i === 2;
     ctx.lineCap = 'round';
