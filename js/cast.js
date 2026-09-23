@@ -85,7 +85,10 @@
     return y;
   };
   const PASS = { 0: 'far', 1: 'mid', 2: 'near' };
-  const boost = () => (W.w < 600 ? 1.15 : 1);
+  // 七日之后，人是故事的主角：画得大一些；手机上再大一些
+  const boost = () => (W.w < 600 ? (W.act >= 1 ? 1.4 : 1.15) : 1);
+  const ACT_K = [1.1, 1.2, 1.3];
+  const actK = layer => (W.act >= 1 ? ACT_K[layer] || 1 : 1);
   const fieldH = (layer, g) => (layer === 2 ? Math.max(0, W.h - g) : Math.max(0, W.waterlineY(layer) - g));
 
   // ════════════════════════════════════════════════════════════
@@ -201,10 +204,12 @@
     }
     if (ws < 0.004) { RIM.a = 0; RIM.dx = 0; RIM.dy = -1; return RIM; }
     const L = Math.hypot(wx, wy) || 1;
-    const k = clamp(Math.max(0.3, W.unit) * (warm ? 0.8 : 0.85), 0.6, 1.15) * (1 + 0.45 * W.night);
+    // 月光只该是一道细边：月占的份额越大，边越窄、越淡
+    const ms = LT.moonA > 0.004 ? LT.moonA / ws : 0, nm = W.night * (1 - ms);
+    const k = clamp(Math.max(0.3, W.unit) * (warm ? 0.8 : 0.85), 0.6, 1.15) * (1 + 0.45 * nm) * (1 - 0.35 * ms * W.night);
     RIM.dx = wx / L * k; RIM.dy = wy / L * k;
     RIM.c[0] = r / ws; RIM.c[1] = g / ws; RIM.c[2] = b / ws;
-    RIM.a = Math.min(1, ws * (1 + 0.6 * W.night)) * (warm ? 0.9 : 0.85);
+    RIM.a = Math.min(1 - 0.55 * ms, ws * (1 + 0.6 * nm)) * (warm ? 0.9 : 0.85);
     return RIM;
   }
 
@@ -636,6 +641,7 @@
     const p = people.get(id); if (!p) return;
     o = o || {};
     if (o.layer != null) p.layer = o.layer;
+    p.faceEnd = null;
     const running = o.run || (o.speed && o.speed >= 0.07);
     if (W.replaying) {
       if (Math.abs(x - p.nx) > 1e-4) p.facing = p.fd = x > p.nx ? 1 : -1;     // 看着走完时也是面朝去向
@@ -647,7 +653,7 @@
     p.tx = x; p.speed = o.speed || (running ? 0.085 : p.isAnimal ? 0.03 : 0.035); p.afterWalk = o.pose || 'stand';
     p.fly = null;
     setPose(p, running ? 'run' : 'walk');
-    p.facing = x >= p.nx ? 1 : -1;
+    if (Math.abs(x - p.nx) > 1e-4) p.facing = x > p.nx ? 1 : -1;
   }
   const run = (id, x, o) => walk(id, x, Object.assign({ run: true }, o || {}));
   function setPose(p, pose) {
@@ -684,16 +690,27 @@
     if (p.tx != null && !o.stop && !W.replaying) { p.afterWalk = ps; return; }
     // 重演时（下一句话提前成就）：正走着的先走到，再换姿势——与看完时一样
     if (p.tx != null && !o.stop && W.replaying) { p.nx = p.tx; if (p.faceTo) faceNow(p); p.fd = p.facing; settleFollowers(p.id); }
-    p.tx = null; setPose(p, ps);
+    p.tx = null; endFace(p); setPose(p, ps);
     if (ps === 'embrace' && W.replaying && !p.isAnimal) closeGap(p, true);
   }
   // face(id, 1 | -1)：朝右 / 朝左；face(id, 0.3)：朝向画面比例 0.3 处；face(id, 'eve')：朝向某人
   function face(id, d) {
     const p = people.get(id); if (!p) return;
+    // 正走着时转身：走到了再转（与"瞬间重演"时的结果一致）
+    if (p.tx != null && !W.replaying) { p.faceEnd = d; return; }
+    p.faceEnd = null;
+    faceDir(p, d);
+  }
+  function faceDir(p, d) {
     if (d === 1 || d === -1) p.facing = d;
     else if (typeof d === 'number') p.facing = d >= p.nx ? 1 : -1;
     else if (typeof d === 'string' && people.get(d)) p.facing = people.get(d).nx >= p.nx ? 1 : -1;
     if (W.replaying) p.fd = p.facing;
+  }
+  function endFace(p) {
+    if (p.faceEnd == null) return;
+    const d = p.faceEnd; p.faceEnd = null;
+    faceDir(p, d);
   }
   function faceNow(p) {
     const o = people.get(p.faceTo);
@@ -884,8 +901,8 @@
   //  更新
   // ════════════════════════════════════════════════════════════
   function scaleOf(p) {
-    if (p.isAnimal) return W.layerScale(p.layer) * boost() * p.scale * (1 + 0.35 * p.v);
-    return 34 * W.layerScale(p.layer) * (AGE_H[p.age] || 1) * p.scale * boost() * (1 + 0.35 * p.v);
+    if (p.isAnimal) return W.layerScale(p.layer) * boost() * actK(p.layer) * p.scale * (1 + 0.35 * p.v);
+    return 34 * W.layerScale(p.layer) * (AGE_H[p.age] || 1) * p.scale * boost() * actK(p.layer) * (1 + 0.35 * p.v);
   }
   function footY(p) {
     const x = p.nx * W.w, g = groundY(p.layer, x);
@@ -934,6 +951,7 @@
         p.moved = Math.abs(d);
         p.nx = p.tx; p.tx = null; setPose(p, p.afterWalk || 'stand');
         if (p.faceTo) faceNow(p);
+        endFace(p);
         if (p.fadeOnArrive) { p.targetAlpha = 0; p.dying = true; }
       } else { p.nx += Math.sign(d) * v; p.moved = v; p.facing = Math.sign(d) || p.facing; }
     } else if (p.mill && !W.ritual.holding && Math.random() < dt * (p.isAnimal ? 0.07 : 0.05)) {
@@ -1892,15 +1910,28 @@
     ctx.fill();
   }
   function drawPools(ctx, list) {
-    // 天使脚下的一片光
-    let sp = null;
+    // 天使脚下的一片光；夜里，有名字的人脚下也有一圈暖光，好在黑暗里认出他们
+    let sp = null, wp = null;
+    const night = W.night;
     for (const e of list) {
-      if (!e.angel || e.alpha < 0.05 || e.ny != null) continue;
-      sp = sp || glowSprite('pale', [255, 246, 222], 1);
-      const r = e._h * 0.55;
+      if (e.alpha < 0.05 || e.ny != null || e.attach) continue;
+      if (e.angel) {
+        sp = sp || glowSprite('pale', [255, 246, 222], 1);
+        const r = e._h * 0.55;
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalAlpha = e.alpha * (0.22 + 0.25 * night);
+        ctx.drawImage(sp, e._x - r, e._y - r * 0.22, r * 2, r * 0.44);
+        continue;
+      }
+      if (night < 0.15 || e.isAnimal || e.crowd || e.mount || !e.label) continue;
+      wp = wp || glowSprite('pool', [255, 214, 160], 1);
+      const r = e._h * 2.2, a = e.alpha * (0.35 + 0.15 * Math.min(1, e.glow || 0)) * c01((night - 0.15) / 0.5);
+      if (a < 0.01) continue;
       ctx.globalCompositeOperation = 'lighter';
-      ctx.globalAlpha = e.alpha * (0.22 + 0.25 * W.night);
-      ctx.drawImage(sp, e._x - r, e._y - r * 0.22, r * 2, r * 0.44);
+      ctx.globalAlpha = a;
+      ctx.drawImage(wp, e._x - r, e._y - r * 0.2, r * 2, r * 0.4);
+      ctx.globalAlpha = a * 0.45;
+      ctx.drawImage(wp, e._x - r * 0.45, e._y - e._h * 0.75, r * 0.9, e._h * 1.1);
     }
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
@@ -1960,8 +1991,10 @@
       if (p.tx != null && !p.follow) {
         p.nx = p.tx; p.tx = null; p.pose = p.isAnimal ? animalPose(p.afterWalk || 'stand') : (p.afterWalk || 'stand');
         if (p.faceTo) faceNow(p);
+        endFace(p);
         if (p.fadeOnArrive) return false;
       }
+      p.faceEnd = null; p.fd = p.facing;
       if (p.isAnimal) { p.lie = p.pose === 'lie' ? 1 : 0; p.neck = p.pose === 'graze' ? p.M.grazeA : p.M.up; }
       p.gait = p.pose === 'walk' || p.pose === 'run' ? 1 : 0; p.run = p.pose === 'run' ? 1 : 0;
       p.holdW = p.hold ? 1 : 0;

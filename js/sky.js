@@ -698,8 +698,14 @@ void main() {
     F.domeE = smoothstep(0, 1, V);
     const dayFilm = lerp(0.95, 0.45, lv.clouds) * lerp(1, 0.28, LI);
     F.film = V * (0.35 + 0.65 * L) * lerp(0.3, dayFilm, df);
+    // 七日之后，穹苍那道亮线退成淡淡的一层：洪水之后更淡；风暴与虹出现时让位
+    const lvRain = lv.rainbow || 0, lvStorm = lv.storm || 0;
+    F.film *= (W.act >= 4 ? 0.15 : W.act >= 1 ? 0.35 : 1) * (1 - 0.8 * lvRain) * (1 - 0.6 * lvStorm);
     F.waOp = V * lerp(0.62, lerp(lerp(0.72, 0.6, lv.clouds), 0.16, LI), df);
     F.waGlow = V * lerp(0.1, lerp(0.42, 0.2, LI), df) * (0.3 + 0.7 * L);
+    // 洪水时「天上的窗户也敞开了」：此后穹苍以上的水只剩薄薄一层
+    const waK = W.act >= 4 ? 0.45 : W.act >= 1 ? 0.75 : 1;
+    F.waOp *= waK; F.waGlow *= waK;
     F.waCol = mix3(PAL.waNight, PAL.waDay, df * (0.2 + 0.8 * L));
 
     // 云
