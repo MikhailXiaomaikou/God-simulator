@@ -29,17 +29,20 @@
   W.defineLevel('jbDew', 'exp', 0.6);       // 天上的甘露（27:28）
   W.defineLevel('jbShadow', 'exp', 0.45);   // 示剑的黑暗（34）
   W.defineLevel('jbSeir', 'exp', 0.3);      // 西珥山——以东（32:3；36:8）
+  W.defineLevel('jbHosts', 'exp', 0.5);     // 玛哈念：神的军兵（32:1–2）
 
   // ── 地上的位置（画面宽度的比例）─────────────────────────────
+  // 经文显在左边的海上，故一切要紧的事都在 x ≥ 0.5 的地上发生
   const X = {
     spring: 0.505, tentI: 0.545, tentR: 0.585, stew: 0.628, field: 0.6,
     esek: 0.628, sitnah: 0.672, rehoboth: 0.716, altarI: 0.622,
     bethel: 0.66, ladder: 0.676, altarB: 0.642,
-    ephrath: 0.605, tentM: 0.54, cave: 0.5,
+    ephrath: 0.605, tentM: 0.56, cave: 0.522,
     city: 0.668, altarS: 0.7, tentS: 0.727, oak: 0.752,
-    meet: 0.69, jabbok: 0.776, peniel: 0.792,
-    mahanaim: 0.8, gilead: 0.818,
-    troughs: 0.8, wellH: 0.85, tentJ: 0.886, tentRa: 0.922, tentLa: 0.965,
+    meet: 0.57, jabbok: 0.72, peniel: 0.745,
+    mahanaim: 0.745, gilead: 0.84,
+    // 哈兰：羊群与水槽在井的西边（左），三顶帐棚依次往东
+    troughs: 0.69, wellH: 0.765, tentJ: 0.805, tentRa: 0.85, tentLa: 0.895,
   };
   const ROBE = {
     isaac: [150, 132, 100], rebekah: [176, 96, 88], esau: [172, 82, 58], jacob: [98, 106, 140], laban: [132, 114, 84],
@@ -49,11 +52,11 @@
     gad: [132, 104, 96], asher: [156, 142, 100], issachar: [112, 100, 124], zebulun: [94, 120, 134], dinah: [196, 142, 152],
     joseph: [206, 172, 116], benjamin: [184, 162, 128],
   };
-  // 哈兰所生的孩子：[x, 纵深 v, 性别]（v 越大越靠前）
+  // 哈兰所生的孩子：[x, 纵深 v, 性别]（v 越大越靠前）——横向相隔 0.014，纵深错开，不相遮挡
   const KID = {
-    reuben: [0.866, 0.16, 'm'], simeon: [0.879, 0.3, 'm'], levi: [0.892, 0.1, 'm'], judah: [0.905, 0.24, 'm'],
-    dan: [0.934, 0.18, 'm'], naphtali: [0.947, 0.32, 'm'], gad: [0.838, 0.22, 'm'], asher: [0.851, 0.34, 'm'],
-    issachar: [0.862, 0.44, 'm'], zebulun: [0.884, 0.4, 'm'], dinah: [0.9, 0.46, 'f'], joseph: [0.93, 0.08, 'm'],
+    gad: [0.706, 0.24, 'm'], asher: [0.72, 0.42, 'm'], reuben: [0.734, 0.14, 'm'], simeon: [0.748, 0.32, 'm'],
+    dinah: [0.762, 0.5, 'f'], levi: [0.776, 0.1, 'm'], judah: [0.79, 0.38, 'm'], issachar: [0.804, 0.22, 'm'],
+    zebulun: [0.818, 0.46, 'm'], dan: [0.832, 0.16, 'm'], naphtali: [0.846, 0.34, 'm'], joseph: [0.86, 0.12, 'm'],
   };
   const LEAH_KIDS = ['reuben', 'simeon', 'levi', 'judah', 'issachar', 'zebulun', 'dinah'];
   const SONS12 = ['reuben', 'simeon', 'levi', 'judah', 'dan', 'naphtali', 'gad', 'asher', 'issachar', 'zebulun', 'joseph', 'benjamin'];
@@ -979,7 +982,7 @@
   // ════════════════════════════════════════════════════════════
   //  天梯（28:12）——一道自地通天的光的阶梯，神的使者上去下来
   // ════════════════════════════════════════════════════════════
-  const LG = { bx: 0, by: 0, tx: 0, ty: 0, ux: 0, uy: 0, nx: 0, ny: 0, w0: 0, w1: 0, s: 1 };
+  const LG = { bx: 0, by: 0, tx: 0, ty: 0, ux: 0, uy: 0, nx: 0, ny: 0, w0: 0, w1: 0, s: 1, gt: 0.85, gt1: 0.97 };
   function ladderGeom() {
     const s = SU();
     LG.s = s;
@@ -988,7 +991,16 @@
     const dx = LG.tx - LG.bx, dy = LG.ty - LG.by, d = Math.hypot(dx, dy) || 1;
     LG.ux = dx / d; LG.uy = dy / d; LG.nx = -LG.uy; LG.ny = LG.ux; LG.len = d;
     LG.w0 = 22 * s; LG.w1 = 2.6 * s;
+    // 天的门（荣光）在画面顶端之下（宽屏 0.1h；竖屏的经文在上方，荣光再低些），梯子过了它便渐渐隐入天中
+    LG.gt = clamp((LG.by - W.h * (W.h > W.w ? 0.32 : 0.1)) / Math.max(1, LG.by - LG.ty), 0.5, 0.95);
+    LG.gt1 = Math.min(1, LG.gt + 0.13);
     return LG;
+  }
+  const ladFade = t => 1 - smoothstep(LG.gt, LG.gt1, t);
+  function ladGrad(ctx, r, g, b) {
+    const gr = ctx.createLinearGradient(LG.bx, LG.by, LG.tx, LG.ty);
+    gr.addColorStop(0, U.rgba(r, g, b, 1)); gr.addColorStop(LG.gt, U.rgba(r, g, b, 1)); gr.addColorStop(LG.gt1, U.rgba(r, g, b, 0));
+    return gr;
   }
   const LP = [0, 0];
   function lad(t, side) {
@@ -1021,9 +1033,9 @@
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
     // 光柱：沿梯而上的一道柔光
-    {
+    if (r0 < LG.gt1 - 0.01) {
       const ang = Math.atan2(LG.ux, -LG.uy);
-      const L0 = LG.len * r0, L1 = LG.len * r1;
+      const L0 = LG.len * r0, L1 = LG.len * Math.min(r1, LG.gt1);
       ctx.save();
       ctx.translate(LG.bx, LG.by); ctx.rotate(ang);
       ctx.globalAlpha = A * 0.3;
@@ -1035,9 +1047,9 @@
     // 光雾：沿梯而上
     for (let i = 0; i < 9; i++) {
       const t = Math.pow((i + 0.5) / 9, 1.3);
-      if (t < r0 || t > r1) continue;
+      if (t < r0 || t > r1 || t > LG.gt1) continue;
       const x = lerp(LG.bx, LG.tx, t), y = lerp(LG.by, LG.ty, t), r = lerp(110, 36, t) * s;
-      ctx.globalAlpha = A * 0.22 * (0.85 + 0.15 * Math.sin(W.t * 1.3 + i));
+      ctx.globalAlpha = A * 0.22 * (0.85 + 0.15 * Math.sin(W.t * 1.3 + i)) * ladFade(t);
       ctx.drawImage(SP.gold, x - r, y - r, 2 * r, 2 * r);
     }
     // 地上的一片光（雅各躺卧之处）
@@ -1047,16 +1059,17 @@
       ctx.drawImage(SP.gold, LG.bx - g, LG.by - g * 0.32, 2 * g, g * 0.64);
     }
     // 两根梯柱：宽而淡的光 + 细而亮的线
-    const N = 36;
+    const N = 36, rTop = Math.min(r1, LG.gt1);
+    const railW = ladGrad(ctx, 255, 222, 160), railC = ladGrad(ctx, 255, 246, 224);
     for (const side of [-1, 1]) {
       ctx.beginPath();
-      for (let i = 0; i <= N; i++) { const t = lerp(r0, r1, i / N), p = lad(t, side); if (i) ctx.lineTo(p[0], p[1]); else ctx.moveTo(p[0], p[1]); }
-      ctx.strokeStyle = 'rgb(255,222,160)'; ctx.lineWidth = 6.5 * s; ctx.globalAlpha = A * 0.16; ctx.stroke();
-      ctx.strokeStyle = 'rgb(255,246,224)'; ctx.lineWidth = Math.max(1, 1.5 * s); ctx.globalAlpha = A * 0.8; ctx.stroke();
+      for (let i = 0; i <= N; i++) { const t = lerp(r0, rTop, i / N), p = lad(t, side); if (i) ctx.lineTo(p[0], p[1]); else ctx.moveTo(p[0], p[1]); }
+      ctx.strokeStyle = railW; ctx.lineWidth = 6.5 * s; ctx.globalAlpha = A * 0.16; ctx.stroke();
+      ctx.strokeStyle = railC; ctx.lineWidth = Math.max(1, 1.5 * s); ctx.globalAlpha = A * 0.8; ctx.stroke();
     }
     // 阶：光自下而上流过（按亮度分三束，各一笔画成）
     ctx.lineCap = 'round';
-    ctx.strokeStyle = 'rgb(255,240,208)';
+    ctx.strokeStyle = ladGrad(ctx, 255, 240, 208);
     const R = 32, NB = 3;
     for (let bk = 0; bk < NB; bk++) {
       for (let near = 0; near < 2; near++) {        // near 0：下半截（宽），1：上半截（细）
@@ -1064,7 +1077,7 @@
         let any = false;
         for (let i = 1; i < R; i++) {
           const t = Math.pow(i / R, 0.8);
-          if (t < r0 || t > r1 || (t < 0.45) !== (near === 0)) continue;
+          if (t < r0 || t > r1 || t > LG.gt1 || (t < 0.45) !== (near === 0)) continue;
           const flow = Math.pow(0.5 + 0.5 * Math.sin(t * 24 - W.t * 2.1), 3);
           if (Math.min(NB - 1, Math.floor(flow * NB)) !== bk) continue;
           const a0 = lad(t, -1), ax = a0[0], ay = a0[1], b0 = lad(t, 1);
@@ -1081,8 +1094,7 @@
     }
     // 天的门：梯子的头顶着天
     if (r1 > 0.85) {
-      let gt = (LG.by - W.h * (W.h > W.w ? 0.13 : 0.05)) / Math.max(1, LG.by - LG.ty);
-      gt = clamp(gt, 0.6, 0.98);
+      const gt = LG.gt;
       const gx = lerp(LG.bx, LG.tx, gt), gy = lerp(LG.by, LG.ty, gt);
       let pulse = 0;
       for (const e of FXL) if (e.type === 'gate') { const q = e.t / e.dur; pulse = Math.max(pulse, smoothstep(0, 0.2, q) * (1 - smoothstep(0.6, 1, q))); }
@@ -1114,7 +1126,7 @@
         const p = lad(t, side);
         const hgt = h0 * lerp(1.05, 0.09, Math.pow(t, 0.62));
         const bob = Math.abs(Math.sin(W.t * 3.2 + k * 1.3)) * hgt * 0.04;
-        const a = A * angels * smoothstep(0, 0.07, q) * (1 - smoothstep(0.86, 0.99, q));
+        const a = A * angels * smoothstep(0, 0.07, q) * (1 - smoothstep(0.86, 0.99, q)) * (1 - smoothstep(LG.gt - 0.07, LG.gt + 0.03, t));
         lightFigure(ctx, p[0], p[1] - bob, hgt, a, k);
       }
     }
@@ -1124,6 +1136,57 @@
     const lv = W.lv.jbLadder, growing = W.lt.jbLadder >= lv;
     const reach = smoothstep(0, 0.75, lv), A = smoothstep(0, 0.4, lv);
     return growing ? [A, 0, reach, smoothstep(0.45, 0.95, lv)] : [A, 1 - reach, 1, smoothstep(0.2, 0.7, lv)];
+  }
+  // 天梯显现时，画面顶上的卷名与按钮退为淡影，不压在荣光上
+  const HUD = { k: 1, els: null };
+  function hudFade(dt) {
+    const want = isCur() && W.lv.jbLadder > 0.5 ? 0.25 : 1;
+    if (want === 1 && HUD.k === 1) return;
+    if (typeof document === 'undefined') return;
+    if (!HUD.els) HUD.els = ['act', 'tools'].map(id => document.getElementById(id)).filter(Boolean);
+    const k0 = HUD.k;
+    HUD.k = approachLin(HUD.k, want, Math.max(0, dt) * 0.8);
+    if (Math.abs(HUD.k - k0) < 1e-4 && HUD.k !== want) return;
+    const f = HUD.k >= 0.999 ? '' : 'opacity(' + HUD.k.toFixed(3) + ')';
+    for (const el of HUD.els) if (el.style.filter !== f) el.style.filter = f;
+  }
+
+  // ════════════════════════════════════════════════════════════
+  //  玛哈念：神的军兵（32:1–2）——中景的丘上两队柔和的光的人形
+  // ════════════════════════════════════════════════════════════
+  const HOSTS = [];
+  (function () {
+    for (let i = 0; i < 10; i++) {
+      const camp = i < 5 ? 0 : 1, j = i % 5;
+      HOSTS.push([(camp ? 0.84 : 0.712) + j * 0.012 + (rt(i * 3 + 7) - 0.5) * 0.005, 0.9 + 0.22 * rt(i * 5 + 1), i]);
+    }
+  })();
+  const hostH = () => 38 * LS(1) * (W.w < 600 ? 1.25 : 1);
+  function hostPt(i) {
+    const q = HOSTS[((i % HOSTS.length) + HOSTS.length) % HOSTS.length];
+    return [q[0] * W.w + rand(-5, 5) * SU(), gY(1, q[0]) - hostH() * q[1] * rand(0.2, 1)];
+  }
+  function drawHosts(ctx) {
+    const k = W.lv.jbHosts;
+    if (k < 0.01) return;
+    SP || sprites();
+    const s = LS(1), h0 = hostH();
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    // 每一队上方一道淡淡的光
+    for (const cx of [0.736, 0.864]) {
+      const x = cx * W.w, g = gY(1, cx), bw = 90 * s;
+      ctx.globalAlpha = k * 0.16;
+      ctx.drawImage(SP.beam, x - bw / 2, g - W.h * 0.32, bw, W.h * 0.32);
+      ctx.globalAlpha = k * 0.3;
+      ctx.drawImage(SP.pale, x - bw, g - h0 * 1.1, bw * 2, h0 * 1.6);
+    }
+    for (const q of HOSTS) {
+      const x = q[0] * W.w, g = gY(1, q[0]), i = q[2];
+      const bob = (1 + Math.sin(W.t * 1.1 + i * 1.7)) * 1.2 * s;
+      lightFigure(ctx, x, g - bob, h0 * q[1], 0.6 * k * (0.85 + 0.15 * Math.sin(W.t * 1.6 + i * 2.3)), i);
+    }
+    ctx.restore();
   }
 
   // ════════════════════════════════════════════════════════════
@@ -1380,8 +1443,14 @@
   const HGT = { tent: 18, well: 5, stew: 6, field: -6, stone: 14, altar: 8, troughs: 5, heap: 10, stream: -8, oak: 60, city: 16, tomb: 14, cave: 16, bier: 16 };
   const SCENE = {
     init() { sprites(); },
-    resize() {},
+    resize() {
+      // 树的生长原点以像素记：换了画面大小要重新定下
+      if (!isCur()) return;
+      const ox = W.w * 0.99;
+      W.setOrigin('trees', ox, W.ridgeBaseY(2, ox));
+    },
     update(dt) {
+      U.safe('jacob.hud', () => hudFade(dt));
       if (!isCur()) return;
       const f = dt * (W.fast || 1);
       for (const [id, p] of P) {
@@ -1430,6 +1499,7 @@
     },
     draw(ctx, pass) {
       if (!isCur()) return;
+      if (pass === 'mid') drawHosts(ctx);
       if (pass === 'near') {
         // 天梯：在生灵之后、人之前（雅各躺在它的脚下）
         const L = ladderState();
@@ -1457,6 +1527,14 @@
         const py = gy - (HGT[p.kind] || 10) * s;
         const d = Math.hypot(px - x, py - y);
         if (d < r && (!best || d < best.d)) best = { label: p.label, x: px, y: py - 10 * s, d };
+      }
+      // 神的军兵
+      if (W.lv.jbHosts > 0.3) {
+        const h = hostH();
+        for (const q of HOSTS) {
+          const px = q[0] * W.w, py = gY(1, q[0]) - h * q[1] * 0.5, d = Math.hypot(px - x, py - y);
+          if (d < r && (!best || d < best.d)) best = { label: '神的军兵', x: px, y: py - h * 0.7, d };
+        }
       }
       // 天梯
       const L = ladderState();
@@ -1493,24 +1571,26 @@
   function birth(b, id, cn, mother) {
     const k = KID[id];
     if (!k) return;
-    add(id, { label: cn, sex: k[2], age: 'child', x: k[0], v: k[1], facing: k[0] > 0.9 ? -1 : 1, robe: ROBE[id], glow: 0.35, from: b.instant ? 'none' : 'light', prop: null });
+    add(id, { label: cn, sex: k[2], age: 'child', x: k[0], v: k[1], scale: 1.08, facing: k[0] > 0.8 ? -1 : 1, robe: ROBE[id], glow: 0.35, from: b.instant ? 'none' : 'light', prop: null });
     if (b.instant) return;
     const m = figPt(mother, 0.45);
     if (m) fx().sparkle(m[0], m[1], 18, [255, 240, 214], 10, 'top');
     nameOver(b, id, cn, [246, 232, 206], srcAround(mother, 40), { size: 0.034, hold: 2.2, dot: 1.8, lift: 0.7 });
   }
   function everyone(fn) { for (const id of FAMILY) if (fig(id)) fn(id); }
+  // 地上的走兽避开这几段（画面宽度的比例）：不与人、坛、帐棚相叠
+  function avoid(...r) { W.beastAvoid = r; }
 
   // 以东的名字：远去的族长，散往东边（左）的西珥
   function edomNames(b, list, y0) {
     if (b.instant) return;
     const f = figPt('esau', 0.8) || [W.w * 0.5, W.h * 0.8];
     list.forEach((nm, i) => {
-      const n = Array.from(nm).length, size = M() * 0.03;
+      const n = Array.from(nm).length, size = M() * 0.036;
       const x = lerp(0.4, 0.08, (i + 0.5) / list.length) * W.w + (rt(i * 13) - 0.5) * 0.03 * W.w;
       const y = W.horizonY - (y0 + 0.05 * rt(i * 13 + 1)) * W.h;
       const c = nameAt(x, y, size, n);
-      fx().nameStr(nm, c[0], c[1], size, [236, 168, 132], () => [f[0] + rand(-30, 30) * SU(), f[1] + rand(-20, 20) * SU()], { delay: i * 1.05, hold: 1.5, dot: 1.7 });
+      fx().nameStr(nm, c[0], c[1], size, [236, 168, 132], () => [f[0] + rand(-30, 30) * SU(), f[1] + rand(-20, 20) * SU()], { delay: i * 1.05, hold: 1.6, dot: 2.1 });
     });
   }
 
@@ -1522,7 +1602,7 @@
     // 迦南与哈兰：牧场
     GS.W.set('bare', 0.18, true); GS.W.set('bloom', 0.55, true);
     const lv = { deep: 1, light: 1, gather: 1, dayNight: 1, vault: 1, clouds: 0.45, land: 1, grass: 1, herbs: 1, trees: 0.42, lights: 1, moon: 1, stars: 1, life: 1, good: 0, given: 1, sabbath: 0.2,
-      jbLadder: 0, jbDrought: 0, jbDew: 0, jbShadow: 0, jbSeir: 0 };
+      jbLadder: 0, jbDrought: 0, jbDew: 0, jbShadow: 0, jbSeir: 0, jbHosts: 0 };
     for (const k in lv) if (!W.hasLevel || W.hasLevel(k)) W.set(k, lv[k], true);
     W.setOrigin('trees', W.w * 0.99, W.ridgeBaseY(2, W.w * 0.99));
     W.goTo(0.3, 0, true);
@@ -1536,8 +1616,8 @@
     W.setPop('human', 0, lx, ly, true);
     resetScene();
     S.twins = 1;
-    // 地上本有的：雅博河、庇耳拉海莱的水泉
-    prop('stream', 'stream', { x: X.jabbok, label: '雅博河' });
+    avoid([0.49, 0.64]);
+    // 地上本有的：庇耳拉海莱的水泉（雅博河到 32 章才显出来）
     prop('spring', 'well', { x: X.spring, label: '庇耳拉海莱' });
     prop('tentI', 'tent', { x: X.tentI, label: '以撒的帐棚' });
     prop('tentR', 'tent', { x: X.tentR, size: 0.88, label: '利百加的帐棚' });
@@ -1551,167 +1631,158 @@
   }
 
   // ════════════════════════════════════════════════════════════
-  //  话语
+  //  话语（每句话的经文不过四行，它的故事约三十秒：一按一放，便是一步）
   // ════════════════════════════════════════════════════════════
   // ── 25:23 两国在你腹内 ──────────────────────────────────────
   const V1 = [
-    { text: '耶和华对她说：「两国在你腹内；两族要从你身上出来。<br>这族必强于那族；将来大的要服事小的。」', ref: '创世记 25:23', hold: 8 },
-    { text: '生产的日子到了，腹中果然是双子。', ref: '创世记 25:24', hold: 4.5 },
-    { text: '先产的身体发红，浑身有毛，如同皮衣，他们就给他起名叫以扫。', ref: '创世记 25:25', hold: 6.5 },
-    { text: '随后又生了以扫的兄弟，手抓住以扫的脚跟，因此给他起名叫雅各。<br>利百加生下两个儿子的时候，以撒年正六十岁。', ref: '创世记 25:26', hold: 7.5 },
-    { text: '两个孩子渐渐长大，以扫善于打猎，常在田野；<br>雅各为人安静，常住在帐棚里。', ref: '创世记 25:27', hold: 7 },
-    { text: '以撒爱以扫，因为常吃他的野味；利百加却爱雅各。', ref: '创世记 25:28', hold: 5.5 },
+    { text: '耶和华对她说：「两国在你腹内；两族要从你身上出来。<br>这族必强于那族；将来大的要服事小的。」', ref: '创世记 25:23', hold: 7.5 },
+    { text: '先产的身体发红，浑身有毛，如同皮衣，他们就给他起名叫以扫。', ref: '创世记 25:25', hold: 5.5 },
+    { text: '随后又生了以扫的兄弟，手抓住以扫的脚跟，因此给他起名叫雅各。', ref: '创世记 25:26', hold: 5.5 },
+    { text: '两个孩子渐渐长大，以扫善于打猎，常在田野；<br>雅各为人安静，常住在帐棚里。', ref: '创世记 25:27', hold: 6.5 },
   ];
   // ── 25:29–34 红豆汤与长子的名分 ─────────────────────────────
   const V2 = [
     { text: '有一天，雅各熬汤，以扫从田野回来累昏了。', ref: '创世记 25:29', hold: 5 },
-    { text: '以扫对雅各说：「我累昏了，求你把这红汤给我喝。」', ref: '创世记 25:30', hold: 5.5 },
-    { text: '雅各说：「你今日把长子的名分卖给我吧。」', ref: '创世记 25:31', hold: 5 },
-    { text: '以扫说：「我将要死，这长子的名分于我有什么益处呢？」', ref: '创世记 25:32', hold: 5.5 },
-    { text: '雅各说：「你今日对我起誓吧。」<br>以扫就对他起了誓，把长子的名分卖给雅各。', ref: '创世记 25:33', hold: 6.5 },
-    { text: '于是雅各将饼和红豆汤给了以扫，以扫吃了喝了，便起来走了。<br>这就是以扫轻看了他长子的名分。', ref: '创世记 25:34', hold: 7.5 },
+    { text: '雅各说：「你今日把长子的名分卖给我吧。」', ref: '创世记 25:31', hold: 4.8 },
+    { text: '雅各说：「你今日对我起誓吧。」<br>以扫就对他起了誓，把长子的名分卖给雅各。', ref: '创世记 25:33', hold: 6.3 },
+    { text: '于是雅各将饼和红豆汤给了以扫，以扫吃了喝了，便起来走了。<br>这就是以扫轻看了他长子的名分。', ref: '创世记 25:34', hold: 7.2 },
   ];
-  // ── 26 神向以撒显现；百倍的收成；三口井；别是巴 ──────────────
+  // ── 26:1–14 饥荒；不要下埃及去；百倍的收成 ───────────────────
   const V3 = [
-    { text: '这时又有饥荒，以撒就往基拉耳去，<br>到非利士人的王亚比米勒那里。', ref: '创世记 26:1', hold: 6 },
-    { text: '耶和华向以撒显现，说：「你不要下埃及去，要住在我所指示你的地。<br>你寄居在这地，我必与你同在，赐福给你……」', ref: '创世记 26:2–3', hold: 8 },
+    { text: '这时又有饥荒，以撒就往基拉耳去，<br>到非利士人的王亚比米勒那里。', ref: '创世记 26:1', hold: 5.5 },
+    { text: '耶和华向以撒显现，说：「你不要下埃及去，要住在我所指示你的地。<br>你寄居在这地，我必与你同在，赐福给你……」', ref: '创世记 26:2–3', hold: 7.5 },
     { text: '以撒在那地耕种，那一年有百倍的收成。耶和华赐福给他，<br>他就昌大，日增月盛，成了大富户。', ref: '创世记 26:12–13', hold: 7.5 },
-    { text: '基拉耳的牧人与以撒的牧人争竞，说：「这水是我们的。」', ref: '创世记 26:20', hold: 5.5 },
-    { text: '以撒离开那里，又挖了一口井，他们不为这井争竞了，他就给那井起名叫利河伯。<br>他说：「耶和华现在给我们宽阔之地，我们必在这地昌盛。」', ref: '创世记 26:22', hold: 8.5 },
-    { text: '当夜耶和华向他显现，说：「我是你父亲亚伯拉罕的神，不要惧怕！<br>因为我与你同在，要赐福给你……」', ref: '创世记 26:24', hold: 8 },
-    { text: '那一天，以撒的仆人来，将挖井的事告诉他说：「我们得了水了。」<br>他就给那井起名叫示巴；因此那城叫做别是巴，直到今日。', ref: '创世记 26:32–33', hold: 8.5 },
+    { text: '他有羊群牛群，又有许多仆人，非利士人就嫉妒他。', ref: '创世记 26:14', hold: 5 },
   ];
-  // ── 27 被夺去的祝福；28:1–11 往哈兰去，太阳落了 ─────────────
+  // ── 26:20–33 三口井；别是巴的夜 ──────────────────────────────
   const V4 = [
-    { text: '以撒年老，眼睛昏花，不能看见，就叫了他大儿子以扫来，说：「我儿。」<br>以扫说：「我在这里。」', ref: '创世记 27:1', hold: 7 },
-    { text: '利百加又把家里所存大儿子以扫上好的衣服给她小儿子雅各穿上，<br>又用山羊羔皮包在雅各的手上和颈项的光滑处，', ref: '创世记 27:15–16', hold: 7.5 },
-    { text: '以撒摸着他，说：「声音是雅各的声音，手却是以扫的手。」', ref: '创世记 27:22', hold: 6 },
-    { text: '「……愿神赐你天上的甘露，地上的肥土，并许多五谷新酒。<br>愿多民事奉你，多国跪拜你。」', ref: '创世记 27:28–29', hold: 8 },
-    { text: '以扫听了他父亲的话，就放声痛哭，说：「我父啊，求你也为我祝福！」', ref: '创世记 27:34', hold: 6.5 },
-    { text: '以扫因他父亲给雅各祝的福，就怨恨雅各。', ref: '创世记 27:41', hold: 5 },
-    { text: '以撒叫了雅各来，给他祝福……<br>「愿全能的神赐福给你，使你生养众多，成为多族……」', ref: '创世记 28:1–3', hold: 7.5 },
-    { text: '雅各出了别是巴，向哈兰走去；到了一个地方，因为太阳落了，就在那里住宿，<br>便拾起那地方的一块石头枕在头下，在那里躺卧睡了。', ref: '创世记 28:10–11', hold: 9 },
+    { text: '基拉耳的牧人与以撒的牧人争竞，说：「这水是我们的。」', ref: '创世记 26:20', hold: 5 },
+    { text: '以撒离开那里，又挖了一口井，他们不为这井争竞了，他就给那井起名叫利河伯。<br>他说：「耶和华现在给我们宽阔之地，我们必在这地昌盛。」', ref: '创世记 26:22', hold: 8 },
+    { text: '当夜耶和华向他显现，说：「我是你父亲亚伯拉罕的神，不要惧怕！<br>因为我与你同在，要赐福给你……」', ref: '创世记 26:24', hold: 7 },
+    { text: '那一天，以撒的仆人来，将挖井的事告诉他说：「我们得了水了。」<br>他就给那井起名叫示巴；因此那城叫做别是巴，直到今日。', ref: '创世记 26:32–33', hold: 7.5 },
   ];
-  // ── 28:12–22 伯特利：天梯 ──────────────────────────────────
+  // ── 27 被夺去的祝福 ─────────────────────────────────────────
   const V5 = [
+    { text: '以撒年老，眼睛昏花，不能看见，就叫了他大儿子以扫来，说：「我儿。」<br>以扫说：「我在这里。」', ref: '创世记 27:1', hold: 6.5 },
+    { text: '利百加又把家里所存大儿子以扫上好的衣服给她小儿子雅各穿上，<br>又用山羊羔皮包在雅各的手上和颈项的光滑处，', ref: '创世记 27:15–16', hold: 7.5 },
+    { text: '以撒摸着他，说：「声音是雅各的声音，手却是以扫的手。」', ref: '创世记 27:22', hold: 5.5 },
+    { text: '「……愿神赐你天上的甘露，地上的肥土，并许多五谷新酒。<br>愿多民事奉你，多国跪拜你。」', ref: '创世记 27:28–29', hold: 7.5 },
+  ];
+  // ── 27:34–28:11 以扫痛哭；往哈兰去，太阳落了 ──────────────────
+  const V6 = [
+    { text: '以扫听了他父亲的话，就放声痛哭，说：「我父啊，求你也为我祝福！」', ref: '创世记 27:34', hold: 6.5 },
+    { text: '以扫因他父亲给雅各祝的福，就怨恨雅各。', ref: '创世记 27:41', hold: 4.5 },
+    { text: '以撒叫了雅各来，给他祝福……<br>「愿全能的神赐福给你，使你生养众多，成为多族……」', ref: '创世记 28:1–3', hold: 7 },
+    { text: '雅各出了别是巴，向哈兰走去；到了一个地方，因为太阳落了，就在那里住宿，<br>便拾起那地方的一块石头枕在头下，在那里躺卧睡了。', ref: '创世记 28:10–11', hold: 8.5 },
+  ];
+  // ── 28:12–14 伯特利：天梯 ──────────────────────────────────
+  const V7 = [
     { text: '梦见一个梯子立在地上，梯子的头顶着天，<br>有神的使者在梯子上，上去下来。', ref: '创世记 28:12', hold: 7.5 },
     { text: '耶和华站在梯子以上，说：「我是耶和华你祖亚伯拉罕的神，也是以撒的神；<br>我要将你现在所躺卧之地赐给你和你的后裔。」', ref: '创世记 28:13', hold: 8.5 },
     { text: '「你的后裔必像地上的尘沙那样多，必向东西南北开展；<br>地上万族必因你和你的后裔得福。」', ref: '创世记 28:14', hold: 7.5 },
-    { text: '「我也与你同在。你无论往哪里去，我必保佑你，领你归回这地，<br>总不离弃你，直到我成全了向你所应许的。」', ref: '创世记 28:15', hold: 8.5 },
-    { text: '雅各睡醒了，说：「耶和华真在这里，我竟不知道！」', ref: '创世记 28:16', hold: 5.5 },
-    { text: '就惧怕，说：「这地方何等可畏！这不是别的，乃是神的殿，也是天的门。」', ref: '创世记 28:17', hold: 6.5 },
+  ];
+  // ── 28:15–19 我也与你同在；石头立作柱子 ─────────────────────
+  const V8 = [
+    { text: '「我也与你同在。你无论往哪里去，我必保佑你，领你归回这地，<br>总不离弃你，直到我成全了向你所应许的。」', ref: '创世记 28:15', hold: 8 },
+    { text: '雅各睡醒了，说：「耶和华真在这里，我竟不知道！」<br>就惧怕，说：「这地方何等可畏！这不是别的，乃是神的殿，也是天的门。」', ref: '创世记 28:16–17', hold: 8.5 },
     { text: '雅各清早起来，把所枕的石头立作柱子，浇油在上面。<br>他就给那地方起名叫伯特利。', ref: '创世记 28:18–19', hold: 7 },
-    { text: '雅各许愿说：「神若与我同在，在我所行的路上保佑我……<br>我就必以耶和华为我的神。」', ref: '创世记 28:20–21', hold: 7 },
   ];
-  // ── 29:1–28 井边的拉结；七年如同几天；利亚与拉结 ────────────
-  const V6 = [
-    { text: '雅各起行，到了东方人之地，<br>看见田间有一口井，有三群羊卧在井旁……井口上的石头是大的。', ref: '创世记 29:1–2', hold: 7.5 },
-    { text: '雅各看见母舅拉班的女儿拉结和母舅拉班的羊群，<br>就上前把石头转离井口，饮他母舅拉班的羊群。', ref: '创世记 29:10', hold: 7.5 },
-    { text: '雅各与拉结亲嘴，就放声而哭。', ref: '创世记 29:11', hold: 4.5 },
-    { text: '拉班听见外甥雅各的信息，就跑去迎接，抱着他，与他亲嘴，领他到自己的家。', ref: '创世记 29:13', hold: 6.5 },
-    { text: '雅各爱拉结，就说：「我愿为你小女儿拉结服事你七年。」', ref: '创世记 29:18', hold: 5.5 },
-    { text: '雅各就为拉结服事了七年；他因为深爱拉结，就看这七年如同几天。', ref: '创世记 29:20', hold: 11 },
-    { text: '到了早晨，雅各一看是利亚，就对拉班说：<br>「你向我做的是什么事呢？我服事你，不是为拉结吗？你为什么欺哄我呢？」', ref: '创世记 29:25', hold: 8 },
-    { text: '雅各就如此行。满了利亚的七日，拉班便将女儿拉结给雅各为妻。', ref: '创世记 29:28', hold: 6.5 },
+  // ── 29:10–28 井边的拉结；七年如同几天；利亚与拉结 ────────────
+  const V9 = [
+    { text: '雅各看见母舅拉班的女儿拉结和母舅拉班的羊群，<br>就上前把石头转离井口，饮他母舅拉班的羊群。', ref: '创世记 29:10', hold: 6.5 },
+    { text: '雅各就为拉结服事了七年；他因为深爱拉结，就看这七年如同几天。', ref: '创世记 29:20', hold: 10 },
+    { text: '到了早晨，雅各一看是利亚，就对拉班说：<br>「你向我做的是什么事呢？我服事你，不是为拉结吗？你为什么欺哄我呢？」', ref: '创世记 29:25', hold: 6.5 },
+    { text: '雅各就如此行。满了利亚的七日，拉班便将女儿拉结给雅各为妻。', ref: '创世记 29:28', hold: 5.5 },
   ];
-  // ── 29:31–30:21 众子 ──────────────────────────────────────
-  const V7 = [
-    { text: '耶和华见利亚失宠，就使她生育，拉结却不生育。', ref: '创世记 29:31', hold: 6 },
-    { text: '利亚怀孕生子，就给他起名叫流便，因而说：<br>「耶和华看见我的苦情，如今我的丈夫必爱我。」', ref: '创世记 29:32', hold: 7 },
-    { text: '她又怀孕生子……于是给他起名叫西缅。<br>她又怀孕生子，起名叫利未。', ref: '创世记 29:33–34', hold: 6.5 },
-    { text: '她又怀孕生子，说：「这回我要赞美耶和华」，因此给他起名叫犹大。<br>这才停了生育。', ref: '创世记 29:35', hold: 7 },
-    { text: '拉结见自己不给雅各生子，就嫉妒她姊姊，<br>对雅各说：「你给我孩子，不然我就死了。」', ref: '创世记 30:1', hold: 7 },
-    { text: '拉结说：「神伸了我的冤……」因此给他起名叫但。<br>拉结说：「我与我姊姊大大相争，并且得胜」，于是给他起名叫拿弗他利。', ref: '创世记 30:6–8', hold: 7.5 },
-    { text: '利亚说：「万幸！」于是给他起名叫迦得。<br>利亚说：「我有福啊……」于是给他起名叫亚设。', ref: '创世记 30:11–13', hold: 7 },
-    { text: '利亚说：「神给了我价值……」于是给他起名叫以萨迦。<br>利亚说：「神赐我厚赏……」于是给他起名西布伦。', ref: '创世记 30:18–20', hold: 7.5 },
-    { text: '后来又生了一个女儿，给她起名叫底拿。', ref: '创世记 30:21', hold: 4.8 },
+  // ── 29:31–30:1 利亚的四个儿子；拉结的嫉妒 ────────────────────
+  const V10 = [
+    { text: '耶和华见利亚失宠，就使她生育，拉结却不生育。', ref: '创世记 29:31', hold: 5 },
+    { text: '利亚怀孕生子，就给他起名叫流便，因而说：<br>「耶和华看见我的苦情，如今我的丈夫必爱我。」', ref: '创世记 29:32', hold: 6.5 },
+    { text: '她又怀孕生子……于是给他起名叫西缅。她又怀孕生子，起名叫利未……<br>她又怀孕生子，说：「这回我要赞美耶和华」，因此给他起名叫犹大。', ref: '创世记 29:33–35', hold: 8 },
+    { text: '拉结见自己不给雅各生子，就嫉妒她姊姊，<br>对雅各说：「你给我孩子，不然我就死了。」', ref: '创世记 30:1', hold: 6.5 },
+  ];
+  // ── 30:6–21 使女的儿子；以萨迦、西布伦、底拿 ──────────────────
+  const V11 = [
+    { text: '拉结说：「神伸了我的冤……」因此给他起名叫但。……<br>拉结说：「我与我姊姊大大相争，并且得胜」，于是给他起名叫拿弗他利。', ref: '创世记 30:6–8', hold: 7.5 },
+    { text: '利亚说：「万幸！」于是给他起名叫迦得。……<br>利亚说：「我有福啊……」于是给他起名叫亚设。', ref: '创世记 30:11–13', hold: 6.5 },
+    { text: '神应允了利亚，她就怀孕……利亚说：「神给了我价值……」于是给他起名叫以萨迦。……<br>利亚说：「神赐我厚赏……」于是给他起名西布伦。', ref: '创世记 30:17–20', hold: 8 },
+    { text: '后来又生了一个女儿，给她起名叫底拿。', ref: '创世记 30:21', hold: 4.5 },
   ];
   // ── 30:22–27 约瑟 ─────────────────────────────────────────
-  const V8 = [
+  const V12 = [
     { text: '神顾念拉结，应允了她，使她能生育。', ref: '创世记 30:22', hold: 5.5 },
     { text: '拉结怀孕生子，说：「神除去了我的羞耻」，就给他起名叫约瑟，<br>意思说：「愿耶和华再增添我一个儿子。」', ref: '创世记 30:23–24', hold: 8 },
     { text: '拉结生约瑟之后，雅各对拉班说：<br>「请打发我走，叫我回到我本乡本土去。」', ref: '创世记 30:25', hold: 6.5 },
     { text: '拉班对他说：「我若在你眼前蒙恩，请你仍与我同住，<br>因为我已算定，耶和华赐福与我是为你的缘故。」', ref: '创世记 30:27', hold: 7.5 },
   ];
-  // ── 30:31–31:2 有点有斑的羊 ────────────────────────────────
-  const V9 = [
-    { text: '「你举目观看，跳母羊的公羊都是有纹的、有点的、有花斑的；<br>凡拉班向你所做的，我都看见了。」', ref: '创世记 31:12', hold: 8 },
-    { text: '雅各说：「……今天我要走遍你的羊群，把绵羊中凡有点的、有斑的，和黑色的，<br>并山羊中凡有斑的、有点的，都挑出来；将来这一等的就算我的工价。」', ref: '创世记 30:31–32', hold: 9 },
-    { text: '雅各拿杨树、杏树、枫树的嫩枝，将皮剥成白纹，使枝子露出白的来，<br>将剥了皮的枝子，对着羊群，插在饮羊的水沟里和水槽里。', ref: '创世记 30:37–38', hold: 9 },
-    { text: '羊对着枝子配合，就生下有纹的、有点的、有斑的来。', ref: '创世记 30:39', hold: 5.5 },
-    { text: '于是雅各极其发大，得了许多的羊群、仆婢、骆驼，和驴。', ref: '创世记 30:43', hold: 6 },
-    { text: '雅各见拉班的气色向他不如从前了。', ref: '创世记 31:2', hold: 4.8 },
+  // ── 30:37–43；31:12 有点有斑的羊 ───────────────────────────
+  const V13 = [
+    { text: '「你举目观看，跳母羊的公羊都是有纹的、有点的、有花斑的；<br>凡拉班向你所做的，我都看见了。」', ref: '创世记 31:12', hold: 7.5 },
+    { text: '雅各拿杨树、杏树、枫树的嫩枝，将皮剥成白纹，使枝子露出白的来，<br>将剥了皮的枝子，对着羊群，插在饮羊的水沟里和水槽里。', ref: '创世记 30:37–38', hold: 8.5 },
+    { text: '羊对着枝子配合，就生下有纹的、有点的、有斑的来。', ref: '创世记 30:39', hold: 5 },
+    { text: '于是雅各极其发大，得了许多的羊群、仆婢、骆驼，和驴。', ref: '创世记 30:43', hold: 5.5 },
   ];
-  // ── 31 回你祖你父之地；基列的石堆 ───────────────────────────
-  const V10 = [
+  // ── 31:3–19 回你祖你父之地 ─────────────────────────────────
+  const V14 = [
     { text: '耶和华对雅各说：「你要回你祖、你父之地，到你亲族那里去，<br>我必与你同在。」', ref: '创世记 31:3', hold: 7 },
-    { text: '拉结和利亚回答雅各说：「……现今凡神所吩咐你的，你只管去行吧！」', ref: '创世记 31:14–16', hold: 6.5 },
+    { text: '拉结和利亚回答雅各说：「……现今凡神所吩咐你的，你只管去行吧！」', ref: '创世记 31:14–16', hold: 6 },
     { text: '雅各起来，使他的儿子和妻子都骑上骆驼，', ref: '创世记 31:17', hold: 4.5 },
     { text: '当时拉班剪羊毛去了，拉结偷了他父亲家中的神像。', ref: '创世记 31:19', hold: 5.5 },
-    { text: '拉班带领他的众弟兄去追赶，追了七日，在基列山就追上了。', ref: '创世记 31:23', hold: 6 },
-    { text: '夜间，神到亚兰人拉班那里，在梦中对他说：<br>「你要小心，不可与雅各说好说歹。」', ref: '创世记 31:24', hold: 7 },
-    { text: '雅各就拿一块石头立作柱子，又对众弟兄说：「你们堆聚石头。」<br>他们就拿石头来堆成一堆，大家便在旁边吃喝。', ref: '创世记 31:45–46', hold: 8 },
-    { text: '又叫米斯巴，意思说：「我们彼此离别以后，愿耶和华在你我中间鉴察。」', ref: '创世记 31:49', hold: 6.5 },
-    { text: '拉班清早起来，与他外孙和女儿亲嘴，给他们祝福，回往自己的地方去了。', ref: '创世记 31:55', hold: 6.5 },
   ];
-  // ── 32:1–27 玛哈念；惧怕与祷告；雅博渡口；摔跤 ──────────────
-  const V11 = [
-    { text: '雅各仍旧行路，神的使者遇见他。', ref: '创世记 32:1', hold: 5 },
-    { text: '雅各看见他们就说：「这是神的军兵」，于是给那地方起名叫玛哈念。', ref: '创世记 32:2', hold: 6.5 },
-    { text: '所打发的人回到雅各那里，说：<br>「我们到了你哥哥以扫那里，他带着四百人，正迎着你来。」', ref: '创世记 32:6', hold: 7 },
-    { text: '「……你曾说：『我必定厚待你，使你的后裔如同海边的沙，多得不可胜数。』」', ref: '创世记 32:12', hold: 7 },
-    { text: '他夜间起来，带着两个妻子，两个使女，并十一个儿子，都过了雅博渡口，', ref: '创世记 32:22', hold: 6.5 },
-    { text: '只剩下雅各一人。有一个人来和他摔跤，直到黎明。', ref: '创世记 32:24', hold: 6 },
-    { text: '那人见自己胜不过他，就将他的大腿窝摸了一把，<br>雅各的大腿窝正在摔跤的时候就扭了。', ref: '创世记 32:25', hold: 7 },
-    { text: '那人说：「天黎明了，容我去吧！」<br>雅各说：「你不给我祝福，我就不容你去。」', ref: '创世记 32:26', hold: 7 },
-    { text: '那人说：「你名叫什么？」他说：「我名叫雅各。」', ref: '创世记 32:27', hold: 5.5 },
+  // ── 31:23–55 拉班追上；基列的石堆 ───────────────────────────
+  const V15 = [
+    { text: '拉班带领他的众弟兄去追赶，追了七日，在基列山就追上了。<br>夜间，神到亚兰人拉班那里，在梦中对他说：「你要小心，不可与雅各说好说歹。」', ref: '创世记 31:23–24', hold: 8.5 },
+    { text: '雅各就拿一块石头立作柱子，又对众弟兄说：「你们堆聚石头。」<br>他们就拿石头来堆成一堆，大家便在旁边吃喝。', ref: '创世记 31:45–46', hold: 7.5 },
+    { text: '又叫米斯巴，意思说：「我们彼此离别以后，愿耶和华在你我中间鉴察。」', ref: '创世记 31:49', hold: 6 },
+    { text: '拉班清早起来，与他外孙和女儿亲嘴，给他们祝福，回往自己的地方去了。', ref: '创世记 31:55', hold: 6 },
+  ];
+  // ── 32:1–13 玛哈念；四百人；礼物 ─────────────────────────
+  const V16 = [
+    { text: '雅各仍旧行路，神的使者遇见他。<br>雅各看见他们就说：「这是神的军兵」，于是给那地方起名叫玛哈念。', ref: '创世记 32:1–2', hold: 7.5 },
+    { text: '所打发的人回到雅各那里，说：<br>「我们到了你哥哥以扫那里，他带着四百人，正迎着你来。」', ref: '创世记 32:6', hold: 6.5 },
+    { text: '「……你曾说：『我必定厚待你，使你的后裔如同海边的沙，多得不可胜数。』」', ref: '创世记 32:12', hold: 6.5 },
+    { text: '当夜，雅各在那里住宿，就从他所有的物中拿礼物要送给他哥哥以扫……', ref: '创世记 32:13', hold: 5.5 },
+  ];
+  // ── 32:22–27 雅博渡口；摔跤直到黎明；「你名叫什么？」 ───────────
+  const V17 = [
+    { text: '只剩下雅各一人。有一个人来和他摔跤，直到黎明。', ref: '创世记 32:24', hold: 5.5 },
+    { text: '那人见自己胜不过他，就将他的大腿窝摸了一把，<br>雅各的大腿窝正在摔跤的时候就扭了。', ref: '创世记 32:25', hold: 6.5 },
+    { text: '那人说：「天黎明了，容我去吧！」<br>雅各说：「你不给我祝福，我就不容你去。」', ref: '创世记 32:26', hold: 6.5 },
+    { text: '那人说：「你名叫什么？」他说：「我名叫雅各。」', ref: '创世记 32:27', hold: 5 },
   ];
   // ── 32:28–31 以色列 ───────────────────────────────────────
-  const V12 = [
-    { text: '那人说：「你的名不要再叫雅各，要叫以色列；<br>因为你与神与人较力，都得了胜。」', ref: '创世记 32:28', hold: 8 },
-    { text: '雅各问他说：「请将你的名告诉我。」那人说：「何必问我的名？」<br>于是在那里给雅各祝福。', ref: '创世记 32:29', hold: 7.5 },
-    { text: '雅各便给那地方起名叫毗努伊勒，意思说：<br>「我面对面见了神，我的性命仍得保全。」', ref: '创世记 32:30', hold: 7.5 },
-    { text: '日头刚出来的时候，雅各经过毗努伊勒，他的大腿就瘸了。', ref: '创世记 32:31', hold: 6.5 },
+  const V18 = [
+    { text: '那人说：「你的名不要再叫雅各，要叫以色列；因为你与神与人较力，都得了胜。」<br>……于是在那里给雅各祝福。', ref: '创世记 32:28–29', hold: 8 },
+    { text: '雅各便给那地方起名叫毗努伊勒，意思说：<br>「我面对面见了神，我的性命仍得保全。」', ref: '创世记 32:30', hold: 7 },
+    { text: '日头刚出来的时候，雅各经过毗努伊勒，他的大腿就瘸了。', ref: '创世记 32:31', hold: 6 },
   ];
-  // ── 33 以扫跑来；34 示剑的黑暗 ─────────────────────────────
-  const V13 = [
-    { text: '雅各举目观看，见以扫来了，后头跟着四百人。', ref: '创世记 33:1', hold: 5.5 },
-    { text: '他自己在他们前头过去，一连七次俯伏在地才就近他哥哥。', ref: '创世记 33:3', hold: 6.5 },
-    { text: '以扫跑来迎接他，将他抱住，又搂着他的颈项，与他亲嘴，两个人就哭了。', ref: '创世记 33:4', hold: 8 },
-    { text: '雅各说：「……我见了你的面，如同见了神的面，并且你容纳了我。」', ref: '创世记 33:10', hold: 6.5 },
-    { text: '于是，以扫当日起行，回往西珥去了。', ref: '创世记 33:16', hold: 4.8 },
-    { text: '雅各从巴旦亚兰回来的时候，平平安安地到了迦南地的示剑城，在城东支搭帐棚……<br>在那里筑了一座坛。', ref: '创世记 33:18–20', hold: 7.5 },
-    { text: '利亚给雅各所生的女儿底拿出去，要见那地的女子们。', ref: '创世记 34:1', hold: 5.5 },
-    { text: '雅各的儿子们听见这事，就从田野回来，人人忿恨，十分恼怒。', ref: '创世记 34:7', hold: 6 },
+  // ── 33 以扫跑来；示剑；34 示剑的黑暗 ────────────────────────
+  const V19 = [
+    { text: '雅各举目观看，见以扫来了，后头跟着四百人……<br>他自己在他们前头过去，一连七次俯伏在地才就近他哥哥。', ref: '创世记 33:1–3', hold: 7.5 },
+    { text: '以扫跑来迎接他，将他抱住，又搂着他的颈项，与他亲嘴，两个人就哭了。', ref: '创世记 33:4', hold: 7 },
+    { text: '雅各从巴旦亚兰回来的时候，平平安安地到了迦南地的示剑城，在城东支搭帐棚……<br>在那里筑了一座坛。', ref: '创世记 33:18–20', hold: 7 },
     { text: '雅各对西缅和利未说：「你们连累我，使我在这地的居民中……有了臭名。」', ref: '创世记 34:30', hold: 6.5 },
   ];
   // ── 35:1–7 上伯特利去 ─────────────────────────────────────
-  const V14 = [
-    { text: '神对雅各说：「起来！上伯特利去，住在那里；要在那里筑一座坛给神，<br>就是你逃避你哥哥以扫的时候向你显现的那位。」', ref: '创世记 35:1', hold: 8.5 },
-    { text: '雅各就对他家中的人并一切与他同在的人说：<br>「你们要除掉你们中间的外邦神，也要自洁，更换衣裳。」', ref: '创世记 35:2', hold: 7.5 },
-    { text: '他们就把外邦人的神像和他们耳朵上的环子交给雅各；<br>雅各都藏在示剑那里的橡树底下。', ref: '创世记 35:4', hold: 7.5 },
-    { text: '他们便起行前往。神使那周围城邑的人都甚惊惧，就不追赶雅各的众子了。', ref: '创世记 35:5', hold: 7 },
-    { text: '他在那里筑了一座坛，就给那地方起名叫伊勒伯特利；<br>因为他逃避他哥哥的时候，神在那里向他显现。', ref: '创世记 35:7', hold: 7.5 },
+  const V20 = [
+    { text: '神对雅各说：「起来！上伯特利去，住在那里；要在那里筑一座坛给神，<br>就是你逃避你哥哥以扫的时候向你显现的那位。」', ref: '创世记 35:1', hold: 7.5 },
+    { text: '雅各就对他家中的人并一切与他同在的人说：<br>「你们要除掉你们中间的外邦神，也要自洁，更换衣裳。」', ref: '创世记 35:2', hold: 7 },
+    { text: '他们就把外邦人的神像和他们耳朵上的环子交给雅各；<br>雅各都藏在示剑那里的橡树底下。', ref: '创世记 35:4', hold: 6.5 },
+    { text: '他在那里筑了一座坛，就给那地方起名叫伊勒伯特利；<br>因为他逃避他哥哥的时候，神在那里向他显现。', ref: '创世记 35:7', hold: 7 },
   ];
-  // ── 35:9–20 伯特利又一次；拉结与便雅悯 ──────────────────────
-  const V15 = [
-    { text: '雅各从巴旦亚兰回来，神又向他显现，赐福与他，<br>且对他说：「你的名原是雅各，从今以后不要再叫雅各，要叫以色列。」', ref: '创世记 35:9–10', hold: 8.5 },
-    { text: '神又对他说：「我是全能的神；你要生养众多，<br>将来有一族和多国的民从你而生，又有君王从你而出。」', ref: '创世记 35:11', hold: 8 },
-    { text: '雅各便在那里立了一根石柱，在柱子上奠酒，浇油。', ref: '创世记 35:14', hold: 5.5 },
-    { text: '他们从伯特利起行，离以法他还有一段路程，拉结临产甚是艰难。', ref: '创世记 35:16', hold: 6.5 },
-    { text: '正在艰难的时候，收生婆对她说：「不要怕，你又要得一个儿子了。」', ref: '创世记 35:17', hold: 6 },
-    { text: '她将近于死，灵魂要走的时候，就给她儿子起名叫便俄尼；<br>他父亲却给他起名叫便雅悯。', ref: '创世记 35:18', hold: 8 },
-    { text: '拉结死了，葬在以法他的路旁；以法他就是伯利恒。<br>雅各在她的坟上立了一统碑，就是拉结的墓碑，到今日还在。', ref: '创世记 35:19–20', hold: 8.5 },
+  // ── 35:11–20 全能的神；拉结与便雅悯 ─────────────────────────
+  const V21 = [
+    { text: '神又对他说：「我是全能的神；你要生养众多，<br>将来有一族和多国的民从你而生，又有君王从你而出。」', ref: '创世记 35:11', hold: 7 },
+    { text: '他们从伯特利起行，离以法他还有一段路程，拉结临产甚是艰难。', ref: '创世记 35:16', hold: 5.5 },
+    { text: '她将近于死，灵魂要走的时候，就给她儿子起名叫便俄尼；<br>他父亲却给他起名叫便雅悯。', ref: '创世记 35:18', hold: 7 },
+    { text: '拉结死了，葬在以法他的路旁；以法他就是伯利恒。<br>雅各在她的坟上立了一统碑，就是拉结的墓碑，到今日还在。', ref: '创世记 35:19–20', hold: 8 },
   ];
-  // ── 35:12；35:22–29 以撒归到他列祖那里；36 以扫就是以东 ─────
-  const V16 = [
-    { text: '「我所赐给亚伯拉罕和以撒的地，我要赐给你与你的后裔。」', ref: '创世记 35:12', hold: 6.5 },
-    { text: '雅各共有十二个儿子。', ref: '创世记 35:22', hold: 4.5 },
-    { text: '雅各来到他父亲以撒那里，到了基列亚巴的幔利……<br>以撒年纪老迈，日子满足，气绝而死，归到他列祖那里。', ref: '创世记 35:27–29', hold: 8.5 },
-    { text: '他两个儿子以扫、雅各把他埋葬了。', ref: '创世记 35:29', hold: 5 },
-    { text: '因为二人的财物群畜甚多，寄居的地方容不下他们，所以不能同居。', ref: '创世记 36:7', hold: 6.5 },
-    { text: '于是以扫住在西珥山里；以扫就是以东。', ref: '创世记 36:8', hold: 5.5 },
-    { text: '以色列人未有君王治理以先，在以东地作王的记在下面。', ref: '创世记 36:31', hold: 6 },
+  // ── 35:12–29 应许之地；以撒归到他列祖那里；36 以扫就是以东 ──
+  const V22 = [
+    { text: '「我所赐给亚伯拉罕和以撒的地，我要赐给你与你的后裔。」', ref: '创世记 35:12', hold: 5.5 },
+    { text: '雅各共有十二个儿子。', ref: '创世记 35:22', hold: 4.2 },
+    { text: '以撒年纪老迈，日子满足，气绝而死，归到他列祖那里。<br>他两个儿子以扫、雅各把他埋葬了。', ref: '创世记 35:29', hold: 8 },
+    { text: '于是以扫住在西珥山里；以扫就是以东。……<br>以色列人未有君王治理以先，在以东地作王的记在下面。', ref: '创世记 36:8、31', hold: 8 },
   ];
 
   const STAGES = [
@@ -1724,7 +1795,7 @@
         T(c, [
           [0, b => { beamOn(b, 'rebekah', { dur: 7 }); S.twins = 2; pose('isaac', 'stand'); sfx(b, 'harp'); }],
           [L[1] - 2, () => { pose('rebekah', 'stand'); walk('isaac', X.tentR - 0.012, { speed: 0.02 }); }],
-          [L[1] + 0.3, b => {
+          [L[1] + 0.2, b => {
             S.twins = 0;
             carry('isaac', 'baby'); carry('rebekah', 'baby');
             glow('rebekah', 0.45);
@@ -1735,24 +1806,24 @@
             }
             sfx(b, 'harp');
           }],
-          [L[2] + 0.4, b => nameOver(b, 'isaac', '以扫', [236, 138, 100], srcGround(0.72, 0.1), { size: 0.042 })],
-          [L[3] + 0.4, b => nameOver(b, 'rebekah', '雅各', [214, 224, 255], srcAround('rebekah', 70), { size: 0.042 })],
-          // 渐渐长大：夜里抱着的婴孩成了孩子，又一夜成了青年
-          [L[3] + 5.5, b => fullDay(b, 7)],
-          [L[3] + 9, b => {
+          [L[1] + 0.8, b => nameOver(b, 'isaac', '以扫', [236, 138, 100], srcGround(0.72, 0.1), { size: 0.042 })],
+          [L[2] + 0.4, b => nameOver(b, 'rebekah', '雅各', [214, 224, 255], srcAround('rebekah', 70), { size: 0.042 })],
+          // 渐渐长大：一夜，抱着的婴孩成了孩子；又一夜，成了青年
+          [L[2] + 3.2, b => fullDay(b, 4.5)],
+          [L[2] + 5.4, b => {
             carry('isaac', null); carry('rebekah', null);
             add('esauC', { label: '以扫', sex: 'm', age: 'child', x: X.tentR - 0.004, facing: 1, robe: ROBE.esau, glow: 0.25, from: b.instant ? 'none' : 'fade' });
             add('jacobC', { label: '雅各', sex: 'm', age: 'child', x: X.tentR + 0.014, facing: -1, robe: ROBE.jacob, glow: 0.25, from: b.instant ? 'none' : 'fade' });
           }],
-          [L[4] + 0.5, () => { walk('esauC', 0.7, { speed: 0.03 }); walk('jacobC', X.tentR + 0.02, { speed: 0.02, pose: 'sit' }); }],
-          [L[4] + 3, b => fullDay(b, 7)],
-          [L[4] + 6.5, b => {
+          [L[3] + 0.3, () => { walk('esauC', 0.66, { speed: 0.03 }); walk('jacobC', X.tentR + 0.02, { speed: 0.02, pose: 'sit' }); }],
+          [L[3] + 1, b => fullDay(b, 4.5)],
+          [L[3] + 3.2, b => {
             rm('esauC', true); rm('jacobC', true);
-            add('esau', { label: '以扫', sex: 'm', age: 'adult', x: 0.705, facing: 1, robe: ROBE.esau, glow: 0.25, from: b.instant ? 'none' : 'fade' });
+            add('esau', { label: '以扫', sex: 'm', age: 'adult', x: 0.67, facing: 1, robe: ROBE.esau, glow: 0.25, from: b.instant ? 'none' : 'fade' });
             add('jacob', { label: '雅各', sex: 'm', age: 'adult', x: X.tentR + 0.02, facing: -1, robe: ROBE.jacob, glow: 0.35, pose: 'sit', from: b.instant ? 'none' : 'fade' });
           }],
-          [L[5], () => { walk('esau', 0.8, { speed: 0.02 }); walk('isaac', 0.74, { speed: 0.018 }); walk('rebekah', X.tentR + 0.036, { speed: 0.02 }); }],
-          [L[5] + 6, () => { face('isaac', 1); face('rebekah', -1); }],
+          [L[3] + 3.8, () => { walk('esau', 0.78, { speed: 0.025 }); walk('isaac', 0.67, { speed: 0.02 }); walk('rebekah', X.tentR + 0.036, { speed: 0.02 }); }],
+          [L[3] + 6, () => { face('isaac', 1); face('rebekah', -1); }],
         ]);
       },
     },
@@ -1772,32 +1843,32 @@
             sfx(b, 'fire');
           }],
           [0.5, () => { walk('isaac', X.tentI + 0.022, { speed: 0.02, pose: 'sit' }); walk('rebekah', X.tentR + 0.012, { speed: 0.02 }); }],
-          [1.5, () => walk('esau', X.stew + 0.03, { speed: 0.022, pose: 'sit' })],
-          [L[1] + 1.5, () => { face('esau', -1); face('jacob', 1); }],
-          [L[2], () => pose('jacob', 'stand')],
-          [L[4], () => pose('esau', 'raise')],
-          [L[4] + 2, b => mote(b, 'esau', 'jacob', [255, 226, 160], 3)],
-          [L[4] + 5, b => {
+          [1.2, () => walk('esau', X.stew + 0.03, { speed: 0.024, pose: 'sit' })],
+          [L[1] - 0.5, () => { face('esau', -1); face('jacob', 1); }],
+          [L[1], () => pose('jacob', 'stand')],
+          [L[2], () => pose('esau', 'raise')],
+          [L[2] + 2, b => mote(b, 'esau', 'jacob', [255, 226, 160], 3)],
+          [L[2] + 4.5, b => {
             pose('esau', 'sit');
             glow('jacob', 0.5);
             if (!b.instant) { const p = figPt('jacob', 0.6); if (p) fx().ring(p[0], p[1], [255, 226, 160], M() * 0.14, 1.8, 1.5); }
           }],
-          [L[5], () => { walk('jacob', X.stew + 0.018, { speed: 0.012, pose: 'carry' }); }],
-          [L[5] + 3.5, () => pose('jacob', 'stand')],
-          [L[5] + 5.5, () => { pose('esau', 'stand'); walk('esau', 0.84, { speed: 0.022 }); prop('stew', null, { fire: 0.25 }); }],
-          [L[6], () => { walk('jacob', X.tentR + 0.03, { speed: 0.02 }); glow('jacob', 0.35); }],
+          [L[3], () => { walk('jacob', X.stew + 0.018, { speed: 0.012, pose: 'carry' }); }],
+          [L[3] + 2.5, () => pose('jacob', 'stand')],
+          [L[3] + 4.5, () => { pose('esau', 'stand'); walk('esau', 0.84, { speed: 0.024 }); prop('stew', null, { fire: 0.25 }); }],
+          [L[3] + 6, () => { walk('jacob', X.tentR + 0.03, { speed: 0.02 }); glow('jacob', 0.35); }],
         ]);
       },
     },
 
-    // ── 3 · 神向以撒显现；井；别是巴 ─────────────────────────
+    // ── 3 · 你不要下埃及去：饥荒；基拉耳；百倍的收成 ─────────────
     {
-      kind: 'promise', utter: '我必与你同在，赐福给你', cmd: 'git clone 应许 --from 亚伯拉罕 --to 以撒', ref: '26:3',
+      kind: 'cmd', utter: '你不要下埃及去，要住在我所指示你的地', cmd: 'stay 迦南 --not 埃及  # 那一年有百倍的收成', ref: '26:2',
       verse: V3,
       apply(c) {
         const L = starts(V3);
         T(c, [
-          [0, b => { W.set('jbDrought', 1, b.instant); unprop('stew'); pose('isaac', 'stand'); walk('isaac', 0.6, { speed: 0.02 }); walk('jacob', X.tentR + 0.03, { speed: 0.02 }); }],
+          [0, b => { W.set('jbDrought', 1, b.instant); unprop('stew'); avoid([0.49, 0.8]); pose('isaac', 'stand'); walk('isaac', 0.6, { speed: 0.02 }); walk('jacob', X.tentR + 0.03, { speed: 0.02 }); }],
           [L[1], b => { beamOn(b, 'isaac', { dur: 7 }); pose('isaac', 'kneel'); sfx(b, 'harp'); }],
           [L[1] + 5.5, () => pose('isaac', 'stand')],
           [L[2], b => {
@@ -1809,71 +1880,88 @@
           [L[2] + 4.5, b => {
             prop('field', null, { gold: 1 });
             crowdPose('svI', 'stand');
+            if (!b.instant) fx().sparkle(X.field * W.w, gY(2, X.field) + 30 * LS(2), 40, [255, 232, 170], 50, 'top');
+          }],
+          [L[3], b => {
             herd('herdI2', { kind: 'sheep', n: 6, x0: 0.68, x1: 0.8, label: '羊群', from: b.instant ? 'none' : 'dust' });
             animal('cowI1', 'cow', 0.742, { facing: -1, from: b.instant ? 'none' : 'dust' });
             animal('cowI2', 'cow', 0.77, { facing: 1, from: b.instant ? 'none' : 'dust' });
-            if (!b.instant) fx().sparkle(X.field * W.w, gY(2, X.field) + 30 * LS(2), 40, [255, 232, 170], 50, 'top');
-          }],
-          [L[3] - 1, b => {
-            prop('esek', 'well', { x: X.esek, grow: 1, label: '埃色' });
-            if (!hasCrowd('phil')) crowd('phil', { n: 3, x0: 0.44, x1: 0.48, layer: 2, label: '基拉耳的牧人', from: b.instant ? 'none' : 'fade', mill: false });
-            crowdWalk('phil', X.esek - 0.04, X.esek - 0.012, { speed: 0.03 });
-            walk('isaac', X.esek + 0.02, { speed: 0.02 });
-            crowdWalk('svI', X.esek + 0.008, X.esek + 0.04, { speed: 0.02 });
+            if (!hasCrowd('phil')) crowd('phil', { n: 3, x0: 0.44, x1: 0.49, layer: 2, label: '基拉耳的牧人', from: b.instant ? 'none' : 'fade', mill: false });
+            sfx(b, 'bleat');
           }],
           [L[3] + 2.5, () => crowdPose('phil', 'point')],
-          [L[3] + 4.5, b => {
-            prop('sitnah', 'well', { x: X.sitnah, grow: 1, label: '西提拿' });
-            crowdWalk('phil', X.sitnah - 0.035, X.sitnah - 0.012, { speed: 0.03, pose: 'point' });
-            walk('isaac', X.sitnah + 0.02, { speed: 0.025 });
-            crowdWalk('svI', X.sitnah + 0.008, X.sitnah + 0.04, { speed: 0.025 });
-          }],
-          [L[4], b => {
-            prop('rehoboth', 'well', { x: X.rehoboth, grow: 1, label: '利河伯', lit: 0.8 });
-            walk('isaac', X.rehoboth - 0.018, { speed: 0.025 });
-            crowdWalk('phil', 0.4, 0.44, { speed: 0.03 });
-            crowdWalk('svI', X.rehoboth + 0.01, X.rehoboth + 0.045, { speed: 0.025 });
-            if (!b.instant) fx().ring(X.rehoboth * W.w, gY(2, X.rehoboth), [255, 236, 190], M() * 0.3, 2.4, 2);
-          }],
-          [L[4] + 8, () => { uncrowd('phil'); prop('rehoboth', null, { lit: 0 }); }],
-          // 上别是巴去；当夜
-          [L[5] - 2.5, b => {
-            W.goTo(0.02, 5, b.instant);
-            walk('isaac', X.altarI - 0.02, { speed: 0.025 });
-            crowdWalk('svI', X.spring + 0.012, X.spring + 0.03, { speed: 0.025 });
-          }],
-          [L[5] + 0.5, b => { beamOn(b, 'isaac', { dur: 7, white: true }); pose('isaac', 'kneel'); }],
-          [L[5] + 4.5, b => { prop('altarI', 'altar', { x: X.altarI, grow: 1, label: '坛' }); sfx(b, 'build'); }],
-          [L[5] + 7.5, b => { prop('altarI', null, { fire: 1 }); pose('isaac', 'pray'); sfx(b, 'fire'); }],
-          [L[6], b => {
-            prop('spring', null, { lit: 1, label: '示巴' });
-            crowdPose('svI', 'raise');
-            sfx(b, 'splash');
-            if (!b.instant) fx().sparkle(X.spring * W.w, gY(2, X.spring) - 6, 30, [226, 238, 255], 14, 'top');
-          }],
-          [L[6] + 4, b => { W.goTo(0.3, 6, b.instant); prop('altarI', null, { fire: 0.3 }); pose('isaac', 'stand'); crowdPose('svI', 'stand'); prop('spring', null, { lit: 0.3 }); }],
         ]);
       },
     },
 
-    // ── 4 · 天上的甘露，地上的肥土 ───────────────────────────
+    // ── 4 · 不要惧怕，我与你同在：三口井；别是巴 ─────────────────
     {
-      kind: 'bless', utter: '愿神赐你天上的甘露，地上的肥土', cmd: 'bless 雅各 --as 以扫  # 声音是雅各的声音', ref: '27:28', tint: [255, 232, 186],
+      kind: 'promise', utter: '我与你同在，要赐福给你', cmd: 'dig 埃色 西提拿 利河伯 示巴  # 宽阔之地', ref: '26:24',
       verse: V4,
       apply(c) {
         const L = starts(V4);
         T(c, [
           [0, b => {
+            prop('esek', 'well', { x: X.esek, grow: 1, label: '埃色' });
+            if (!hasCrowd('phil')) crowd('phil', { n: 3, x0: 0.44, x1: 0.49, layer: 2, label: '基拉耳的牧人', from: b.instant ? 'none' : 'fade', mill: false });
+            crowdWalk('phil', X.esek - 0.04, X.esek - 0.012, { speed: 0.035 });
+            walk('isaac', X.esek + 0.02, { speed: 0.02 });
+            crowdWalk('svI', X.esek + 0.008, X.esek + 0.04, { speed: 0.02 });
+          }],
+          [2.5, () => crowdPose('phil', 'point')],
+          [4.3, b => {
+            prop('sitnah', 'well', { x: X.sitnah, grow: 1, label: '西提拿' });
+            crowdWalk('phil', X.sitnah - 0.035, X.sitnah - 0.012, { speed: 0.035, pose: 'point' });
+            walk('isaac', X.sitnah + 0.02, { speed: 0.025 });
+            crowdWalk('svI', X.sitnah + 0.008, X.sitnah + 0.04, { speed: 0.025 });
+          }],
+          [L[1], b => {
+            prop('rehoboth', 'well', { x: X.rehoboth, grow: 1, label: '利河伯', lit: 0.8 });
+            walk('isaac', X.rehoboth - 0.018, { speed: 0.025 });
+            crowdWalk('phil', 0.4, 0.45, { speed: 0.035 });
+            crowdWalk('svI', X.rehoboth + 0.01, X.rehoboth + 0.045, { speed: 0.025 });
+            if (!b.instant) fx().ring(X.rehoboth * W.w, gY(2, X.rehoboth), [255, 236, 190], M() * 0.3, 2.4, 2);
+          }],
+          [L[1] + 6.5, () => { uncrowd('phil'); prop('rehoboth', null, { lit: 0 }); }],
+          // 上别是巴去；当夜
+          [L[2] - 2.5, b => {
+            W.goTo(0.02, 5, b.instant);
+            walk('isaac', X.altarI - 0.02, { speed: 0.028 });
+            crowdWalk('svI', X.spring + 0.012, X.spring + 0.03, { speed: 0.028 });
+          }],
+          [L[2] + 0.5, b => { beamOn(b, 'isaac', { dur: 7, white: true }); pose('isaac', 'kneel'); }],
+          [L[2] + 4, b => { prop('altarI', 'altar', { x: X.altarI, grow: 1, label: '坛' }); sfx(b, 'build'); }],
+          [L[2] + 6.5, b => { prop('altarI', null, { fire: 1 }); pose('isaac', 'pray'); sfx(b, 'fire'); }],
+          [L[3], b => {
+            prop('spring', null, { lit: 1, label: '示巴' });
+            crowdPose('svI', 'raise');
+            sfx(b, 'splash');
+            if (!b.instant) fx().sparkle(X.spring * W.w, gY(2, X.spring) - 6, 30, [226, 238, 255], 14, 'top');
+          }],
+          [L[3] + 4.5, b => { W.goTo(0.3, 6, b.instant); prop('altarI', null, { fire: 0.3 }); pose('isaac', 'stand'); crowdPose('svI', 'stand'); prop('spring', null, { lit: 0.3 }); }],
+        ]);
+      },
+    },
+
+    // ── 5 · 天上的甘露，地上的肥土 ───────────────────────────
+    {
+      kind: 'bless', utter: '愿神赐你天上的甘露，地上的肥土', cmd: 'bless 雅各 --as 以扫  # 声音是雅各的声音', ref: '27:28', tint: [255, 232, 186],
+      verse: V5,
+      apply(c) {
+        const L = starts(V5);
+        T(c, [
+          [0, b => {
             add('isaac', { age: 'elder', glow: 0.15 });
-            walk('isaac', X.tentI + 0.022, { speed: 0.02, pose: 'sit' });
+            walk('isaac', X.tentI + 0.022, { speed: 0.025, pose: 'sit' });
             prop('field', null, { gold: 0.55 });
             prop('altarI', null, { fire: 0 });
-            walk('esau', X.tentI + 0.05, { speed: 0.035 });
+            walk('esau', X.tentI + 0.05, { speed: 0.065 });
+            avoid([0.49, 0.72]);
             W.goTo(0.42, 4, b.instant);
           }],
-          [3, () => { walk('rebekah', X.tentR + 0.006, { speed: 0.02 }); walk('jacob', X.tentR + 0.03, { speed: 0.02 }); }],
-          [7, () => pose('esau', 'bow')],
-          [9.5, () => { pose('esau', 'stand'); walk('esau', 0.92, { speed: 0.035 }); }],
+          [2, () => { walk('rebekah', X.tentR + 0.006, { speed: 0.02 }); walk('jacob', X.tentR + 0.03, { speed: 0.02 }); }],
+          [4.5, () => pose('esau', 'bow')],
+          [6.3, () => { pose('esau', 'stand'); walk('esau', 0.92, { speed: 0.04 }); }],
           [L[1], b => {
             face('rebekah', 1); face('jacob', -1);
             add('jacob', { robe: ROBE.esau });
@@ -1891,33 +1979,45 @@
             sfx(b, 'harp');
             const a = au(); if (!b.instant && a && a.bless) U.safe('audio.bless', () => a.bless());
           }],
-          [L[3] + 7, b => { W.set('jbDew', 0.25, b.instant); pose('isaac', 'sit'); }],
-          [L[4] - 7, () => { pose('jacob', 'stand'); hold('jacob', null); add('jacob', { robe: ROBE.jacob }); walk('jacob', X.tentR + 0.035, { speed: 0.02 }); }],
-          [L[4] - 6, () => { walk('esau', X.tentI + 0.05, { speed: 0.05, pose: 'kneel' }); hold('esau', 'jar'); }],
-          [L[4] + 0.5, b => { pose('isaac', 'raise'); if (!b.instant) W.shake = 0.35; }],
-          [L[4] + 2.5, b => { hold('esau', null); pose('esau', 'kneel', { weep: true }); pose('isaac', 'sit'); sfx(b, 'weep'); }],
-          [L[5], () => { pose('esau', 'stand', { weep: false }); glow('esau', 0.05); walk('esau', 0.43, { speed: 0.02 }); }],
-          [L[5] + 7.5, () => rm('esau')],
-          [L[6], () => { walk('jacob', X.tentI + 0.046, { speed: 0.02, pose: 'kneel' }); }],
-          [L[6] + 2.5, b => { pose('isaac', 'raise'); beamOn(b, 'jacob', { dur: 5, k: 0.6 }); }],
-          [L[6] + 5.5, () => { pose('isaac', 'sit'); pose('jacob', 'stand'); hold('jacob', 'staff'); }],
-          [L[6] + 6.5, b => { embrace('rebekah', 'jacob', { weep: true }); sfx(b, 'weep'); }],
+          [L[3] + 6, b => { W.set('jbDew', 0.25, b.instant); pose('isaac', 'sit'); }],
+        ]);
+      },
+    },
+
+    // ── 6 · 愿全能的神赐福给你：以扫痛哭；雅各出了别是巴 ───────────
+    {
+      kind: 'bless', utter: '愿全能的神赐福给你，使你生养众多', cmd: 'exit 别是巴 → 哈兰  # 太阳落了', ref: '28:3',
+      verse: V6,
+      apply(c) {
+        const L = starts(V6);
+        T(c, [
+          [0, () => { pose('jacob', 'stand'); hold('jacob', null); add('jacob', { robe: ROBE.jacob }); walk('jacob', X.tentR + 0.035, { speed: 0.02 }); }],
+          [0.5, () => { walk('esau', X.tentI + 0.05, { speed: 0.065, pose: 'kneel' }); hold('esau', 'jar'); }],
+          [5.2, b => { pose('isaac', 'raise'); if (!b.instant) W.shake = 0.35; }],
+          [6.2, b => { hold('esau', null); pose('esau', 'kneel', { weep: true }); pose('isaac', 'sit'); sfx(b, 'weep'); }],
+          [L[1], () => { pose('esau', 'stand', { weep: false }); glow('esau', 0.05); walk('esau', 0.43, { speed: 0.024 }); }],
+          [L[1] + 5.5, () => rm('esau')],
+          [L[2], () => { walk('jacob', X.tentI + 0.046, { speed: 0.02, pose: 'kneel' }); }],
+          [L[2] + 1.8, b => { pose('isaac', 'raise'); beamOn(b, 'jacob', { dur: 5, k: 0.6 }); }],
+          [L[2] + 4.5, () => { pose('isaac', 'sit'); pose('jacob', 'stand'); hold('jacob', 'staff'); }],
+          [L[2] + 5.5, b => { embrace('rebekah', 'jacob', { weep: true }); sfx(b, 'weep'); }],
           // 雅各出了别是巴；太阳落了
-          [L[7] - 0.5, b => {
+          [L[3] - 0.5, b => {
             pose('rebekah', 'stand', { weep: false }); pose('jacob', 'stand', { weep: false });
-            W.goTo(0.76, 9, b.instant);
-            walk('jacob', X.bethel + 0.014, { speed: 0.012 });
+            W.goTo(0.76, 8, b.instant);
+            walk('jacob', X.bethel + 0.014, { speed: 0.014 });
             W.set('jbDew', 0, b.instant);
           }],
-          [L[7] + 3, () => { face('rebekah', 1); pose('rebekah', 'weep'); }],
-          [L[7] + 7, b => {
+          [L[3] + 2.5, () => { face('rebekah', 1); pose('rebekah', 'weep'); }],
+          [L[3] + 6.3, () => {
             prop('stone', 'stone', { x: X.bethel, label: '石头' });
             hold('jacob', null);
             face('jacob', 1);
             pose('jacob', 'lie');
           }],
-          [L[7] + 8.5, b => {
+          [L[3] + 7.3, b => {
             W.goTo(0.93, 7, b.instant);
+            avoid([0.6, 0.74]);
             for (const id of ['tentI', 'tentR', 'field', 'esek', 'sitnah', 'rehoboth', 'altarI', 'spring']) unprop(id);
             rm('isaac'); rm('rebekah');
             uncrowd('svI'); uncrowd('herdI'); uncrowd('herdI2');
@@ -1927,31 +2027,42 @@
       },
     },
 
-    // ── 5 · 伯特利：我也与你同在 ─────────────────────────────
+    // ── 7 · 伯特利：天梯立在地上 ─────────────────────────────
     {
-      kind: 'promise', utter: '我也与你同在', cmd: 'mount 天梯 地 → 天  # 使者上去下来', ref: '28:15', hold: 2.8, tint: [255, 238, 196],
-      verse: V5,
+      kind: 'promise', utter: '我是耶和华你祖亚伯拉罕的神', cmd: 'mount 天梯 地 → 天  # 使者上去下来', ref: '28:13', hold: 2.8, tint: [255, 238, 196],
+      verse: V7,
       apply(c) {
-        const L = starts(V5);
+        const L = starts(V7);
         T(c, [
-          [0, b => { W.goTo(0.02, 4, b.instant); W.set('jbLadder', 1, b.instant); glow('jacob', 0.55); sfx(b, 'harp'); }],
+          [0, b => { W.goTo(0.02, 4, b.instant); W.set('jbLadder', 1, b.instant); glow('jacob', 0.55); avoid([0.6, 0.74]); sfx(b, 'harp'); }],
           [L[1], b => gate(b, 9)],
           [L[2] + 0.5, b => earth(b, X.bethel, 11)],
-          [L[3], b => { beamOn(b, 'jacob', { dur: 8, w: 60 }); glow('jacob', 0.85); }],
-          [L[4], () => pose('jacob', 'sit')],
-          [L[5], () => pose('jacob', 'fall')],
-          [L[5] + 3.5, b => { W.set('jbLadder', 0, b.instant); W.goTo(0.27, 8, b.instant); }],
-          [L[6], b => {
+        ]);
+      },
+    },
+
+    // ── 8 · 我也与你同在：石头立作柱子 ───────────────────────
+    {
+      kind: 'promise', utter: '我也与你同在', cmd: 'pin 伯特利 --oil  # 这不是别的，乃是神的殿', ref: '28:15', tint: [255, 238, 196],
+      verse: V8,
+      apply(c) {
+        const L = starts(V8);
+        T(c, [
+          [0, b => { beamOn(b, 'jacob', { dur: 8, w: 60 }); glow('jacob', 0.85); gate(b, 7); }],
+          [L[1], () => pose('jacob', 'sit')],
+          [L[1] + 3.5, () => pose('jacob', 'fall')],
+          [L[1] + 6.5, b => { W.set('jbLadder', 0, b.instant); W.goTo(0.27, 8, b.instant); }],
+          [L[2], b => {
             pose('jacob', 'stand');
             prop('stone', null, { stand: 1, label: '柱子' });
             if (!b.instant) fx().dust(X.bethel * W.w, gY(2, X.bethel), 16, [226, 206, 170], 8);
           }],
-          [L[6] + 2.5, b => {
+          [L[2] + 2.5, b => {
             prop('stone', null, { oil: 1, lit: 1 });
             pose('jacob', 'kneel');
             if (!b.instant) fx().sparkle(X.bethel * W.w, gY(2, X.bethel) - 26 * LS(2), 20, [255, 232, 170], 6, 'top');
           }],
-          [L[6] + 3.5, b => {
+          [L[2] + 3.5, b => {
             prop('stone', null, { label: '伯特利' });
             if (!b.instant) {
               const size = M() * 0.06, cx = X.bethel * W.w, cy = gY(2, X.bethel) - 26 * LS(2) - size * 1.6;
@@ -1960,66 +2071,64 @@
               const a = au(); if (a && a.nameChime) U.safe('audio.nameChime', () => a.nameChime('伯'));
             }
           }],
-          [L[7], () => pose('jacob', 'pray')],
-          [L[7] + 6, () => { pose('jacob', 'stand'); hold('jacob', 'staff'); prop('stone', null, { lit: 0.25 }); glow('jacob', 0.4); }],
+          [L[2] + 6, () => { pose('jacob', 'stand'); hold('jacob', 'staff'); prop('stone', null, { lit: 0.25 }); glow('jacob', 0.4); }],
         ]);
       },
     },
 
-    // ── 6 · 你无论往哪里去，我必保佑你：井边、拉班、七年、利亚与拉结 ──
+    // ── 9 · 你无论往哪里去，我必保佑你：井边、拉班、七年、利亚与拉结 ──
     {
       kind: 'promise', utter: '你无论往哪里去，我必保佑你', cmd: 'route 雅各 → 哈兰  # 七年如同几天', ref: '28:15',
-      verse: V6,
+      verse: V9,
       apply(c) {
-        const L = starts(V6);
+        const L = starts(V9);
         T(c, [
           [0, b => {
             W.goTo(0.42, 5, b.instant);
-            walk('jacob', X.wellH - 0.04, { speed: 0.03 });
+            avoid([0.64, 0.95]);
+            walk('jacob', X.wellH - 0.03, { speed: 0.03 });
             prop('wellH', 'well', { x: X.wellH, lid: true, label: '井' });
             prop('tentLa', 'tent', { x: X.tentLa, label: '拉班的帐棚' });
-            if (!hasCrowd('flockW')) herd('flockW', { kind: 'sheep', n: 8, x0: X.wellH - 0.035, x1: X.wellH + 0.055, pose: 'lie', label: '羊群', from: b.instant ? 'none' : 'fade' });
-            if (!hasCrowd('shep')) crowd('shep', { n: 3, x0: X.wellH + 0.012, x1: X.wellH + 0.05, layer: 2, label: '牧人', from: b.instant ? 'none' : 'fade', mill: false });
+            if (!hasCrowd('flockW')) herd('flockW', { kind: 'sheep', n: 8, x0: X.wellH - 0.09, x1: X.wellH - 0.038, pose: 'lie', label: '羊群', from: b.instant ? 'none' : 'fade' });
+            if (!hasCrowd('shep')) crowd('shep', { n: 3, x0: X.wellH - 0.1, x1: X.wellH - 0.07, layer: 2, label: '牧人', from: b.instant ? 'none' : 'fade', mill: false });
             add('laban', { label: '拉班', sex: 'm', age: 'adult', x: X.tentLa - 0.022, facing: -1, robe: ROBE.laban, glow: 0.2, from: b.instant ? 'none' : 'fade' });
+            add('rachel', { label: '拉结', sex: 'f', age: 'adult', x: 0.97, facing: -1, robe: ROBE.rachel, glow: 0.35, from: b.instant ? 'none' : 'fade' });
+            walk('rachel', X.wellH + 0.03, { speed: 0.042 });
+            if (!hasCrowd('flockL')) herd('flockL', { kind: 'sheep', n: 5, x0: 0.99, x1: 1.06, label: '拉班的羊群', from: b.instant ? 'none' : 'fade' });
+            crowdWalk('flockL', X.wellH + 0.04, X.wellH + 0.1, { speed: 0.042, pose: 'stand' });
           }],
-          [6, () => face('jacob', 1)],
-          [L[1] - 3, b => {
-            add('rachel', { label: '拉结', sex: 'f', age: 'adult', x: 1.05, facing: -1, robe: ROBE.rachel, glow: 0.35, from: b.instant ? 'none' : 'fade' });
-            walk('rachel', X.wellH + 0.03, { speed: 0.028 });
-            if (!hasCrowd('flockL')) herd('flockL', { kind: 'sheep', n: 5, x0: 1.02, x1: 1.1, label: '拉班的羊群', from: b.instant ? 'none' : 'fade' });
-            crowdWalk('flockL', X.wellH + 0.035, X.wellH + 0.1, { speed: 0.028, pose: 'stand' });
+          [3, () => face('jacob', 1)],
+          [4.3, () => walk('jacob', X.wellH - 0.014, { speed: 0.02, pose: 'carry' })],
+          [5.5, b => { prop('wellH', null, { open: 1, lit: 0.7 }); pose('jacob', 'stand'); sfx(b, 'splash'); }],
+          [6.3, () => { walk('jacob', X.wellH + 0.016, { speed: 0.02 }); face('rachel', -1); crowdWalk('flockL', X.wellH - 0.004, X.wellH + 0.06, { pose: 'graze', speed: 0.02 }); crowdPose('flockW', 'stand'); }],
+          [L[1] - 0.6, b => { pose('jacob', 'weep'); sfx(b, 'weep'); }],
+          [L[1] + 0.8, () => { pose('jacob', 'stand'); run('rachel', X.tentLa - 0.04); }],
+          [L[1] + 1.6, () => embrace('laban', 'jacob', { run: true })],
+          [L[1] + 3.6, () => {
+            walk('laban', X.tentLa - 0.024, { speed: 0.025 }); walk('jacob', X.tentLa - 0.056, { speed: 0.025 }); walk('rachel', X.tentLa - 0.078, { speed: 0.02 });
+            prop('wellH', null, { lit: 0 });
           }],
-          [L[1] + 2.5, () => walk('jacob', X.wellH - 0.014, { speed: 0.02, pose: 'carry' })],
-          [L[1] + 4.5, b => { prop('wellH', null, { open: 1, lit: 0.7 }); pose('jacob', 'stand'); sfx(b, 'splash'); }],
-          [L[1] + 6.5, () => { crowdWalk('flockL', X.wellH - 0.02, X.wellH + 0.06, { pose: 'graze' }); crowdPose('flockW', 'stand'); }],
-          [L[2], () => { walk('jacob', X.wellH + 0.016, { speed: 0.02 }); face('rachel', -1); }],
-          [L[2] + 1.8, b => { pose('jacob', 'weep'); sfx(b, 'weep'); }],
-          [L[3] - 2.5, () => { pose('jacob', 'stand'); run('rachel', X.tentLa - 0.04); }],
-          [L[3] + 0.3, () => embrace('laban', 'jacob', { run: true })],
-          [L[4] - 1, () => { walk('laban', X.tentLa - 0.028, { speed: 0.02 }); walk('jacob', X.tentLa - 0.058, { speed: 0.02 }); prop('wellH', null, { lit: 0 }); }],
-          [L[4] + 1.5, () => { face('jacob', 1); walk('rachel', X.tentLa - 0.078, { speed: 0.02 }); }],
-          [L[4] + 3, () => pose('jacob', 'point')],
+          [L[1] + 4.6, () => { face('jacob', 1); pose('jacob', 'point'); }],
           // 七年如同几天
-          [L[5], b => { pose('jacob', 'stand'); walk('jacob', X.wellH + 0.005, { speed: 0.025, pose: 'carry' }); carry('jacob', 'lamb'); fullDay(b, 3); }],
-          [L[5] + 3.1, b => { fullDay(b, 3); walk('jacob', X.wellH + 0.045, { speed: 0.02, pose: 'carry' }); }],
-          [L[5] + 6.2, b => { fullDay(b, 3); walk('jacob', X.wellH - 0.01, { speed: 0.02, pose: 'carry' }); }],
+          [L[1] + 5.4, b => { pose('jacob', 'stand'); walk('jacob', X.wellH + 0.005, { speed: 0.025, pose: 'carry' }); carry('jacob', 'lamb'); fullDay(b, 2.3); }],
+          [L[1] + 7.7, b => { fullDay(b, 2.3); walk('jacob', X.wellH + 0.045, { speed: 0.022, pose: 'carry' }); }],
           // 筵席；到晚上，拉班将利亚送来
-          [L[5] + 9.2, b => {
+          [L[2] - 1.3, b => {
             carry('jacob', null);
-            W.goTo(0.8, 1.5, b.instant);
+            W.goTo(0.8, 1.4, b.instant);
             prop('tentJ', 'tent', { x: X.tentJ, lit: 1, size: 0.9, label: '雅各的帐棚' });
             prop('tentLa', null, { lit: 1 });
-            if (!hasCrowd('feast')) crowd('feast', { n: 6, x0: X.tentLa - 0.07, x1: X.tentLa + 0.03, layer: 2, label: '那地方的众人', from: b.instant ? 'none' : 'fade' });
+            if (!hasCrowd('feast')) crowd('feast', { n: 6, x0: X.tentLa - 0.07, x1: X.tentLa + 0.035, layer: 2, label: '那地方的众人', from: b.instant ? 'none' : 'fade' });
             add('leah', { label: '利亚', sex: 'f', age: 'adult', x: X.tentLa + 0.02, facing: -1, robe: ROBE.leah, glow: 0.3, from: b.instant ? 'none' : 'fade' });
             add('zilpah', { label: '悉帕', sex: 'f', age: 'adult', x: X.tentLa + 0.04, facing: -1, robe: ROBE.zilpah, glow: 0.15, from: b.instant ? 'none' : 'fade' });
-            walk('jacob', X.tentJ + 0.014, { speed: 0.025 });
+            walk('jacob', X.tentJ + 0.014, { speed: 0.03 });
             sfx(b, 'crowd');
           }],
-          [L[5] + 10.6, b => { W.goTo(0.0, 1.6, b.instant); walk('leah', X.tentJ - 0.012, { speed: 0.025 }); walk('zilpah', X.tentJ - 0.035, { speed: 0.025 }); }],
-          [L[6] + 0.4, b => { W.goTo(0.27, 3, b.instant); uncrowd('feast'); prop('tentLa', null, { lit: 0 }); prop('tentJ', null, { lit: 0 }); }],
-          [L[6] + 2.5, () => walk('jacob', X.tentLa - 0.042, { speed: 0.025 })],
-          [L[6] + 5, () => { face('jacob', 1); pose('jacob', 'point'); face('laban', -1); }],
-          [L[7], b => {
+          [L[2] + 0.2, b => { W.goTo(0.0, 1.5, b.instant); walk('leah', X.tentJ - 0.012, { speed: 0.03 }); walk('zilpah', X.tentJ - 0.035, { speed: 0.03 }); }],
+          [L[2] + 1.8, b => { W.goTo(0.27, 2.5, b.instant); uncrowd('feast'); prop('tentLa', null, { lit: 0 }); prop('tentJ', null, { lit: 0 }); }],
+          [L[2] + 3, () => walk('jacob', X.tentLa - 0.048, { speed: 0.025 })],
+          [L[2] + 4.8, () => { face('jacob', 1); pose('jacob', 'point'); face('laban', -1); }],
+          [L[3], b => {
             pose('jacob', 'stand');
             prop('tentRa', 'tent', { x: X.tentRa, size: 0.84, label: '拉结的帐棚' });
             walk('jacob', X.tentRa - 0.014, { speed: 0.02 });
@@ -2028,256 +2137,309 @@
             walk('bilhah', X.tentRa + 0.03, { speed: 0.02 });
             if (!b.instant) fx().ring(X.tentRa * W.w, gY(2, X.tentRa) - 18 * LS(2), [255, 226, 190], M() * 0.2, 2.2, 1.5);
           }],
-          [L[7] + 4, () => holdHands('jacob', 'rachel', true)],
+          [L[3] + 3.5, () => holdHands('jacob', 'rachel', true)],
         ]);
       },
     },
 
-    // ── 7 · 耶和华见利亚失宠：众子 ───────────────────────────
+    // ── 10 · 耶和华见利亚失宠：流便、西缅、利未、犹大 ─────────────
     {
-      kind: 'act', utter: '耶和华见利亚失宠，就使她生育', cmd: 'spawn 流便 西缅 利未 犹大 …  # 神看见', ref: '29:31',
-      verse: V7,
+      kind: 'act', utter: '耶和华见利亚失宠，就使她生育', cmd: 'spawn 流便 西缅 利未 犹大  # 神看见', ref: '29:31',
+      verse: V10,
       apply(c) {
-        const L = starts(V7);
+        const L = starts(V10);
         T(c, [
-          [0, b => { holdHands('jacob', 'rachel', false); beamOn(b, 'leah', { dur: 6, k: 0.8 }); glow('leah', 0.5); walk('leah', X.tentJ + 0.01, { speed: 0.02 }); }],
-          [L[1] + 1, b => birth(b, 'reuben', '流便', 'leah')],
+          [0, b => {
+            holdHands('jacob', 'rachel', false);
+            beamOn(b, 'leah', { dur: 6, k: 0.8 }); glow('leah', 0.5);
+            walk('leah', X.tentJ + 0.01, { speed: 0.02 });
+            // 羊群往西边的草场去，给孩子们让出地方
+            crowdWalk('flockW', 0.6, 0.652, { speed: 0.02, pose: 'graze' });
+            crowdWalk('flockL', 0.622, 0.674, { speed: 0.02, pose: 'graze' });
+            crowdWalk('shep', 0.61, 0.66, { speed: 0.02 });
+          }],
+          [L[1] + 0.8, b => birth(b, 'reuben', '流便', 'leah')],
+          [L[1] + 3.5, b => fullDay(b, 3)],
           [L[2] + 0.5, b => birth(b, 'simeon', '西缅', 'leah')],
-          [L[2] + 3.5, b => birth(b, 'levi', '利未', 'leah')],
-          [L[3] + 1, b => birth(b, 'judah', '犹大', 'leah')],
-          [L[3] + 4.5, b => fullDay(b, 5)],
-          [L[4], () => { walk('rachel', X.tentRa + 0.016, { speed: 0.02, pose: 'kneel' }); pose('rachel', 'kneel', { weep: true }); walk('jacob', X.tentRa - 0.012, { speed: 0.02 }); }],
-          [L[4] + 4, () => { face('jacob', 1); face('rachel', -1); }],
-          [L[5] + 0.5, b => { pose('rachel', 'kneel', { weep: false }); birth(b, 'dan', '但', 'bilhah'); }],
-          [L[5] + 4, b => birth(b, 'naphtali', '拿弗他利', 'bilhah')],
-          [L[6] + 0.5, b => birth(b, 'gad', '迦得', 'zilpah')],
-          [L[6] + 4, b => birth(b, 'asher', '亚设', 'zilpah')],
-          [L[7] - 1.5, b => fullDay(b, 5)],
-          [L[7] + 1, b => birth(b, 'issachar', '以萨迦', 'leah')],
-          [L[7] + 4.5, b => birth(b, 'zebulun', '西布伦', 'leah')],
-          [L[8] + 0.5, b => birth(b, 'dinah', '底拿', 'leah')],
-          [L[8] + 4, () => { pose('rachel', 'pray'); glow('leah', 0.3); }],
+          [L[2] + 3, b => birth(b, 'levi', '利未', 'leah')],
+          [L[2] + 5.5, b => birth(b, 'judah', '犹大', 'leah')],
+          [L[3], () => { walk('rachel', X.tentRa + 0.016, { speed: 0.02, pose: 'kneel' }); pose('rachel', 'kneel', { weep: true }); walk('jacob', X.tentRa - 0.012, { speed: 0.02 }); }],
+          [L[3] + 3.5, () => { face('jacob', 1); face('rachel', -1); glow('leah', 0.3); }],
         ]);
       },
     },
 
-    // ── 8 · 神顾念拉结：约瑟 ────────────────────────────────
+    // ── 11 · 神应允了利亚：但、拿弗他利、迦得、亚设、以萨迦、西布伦、底拿 ──
+    {
+      kind: 'act', utter: '神应允了利亚', cmd: 'spawn 但 拿弗他利 迦得 亚设 以萨迦 西布伦 底拿', ref: '30:17',
+      verse: V11,
+      apply(c) {
+        const L = starts(V11);
+        T(c, [
+          [0, b => { beam(b, 0.8, 2, { w: 220, dur: 6, k: 0.5, r: 0.35 }); pose('rachel', 'kneel', { weep: false }); glow('bilhah', 0.3); sfx(b, 'harp'); }],
+          [1.5, b => birth(b, 'dan', '但', 'bilhah')],
+          [4.5, b => birth(b, 'naphtali', '拿弗他利', 'bilhah')],
+          [L[1] + 0.5, b => { glow('bilhah', 0.15); glow('zilpah', 0.3); birth(b, 'gad', '迦得', 'zilpah'); }],
+          [L[1] + 3.5, b => birth(b, 'asher', '亚设', 'zilpah')],
+          [L[2] - 2, b => { glow('zilpah', 0.15); fullDay(b, 3); }],
+          [L[2] + 0.8, b => { beamOn(b, 'leah', { dur: 6, k: 0.8 }); glow('leah', 0.5); }],
+          [L[2] + 2, b => birth(b, 'issachar', '以萨迦', 'leah')],
+          [L[2] + 5, b => birth(b, 'zebulun', '西布伦', 'leah')],
+          [L[3] + 0.5, b => birth(b, 'dinah', '底拿', 'leah')],
+          [L[3] + 3.5, () => { pose('rachel', 'pray'); glow('leah', 0.3); }],
+        ]);
+      },
+    },
+
+    // ── 12 · 神顾念拉结：约瑟 ────────────────────────────────
     {
       kind: 'act', utter: '神顾念拉结，应允了她，使她能生育', cmd: 'remember 拉结 && spawn 约瑟', ref: '30:22', tint: [255, 226, 170],
-      verse: V8,
+      verse: V12,
       apply(c) {
-        const L = starts(V8);
+        const L = starts(V12);
         T(c, [
-          [0, b => { beamOn(b, 'rachel', { dur: 7, w: 80 }); glow('rachel', 0.6); sfx(b, 'harp'); }],
+          [0, b => { beamOn(b, 'rachel', { dur: 7, w: 80 }); glow('rachel', 0.6); pose('rachel', 'stand'); sfx(b, 'harp'); }],
           [2.5, b => {
-            pose('rachel', 'stand');
             carry('rachel', 'baby');
             if (!b.instant) { const p = figPt('rachel', 0.5); if (p) { fx().ring(p[0], p[1], [255, 226, 160], M() * 0.3, 2.4, 2); fx().sparkle(p[0], p[1], 30, [255, 232, 180], 12, 'top'); } W.flash = 0.2; }
           }],
           [L[1] + 1, b => nameOver(b, 'rachel', '约瑟', [255, 226, 160], srcSky, { size: 0.05, hold: 3 })],
-          [L[2], () => walk('jacob', X.tentLa - 0.036, { speed: 0.02 })],
-          [L[2] + 3.5, () => { face('jacob', 1); pose('jacob', 'point'); face('laban', -1); }],
+          [L[2], () => walk('jacob', X.tentLa - 0.05, { speed: 0.02 })],
+          [L[2] + 3, () => { face('jacob', 1); pose('jacob', 'point'); face('laban', -1); }],
           [L[3], () => { pose('jacob', 'stand'); pose('laban', 'raise'); }],
           [L[3] + 4, () => pose('laban', 'stand')],
-          [L[3] + 6.5, b => {
+          [L[3] + 6.3, b => {
             carry('rachel', null);
-            add('joseph', { label: '约瑟', sex: 'm', age: 'child', x: KID.joseph[0], v: KID.joseph[1], facing: -1, robe: ROBE.joseph, glow: 0.55, from: b.instant ? 'none' : 'fade', prop: null });
+            add('joseph', { label: '约瑟', sex: 'm', age: 'child', x: KID.joseph[0], v: KID.joseph[1], scale: 1.08, facing: -1, robe: ROBE.joseph, glow: 0.55, from: b.instant ? 'none' : 'fade', prop: null });
             glow('rachel', 0.4);
           }],
         ]);
       },
     },
 
-    // ── 9 · 凡拉班向你所做的，我都看见了：有点有斑的羊 ──────────
+    // ── 13 · 凡拉班向你所做的，我都看见了：有点有斑的羊 ──────────
     {
       kind: 'judge', utter: '凡拉班向你所做的，我都看见了', cmd: 'filter 羊群 --where 有点 || 有斑 || 有纹', ref: '31:12',
-      verse: V9,
+      verse: V13,
       apply(c) {
-        const L = starts(V9);
+        const L = starts(V13);
         T(c, [
-          [0, b => { beam(b, 0.83, 2, { w: 240, dur: 7, k: 0.6, r: 0.4 }); sfx(b, 'harp'); }],
-          [L[1], () => walk('jacob', X.wellH - 0.02, { speed: 0.02, pose: 'point' })],
-          [L[1] + 3, b => {
-            if (!hasCrowd('flockX')) herd('flockX', { kind: 'goat', n: 4, speckled: true, x0: X.wellH + 0.02, x1: X.wellH + 0.07, label: '有斑的山羊', from: b.instant ? 'none' : 'fade' });
-            if (!hasCrowd('lsons')) crowd('lsons', { n: 2, x0: X.wellH + 0.06, x1: X.wellH + 0.08, layer: 2, label: '拉班的儿子们', from: b.instant ? 'none' : 'fade', mill: false });
+          [0, b => {
+            beam(b, X.troughs + 0.02, 2, { w: 240, dur: 7, k: 0.6, r: 0.4 }); sfx(b, 'harp');
+            walk('jacob', X.troughs + 0.035, { speed: 0.022, pose: 'point' });
+            crowdWalk('flockW', X.troughs - 0.07, X.troughs - 0.012, { speed: 0.02, pose: 'graze' });
+            crowdWalk('flockL', X.troughs - 0.04, X.troughs + 0.015, { speed: 0.02, pose: 'graze' });
           }],
-          [L[1] + 5, () => { crowdWalk('flockX', 1.06, 1.12, { speed: 0.022 }); crowdWalk('lsons', 1.08, 1.13, { speed: 0.022 }); }],
-          [L[2], b => { prop('troughs', 'troughs', { x: X.troughs, grow: 1, label: '水槽' }); walk('jacob', X.troughs + 0.02, { speed: 0.022, pose: 'kneel' }); sfx(b, 'build'); }],
-          [L[2] + 3, () => prop('troughs', null, { rods: 1 })],
-          [L[2] + 5, () => { crowdWalk('flockW', X.troughs - 0.035, X.troughs + 0.03, { pose: 'graze', speed: 0.02 }); crowdWalk('flockL', X.troughs + 0.03, X.troughs + 0.07, { pose: 'graze', speed: 0.02 }); }],
-          [L[2] + 9, () => { uncrowd('flockX'); uncrowd('lsons'); }],
-          [L[3], b => {
-            if (!hasCrowd('flockS')) herd('flockS', { kind: 'sheep', n: 7, speckled: true, x0: X.troughs - 0.05, x1: X.troughs + 0.05, label: '有点有斑的羊', from: b.instant ? 'none' : 'dust' });
+          [L[1], b => { prop('troughs', 'troughs', { x: X.troughs, grow: 1, label: '水槽' }); walk('jacob', X.troughs + 0.022, { speed: 0.022, pose: 'kneel' }); sfx(b, 'build'); }],
+          [L[1] + 3, () => prop('troughs', null, { rods: 1 })],
+          [L[2], b => {
+            if (!hasCrowd('flockS')) herd('flockS', { kind: 'sheep', n: 7, speckled: true, x0: X.troughs - 0.06, x1: X.troughs + 0.02, label: '有点有斑的羊', from: b.instant ? 'none' : 'dust' });
             if (!b.instant) fx().sparkle(X.troughs * W.w, gY(2, X.troughs) - 10, 30, [255, 240, 214], 40, 'top');
             sfx(b, 'bleat');
           }],
-          [L[3] + 3, b => { if (!hasCrowd('goatS')) herd('goatS', { kind: 'goat', n: 5, speckled: true, x0: X.troughs - 0.07, x1: X.troughs - 0.02, label: '有纹有斑的山羊', from: b.instant ? 'none' : 'dust' }); }],
-          [L[4], b => {
-            if (!hasCrowd('flockS2')) herd('flockS2', { kind: 'sheep', n: 6, speckled: true, x0: 0.73, x1: 0.77, label: '羊群', from: b.instant ? 'none' : 'dust' });
+          [L[2] + 2.5, b => { if (!hasCrowd('goatS')) herd('goatS', { kind: 'goat', n: 5, speckled: true, x0: X.troughs - 0.1, x1: X.troughs - 0.05, label: '有纹有斑的山羊', from: b.instant ? 'none' : 'dust' }); }],
+          [L[3], b => {
+            if (!hasCrowd('flockS2')) herd('flockS2', { kind: 'sheep', n: 6, speckled: true, x0: 0.55, x1: 0.59, label: '羊群', from: b.instant ? 'none' : 'dust' });
             pose('jacob', 'stand');
-            animal('cam1', 'camel', 1.08, { facing: -1, from: b.instant ? 'none' : 'fade' }); walk('cam1', 0.905, { speed: 0.03 });
-            animal('cam2', 'camel', 1.12, { facing: -1, from: b.instant ? 'none' : 'fade' }); walk('cam2', 0.94, { speed: 0.03 });
-            animal('cam3', 'camel', 1.16, { facing: -1, from: b.instant ? 'none' : 'fade' }); walk('cam3', 0.97, { speed: 0.03 });
-            animal('don1', 'donkey', 1.06, { facing: -1, from: b.instant ? 'none' : 'fade' }); walk('don1', 0.87, { speed: 0.03 });
-            if (!hasCrowd('sv')) crowd('sv', { n: 4, x0: 1.03, x1: 1.1, layer: 2, label: '仆婢', from: b.instant ? 'none' : 'fade', mill: false });
-            crowdWalk('sv', 0.83, 0.9, { speed: 0.03 });
+            animal('don1', 'donkey', 0.565, { facing: 1, from: b.instant ? 'none' : 'dust' });
+            animal('cam1', 'camel', 0.585, { facing: 1, from: b.instant ? 'none' : 'dust' });
+            animal('cam2', 'camel', 0.608, { facing: 1, from: b.instant ? 'none' : 'dust' });
+            animal('cam3', 'camel', 0.631, { facing: 1, from: b.instant ? 'none' : 'dust' });
+            if (!hasCrowd('sv')) crowd('sv', { n: 4, x0: 0.52, x1: 0.56, layer: 2, label: '仆婢', from: b.instant ? 'none' : 'fade', mill: false });
             // 瘦弱的归拉班
-            crowdWalk('flockW', 1.04, 1.1, { speed: 0.018 }); crowdWalk('flockL', 1.05, 1.12, { speed: 0.018 });
-          }],
-          [L[5], () => { face('laban', 1); glow('laban', 0.05); face('jacob', 1); }],
-          [L[5] + 5, () => { uncrowd('flockW'); uncrowd('flockL'); uncrowd('shep'); }],
-        ]);
-      },
-    },
-
-    // ── 10 · 你要回你祖、你父之地 ────────────────────────────
-    {
-      kind: 'cmd', utter: '你要回你祖、你父之地，到你亲族那里去', cmd: 'git checkout 迦南  # 我必与你同在', ref: '31:3',
-      verse: V10,
-      apply(c) {
-        const L = starts(V10);
-        T(c, [
-          [0, b => { beamOn(b, 'jacob', { dur: 6 }); pose('jacob', 'kneel'); sfx(b, 'harp'); }],
-          [4, () => { pose('jacob', 'stand'); walk('jacob', X.troughs + 0.05, { speed: 0.02 }); walk('rachel', X.troughs + 0.07, { speed: 0.02 }); walk('leah', X.troughs + 0.09, { speed: 0.02 }); }],
-          [L[1] + 2, () => { face('rachel', -1); face('leah', -1); face('jacob', 1); }],
-          [L[2] - 2, () => {
-            walk('laban', 1.08, { speed: 0.022 });
-            walk('leah', 0.905, { speed: 0.03 }); walk('rachel', 0.94, { speed: 0.03 }); walk('bilhah', 0.968, { speed: 0.03 }); walk('zilpah', 0.87, { speed: 0.03 });
-          }],
-          [L[2] + 2.5, () => { ride('leah', 'cam1'); ride('rachel', 'cam2'); ride('bilhah', 'cam3'); ride('zilpah', 'don1'); unprop('troughs'); }],
-          [L[3] + 1, b => { glint(b, 'cam2'); rm('laban'); }],
-          [L[3] + 3, b => {
-            for (const id of ['tentJ', 'tentRa', 'tentLa', 'wellH']) unprop(id);
-            walk('jacob', X.gilead - 0.01, { speed: 0.02 });
-            walk('cam2', X.gilead + 0.012, { speed: 0.02 }); walk('cam1', X.gilead + 0.04, { speed: 0.02 }); walk('cam3', X.gilead + 0.066, { speed: 0.02 }); walk('don1', X.gilead + 0.09, { speed: 0.02 });
-            C().follow && ['joseph'].forEach(id => C().follow(id, 'cam2', 0.012));
-            LEAH_KIDS.forEach((id, i) => { if (fig(id)) walk(id, X.gilead + 0.03 + i * 0.006, { speed: 0.02 }); });
-            ['dan', 'naphtali'].forEach((id, i) => walk(id, X.gilead + 0.062 + i * 0.006, { speed: 0.02 }));
-            ['gad', 'asher'].forEach((id, i) => walk(id, X.gilead + 0.084 + i * 0.006, { speed: 0.02 }));
-            flocks(X.gilead + 0.1, X.gilead + 0.17);
-            crowdWalk('sv', X.gilead + 0.11, X.gilead + 0.15, { speed: 0.02 });
+            crowdWalk('flockW', 1.04, 1.1, { speed: 0.03 }); crowdWalk('flockL', 1.05, 1.12, { speed: 0.03 }); crowdWalk('shep', 1.04, 1.1, { speed: 0.03 });
             sfx(b, 'camel');
           }],
-          // 拉班追上
-          [L[4], b => {
-            W.goTo(0.8, 5, b.instant);
-            add('laban', { label: '拉班', sex: 'm', age: 'adult', x: 1.08, facing: -1, robe: ROBE.laban, glow: 0.15, from: b.instant ? 'none' : 'fade' });
-            walk('laban', X.gilead + 0.2, { speed: 0.04 });
-            if (!hasCrowd('lb')) crowd('lb', { n: 5, x0: 1.04, x1: 1.12, layer: 2, label: '拉班的众弟兄', from: b.instant ? 'none' : 'fade', mill: false });
-            crowdWalk('lb', X.gilead + 0.21, X.gilead + 0.26, { speed: 0.04 });
-            prop('tentLb', 'tent', { x: X.gilead + 0.24, size: 0.85, label: '拉班的帐棚' });
-          }],
-          [L[4] + 3, () => { ride('leah', null); ride('rachel', null); ride('bilhah', null); ride('zilpah', null); if (C().follow) C().follow('joseph', null); }],
-          [L[5] - 1.5, b => { W.goTo(0.98, 4, b.instant); pose('laban', 'lie'); crowdPose('lb', 'sit'); pose('jacob', 'sit'); }],
-          [L[5] + 0.5, b => beamOn(b, 'laban', { dur: 6, k: 0.8, white: true })],
-          [L[6] - 2.5, b => {
-            W.goTo(0.28, 3.5, b.instant);
-            pose('laban', 'stand'); pose('jacob', 'stand');
-            walk('laban', X.gilead + 0.035, { speed: 0.03 }); walk('jacob', X.gilead - 0.012, { speed: 0.02 });
-            crowdWalk('lb', X.gilead + 0.05, X.gilead + 0.1, { speed: 0.03 });
-          }],
-          [L[6], b => { prop('heap', 'heap', { x: X.gilead + 0.012, grow: 1, label: '迦累得' }); crowdPose('lb', 'carry'); sfx(b, 'build'); }],
-          [L[6] + 5, () => { crowdPose('lb', 'sit'); pose('jacob', 'sit'); pose('laban', 'sit'); }],
-          [L[7], b => {
-            prop('heap', null, { lit: 1, label: '米斯巴' });
-            pose('jacob', 'stand'); pose('laban', 'stand'); crowdPose('lb', 'stand');
-            if (!b.instant) fx().ring((X.gilead + 0.012) * W.w, gY(2, X.gilead) - 10 * LS(2), [255, 236, 196], M() * 0.35, 2.6, 2);
-          }],
-          [L[7] + 5, () => prop('heap', null, { lit: 0 })],
-          [L[8], () => { walk('laban', X.gilead + 0.05, { speed: 0.02, pose: 'raise' }); face('rachel', 1); face('leah', 1); }],
-          [L[8] + 3.5, () => {
-            pose('laban', 'stand');
-            walk('laban', 1.08, { speed: 0.025 });
-            crowdWalk('lb', 1.06, 1.14, { speed: 0.025 });
-            unprop('tentLb');
-          }],
-          [L[8] + 11, () => { rm('laban'); uncrowd('lb'); }],
+          [L[3] + 1, () => { face('laban', 1); glow('laban', 0.05); face('jacob', 1); }],
+          [L[3] + 5, () => { uncrowd('flockW'); uncrowd('flockL'); uncrowd('shep'); }],
         ]);
       },
     },
 
-    // ── 11 · 神的使者遇见他：玛哈念；惧怕；雅博渡口；摔跤 ────────
+    // ── 14 · 你要回你祖、你父之地 ────────────────────────────
     {
-      kind: 'act', utter: '神的使者遇见他', cmd: 'spawn 神的军兵 ×2  # 玛哈念', ref: '32:1',
-      verse: V11,
+      kind: 'cmd', utter: '你要回你祖、你父之地，到你亲族那里去', cmd: 'git checkout 迦南  # 我必与你同在', ref: '31:3',
+      verse: V14,
       apply(c) {
-        const L = starts(V11);
-        const angels = ['angA0', 'angA1', 'angA2', 'angA3', 'angB0', 'angB1', 'angB2', 'angB3'];
+        const L = starts(V14);
         T(c, [
           [0, b => {
-            angels.forEach((id, i) => {
-              const x = i < 4 ? 0.73 + i * 0.013 : 0.83 + (i - 4) * 0.013;
-              add(id, { label: '神的使者', sex: 'm', age: 'adult', layer: 1, x, facing: x < X.mahanaim ? 1 : -1, angel: true, glow: 0.9, from: b.instant ? 'none' : 'light' });
-            });
+            beamOn(b, 'jacob', { dur: 6 }); pose('jacob', 'kneel'); sfx(b, 'harp');
+            // 骆驼与驴被牵到帐棚前
+            walk('don1', X.tentJ - 0.03, { speed: 0.035 }); walk('cam1', X.tentJ - 0.004, { speed: 0.035 });
+            walk('cam2', X.tentRa - 0.022, { speed: 0.035 }); walk('cam3', X.tentRa + 0.004, { speed: 0.035 });
+          }],
+          [3.5, () => { pose('jacob', 'stand'); walk('jacob', X.troughs + 0.04, { speed: 0.02 }); walk('rachel', X.troughs + 0.058, { speed: 0.03 }); walk('leah', X.troughs + 0.075, { speed: 0.03 }); }],
+          [L[1] + 1, () => { face('rachel', -1); face('leah', -1); face('jacob', 1); }],
+          [L[2] - 2.2, () => {
+            walk('laban', 1.08, { speed: 0.03 });
+            walk('leah', X.tentJ - 0.004, { speed: 0.04 }); walk('rachel', X.tentRa - 0.022, { speed: 0.04 }); walk('bilhah', X.tentRa + 0.004, { speed: 0.04 }); walk('zilpah', X.tentJ - 0.03, { speed: 0.04 });
+          }],
+          [L[2] + 1.5, () => { ride('leah', 'cam1'); ride('rachel', 'cam2'); ride('bilhah', 'cam3'); ride('zilpah', 'don1'); unprop('troughs'); }],
+          [L[3] + 0.5, b => { glint(b, 'cam2'); rm('laban'); }],
+          [L[3] + 2, b => {
+            for (const id of ['tentJ', 'tentRa', 'tentLa', 'wellH']) unprop(id);
+            // 往基列山去：群畜在前，雅各在尽后头
+            walk('jacob', X.gilead - 0.03, { speed: 0.02 });
+            walk('cam2', X.gilead - 0.055, { speed: 0.02 }); walk('cam1', X.gilead - 0.105, { speed: 0.02 }); walk('cam3', X.gilead - 0.14, { speed: 0.02 }); walk('don1', X.gilead - 0.165, { speed: 0.02 });
+            if (C().follow) C().follow('joseph', 'cam2', 0.012);
+            LEAH_KIDS.forEach((id, i) => { if (fig(id)) walk(id, X.gilead - 0.097 + i * 0.005, { speed: 0.02 }); });
+            ['dan', 'naphtali'].forEach((id, i) => walk(id, X.gilead - 0.132 + i * 0.006, { speed: 0.02 }));
+            ['gad', 'asher'].forEach((id, i) => walk(id, X.gilead - 0.157 + i * 0.006, { speed: 0.02 }));
+            flocks(0.56, 0.66);
+            crowdWalk('sv', 0.6, 0.66, { speed: 0.02 });
+            sfx(b, 'camel');
+          }],
+        ]);
+      },
+    },
+
+    // ── 15 · 神到亚兰人拉班那里：「你要小心」；基列的石堆 ─────────
+    {
+      kind: 'act', utter: '神到亚兰人拉班那里', cmd: 'lock 拉班 --no-harm  # 米斯巴', ref: '31:24',
+      verse: V15,
+      apply(c) {
+        const L = starts(V15);
+        T(c, [
+          [0, b => {
+            W.goTo(0.8, 4, b.instant);
+            avoid([0.54, 0.98]);
+            ride('leah', null); ride('rachel', null); ride('bilhah', null); ride('zilpah', null);
+            if (C().follow) C().follow('joseph', null);
+            // 下了骆驼，都回头望着追来的拉班（明说朝向：重演时骑者的朝向未随坐骑更新）
+            for (const id of ['leah', 'rachel', 'bilhah', 'zilpah', 'joseph']) face(id, 1);
+            add('laban', { label: '拉班', sex: 'm', age: 'adult', x: 1.06, facing: -1, robe: ROBE.laban, glow: 0.15, from: b.instant ? 'none' : 'fade' });
+            walk('laban', X.gilead + 0.035, { speed: 0.05 });
+            if (!hasCrowd('lb')) crowd('lb', { n: 5, x0: 1.04, x1: 1.12, layer: 2, label: '拉班的众弟兄', from: b.instant ? 'none' : 'fade', mill: false });
+            crowdWalk('lb', X.gilead + 0.06, X.gilead + 0.12, { speed: 0.05 });
+            prop('tentLb', 'tent', { x: X.gilead + 0.095, size: 0.85, label: '拉班的帐棚' });
+            face('jacob', 1);
+          }],
+          [4.3, b => { W.goTo(0.98, 3.5, b.instant); pose('laban', 'lie'); crowdPose('lb', 'sit'); pose('jacob', 'sit'); }],
+          [5.3, b => beamOn(b, 'laban', { dur: 5, k: 0.8, white: true })],
+          [L[1] - 2, b => {
+            W.goTo(0.28, 3.5, b.instant);
+            pose('laban', 'stand'); pose('jacob', 'stand');
+            walk('laban', X.gilead + 0.03, { speed: 0.03 }); walk('jacob', X.gilead - 0.028, { speed: 0.02 });
+            crowdWalk('lb', X.gilead + 0.05, X.gilead + 0.1, { speed: 0.03 });
+          }],
+          [L[1], b => { prop('heap', 'heap', { x: X.gilead, grow: 1, label: '迦累得' }); crowdPose('lb', 'carry'); sfx(b, 'build'); }],
+          [L[1] + 5, () => { crowdPose('lb', 'sit'); pose('jacob', 'sit'); pose('laban', 'sit'); }],
+          [L[2], b => {
+            prop('heap', null, { lit: 1, label: '米斯巴' });
+            pose('jacob', 'stand'); pose('laban', 'stand'); crowdPose('lb', 'stand');
+            if (!b.instant) fx().ring(X.gilead * W.w, gY(2, X.gilead) - 10 * LS(2), [255, 236, 196], M() * 0.35, 2.6, 2);
+          }],
+          [L[2] + 5, () => prop('heap', null, { lit: 0 })],
+          [L[3], () => { walk('laban', X.gilead - 0.052, { speed: 0.03, pose: 'raise' }); face('rachel', 1); face('leah', 1); }],
+          [L[3] + 3.2, () => {
+            pose('laban', 'stand');
+            walk('laban', 1.08, { speed: 0.05 });
+            crowdWalk('lb', 1.06, 1.14, { speed: 0.05 });
+            unprop('tentLb');
+          }],
+        ]);
+      },
+    },
+
+    // ── 16 · 神的使者遇见他：玛哈念；四百人；礼物 ────────────────
+    {
+      kind: 'act', utter: '神的使者遇见他', cmd: 'spawn 神的军兵 ×2  # 玛哈念', ref: '32:1',
+      verse: V16,
+      apply(c) {
+        const L = starts(V16);
+        T(c, [
+          [0, b => {
+            rm('laban'); uncrowd('lb');
+            W.set('jbHosts', 1, b.instant);
+            avoid([0.52, 0.99]);
             walk('jacob', X.mahanaim, { speed: 0.02 });
             sfx(b, 'harp');
           }],
-          [2, () => pose('jacob', 'gaze')],
-          [L[1] + 0.5, b => {
+          [1.5, () => pose('jacob', 'gaze')],
+          [4, b => {
             if (b.instant) return;
             const size = M() * 0.055, cx = X.mahanaim * W.w, cy = gY(1, X.mahanaim) - W.h * 0.16;
             const c2 = nameAt(cx, cy, size, 3);
-            fx().nameStr('玛哈念', c2[0], c2[1], size, [255, 238, 206], () => { const i = Math.floor(Math.random() * 8), p = figPt(angels[i], 0.6); return p ? [p[0] + rand(-6, 6), p[1] + rand(-8, 8)] : srcSky(); }, { hold: 3 });
+            fx().nameStr('玛哈念', c2[0], c2[1], size, [255, 238, 206], () => hostPt(Math.floor(Math.random() * HOSTS.length)), { hold: 3 });
             const a = au(); if (a && a.nameChime) U.safe('audio.nameChime', () => a.nameChime('玛'));
           }],
-          [L[1] + 6.5, () => angels.forEach(id => rm(id))],
-          [L[2] - 1, b => {
+          [L[1] - 0.8, b => {
+            W.set('jbHosts', 0, b.instant);
             W.set('jbSeir', 1, b.instant);
             pose('jacob', 'stand');
-            if (!hasCrowd('edomM')) crowd('edomM', { n: 10, x0: 0.5, x1: 0.6, layer: 1, label: '以扫的四百人', from: b.instant ? 'none' : 'fade', mill: false });
           }],
-          [L[2] + 3, () => {
-            // 分做两队
-            crowdWalk('flockS', X.mahanaim + 0.01, X.mahanaim + 0.05, { speed: 0.02 }); crowdWalk('goatS', X.mahanaim + 0.02, X.mahanaim + 0.06, { speed: 0.02 });
-            crowdWalk('flockS2', X.mahanaim + 0.11, X.mahanaim + 0.16, { speed: 0.02 });
-            walk('cam1', X.mahanaim + 0.12, { speed: 0.02 }); walk('cam3', X.mahanaim + 0.15, { speed: 0.02 });
+          // 雅各就甚惧怕，把人口和羊群、牛群、骆驼分做两队（都还在雅博河这边）
+          [L[1] + 2.5, () => {
+            household(X.jabbok + 0.035, { k: 0.6, jacob: false, speed: 0.025 });
+            flocks(0.9, 0.99, { speed: 0.025 });
+            crowdWalk('sv', 0.905, 0.96, { speed: 0.025 });
           }],
-          [L[3], () => pose('jacob', 'pray')],
-          [L[3] + 3, b => {
-            // 礼物先过去了：一群一群，往以扫那里
-            if (!hasCrowd('gift1')) herd('gift1', { kind: 'goat', n: 6, x0: 0.86, x1: 0.92, label: '礼物：山羊', from: b.instant ? 'none' : 'fade' });
-            if (!hasCrowd('gift2')) herd('gift2', { kind: 'sheep', n: 6, x0: 0.9, x1: 0.96, label: '礼物：绵羊', from: b.instant ? 'none' : 'fade' });
+          [L[2], () => pose('jacob', 'pray')],
+          // 当夜，从他所有的物中拿礼物要送给他哥哥以扫：一群一群，先过去了
+          [L[3], b => {
+            W.goTo(0.93, 5, b.instant);
+            pose('jacob', 'stand');
+            prop('stream', 'stream', { x: X.jabbok, label: '雅博渡口' });
+            if (!hasCrowd('gift1')) herd('gift1', { kind: 'goat', n: 6, x0: 0.88, x1: 0.94, label: '礼物：山羊', from: b.instant ? 'none' : 'fade' });
+            if (!hasCrowd('gift2')) herd('gift2', { kind: 'sheep', n: 6, x0: 0.91, x1: 0.97, label: '礼物：绵羊', from: b.instant ? 'none' : 'fade' });
             if (!hasCrowd('gift3')) herd('gift3', { kind: 'cow', n: 3, x0: 0.94, x1: 0.99, label: '礼物：牛', from: b.instant ? 'none' : 'fade' });
             if (!hasCrowd('gsv')) crowd('gsv', { n: 3, x0: 0.9, x1: 0.98, layer: 2, label: '赶群畜的人', from: b.instant ? 'none' : 'fade', mill: false });
           }],
-          [L[3] + 4.5, () => {
-            crowdWalk('gift1', 0.4, 0.46, { speed: 0.032 }); crowdWalk('gift2', 0.42, 0.48, { speed: 0.03 }); crowdWalk('gift3', 0.44, 0.5, { speed: 0.028 });
-            crowdWalk('gsv', 0.43, 0.49, { speed: 0.03 });
+          [L[3] + 1.2, () => {
+            crowdWalk('gift1', 0.36, 0.42, { speed: 0.055 }); crowdWalk('gift2', 0.38, 0.44, { speed: 0.053 }); crowdWalk('gift3', 0.4, 0.46, { speed: 0.05 });
+            crowdWalk('gsv', 0.39, 0.45, { speed: 0.053 });
           }],
-          [L[3] + 22, () => { uncrowd('gift1'); uncrowd('gift2'); uncrowd('gift3'); uncrowd('gsv'); }],
-          // 夜间过雅博渡口
-          [L[4] - 1, b => { W.goTo(0.93, 6, b.instant); pose('jacob', 'stand'); prop('stream', null, { label: '雅博渡口' }); }],
-          [L[4] + 0.5, () => {
-            household(0.664, { k: 0.5, jacob: false, speed: 0.022 });
-            flocks(0.6, 0.655, { speed: 0.022 });
-            crowdWalk('sv', 0.62, 0.66, { speed: 0.022 });
-            walk('jacob', X.peniel - 0.004, { speed: 0.02 });
+        ]);
+      },
+    },
+
+    // ── 17 · 你名叫什么？——雅博渡口，摔跤直到黎明 ──────────────
+    {
+      kind: 'ask', utter: '你名叫什么？', cmd: 'whoami  # 摔跤直到黎明', ref: '32:27', hold: 2.4,
+      verse: V17,
+      apply(c) {
+        const L = starts(V17);
+        T(c, [
+          // 他夜间起来，带着妻子、使女、儿子都过了雅博渡口（32:22–23）；只剩下雅各一人
+          [0, b => {
+            uncrowd('gift1'); uncrowd('gift2'); uncrowd('gift3'); uncrowd('gsv');
+            W.goTo(0.02, 4, b.instant);
+            avoid([0.46, 0.88]);
+            prop('stream', 'stream', { x: X.jabbok, label: '雅博渡口' });
+            pose('jacob', 'stand');
+            walk('jacob', X.peniel, { speed: 0.02 });
           }],
-          [L[5] - 1, b => W.goTo(0.02, 5, b.instant)],
-          [L[5] + 0.5, b => {
-            add('man', { label: '那人', sex: 'm', age: 'adult', x: X.peniel + 0.05, facing: -1, robe: ROBE.man, glow: 0.9, from: b.instant ? 'none' : 'fade' });
+          [0.3, () => {
+            household(0.51, { k: 0.7, jacob: false, speed: 0.05 });
+            flocks(0.4, 0.5, { speed: 0.055 });
+            crowdWalk('sv', 0.42, 0.48, { speed: 0.055 });
+          }],
+          [3.5, b => {
+            add('man', { label: '那人', sex: 'm', age: 'adult', x: X.peniel + 0.055, facing: -1, robe: ROBE.man, glow: 0.9, from: b.instant ? 'none' : 'fade' });
             face('jacob', 1);
           }],
-          [L[5] + 2, () => {
-            const gap = (34 * LS(2) * 0.3) / Math.max(1, W.w);
+          [5, () => {
+            const gap = (34 * W.layerScale(2) * (W.w < 600 ? 1.4 : 1) * 1.3 * 0.3) / Math.max(1, W.w);
             if (C().place) C().place('jacob', X.peniel - gap / 2);
             face('jacob', 1);
             pose('jacob', 'wrestle');
             S.wrestle = 1;
             walk('man', X.peniel + gap / 2, { speed: 0.03, pose: 'wrestle' });
           }],
-          [L[6] + 0.5, b => { touch(b, 'jacob'); if (!b.instant) W.shake = 0.55; sfx(b, 'wind'); }],
-          [L[7], b => W.goTo(0.19, 7, b.instant)],
+          [L[1] + 0.5, b => { touch(b, 'jacob'); if (!b.instant) W.shake = 0.55; sfx(b, 'wind'); }],
+          [L[2], b => W.goTo(0.19, 7, b.instant)],
+          [L[3] + 0.5, b => { if (!b.instant) { const p = figPt('jacob', 0.6); if (p) fx().ring(p[0], p[1], [226, 232, 255], M() * 0.12, 1.6, 1.2); } }],
         ]);
       },
     },
 
-    // ── 12 · 你的名不要再叫雅各，要叫以色列 ───────────────────
+    // ── 18 · 你的名不要再叫雅各，要叫以色列 ───────────────────
     {
       kind: 'name', utter: '你的名不要再叫雅各，要叫以色列', cmd: 'git mv 雅各 以色列  # 与神与人较力，都得了胜', ref: '32:28', hold: 3.8, tint: [255, 216, 172],
-      verse: V12,
+      verse: V18,
       apply(c) {
-        const L = starts(V12);
+        const L = starts(V18);
         T(c, [
           [0, b => {
             pose('jacob', 'stand'); pose('man', 'stand');
@@ -2288,7 +2450,7 @@
             if (!b.instant) {
               W.flash = 0.3;
               const size = M() * 0.08, p = figPt('jacob', 1) || [X.peniel * W.w, W.h * 0.8];
-              const cx = clamp(p[0], W.w * 0.25, W.w * 0.8), cy = Math.min(W.h * 0.42, p[1] - size * 2.2);
+              const cx = clamp(p[0], W.w * 0.52, W.w * 0.8), cy = Math.min(W.h * 0.42, p[1] - size * 2.2);
               const c2 = nameAt(cx, cy, size, 3);
               // 雅各：自他身上聚成，停一停，散去
               fx().nameStr('雅各', c2[0], c2[1], size * 0.82, [206, 212, 236], srcAround('jacob', 30), { hold: 1.1 });
@@ -2301,137 +2463,142 @@
             }
             sfx(b, 'harp');
           }],
-          [L[1] - 1, () => pose('jacob', 'kneel')],
-          [L[1] + 1.5, b => { pose('man', 'raise'); beamOn(b, 'jacob', { dur: 6, k: 0.8 }); }],
-          [L[1] + 6, b => {
+          [1.5, () => pose('jacob', 'kneel')],
+          [3.5, b => { pose('man', 'raise'); beamOn(b, 'jacob', { dur: 6, k: 0.8 }); }],
+          [L[1] - 1, b => {
             if (!b.instant) { const p = figPt('man', 0.5); if (p) fx().sparkle(p[0], p[1], 40, [255, 240, 214], 14, 'top'); }
             rm('man');
             S.wrestle = 0;
           }],
-          [L[3], () => { pose('jacob', 'stand'); hold('jacob', 'staff'); walk('jacob', 0.705, { speed: 0.01 }); glow('jacob', 0.45); }],
+          [L[1] + 0.5, () => pose('jacob', 'stand')],
+          [L[2] - 1, () => { hold('jacob', 'staff'); walk('jacob', X.peniel - 0.07, { speed: 0.01 }); glow('jacob', 0.45); }],
         ]);
       },
     },
 
-    // ── 13 · 我必定厚待你：以扫跑来；示剑 ─────────────────────
+    // ── 19 · 我必定厚待你：以扫跑来；示剑 ─────────────────────
     {
       kind: 'promise', utter: '我必定厚待你', cmd: 'merge 以扫 雅各  # 两个人就哭了', ref: '32:12', hold: 2.6, tint: [255, 222, 190],
-      verse: V13,
+      verse: V19,
       apply(c) {
-        const L = starts(V13);
+        const L = starts(V19);
+        const M0 = X.meet;
         const beats = [
           [0, b => {
-            add('esau', { label: '以扫', sex: 'm', age: 'adult', x: 0.45, facing: 1, robe: ROBE.esau, glow: 0.25, from: b.instant ? 'none' : 'fade' });
-            walk('esau', 0.6, { speed: 0.028 });
-            if (!hasCrowd('edom')) crowd('edom', { n: 7, x0: 0.42, x1: 0.47, layer: 2, label: '以扫的四百人', from: b.instant ? 'none' : 'fade', mill: false });
-            crowdWalk('edom', 0.5, 0.58, { speed: 0.028 });
-            crowdWalk('edomM', 0.55, 0.64, { speed: 0.02 });
+            avoid([0.44, 0.9]);
+            add('esau', { label: '以扫', sex: 'm', age: 'adult', x: 0.4, facing: 1, robe: ROBE.esau, glow: 0.25, from: b.instant ? 'none' : 'fade' });
+            walk('esau', M0 - 0.07, { speed: 0.03 });
+            if (!hasCrowd('edom')) crowd('edom', { n: 7, x0: 0.36, x1: 0.41, layer: 2, label: '以扫的四百人', from: b.instant ? 'none' : 'fade', mill: false });
+            crowdWalk('edom', 0.42, 0.49, { speed: 0.03 });
             sfx(b, 'crowd');
-            // 两个使女和她们的孩子在前头，利亚和她的孩子在后头，拉结和约瑟在尽后头（33:2）
-            walk('jacob', 0.7, { speed: 0.02 });
-            const q = (id, x) => { if (fig(id)) walk(id, x, { speed: 0.025 }); };
-            q('bilhah', 0.713); q('dan', 0.717); q('naphtali', 0.721); q('zilpah', 0.726); q('gad', 0.73); q('asher', 0.734);
-            q('leah', 0.742); LEAH_KIDS.forEach((id, i) => q(id, 0.746 + i * 0.0035));
-            q('rachel', 0.768); q('joseph', 0.772);
-            flocks(0.79, 0.9, { speed: 0.05 });
-            crowdWalk('sv', 0.8, 0.86, { speed: 0.05 });
+            // 两个使女和她们的孩子在前头，利亚和她的孩子在后头，拉结和约瑟在尽后头（33:2）；他自己在他们前头过去
+            walk('jacob', M0, { speed: 0.04 });
+            const q = (id, x) => { if (fig(id)) walk(id, x, { speed: 0.03 }); };
+            q('bilhah', M0 + 0.014); q('dan', M0 + 0.019); q('naphtali', M0 + 0.024); q('zilpah', M0 + 0.031); q('gad', M0 + 0.036); q('asher', M0 + 0.041);
+            q('leah', M0 + 0.05); LEAH_KIDS.forEach((id, i) => q(id, M0 + 0.055 + i * 0.0045));
+            q('rachel', M0 + 0.093); q('joseph', M0 + 0.099);
+            for (const [id, x] of [['cam1', M0 + 0.12], ['cam2', M0 + 0.142], ['cam3', M0 + 0.164], ['don1', M0 + 0.184]]) walk(id, x, { speed: 0.04 });
+            flocks(M0 + 0.19, M0 + 0.3, { speed: 0.05 });
+            crowdWalk('sv', M0 + 0.2, M0 + 0.26, { speed: 0.05 });
           }],
         ];
         // 一连七次俯伏在地
-        for (let k = 0; k < 7; k++) beats.push([L[1] + k * 0.95, () => walk('jacob', 0.7 - (k + 1) * 0.0022, { speed: 0.012, pose: k === 6 ? 'fall' : 'bow' })]);
+        for (let k = 0; k < 7; k++) beats.push([3.2 + k * 0.8, () => walk('jacob', M0 - (k + 1) * 0.0024, { speed: 0.012, pose: k === 6 ? 'fall' : 'bow' })]);
         beats.push(
-          [L[2], b => { const j = fig('jacob'); embrace('esau', 'jacob', { run: true, weep: true, at: (j ? j.nx : 0.685) - 0.006 }); sfx(b, 'weep'); }],
-          [L[2] + 3.5, b => { if (!b.instant) { const p = figPt('jacob', 0.6); if (p) fx().ring(p[0], p[1], [255, 226, 180], M() * 0.3, 2.6, 2); } glow('esau', 0.5); }],
-          [L[3], () => { ['bilhah', 'dan', 'naphtali', 'zilpah', 'gad', 'asher'].forEach(id => { if (fig(id)) pose(id, 'bow'); }); }],
-          [L[3] + 2, () => { ['leah'].concat(LEAH_KIDS).forEach(id => { if (fig(id)) pose(id, 'bow'); }); }],
-          [L[3] + 4, () => { ['rachel', 'joseph'].forEach(id => { if (fig(id)) pose(id, 'bow'); }); }],
-          [L[3] + 6.5, () => { FAMILY.forEach(id => { if (fig(id) && id !== 'jacob') pose(id, 'stand'); }); pose('esau', 'stand', { weep: false }); pose('jacob', 'stand', { weep: false }); }],
-          [L[4], () => { walk('esau', 0.43, { speed: 0.026 }); crowdWalk('edom', 0.38, 0.44, { speed: 0.026 }); crowdWalk('edomM', 0.46, 0.5, { speed: 0.02 }); glow('esau', 0.25); }],
-          [L[4] + 8, () => { rm('esau'); uncrowd('edom'); uncrowd('edomM'); }],
-          // 疏割、示剑：支搭帐棚、筑坛
-          [L[5], b => {
+          [L[1], b => { const j = fig('jacob'); embrace('esau', 'jacob', { run: true, weep: true, at: (j ? j.nx : M0 - 0.017) - 0.006 }); sfx(b, 'weep'); }],
+          [L[1] + 3, b => { if (!b.instant) { const p = figPt('jacob', 0.6); if (p) fx().ring(p[0], p[1], [255, 226, 180], M() * 0.3, 2.6, 2); } glow('esau', 0.5); }],
+          [L[1] + 3.8, () => { ['bilhah', 'dan', 'naphtali', 'zilpah', 'gad', 'asher'].forEach(id => { if (fig(id)) pose(id, 'bow'); }); }],
+          [L[1] + 4.8, () => { ['leah'].concat(LEAH_KIDS).forEach(id => { if (fig(id)) pose(id, 'bow'); }); }],
+          [L[1] + 5.8, () => { ['rachel', 'joseph'].forEach(id => { if (fig(id)) pose(id, 'bow'); }); }],
+          [L[1] + 7.3, () => { FAMILY.forEach(id => { if (fig(id) && id !== 'jacob') pose(id, 'stand'); }); pose('esau', 'stand', { weep: false }); pose('jacob', 'stand', { weep: false }); }],
+          // 以扫回往西珥去；疏割、示剑：支搭帐棚、筑坛
+          [L[2], b => {
+            walk('esau', 0.4, { speed: 0.03 }); crowdWalk('edom', 0.35, 0.41, { speed: 0.03 }); glow('esau', 0.25);
+            unprop('stream');
             prop('city', 'city', { x: X.city, layer: 1, label: '示剑城' });
             unprop('heap');
             prop('tentS', 'tent', { x: X.tentS, label: '帐棚' });
             prop('oak', 'oak', { x: X.oak, size: 0.95, label: '橡树' });
             prop('altarS', 'altar', { x: X.altarS, grow: 1, label: '伊利伊罗伊以色列' });
-            walk('jacob', X.altarS + 0.014, { speed: 0.02 });
+            household(X.altarS + 0.014, { k: 0.5, speed: 0.03 });
+            flocks(0.8, 0.92, { speed: 0.03 });
+            crowdWalk('sv', 0.84, 0.9, { speed: 0.03 });
+            avoid([0.6, 0.92]);
             sfx(b, 'build');
           }],
-          [L[5] + 1, b => fullDay(b, 7)],
-          [L[5] + 4.5, () => {
+          [L[2] + 0.8, b => fullDay(b, 5)],
+          [L[2] + 3.5, () => {
+            rm('esau'); uncrowd('edom');
             // 孩子们长大了
             SONS12.forEach(id => { if (fig(id) && id !== 'joseph' && id !== 'benjamin') add(id, { age: 'adult', scale: 0.96 }); });
-            if (fig('dinah')) add('dinah', { age: 'adult' });
+            if (fig('dinah')) add('dinah', { age: 'adult', scale: 1 });
             if (fig('joseph')) add('joseph', { scale: 1.2 });
           }],
-          [L[5] + 7, b => { prop('altarS', null, { fire: 1 }); pose('jacob', 'pray'); sfx(b, 'fire'); }],
-          // 34：底拿出去……暗了
-          [L[6], () => { pose('jacob', 'stand'); prop('altarS', null, { fire: 0.2 }); walk('dinah', X.city - 0.018, { speed: 0.02 }); }],
-          [L[6] + 5, () => rm('dinah')],
-          [L[7], b => {
-            W.set('jbShadow', 0.38, b.instant);
-            W.goTo(0.7, 5, b.instant);
-            ['simeon', 'levi'].forEach((id, i) => { if (fig(id)) walk(id, X.altarS + 0.03 + i * 0.01, { speed: 0.03 }); });
+          [L[2] + 5.8, b => { prop('altarS', null, { fire: 1 }); pose('jacob', 'pray'); sfx(b, 'fire'); }],
+          // 34：示剑的黑暗
+          [L[3], b => {
+            pose('jacob', 'stand'); prop('altarS', null, { fire: 0.2 });
+            W.set('jbShadow', 0.4, b.instant);
+            W.goTo(0.72, 4, b.instant);
+            ['dinah', 'simeon', 'levi'].forEach((id, i) => { if (fig(id)) walk(id, X.city - 0.014 + i * 0.008, { speed: 0.035 }); });
           }],
-          [L[7] + 3, () => { walk('simeon', X.city - 0.012, { speed: 0.03 }); walk('levi', X.city - 0.004, { speed: 0.03 }); }],
-          [L[7] + 6, b => { prop('city', null, { ember: 1, dark: 1 }); rm('simeon'); rm('levi'); if (!b.instant) W.shake = 0.25; }],
-          [L[8] - 1, b => {
+          [L[3] + 2.4, b => { prop('city', null, { ember: 1, dark: 1 }); rm('dinah'); rm('simeon'); rm('levi'); if (!b.instant) W.shake = 0.25; }],
+          [L[3] + 3.8, b => {
             prop('city', null, { ember: 0 });
-            W.goTo(0.8, 4, b.instant);
             const who = { simeon: ['西缅', 'm'], levi: ['利未', 'm'], dinah: ['底拿', 'f'] };
             ['simeon', 'levi', 'dinah'].forEach((id, i) => {
               add(id, { label: who[id][0], sex: who[id][1], age: 'adult', scale: id === 'dinah' ? 1 : 0.96, robe: ROBE[id], v: KID[id][1], glow: 0.2,
                 x: X.city - 0.01 + i * 0.008, facing: 1, from: b.instant ? 'none' : 'fade' });
-              walk(id, X.altarS + 0.028 + i * 0.01, { speed: 0.02 });
+              walk(id, X.altarS + 0.03 + i * 0.01, { speed: 0.025 });
             });
+            walk('jacob', X.altarS + 0.004, { speed: 0.02, pose: 'sit' });
           }],
-          [L[8] + 1, () => walk('jacob', X.altarS + 0.004, { speed: 0.02, pose: 'sit' })],
-          [L[8] + 3, () => face('jacob', 1)],
-          [L[8] + 4, b => W.set('jbShadow', 0.5, b.instant)],
+          [L[3] + 5.5, b => { face('jacob', 1); W.set('jbShadow', 0.5, b.instant); }],
         );
         T(c, beats);
       },
     },
 
-    // ── 14 · 起来！上伯特利去 ───────────────────────────────
+    // ── 20 · 起来！上伯特利去 ───────────────────────────────
     {
       kind: 'cmd', utter: '起来！上伯特利去，住在那里', cmd: 'rm -rf 外邦神 && cd 伯特利', ref: '35:1',
-      verse: V14,
+      verse: V20,
       apply(c) {
-        const L = starts(V14);
+        const L = starts(V20);
         T(c, [
-          [0, b => { W.set('jbShadow', 0, b.instant); W.goTo(0.3, 6, b.instant); beamOn(b, 'jacob', { dur: 7 }); pose('jacob', 'stand'); prop('city', null, { dark: 0.35 }); sfx(b, 'harp'); }],
+          [0, b => { W.set('jbShadow', 0, b.instant); W.goTo(0.3, 6, b.instant); beamOn(b, 'jacob', { dur: 7 }); pose('jacob', 'stand'); prop('city', null, { dark: 0.35 }); avoid([0.6, 0.9]); sfx(b, 'harp'); }],
           [L[1], () => household(X.oak - 0.012, { k: 0.45, speed: 0.022 })],
-          [L[1] + 4.5, b => {
+          [L[1] + 4.3, b => {
             everyone(id => { if (id !== 'jacob' && ROBE[id]) add(id, { robe: lighten(ROBE[id]) }); });
             add('jacob', { robe: lighten(ROBE.jacob, 0.25) });
             if (!b.instant) everyone(id => { const p = figPt(id, 0.5); if (p) fx().sparkle(p[0], p[1], 5, [255, 244, 222], 6, 'top'); });
           }],
           [L[2], b => { idols(b, X.oak); pose('jacob', 'kneel'); if (!b.instant) fx().dust(X.oak * W.w, gY(2, X.oak), 20, [210, 186, 150], 10); }],
-          [L[2] + 5, () => pose('jacob', 'stand')],
-          [L[3], b => {
+          [L[2] + 3.5, () => pose('jacob', 'stand')],
+          [L[3] - 2.5, b => {
             for (const id of ['tentS', 'altarS']) unprop(id);
-            household(X.bethel + 0.012, { k: 0.6, speed: 0.02 });
-            flocks(0.76, 0.86, { speed: 0.02 });
-            crowdWalk('sv', 0.8, 0.86, { speed: 0.02 });
+            household(X.bethel + 0.012, { k: 0.6, speed: 0.024 });
+            flocks(0.8, 0.9, { speed: 0.024 });
+            crowdWalk('sv', 0.82, 0.88, { speed: 0.024 });
+            avoid([0.6, 0.92]);
+            // 神使那周围城邑的人都甚惊惧（35:5）
+            if (!b.instant) { const p = figPt('jacob', 0.5); if (p) fx().ring(p[0] + W.w * 0.05, p[1], [255, 240, 214], M() * 0.55, 3.5, 2.5); }
           }],
-          [L[3] + 2, b => { if (!b.instant) { const p = figPt('jacob', 0.5); if (p) fx().ring(p[0] + W.w * 0.05, p[1], [255, 240, 214], M() * 0.55, 3.5, 2.5); } }],
-          [L[4], b => { prop('altarB', 'altar', { x: X.altarB, grow: 1, label: '伊勒伯特利' }); prop('stone', null, { lit: 0.5 }); walk('jacob', X.altarB + 0.012, { speed: 0.02 }); sfx(b, 'build'); }],
-          [L[4] + 4, b => { prop('altarB', null, { fire: 1 }); pose('jacob', 'pray'); sfx(b, 'fire'); }],
+          [L[3] + 1, b => { prop('altarB', 'altar', { x: X.altarB, grow: 1, label: '伊勒伯特利' }); prop('stone', null, { lit: 0.5 }); walk('jacob', X.altarB + 0.012, { speed: 0.02 }); sfx(b, 'build'); }],
+          [L[3] + 4.5, b => { prop('altarB', null, { fire: 1 }); pose('jacob', 'pray'); sfx(b, 'fire'); }],
         ]);
       },
     },
 
-    // ── 15 · 我是全能的神；拉结与便雅悯 ───────────────────────
+    // ── 21 · 我是全能的神；拉结与便雅悯 ───────────────────────
     {
       kind: 'bless', utter: '我是全能的神；你要生养众多', cmd: 'bless 以色列 --be-fruitful --multiply', ref: '35:11',
-      verse: V15,
+      verse: V21,
       apply(c) {
-        const L = starts(V15);
+        const L = starts(V21);
         T(c, [
           [0, b => {
-            ghost(b, 12);
+            ghost(b, 11);
             beamOn(b, 'jacob', { dur: 8 });
             pose('jacob', 'kneel');
             prop('altarB', null, { fire: 0.4 });
@@ -2439,120 +2606,124 @@
             nameOver(b, 'jacob', '以色列', [255, 226, 170], srcSky, { size: 0.05, hold: 3, lift: 1.6 });
             sfx(b, 'harp');
           }],
-          [L[1], b => {
+          [2.8, b => {
             pose('jacob', 'raise');
             if (!b.instant) everyone(id => { const p = figPt(id, 0.5); if (p) fx().sparkle(p[0], p[1], 6, [255, 236, 200], 8, 'top'); });
             const a = au(); if (!b.instant && a && a.bless) U.safe('audio.bless', () => a.bless());
           }],
-          [L[1] + 6, () => pose('jacob', 'stand')],
-          [L[2], b => { prop('stone', null, { oil: 1, lit: 1 }); pose('jacob', 'kneel'); if (!b.instant) fx().sparkle(X.bethel * W.w, gY(2, X.bethel) - 26 * LS(2), 20, [255, 232, 170], 6, 'top'); }],
-          [L[2] + 4, () => { pose('jacob', 'stand'); prop('stone', null, { lit: 0.3 }); prop('altarB', null, { fire: 0 }); }],
+          // 雅各在那里立了一根石柱，浇油（35:14）
+          [5.3, b => { prop('stone', null, { oil: 1, lit: 1 }); pose('jacob', 'kneel'); if (!b.instant) fx().sparkle(X.bethel * W.w, gY(2, X.bethel) - 26 * LS(2), 20, [255, 232, 170], 6, 'top'); }],
+          [7.3, () => { pose('jacob', 'stand'); prop('stone', null, { lit: 0.3 }); prop('altarB', null, { fire: 0 }); }],
           // 往以法他的路上
-          [L[3], b => {
+          [L[1], b => {
             W.goTo(0.66, 8, b.instant);
-            household(X.ephrath - 0.02, { k: 0.7, speed: 0.02 });
-            flocks(0.7, 0.8, { speed: 0.02 });
-            crowdWalk('sv', 0.74, 0.8, { speed: 0.02 });
+            avoid([0.54, 0.84]);
+            household(X.ephrath - 0.02, { k: 0.7, speed: 0.024 });
+            flocks(0.74, 0.84, { speed: 0.024 });
+            crowdWalk('sv', 0.77, 0.83, { speed: 0.024 });
           }],
-          [L[3] + 3, () => { walk('rachel', X.ephrath, { speed: 0.012, pose: 'lie' }); unprop('altarB'); prop('stone', null, { lit: 0.15 }); }],
-          [L[4], b => {
+          [L[1] + 2.5, () => { walk('rachel', X.ephrath, { speed: 0.012, pose: 'lie' }); unprop('altarB'); prop('stone', null, { lit: 0.15 }); }],
+          [L[1] + 4.5, b => {
             add('midwife', { label: '收生婆', sex: 'f', age: 'elder', x: X.ephrath - 0.04, facing: 1, robe: ROBE.midwife, glow: 0.15, from: b.instant ? 'none' : 'fade', prop: null });
             walk('midwife', X.ephrath - 0.012, { speed: 0.02, pose: 'kneel' });
             walk('jacob', X.ephrath + 0.016, { speed: 0.02, pose: 'kneel' });
           }],
-          [L[5], b => { carry('midwife', 'baby'); soul(b, 'rachel', [0.63, 0.19]); glow('rachel', 0.8); }],
-          [L[5] + 3, () => rm('rachel')],
-          [L[5] + 4.5, b => {
+          [L[2], b => { carry('midwife', 'baby'); soul(b, 'rachel', [0.63, 0.19]); glow('rachel', 0.8); }],
+          [L[2] + 3, () => rm('rachel')],
+          [L[2] + 4.3, b => {
             pose('midwife', 'stand'); carry('midwife', null);
             pose('jacob', 'stand'); carry('jacob', 'baby');
             nameOver(b, 'jacob', '便雅悯', [236, 226, 206], srcAround('jacob', 50), { size: 0.04, hold: 2.6 });
           }],
-          [L[6], b => {
+          [L[3], b => {
             prop('tomb', 'tomb', { x: X.ephrath, grow: 1, lit: 1, label: '拉结的墓碑' });
             rm('midwife');
             pose('jacob', 'kneel', { weep: true });
             walk('joseph', X.ephrath + 0.03, { speed: 0.02, pose: 'kneel' });
             sfx(b, 'weep');
           }],
-          [L[6] + 6.5, b => { W.goTo(0.77, 5, b.instant); pose('jacob', 'kneel', { weep: false }); prop('tomb', null, { lit: 0.4 }); }],
+          [L[3] + 5.5, b => { W.goTo(0.77, 5, b.instant); pose('jacob', 'kneel', { weep: false }); prop('tomb', null, { lit: 0.4 }); }],
         ]);
       },
     },
 
-    // ── 16 · 我所赐给亚伯拉罕和以撒的地：以撒；以东 ──────────────
+    // ── 22 · 我所赐给亚伯拉罕和以撒的地：以撒；以东 ──────────────
     {
       kind: 'promise', utter: '我所赐给亚伯拉罕和以撒的地，我要赐给你', cmd: 'transfer 应许之地 --to 以色列  # 以扫就是以东', ref: '35:12',
-      verse: V16,
+      verse: V22,
       apply(c) {
-        const L = starts(V16);
+        const L = starts(V22);
         const beats = [
           [0, b => {
             W.goTo(0.3, 6, b.instant);
             sweep(b, 7);
+            avoid([0.46, 0.84]);
             pose('jacob', 'stand'); carry('jacob', null);
-            add('benjamin', { label: '便雅悯', sex: 'm', age: 'child', x: X.ephrath + 0.03, v: 0.12, facing: -1, robe: ROBE.benjamin, glow: 0.4, from: b.instant ? 'none' : 'fade', prop: null });
+            add('benjamin', { label: '便雅悯', sex: 'm', age: 'child', x: X.ephrath + 0.03, v: 0.12, scale: 1.08, facing: -1, robe: ROBE.benjamin, glow: 0.4, from: b.instant ? 'none' : 'fade', prop: null });
             if (fig('joseph')) add('joseph', { age: 'adult', scale: 0.88 });
             pose('joseph', 'stand');
           }],
           // 十二个儿子站成一行，光依次落在他们身上
-          [L[1] - 1.5, () => {
-            SONS12.forEach((id, i) => { if (fig(id)) walk(id, 0.615 + i * 0.013, { speed: 0.025 }); });
-            ['leah', 'bilhah', 'zilpah', 'dinah'].forEach((id, i) => { if (fig(id)) walk(id, 0.78 + i * 0.012, { speed: 0.025 }); });
+          [L[1] - 1.8, () => {
+            SONS12.forEach((id, i) => { if (fig(id)) walk(id, 0.615 + i * 0.013, { speed: 0.03 }); });
+            ['leah', 'bilhah', 'zilpah', 'dinah'].forEach((id, i) => { if (fig(id)) walk(id, 0.78 + i * 0.012, { speed: 0.03 }); });
             walk('jacob', 0.6, { speed: 0.02 });
           }],
         ];
-        SONS12.forEach((id, i) => beats.push([L[1] + 0.6 + i * 0.3, b => {
+        SONS12.forEach((id, i) => beats.push([L[1] + 0.4 + i * 0.25, b => {
           glow(id, 0.75);
           if (!b.instant) { const p = figPt(id, 0.55); if (p) fx().sparkle(p[0], p[1], 8, [255, 236, 196], 6, 'top'); }
         }]));
         beats.push(
-          [L[2] - 1, b => {
+          // 雅各来到他父亲以撒那里，到了幔利
+          [L[1] + 3.6, b => {
             SONS12.forEach(id => glow(id, 0.3));
             prop('tentM', 'tent', { x: X.tentM, label: '以撒的帐棚' });
             prop('cave', 'cave', { x: X.cave, label: '麦比拉洞' });
             add('isaac', { label: '以撒', sex: 'm', age: 'elder', x: X.tentM + 0.022, facing: 1, robe: ROBE.isaac, glow: 0.3, pose: 'sit', from: b.instant ? 'none' : 'fade' });
-            walk('jacob', X.tentM + 0.046, { speed: 0.02 });
+            walk('jacob', X.tentM + 0.032, { speed: 0.02 });
             face('jacob', -1);
           }],
-          [L[2] + 2.5, () => pose('jacob', 'kneel')],
-          [L[2] + 3.5, b => { W.goTo(0.745, 6, b.instant); walk('isaac', X.tentM + 0.018, { speed: 0.01, pose: 'lie' }); glow('isaac', 0.6); }],
-          [L[2] + 6.5, b => { soul(b, 'isaac', [0.53, 0.13]); glow('isaac', 0.1); }],
-          [L[2] + 7, b => {
+          [L[2], b => { pose('jacob', 'kneel'); W.goTo(0.745, 6, b.instant); walk('isaac', X.tentM + 0.018, { speed: 0.01, pose: 'lie' }); glow('isaac', 0.6); }],
+          [L[2] + 2.3, b => { soul(b, 'isaac', [0.56, 0.13]); glow('isaac', 0.1); }],
+          [L[2] + 2.6, b => {
             add('esau', { label: '以扫', sex: 'm', age: 'elder', x: 0.44, facing: 1, robe: ROBE.esau, glow: 0.2, from: b.instant ? 'none' : 'fade' });
-            walk('esau', X.tentM - 0.01, { speed: 0.03 });
+            walk('esau', X.tentM - 0.01, { speed: 0.035 });
           }],
-          [L[3], b => {
+          [L[2] + 4.2, b => {
             const f = fig('isaac'), x = f ? f.nx : X.tentM + 0.018;
             rm('isaac');
             prop('bier', 'bier', { x, label: '以撒' });
-            prop('bier', null, { tx: X.cave + 0.012, spd: 0.012 });
+            prop('bier', null, { tx: X.cave + 0.012, spd: 0.016 });
             prop('cave', null, { lit: 0.5 });
             pose('jacob', 'stand');
-            walk('esau', X.cave - 0.008, { speed: 0.012 }); walk('jacob', X.cave + 0.034, { speed: 0.012 });
+            walk('esau', X.cave - 0.008, { speed: 0.016 }); walk('jacob', X.cave + 0.034, { speed: 0.016 });
           }],
-          [L[3] + 5, b => { unprop('bier'); prop('cave', null, { seal: 1, lit: 0 }); pose('esau', 'kneel'); pose('jacob', 'kneel'); sfx(b, 'seal'); }],
-          [L[4], b => {
+          [L[2] + 8, b => { unprop('bier'); prop('cave', null, { seal: 1, lit: 0 }); pose('esau', 'kneel'); pose('jacob', 'kneel'); sfx(b, 'seal'); }],
+          // 以扫就是以东：他的族长、君王如远去的名字，散往西珥
+          [L[3], b => {
             pose('esau', 'stand'); pose('jacob', 'stand');
-            if (!hasCrowd('edomH')) crowd('edomH', { n: 5, x0: 0.44, x1: 0.49, layer: 2, label: '以扫的家人', from: b.instant ? 'none' : 'fade', mill: false });
-            if (!hasCrowd('edomF')) herd('edomF', { kind: 'goat', n: 5, x0: 0.45, x1: 0.5, label: '以扫的群畜', from: b.instant ? 'none' : 'fade' });
-            edomNames(b, ['以利法', '流珥', '耶乌施', '雅兰', '可拉'], 0.07);
+            if (!hasCrowd('edomH')) crowd('edomH', { n: 5, x0: 0.43, x1: 0.48, layer: 2, label: '以扫的家人', from: b.instant ? 'none' : 'fade', mill: false });
+            if (!hasCrowd('edomF')) herd('edomF', { kind: 'goat', n: 5, x0: 0.44, x1: 0.49, label: '以扫的群畜', from: b.instant ? 'none' : 'fade' });
+            W.set('jbSeir', 1.5, b.instant);
+            W.goTo(0.83, 5, b.instant);
+            edomNames(b, ['以利法', '流珥', '耶乌施', '雅兰', '可拉'], 0.08);
           }],
-          [L[4] + 2, () => {
+          [L[3] + 1.8, () => {
             walk('esau', 0.4, { speed: 0.02 });
             crowdWalk('edomH', 0.35, 0.41, { speed: 0.02 });
             crowdWalk('edomF', 0.36, 0.42, { speed: 0.02 });
           }],
-          [L[5], b => { W.set('jbSeir', 1.5, b.instant); edomNames(b, ['提幔', '阿抹', '洗玻', '基纳斯', '亚玛力'], 0.12); }],
-          [L[5] + 4, () => { rm('esau'); uncrowd('edomH'); uncrowd('edomF'); }],
-          [L[6], b => {
+          [L[3] + 3.4, b => edomNames(b, ['比拉', '约巴', '户珊', '哈达', '桑拉', '扫罗'], 0.15)],
+          [L[3] + 4.6, () => { rm('esau'); uncrowd('edomH'); uncrowd('edomF'); }],
+          [L[3] + 5.2, b => {
             W.goTo(0.9, 10, b.instant);
-            edomNames(b, ['比拉', '约巴', '户珊', '哈达', '桑拉', '扫罗'], 0.18);
             prop('tentJ', 'tent', { x: 0.7, size: 0.95, label: '雅各的帐棚' });
             prop('tentJ2', 'tent', { x: 0.748, size: 0.85, label: '帐棚' });
-            walk('jacob', 0.622, { speed: 0.018, pose: 'sit' });
-            SONS12.forEach((id, i) => { if (fig(id)) walk(id, 0.635 + (i % 6) * 0.011 + (i >= 6 ? 0.095 : 0), { speed: 0.02, pose: 'sit' }); });
+            walk('jacob', 0.622, { speed: 0.02, pose: 'sit' });
+            SONS12.forEach((id, i) => { if (fig(id)) walk(id, 0.635 + (i % 6) * 0.011 + (i >= 6 ? 0.095 : 0), { speed: 0.022, pose: 'sit' }); });
           }],
-          [L[6] + 7, () => face('jacob', -1)],
+          [L[3] + 7.2, () => face('jacob', -1)],
         );
         T(c, beats);
       },
@@ -2560,15 +2731,40 @@
   ];
 
   GS.book.act({
-    id: ACT, title: '雅各', sub: '创世记 25:19 — 36:43', tint: [228, 216, 255], outro: 56,
+    // 幕要等末一句话的故事与经文都尽了才落下；这里只是最后那幅黄昏的帐棚多停留的一会儿
+    id: ACT, title: '雅各', sub: '创世记 25:19 — 36:43', tint: [228, 216, 255], outro: 38,
     intro: [
       { text: '亚伯拉罕的儿子以撒的后代记在下面。亚伯拉罕生以撒。', ref: '创世记 25:19', hold: 5.5 },
       { text: '以撒因他妻子不生育，就为她祈求耶和华；<br>耶和华应允他的祈求，他的妻子利百加就怀了孕。', ref: '创世记 25:21', hold: 7 },
       { text: '孩子们在她腹中彼此相争，她就说：「若是这样，我为什么活着呢？」<br>她就去求问耶和华。', ref: '创世记 25:22', hold: 7 },
     ],
+    // 全书终后，按住本卷的人与物，显出与它相关的经文
+    behold: {
+      '以撒': { text: '以撒年纪老迈，日子满足，气绝而死，归到他列祖那里。', ref: '创世记 35:29' },
+      '利百加': { text: '耶和华对她说：「两国在你腹内；两族要从你身上出来。」', ref: '创世记 25:23' },
+      '以扫': { text: '于是以扫住在西珥山里；以扫就是以东。', ref: '创世记 36:8' },
+      '雅各': { text: '「我也与你同在。你无论往哪里去，我必保佑你，领你归回这地……」', ref: '创世记 28:15' },
+      '以色列': { text: '那人说：「你的名不要再叫雅各，要叫以色列；因为你与神与人较力，都得了胜。」', ref: '创世记 32:28' },
+      '拉结': { text: '神顾念拉结，应允了她，使她能生育。', ref: '创世记 30:22' },
+      '利亚': { text: '耶和华见利亚失宠，就使她生育……', ref: '创世记 29:31' },
+      '拉班': { text: '「你要小心，不可与雅各说好说歹。」', ref: '创世记 31:24' },
+      '便雅悯': { text: '她将近于死，灵魂要走的时候，就给她儿子起名叫便俄尼；<br>他父亲却给他起名叫便雅悯。', ref: '创世记 35:18' },
+      '那人': { text: '只剩下雅各一人。有一个人来和他摔跤，直到黎明。', ref: '创世记 32:24' },
+      '天梯': { text: '梦见一个梯子立在地上，梯子的头顶着天，<br>有神的使者在梯子上，上去下来。', ref: '创世记 28:12' },
+      '伯特利': { text: '「这地方何等可畏！这不是别的，乃是神的殿，也是天的门。」', ref: '创世记 28:17' },
+      '柱子': { text: '雅各清早起来，把所枕的石头立作柱子，浇油在上面。', ref: '创世记 28:18' },
+      '神的军兵': { text: '雅各看见他们就说：「这是神的军兵」，于是给那地方起名叫玛哈念。', ref: '创世记 32:2' },
+      '雅博渡口': { text: '他夜间起来，带着两个妻子，两个使女，并十一个儿子，都过了雅博渡口，', ref: '创世记 32:22' },
+      '米斯巴': { text: '又叫米斯巴，意思说：「我们彼此离别以后，愿耶和华在你我中间鉴察。」', ref: '创世记 31:49' },
+      '利河伯': { text: '他说：「耶和华现在给我们宽阔之地，我们必在这地昌盛。」', ref: '创世记 26:22' },
+      '红豆汤': { text: '这就是以扫轻看了他长子的名分。', ref: '创世记 25:34' },
+      '有点有斑的羊': { text: '羊对着枝子配合，就生下有纹的、有点的、有斑的来。', ref: '创世记 30:39' },
+      '拉结的墓碑': { text: '雅各在她的坟上立了一统碑，就是拉结的墓碑，到今日还在。', ref: '创世记 35:20' },
+      '麦比拉洞': { text: '他两个儿子以扫、雅各把他埋葬了。', ref: '创世记 35:29' },
+    },
     setup, stages: STAGES, scene: SCENE,
   });
 
   // 测试用
-  GS._jacob = { get S() { return S; }, P, X, FXL };
+  GS._jacob = { get S() { return S; }, P, X, FXL, HOSTS };
 })(window.GS);

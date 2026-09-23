@@ -79,7 +79,7 @@
   // 经文旁白所在的区域（卷二起：横屏在左侧海上，竖屏在顶上）——粒子聚成的名字避开它
   function inTextZone(x, y) {
     if (W.w <= W.h * 0.75) return y < W.h * 0.36;
-    return x < W.w * 0.5 && y > W.h * 0.5 && y < W.h * 0.86;
+    return x < W.w * 0.5 && y > W.h * 0.5 && y < W.h * 0.93;
   }
   // 走兽避开主要人物所在的一段（W.beastAvoid：近地上的宽度比例区间）
   function avoid(...rs) { W.beastAvoid = rs.map(r => [clamp(Math.min(r[0], r[1]), 0, 1), clamp(Math.max(r[0], r[1]), 0, 1)]); }
@@ -1277,8 +1277,11 @@
     const birdTurn = Object.keys(S.named).length === 3 || !cands.length;
     if (birdTurn && GS.air && Array.isArray(GS.air._birds)) {
       const bs = GS.air._birds.filter(bd => bd && bd.a > 0.8 && bd.mode !== 'away' && isFinite(bd.x) && isFinite(bd.y) && bd.x > 30 && bd.x < W.w - 30 && bd.y > 30 && bd.y < W.horizonY && !S.named[BIRD_CN[bd.k]] && !inTextZone(bd.x, bd.y - 30 * P.s));
-      if (bs.length) {
-        const bd = bs[Math.floor(Math.random() * bs.length)], label = BIRD_CN[bd.k] || '雀鸟';
+      // 离那人最近的一只（横屏时只取陆地一侧上空的：左上的海天留给经文）
+      const near = bs.filter(bd => W.w <= W.h * 0.75 || bd.x > W.w * 0.45)
+        .map(bd => [Math.abs(bd.x - ad[0]) + Math.random() * W.w * 0.08, bd]).sort((p, q) => p[0] - q[0]);
+      if (near.length) {
+        const bd = near[0][1], label = BIRD_CN[bd.k] || '雀鸟';
         target = { x: bd.x, y: bd.y - 14 * P.s, label, col: [236, 240, 250], src: () => [bd.x + rnd(-8, 8) * P.s, bd.y + rnd(-5, 5) * P.s, [226, 232, 246]] };
       }
     }
@@ -1324,7 +1327,7 @@
   // ════════════════════════════════════════════════════════════
   GS.book.act({
     id: ACT, title: '伊甸', sub: '创世记 2:4 — 3:24', tint: [206, 238, 186],
-    outro: 24,
+    outro: 28,                      // 末一幅：基路伯与剑守着生命树的道路，二人向东远去，夜渐深
     intro: [
       { text: '创造天地的来历，在耶和华神造天地的日子，乃是这样。', ref: '创世记 2:4', hold: 6.5 },
       { text: '但有雾气从地上腾，滋润遍地。', ref: '创世记 2:6', hold: 5.5 },

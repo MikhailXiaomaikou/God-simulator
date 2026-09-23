@@ -147,6 +147,119 @@
   function span(layer) { if (!SPAN[layer]) SPAN[layer] = scan(layer); return SPAN[layer] || [W.w * 0.55, W.w * 0.95]; }
   function clampX(layer, x, m) { const s = span(layer); m = Math.min(m || 0, (s[1] - s[0]) * 0.3); return clamp(x, s[0] + m, s[1] - m); }
 
+  // ── 走兽让开的区间 ──────────────────────────────────────────
+  // W.beastAvoid = [[x0, x1], …]（画面宽的比例，近地层）：各卷在主要人物、祭坛、布景所在之处设下（每卷开始时引擎清空）。
+  // 近地的走兽不在其中停留：家园与游走的目标都落在区间之外、不穿过区间；已在其中的缓缓走出
+  // （恢复存档 / 瞬间重演时直接挪出）。区间按各兽的半个身长加宽，相距太近的两段合而为一。
+  const AVR = [];            // 此帧的区间（像素，按左端排序）
+  const AVM = [];            // 按某一宽度加宽、合并后的区间（扁平：r0, r1, r0, r1…）
+  function avRead() {
+    AVR.length = 0;
+    const src = W.beastAvoid;
+    if (!src || !src.length || !(W.w > 0)) return;
+    const one = r => {
+      if (!r || r.length < 2) return;
+      let a = +r[0], b = +r[1];
+      if (!isFinite(a) || !isFinite(b)) return;
+      if (a > b) { const t = a; a = b; b = t; }
+      AVR.push([a * W.w, b * W.w]);
+    };
+    if (typeof src[0] === 'number') one(src);
+    else for (let i = 0; i < src.length; i++) one(src[i]);
+    AVR.sort((p, q) => p[0] - q[0]);
+  }
+  function avMerge(pad) {
+    AVM.length = 0;
+    for (let i = 0; i < AVR.length; i++) {
+      const a = AVR[i][0] - pad, b = AVR[i][1] + pad, n = AVM.length;
+      if (n && a <= AVM[n - 1]) { if (b > AVM[n - 1]) AVM[n - 1] = b; }
+      else AVM.push(a, b);
+    }
+    return AVM;
+  }
+  const bodyS = a => LK[a.layer] * cu() * depthK(a.layer, a.v) * a.size;
+  const avPad = a => a.M.len * 0.5 * bodyS(a) + 5 * cu();
+  // 在合并后的第 i 段区间里的 x 往哪边出去：-1 左 / 1 右 / 0 无处可让（区间盖过了整片地）。
+  // 取近的一边；但那边剩下的地若容不下（need），宁可多走几步去宽处——免得都挤在区间与地边之间的窄条上
+  const AX = { side: 0, lo: 0, hi: 0 };
+  function avExit(R, i, x, L0, L1, need) {
+    const r0 = R[i], r1 = R[i + 1];
+    const lo = Math.max(L0, i > 0 ? R[i - 1] : -Infinity), hi = Math.min(L1, i + 2 < R.length ? R[i + 2] : Infinity);
+    const roomL = r0 - 1 - lo, roomR = hi - (r1 + 1);
+    AX.lo = lo; AX.hi = hi; AX.side = 0;
+    const okL = roomL >= 0, okR = roomR >= 0;
+    if (!okL && !okR) return AX;
+    const cL = (x - r0) + Math.max(0, need - roomL) * 3, cR = (r1 - x) + Math.max(0, need - roomR) * 3;
+    AX.side = okL && (!okR || cL <= cR) ? -1 : 1;
+    return AX;
+  }
+  // x 若落在（按 pad 加宽的）区间里，挪到区间之外（仍在 [L0, L1] 之内）；区间盖过整片地时无处可让，原样返回。
+  // k（0..1）：落在出口外那一段地的几成处（不都落在区间的边上）
+  function avOut(x, pad, L0, L1, k) {
+    if (!AVR.length) return x;
+    const R = avMerge(pad);
+    for (let i = 0; i < R.length; i += 2) {
+      if (x < R[i]) return x;
+      if (x > R[i + 1]) continue;
+      const e = avExit(R, i, x, L0, L1, pad * 2);
+      if (e.side < 0) return R[i] - 1 - (k || 0) * (R[i] - 1 - e.lo);
+      if (e.side > 0) return R[i + 1] + 1 + (k || 0) * (e.hi - R[i + 1] - 1);
+      return x;
+    }
+    return x;
+  }
+  // 对走兽 a、位置 x：可以走动的一段 [lo, hi]（不穿过区间）；在区间里时 inside，out 为出口外的一处
+  // （各兽按自己的 seed 散开一点，不都挤在区间的边上），deep 表示已进到区间里面（不只是边上的一点），须走出
+  const AQ = { lo: 0, hi: 0, out: 0, inside: false, deep: false, L0: 0 };
+  function avQuery(a, x) {
+    const s = span(a.layer);
+    const m = Math.min(a.M.len * 0.45 * bodyS(a), (s[1] - s[0]) * 0.3);
+    const L0 = s[0] + m, L1 = s[1] - m;
+    AQ.lo = L0; AQ.hi = L1; AQ.out = x; AQ.inside = false; AQ.deep = false; AQ.L0 = L0;
+    if (a.layer !== 2 || !AVR.length) return AQ;
+    const pad = avPad(a), R = avMerge(pad);
+    let prev = -Infinity;
+    for (let i = 0; i < R.length; i += 2) {
+      const r0 = R[i], r1 = R[i + 1];
+      if (x < r0) { AQ.lo = Math.max(L0, prev); AQ.hi = Math.min(L1, r0); break; }
+      if (x <= r1) {
+        const e = avExit(R, i, x, L0, L1, pad * 2);
+        if (!e.side) { AQ.lo = Math.max(L0, prev); AQ.hi = L1; return AQ; }   // 无处可让
+        AQ.inside = true;
+        AQ.deep = x > r0 + pad * 0.2 && x < r1 - pad * 0.2;
+        const k = 0.1 + 0.9 * (a.seed || 0);
+        if (e.side < 0) { AQ.out = r0 - 1 - k * Math.min((r0 - 1 - e.lo) * 0.9, pad * 4); AQ.lo = e.lo; AQ.hi = x; }
+        else { AQ.out = r1 + 1 + k * Math.min((e.hi - r1 - 1) * 0.9, pad * 4); AQ.lo = x; AQ.hi = e.hi; }
+        break;
+      }
+      prev = r1;
+      if (i + 2 >= R.length) AQ.lo = Math.max(L0, prev);
+    }
+    if (AQ.lo > AQ.hi) AQ.lo = AQ.hi = clamp(x, L0, L1);
+    return AQ;
+  }
+  // 走兽 a 的一个目标：在区间里的，目标是出口；否则留在它此刻所在的那一段里（不穿过区间）
+  function avTarget(a, x) {
+    if (a.layer !== 2 || !AVR.length) return x;
+    const q = avQuery(a, a.x);
+    return q.inside ? q.out : clamp(x, q.lo, q.hi);
+  }
+  // 从 x0 挪到 x1（彼此让开时）：不挤进区间；已在区间里的只许往出口挪
+  function avStep(a, x0, x1) {
+    if (a.layer !== 2 || !AVR.length) return x1;
+    const q = avQuery(a, x0);
+    return clamp(x1, Math.min(q.lo, x0), Math.max(q.hi, x0));
+  }
+  // 立即挪出（恢复存档 / 瞬间重演 / 出生）
+  function avPlace(a) {
+    if (a.layer !== 2 || !AVR.length) return;
+    const q = avQuery(a, a.x);
+    if (!q.inside) return;
+    a.x = q.out; a.tx = a.x;
+    const s = span(2);
+    a.home = avOut(a.home, avPad(a), s[0], s[1], a.seed);
+  }
+
   // ── 光：日 / 月 / 灵（夜里灵是唯一的灯）──────────────────────
   function updLight() {
     const df = W.dayFactor, dk = W.dusk, L = W.lv.light;
@@ -741,6 +854,7 @@
     individuate(a, countSp(sp));
     a.home = x;
     AN.push(a);
+    avPlace(a); x = a.x;
     if (instant) {
       a.st = 'graze'; a.stT = rnd(0, 4); a.dur = rnd(3, 10); a.neck = a.neckT = a.M.grazeA;
       if (sp === 'lion') { a.st = 'rest'; a.lie = a.lieT = 1; a.neck = a.neckT = 0.25; a.dur = rnd(20, 40); }
@@ -806,7 +920,7 @@
         const dx = a.x - x;
         if (Math.abs(dx) > a.M.len * a.S * 0.5 + 34 * u) continue;
         vFront = Math.max(vFront, a.v);
-        if (a.st !== 'sleep') { a.tx = clampX(2, x + (dx >= 0 ? 1 : -1) * rnd(80, 130) * u, a.M.len * 0.5 * u); a.tv = a.v; setSt(a, 'walk', 25); }
+        if (a.st !== 'sleep') { a.tx = avTarget(a, clampX(2, x + (dx >= 0 ? 1 : -1) * rnd(80, 130) * u, a.M.len * 0.5 * u)); a.tv = a.v; setSt(a, 'walk', 25); }
       }
       if (kind === 'man') v = clamp(Math.max(v, vFront + 0.1), 0.05, VMAX[2]);
     }
@@ -958,7 +1072,9 @@
     if (f == null) return null;
     const s = span(layer);
     const wob = 0.09 * U.noise1(W.t * 0.011 + sp.length * 7.3 + f * 13);
-    return s[0] + (s[1] - s[0]) * clamp(f + wob, 0.05, 0.95);
+    const x = s[0] + (s[1] - s[0]) * clamp(f + wob, 0.05, 0.95);
+    // 家园落在让开的区间里：挪到区间之外（群心加上半个群的宽度），各类散在出口外那一段地的不同处
+    return layer === 2 && AVR.length ? avOut(x, (SPEC[sp].len * 0.5 + SPEC[sp].herdR * 0.5) * cu(), s[0], s[1], 0.15 + 0.7 * ((f * 7.31 + 0.37) % 1)) : x;
   }
   function sheepCenter(layer) { const h = HERD['sheep' + layer] || HERD['sheep2']; return h && h.n ? h : null; }
 
@@ -984,7 +1100,7 @@
       const hx = homeX(a.sp, a.layer);
       if (hx != null) x = lerp(x, hx, 0.25);
     }
-    a.tx = clampX(a.layer, x, M.len * 0.5 * u);
+    a.tx = avTarget(a, clampX(a.layer, x, M.len * 0.5 * u));
     const vmax = VMAX[a.layer];
     let tv = a.v + rnd(-0.16, 0.16);
     if (h && h.n > 1 && !far && a.sp !== 'lion') tv = lerp(tv, h.cv + rnd(-0.1, 0.1), 0.35);   // 同群的在纵深上也相随
@@ -996,7 +1112,12 @@
     const restK = 1 + W.lv.sabbath * 0.5;
     if (a.sp === 'lion') {
       const sc = sheepCenter(a.layer);
-      if (sc && Math.abs(a.x - sc.cx) > 70 * cu()) { pickTarget(a); setSt(a, 'walk', 30); return; }
+      if (sc && Math.abs(a.x - sc.cx) > 70 * cu()) {
+        pickTarget(a);
+        // 羊群在让开的区间那一边、过不去：就地卧下
+        if (Math.abs(a.tx - a.x) < 3 * cu()) { a.tx = a.x; setSt(a, 'rest', rnd(14, 34)); return; }
+        setSt(a, 'walk', 30); return;
+      }
       if (r < 0.75) { setSt(a, 'rest', rnd(14, 34)); return; }
       if (r < 0.88) { pickTarget(a); setSt(a, 'walk', 20); return; }
       setSt(a, 'look', rnd(2, 4)); return;
@@ -1006,7 +1127,10 @@
       const s = span(a.layer);
       let busy = 0;
       for (const b of AN) if (b.st === 'drink') busy++;
-      if (busy >= 2 || a.x - s[0] > 300 * cu() * LK[a.layer]) { a.drinkAt = W.t + rnd(20, 60); think(a); return; }
+      // 水边在让开的区间那一侧（要穿过人群才到得了）：这回不去
+      let blocked = false;
+      if (a.layer === 2 && AVR.length) { const q = avQuery(a, a.x); blocked = q.inside || q.lo > q.L0 + 1; }
+      if (busy >= 2 || blocked || a.x - s[0] > 300 * cu() * LK[a.layer]) { a.drinkAt = W.t + rnd(20, 60); think(a); return; }
       a.tx = s[0] + rnd(2, 10) * cu() * LK[a.layer]; a.tv = rnd(0.0, 0.06);
       a.phase = 0; setSt(a, 'drink', 60); return;
     }
@@ -1042,8 +1166,17 @@
     const cx = a.x, cy = a.y - M.top * a.S * 0.5;
     const dxs = sp.x - cx, dys = sp.y - cy, ds = Math.hypot(dxs, dys);
     const night = W.night > 0.5;
+    // 让开的区间：已进到里面的走出来（瞬间重演时直接挪出）；其余的只在自己的一段里走动
+    let avOn = false, qLo = 0, qHi = 0, qOut = 0, evade = false;
+    if (a.layer === 2 && AVR.length) {
+      let q = avQuery(a, a.x);
+      if (q.inside && W.replaying) { avPlace(a); q = avQuery(a, a.x); }
+      avOn = true; qLo = q.lo; qHi = q.hi; qOut = q.out; evade = q.deep;
+    }
     let mode = '';
-    if (W.ritual.holding || awe()) mode = 'listen';
+    if (!evade) a.avEv = false;
+    if (evade) mode = 'evade';
+    else if (W.ritual.holding || awe()) mode = 'listen';
     else if (a.fleeT > 0) mode = 'flee';
     else if (M.flee && sp.speed > FAST() && ds < 230 * Math.max(0.6, uu()) && a.lie < 0.5 && (M.flee >= 1 || Math.random() < M.flee * 0.2)) {
       a.fleeT = rnd(1.4, 2.0); a.fleeDir = dxs > 0 ? -1 : 1; a.home = a.x; mode = 'flee';
@@ -1051,7 +1184,15 @@
     else if (a.joy > 0) mode = 'joy';
 
     let spdT = 0, neckT = M.up, lieT = 0, faceT = a.dir, pitchT = 0, run = 0;
-    if (mode === 'listen') {
+    if (mode === 'evade') {
+      // 为人让出地方：起身，不慌不忙地（远的就小跑着）走到区间之外
+      a.fleeT = 0; a.curious = 0; a.tx = qOut;
+      if (a.st !== 'walk') setSt(a, 'walk', 30);
+      if (!a.avEv) { a.avEv = true; a.tv = clamp(a.v + rnd(-0.2, 0.2), 0.03, VMAX[2]); }   // 纵深上也散开些，不挤成一堆
+      const far = Math.abs(qOut - a.x) / (Math.max(0.2, a.S) * M.walk * 4.5);
+      spdT = M.walk * clamp(far, 1.3, 2.8); neckT = M.up; lieT = 0;
+      a.dir = sgn(qOut - a.x); faceT = a.dir;
+    } else if (mode === 'listen') {
       faceT = sgn(dxs);
       neckT = lookAngleAt(a, sp.x, sp.y);
       lieT = a.lie > 0.5 ? 1 : 0;
@@ -1062,7 +1203,7 @@
       a.dir = a.fleeDir;
       const s = span(a.layer);
       if ((a.x <= s[0] + 8 && a.fleeDir < 0) || (a.x >= s[1] - 8 && a.fleeDir > 0)) a.fleeT = Math.min(a.fleeT, 0.2);
-      if (a.fleeT <= 0) { a.tx = clampX(a.layer, a.home, 0); setSt(a, 'walk', 20); }
+      if (a.fleeT <= 0) { a.tx = avTarget(a, clampX(a.layer, a.home, 0)); setSt(a, 'walk', 20); }
     } else if (mode === 'curious') {
       faceT = sgn(dxs);
       neckT = lookAngleAt(a, sp.x, sp.y);
@@ -1094,7 +1235,7 @@
           neckT = M.grazeA + Math.sin(W.t * 2.2 + a.seed * 9) * 0.05; pitchT = 0.05;
           if (a.type === 'r') neckT = -1;
           if (a.type === 'e') neckT = -0.9;
-          if (Math.random() < dt * 0.15) { a.tx = clampX(a.layer, a.x + rnd(-6, 6) * u, 0); spdT = M.walk * 0.35; }
+          if (Math.random() < dt * 0.15) { a.tx = avTarget(a, clampX(a.layer, a.x + rnd(-6, 6) * u, 0)); spdT = M.walk * 0.35; }
           if (Math.abs(a.tx - a.x) > 1.5 && a.stT < a.dur) spdT = M.walk * 0.3;
           if (a.stT > a.dur) think(a);
           break;
@@ -1129,6 +1270,12 @@
       if (mode === '' && a.st !== 'walk' && a.st !== 'drink' && Math.abs(d) < 0.8) spdT = 0;
       faceT = a.dir;
     }
+    // 走到了区间的边上：停下（不在边上原地踏步）；逃的就此停住，游走的另择去处
+    if (avOn && !evade && spdT > 0 && ((a.dir > 0 && a.x >= qHi - 0.5) || (a.dir < 0 && a.x <= qLo + 0.5))) {
+      spdT = 0;
+      if (mode === 'flee') a.fleeT = Math.min(a.fleeT, 0.2);
+      else if (mode === '') a.tx = a.x;
+    }
     if (a.lie > 0.3 && lieT < 0.5) spdT = 0;               // 先起身，再走
     if (lieT > 0.5) spdT = 0;
     a.spd = approach(a.spd, spdT, spdT > a.spd ? 2.4 : 4.5, dt);
@@ -1141,6 +1288,7 @@
       a.v = approach(a.v, a.tv, 0.5 * Math.min(1, a.spd / M.walk), dt);
     }
     nx = clampX(a.layer, nx, M.len * 0.45 * a.S);
+    if (avOn && !evade) nx = clamp(nx, qLo, qHi);          // 不走进（也不穿过）让开的区间
     a.x = nx;
     a.gait = c01(a.spd / M.walk);
     a.run = c01((a.spd - M.walk * 1.4) / (M.walk * 1.5));
@@ -1168,8 +1316,8 @@
         const push = (need - Math.abs(dx)) * Math.min(1, dt * 1.5) * 0.5;
         const s = dx === 0 ? (a.id < b.id ? -1 : 1) : sgn(dx);
         const am = a.lie > 0.5 ? 0.2 : 1, bm = b.lie > 0.5 ? 0.2 : 1;
-        a.x = clampX(a.layer, a.x - s * push * am, 0);
-        b.x = clampX(b.layer, b.x + s * push * bm, 0);
+        a.x = avStep(a, a.x, clampX(a.layer, a.x - s * push * am, 0));
+        b.x = avStep(b, b.x, clampX(b.layer, b.x + s * push * bm, 0));
         if (Math.abs(dx) < need * 0.5) { a.v = clamp(a.v - 0.02 * dt * am, 0.01, VMAX[a.layer]); b.v = clamp(b.v + 0.02 * dt * bm, 0.01, VMAX[b.layer]); }
       }
     }
@@ -1719,6 +1867,7 @@
     dt = Math.min(dt, 0.05);
     if (W.w !== lastW || W.h !== lastH) resize();
     updLight();
+    avRead();
     syncPops(false);
     runQueues();
     updHerds();
@@ -2063,6 +2212,7 @@
   function restore() {
     if (!ready) init();
     calcSpans();
+    avRead();
     const trim = (kind, want) => {
       if (kind === 'human') { while (HU.length > want) HU.pop(); made.human = Math.min(made.human, HU.length); return; }
       if (kind === 'creeper') { while (CR.length > want) CR.pop(); made.creeper = CR.length; return; }
@@ -2080,6 +2230,8 @@
     made.human = HU.length; made.creeper = CR.length;
     syncPops(true);
     for (const a of AN) { if (a.eT < EM) { a.eT = 99; a.motes = null; a.st = 'look'; a.dur = 1; } }
+    // 让开的区间：恢复时（幕后）直接挪出；游走的目标也不落在区间里
+    for (const a of AN) { avPlace(a); a.tx = avTarget(a, a.tx); }
     for (const h of HU) { if (h.eT < EMH) { h.eT = 99; h.motes = null; h.breathed = true; pcopy(h.P, POSE.stand); h.pose = 'stand'; } h.act = null; }
     for (const c of CR) c.age = 99;
     nameNext = W.t + 25;

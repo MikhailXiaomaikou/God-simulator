@@ -759,7 +759,13 @@
     return sf.c;
   }
   function freeImg(img) { if (img && typeof img.close === 'function') { try { img.close(); } catch (e) { /* */ } } }
-  function bakeKey(t) { return t.H.toFixed(2) + '|' + (t.ripe ? 1 : 0) + '|' + Math.min(W.dpr || 1, 1.5); }
+  // 烘焙的键含生长的程度：长成的为 1；停在半途的（此后各卷的树都停在 0.24–0.5 之间）按其停下时的程度烘一张，缩放着画
+  function bakeKey(t) { return t.H.toFixed(2) + '|' + (t.ripe ? 1 : 0) + '|' + Math.min(W.dpr || 1, 1.5) + '|' + (t.g >= 1 ? '1' : t.gRef.toFixed(3)); }
+  // 可以烘焙：长成了，或生长的程度已停住一会儿（不再逐 45 帧重画快照）
+  const STILL = 0.8;
+  function bakeable(t) { return t.g >= 1 || (t.g > 0 && W.t - t.gT >= STILL); }
+  // 这张烘焙此刻可用：尺寸相同，生长的程度相同（长成 / 与烘焙时相差无几）
+  function bakeOK(t, b) { return !!b && b.H === t.H && (t.g >= 1 ? b.g >= 1 : b.g < 1 && Math.abs(b.g - t.g) < 0.006); }
   // 烘焙的库：同一棵树（种类 / 种子 / 层 / 尺寸 / 熟否 / 像素比）只烘一次。
   // 恢复存档、卷与卷之间的 resync、来回缩放窗口都会重新布局——长好的树直接取回，不必重烘。
   const bakeStore = new Map();
@@ -786,7 +792,9 @@
     let J = t.job;
     if (!J || J.key !== bakeKey(t)) {
       if (J) for (const k in J.c) freeImg(J.c[k]);
-      J = t.job = Object.assign(bakeBox(t, 1.5), { key: bakeKey(t), c: {}, step: 0 });
+      const g = t.g >= 1 ? 1 : t.gRef;
+      // 半途的树画出来是缩小的：位图的分辨率也随之（与快照相同）
+      J = t.job = Object.assign(bakeBox(t, 1.5, g >= 1 ? 1 : Math.min(1, growScale(g) * 1.1 + 0.05)), { key: bakeKey(t), c: {}, step: 0, g });
     }
     const m = t.model, H = t.H, { bx0, by0, bs, cw, ch } = J;
     if (J.step < 4) {
@@ -795,7 +803,7 @@
       g.setTransform(1, 0, 0, 1, 0, 0); g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
       g.clearRect(0, 0, cw, ch);
       g.setTransform(bs, 0, 0, bs, -bx0 * bs, -by0 * bs);
-      paintTree(g, m, 1, treePal(t.kind, t.layer, v, t.ripe), H, t.ripe);
+      paintTree(g, m, J.g, treePal(t.kind, t.layer, v, t.ripe), H, t.ripe);
       J.c[v] = finish(sf);
       J.step++;
       return false;
@@ -807,10 +815,11 @@
     const sg = SIL.getContext('2d');
     sg.setTransform(1, 0, 0, 1, 0, 0); sg.clearRect(0, 0, SIL.width, SIL.height);
     sg.setTransform(bs, 0, 0, bs, -bx0 * bs, -by0 * bs);
-    paintTree(sg, m, 1, SILPAL, H, false);
+    paintTree(sg, m, J.g, SILPAL, H, false);
     sg.setTransform(1, 0, 0, 1, 0, 0);
     const hs = 0.5, ow = Math.max(2, Math.ceil(cw * hs)), oh = Math.max(2, Math.ceil(ch * hs));
-    const r = (t.layer === 2 ? 1.5 : 1.15) * bs * hs;
+    // 轮廓的宽在画面上一样宽（半途的树缩小着画：烘焙时相应加宽）
+    const r = (t.layer === 2 ? 1.5 : 1.15) * bs * hs / (J.g >= 1 ? 1 : Math.max(0.3, growScale(J.g)));
     for (let k = 0; k < 4; k++) {
       const d = ODIR[k];
       const sf = surface(null, ow, oh), og = sf.g;
@@ -830,7 +839,7 @@
     if (t.bake && t.bake.key !== key) releaseBake(t.bake);
     const prev = bakeStore.get(key);
     if (prev && prev !== t.bake) releaseBake(prev);
-    t.bake = { c: J.c, x0: bx0, y0: J.by0, w: J.bx1 - bx0, h: J.by1 - J.by0, H, key };
+    t.bake = { c: J.c, x0: bx0, y0: J.by0, w: J.bx1 - bx0, h: J.by1 - J.by0, H, key, g: J.g };
     bakeStore.set(key, t.bake);
     t.bakeKey = J.key;
     t.job = null;
@@ -843,10 +852,10 @@
     const t0 = performance.now();
     let n = 0;
     // 先烘焙那些正以快照代替的（尚无可用的烘焙）
-    bakeQ.sort((a, b) => (a.bake && a.bake.H === a.H ? 1 : 0) - (b.bake && b.bake.H === b.H ? 1 : 0));
+    bakeQ.sort((a, b) => (bakeOK(a, a.bake) ? 1 : 0) - (bakeOK(b, b.bake) ? 1 : 0));
     while (bakeQ.length && (n === 0 || performance.now() - t0 < budget)) {
       const t = bakeQ[0];
-      if (!(t.g >= 1 && t.bakeKey !== bakeKey(t))) { bakeQ.shift(); t.queued = false; continue; }
+      if (!(bakeable(t) && t.bakeKey !== bakeKey(t))) { bakeQ.shift(); t.queued = false; continue; }
       let done = true;
       U.safe('land.bake', () => { done = bakeStep(t); });
       n++;
@@ -877,8 +886,7 @@
     SNAPC.length = 0;
     for (const t of trees) {
       if (t.g <= 0) { if (t.snap) { freeImg(t.snap.img); t.snap = null; } continue; }
-      const baked = t.g >= 1 && t.bake && t.bake.H === t.H;
-      if (baked) { if (t.snap) { freeImg(t.snap.img); t.snap = null; } continue; }
+      if (bakeOK(t, t.bake)) { if (t.snap) { freeImg(t.snap.img); t.snap = null; } continue; }
       const sn = t.snap;
       const st = !sn || sn.H !== t.H ? 9 : t.g - sn.g + (W.frame - sn.f) * 0.0002;
       if (sn && sn.H === t.H && t.g - sn.g < 0.02 && W.frame - sn.f < 45) continue;
@@ -930,7 +938,7 @@
     const mk = (layer, x, kind, seed, H, start, dur, isOrigin) => {
       const t = {
         layer, x, kind, seed, H, start, dur, isOrigin, model: genModel(kind, seed),
-        g: 0, pg: -1, phase: (seed * 0.618) % TAU, sink: (layer === 2 ? 3 : 1.5) * u,
+        g: 0, pg: -1, gRef: 0, gT: W.t, phase: (seed * 0.618) % TAU, sink: (layer === 2 ? 3 : 1.5) * u,
         bake: null, bakeKey: '', queued: false, job: null, snap: null, ripe, ripeAt: ripe ? 0 : Infinity,
       };
       trees.push(t); LY[layer].trees.push(t);
@@ -994,14 +1002,15 @@
       }
     }
     for (const L of LY) L.trees.sort((p, q) => baseAt(L, p.x) - baseAt(L, q.x) || p.H - q.H);
-    // 取回库里已烘好的，其余的位图释放
+    for (const t of trees) { t.g = treeGrowth(t); t.pg = t.g; t.gRef = t.g; }
+    // 取回库里已烘好的（长成的，或停在同一程度上的），其余的位图释放
     const used = new Set();
     for (const t of trees) {
       const b = bakeStore.get(storeKey(t));
       if (b) { t.bake = b; t.bakeKey = bakeKey(t); used.add(b); }
     }
     for (const [k, b] of Array.from(bakeStore)) if (!used.has(b)) releaseBake(b);
-    for (const t of trees) { t.g = treeGrowth(t); t.pg = t.g; if (t.g >= 1) queueBake(t); }
+    for (const t of trees) if (bakeable(t)) queueBake(t);
   }
   function treeGrowth(t) { return c01((W.lv.trees - t.start) / t.dur); }
 
@@ -1332,6 +1341,8 @@
     const ripeT = W.stage >= 24;
     for (const t of trees) {
       t.g = treeGrowth(t);
+      // 生长的程度变了：记下，停住一会儿之后才烘焙
+      if (Math.abs(t.g - t.gRef) > 0.003 || (t.g >= 1) !== (t.gRef >= 1)) { t.gRef = t.g; t.gT = W.t; }
       const L = LY[t.layer];
       if (!quiet && fxOK() && t.g > t.pg && t.pg >= 0) {
         const y = ridgeAt(L, t.x);
@@ -1351,7 +1362,7 @@
           GS.fx.sparkle(t.x, y, t.layer === 2 ? 16 : 6, [255, 216, 150], t.H * 0.3, L_PASS[t.layer]);
         }
       }
-      if (t.g >= 1 && t.bakeKey !== bakeKey(t)) queueBake(t);
+      if (bakeable(t) && t.bakeKey !== bakeKey(t)) queueBake(t);
     }
     if (ripeT && !ripeOn) {
       ripeOn = true;
@@ -2279,11 +2290,32 @@
     OW[0] += a * Math.max(e, -vx); OW[1] += a * Math.max(e, vx);
     OW[2] += a * Math.max(e, -vy); OW[3] += a * Math.max(e, vy);
   }
+  // 大地沉入水中（洪水）/ 自水中升起时：树随其层一同沉下，且沉得比山脊更深——
+  // 到这一层没入水中时树也全没了顶（不在仅剩的一线山脊上直立着"浮"在水面）；地面以下的部分剪去
+  function treeDrop(t, L) {
+    const e = L.rise;
+    if (!(e < 0.995)) return 0;
+    const k = 1 - e;
+    return k * k * (3 - 2 * k) * (-Math.min(t.model.top, t.model.by0) * t.H * growScale(t.g) + 4 * uu()) * 1.05;
+  }
+  function sinkClip(ctx, L, layer) {
+    const cp = new Path2D(), off = (layer === 2 ? 3 : 1.5) * uu(), cur = L.cur, st = L.step, wl = L.wl;
+    const Y = i => Math.min(cur[i] + off, wl);
+    cp.moveTo(-10, -10);
+    cp.lineTo(-10, Y(0));
+    for (let i = 0; i < L.n; i++) cp.lineTo(i * st, Y(i));
+    cp.lineTo(W.w + 10, Y(L.n - 1));
+    cp.lineTo(W.w + 10, -10);
+    cp.closePath();
+    ctx.clip(cp);
+  }
   function drawTrees(ctx, layer) {
     const L = LY[layer];
     if (!L.trees.length || W.lv.trees <= 0 || L.spanA < 0) return;
+    const sinking = L.rise < 0.995;
+    if (sinking) { ctx.save(); sinkClip(ctx, L, layer); }
     // 树下的一抹影子
-    if (layer === 2 && W.daylight > 0.2) {
+    if (layer === 2 && W.daylight > 0.2 && !sinking) {
       ctx.beginPath();
       let n = 0;
       const sdx = clamp((W.w * 0.5 - W.core.x) / W.w, -0.5, 0.5);
@@ -2302,7 +2334,7 @@
       if (t.g <= 0) continue;
       const y0 = ridgeAt(L, t.x);
       if (y0 >= L.wl - 1) continue;
-      const x = t.x, y = y0 + t.sink;
+      const x = t.x, y = y0 + t.sink + (sinking ? treeDrop(t, L) : 0);
       const b = t.bake;
       if (b) {
         const bx0 = x + b.x0 - 4, bx1 = x + b.x0 + b.w + 4;
@@ -2312,15 +2344,18 @@
       ctx.save();
       ctx.translate(x, y);
       if (ang) ctx.rotate(ang);
-      if (t.g >= 1 && b && b.H === t.H) {
+      if (bakeOK(t, b)) {
         const c = b.c;
+        // 停在半途的树：烘焙的是那一程度的全尺寸，按其大小缩放着画
+        const gsB = b.g >= 1 ? 1 : growScale(b.g);
+        if (gsB !== 1) ctx.scale(gsB, gsB);
         for (let k = 0; k < FL.order.length; k++) {
           const o = FL.order[k];
           ctx.globalAlpha = o[1];
           ctx.drawImage(c[o[0]], b.x0, b.y0, b.w, b.h);
         }
         // 轮廓光只在朝光的一侧：月自其方位，灵自其方位（夜里唯一的灯）
-        const cyT = y + t.model.cy * t.H;
+        const cyT = y + t.model.cy * t.H * gsB;
         OW[0] = OW[1] = OW[2] = OW[3] = 0;
         if (FL.moonO > 0.01) addRim(FL.moon.x - x, FL.moon.y - cyT, FL.moonO, 0);
         if (S.a > 0.05 && W.night > 0.05) {
@@ -2352,6 +2387,7 @@
       }
       ctx.restore();
     }
+    if (sinking) ctx.restore();
   }
 
   function drawDrift(ctx, layer) {
@@ -2486,9 +2522,9 @@
     const ripe = W.stage >= 24;
     ripeOn = ripe;
     for (const t of trees) {
-      t.g = treeGrowth(t); t.pg = t.g;
+      t.g = treeGrowth(t); t.pg = t.g; t.gRef = t.g; t.gT = -1e9;     // 恢复时各树已停在其程度上：半途的也立即烘焙
       t.ripe = ripe; t.ripeAt = ripe ? 0 : Infinity;
-      if (t.g >= 1) queueBake(t);
+      if (bakeable(t)) queueBake(t);
     }
     blooms.length = 0; worldBloomed = false;
     if (ripe) worldBloom(W.w / 2, false);
@@ -2497,7 +2533,7 @@
     const t0 = performance.now();
     while (bakeQ.length && performance.now() - t0 < 150) {   // 一次性的（载入 / 恢复时，幕后）；烘焙库使卷间的 resync 不必重烘
       const t = bakeQ.shift(); t.queued = false;
-      if (t.g >= 1 && t.bakeKey !== bakeKey(t)) U.safe('land.bake', () => bakeTree(t));
+      if (bakeable(t) && t.bakeKey !== bakeKey(t)) U.safe('land.bake', () => bakeTree(t));
     }
     // （生长快照要用此刻的光，留给 update——restore 可能在世界的光第一次算出之前被调用）
   }
@@ -2514,7 +2550,8 @@
     for (const t of trees) {
       if (t.g <= 0) continue;
       const L = LY[t.layer];
-      const y = ridgeAt(L, t.x);
+      if (L.rise < 0.9) continue;                 // 正没入水中（或刚自水中出来）的树：不供栖落
+      const y = ridgeAt(L, t.x) + treeDrop(t, L);
       if (y >= L.wl - 1) continue;
       const m = t.model, gs = growScale(t.g);
       T.push({ x: t.x, y, top: y + m.top * t.H * gs, w: m.cw * t.H * gs, layer: t.layer, grown: t.g, kind: t.kind, label: KIND[t.kind].cn });
@@ -2555,6 +2592,7 @@
     for (const t of trees) {
       if (t.g < 0.6) continue;
       const L = LY[t.layer];
+      if (L.rise < 0.9) continue;
       const gy = ridgeAt(L, t.x);
       if (gy >= L.wl - 1) continue;
       const cy = gy + t.model.cy * t.H;
@@ -2568,6 +2606,6 @@
     init, resize, update, draw, reset, restore, pick,
     treeSpots, perches, flowerSpots, groundY,
     KIND, prof: PROF,
-    get debug() { return { trees: trees.length, near: LY[2].trees.length, mid: LY[1].trees.length, baked: trees.filter(t => t.bake && t.bake.H === t.H).length, queue: bakeQ.length, blades: LY[1].nb + LY[2].nb, herbs: LY[1].herbs.length + LY[2].herbs.length, blooms: blooms.length, drift: drift.length }; },
+    get debug() { return { trees: trees.length, near: LY[2].trees.length, mid: LY[1].trees.length, baked: trees.filter(t => bakeOK(t, t.bake)).length, snaps: trees.filter(t => t.snap).length, queue: bakeQ.length, blades: LY[1].nb + LY[2].nb, herbs: LY[1].herbs.length + LY[2].herbs.length, blooms: blooms.length, drift: drift.length }; },
   };
 })(window.GS);

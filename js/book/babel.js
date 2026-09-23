@@ -11,7 +11,8 @@
  * 闪的后代一代一代如季节经过，到他拉；他拉带着亚伯兰、撒莱、罗得出了迦勒底的吾珥，
  * 走到哈兰，就住在那里；他拉死在哈兰。
  *
- * 神在这一卷里说话很少：11:6–7 用神自己的话，其余是经文里描述神作为/成就的短句（kind 'act'）。
+ * 神在这一卷里说话很少：11:6–7 用神自己的话；末一句借神后来对亚伯兰说的话（15:7「我是耶和华，曾领你出了迦勒底的吾珥」）；
+ * 其余是经文里描述神作为、或神所看见的短句（kind 'act'）——造砖、造塔的话是人自己说的，只在经文里出现，不由神口说出。
  * 布景：示拿平原上的城与塔（中丘层）、砖窑与晒砖场与石漆坑（近岸层）、吾珥与哈兰（中丘层两端）。
  * ───────────────────────────────────────────────────────────── */
 (function (GS) {
@@ -49,6 +50,7 @@
       speech: 'none',      // 'none' | 'one'（同一的言语）| 'many'（变乱之后）| 'scatter'（分散）
       natT0: -1e9,         // 列国之名开始飘散的时刻（瞬间重演 = 早已散定）
       shaftT0: -1e9,       // 降临之光开始降下的时刻
+      manyT0: -1e9,        // 口音变乱的时刻（此后八九秒，塔上的人各说各的）
       gens: [],            // 家谱之名 [{ name, x, t0 }]（仅在观看时出现）
       cairns: [],          // 石堆（坟）[{ x, t0 }]
     };
@@ -272,25 +274,56 @@
 
   // ════════════════════════════════════════════════════════════
   //  列国之名（创 10）
+  //  三族之名从三个儿子头上升起，先直上，再飘向各自的一方的天上（雅弗：靠海的一边；闪：中天；含：右边的天）。
+  //  横屏时左边的天有朝阳、左边的海上有经文，所以名字都落在画面右边三分之二的高天上（那里天色深，字看得清）。
+  //  一族接一族（10:2–5 雅弗、10:6–20 含、10:21–31 闪），同时可见的约十二个；每族留下两个名，其余渐隐。
+  //  落点用拒绝采样排开（任两名的中心至少相距 1.3 × 字宽 × 字数），不叠在一起；左边海上的一片留给经文。
   // ════════════════════════════════════════════════════════════
   const FAM = {
-    jap: { names: ['歌篾', '玛各', '玛代', '雅完', '土巴', '米设', '提拉', '他施', '基提'], from: [0.51, 0.77], box: [0.04, 0.63, 0.33, 0.8], cols: 3, rgb: [214, 228, 255] },
-    ham: { names: ['古实', '麦西', '弗', '迦南', '宁录', '西巴', '非利士', '西顿'], from: [0.67, 0.77], box: [0.72, 0.6, 0.97, 0.79], cols: 2, rgb: [255, 214, 178] },
-    sem: { names: ['以拦', '亚述', '亚法撒', '路德', '亚兰', '希伯', '法勒', '约坍'], from: [0.61, 0.64], box: [0.42, 0.44, 0.95, 0.555], cols: 4, rgb: [244, 236, 204] },
+    jap: { names: ['歌篾', '玛各', '玛代', '土巴', '米设', '提拉', '基提', '雅完', '他施'], keep: 2, src: 0.53, win: [0.4, 4.2], rgb: [214, 228, 255] },
+    ham: { names: ['古实', '弗', '宁录', '西巴', '非利士', '西顿', '麦西', '迦南'], keep: 2, src: 0.72, win: [4.4, 8.4], rgb: [255, 214, 178] },
+    sem: { names: ['以拦', '亚法撒', '路德', '亚兰', '法勒', '约坍', '亚述', '希伯'], keep: 2, src: 0.61, win: [8.6, 12.4], rgb: [244, 236, 204] },
   };
+  const NAT_LIFE = 5;   // 渐隐之名的一生（秒）
   const NATIONS = [];
-  (function layoutNations() {
+  (function nations() {
     const r = U.mulberry32(1011);
-    for (const key of ['jap', 'sem', 'ham']) {
-      const F = FAM[key], n = F.names.length, rows = Math.ceil(n / F.cols);
+    for (const fam of ['jap', 'ham', 'sem']) {
+      const F = FAM[fam], n = F.names.length;
       F.names.forEach((name, i) => {
-        const col = i % F.cols, row = Math.floor(i / F.cols);
-        const dx = F.box[0] + ((col + 0.5 + (r() - 0.5) * 0.5) / F.cols) * (F.box[2] - F.box[0]);
-        const dy = F.box[1] + ((row + 0.5 + (r() - 0.5) * 0.4) / rows) * (F.box[3] - F.box[1]);
-        NATIONS.push({ name, sx: F.from[0] + (r() - 0.5) * 0.04, sy: F.from[1] + (r() - 0.5) * 0.03, dx, dy, rgb: F.rgb, delay: 0.3 + r() * 2.2, seed: r() * TAU });
+        NATIONS.push({ name, fam, keep: i >= n - F.keep, src: F.src + (r() - 0.5) * 0.03, rgb: F.rgb,
+          delay: lerp(F.win[0], F.win[1], i / (n - 1)), seed: r() * TAU, dx: 0, dy: 0 });
       });
     }
   })();
+  const natPx = () => Math.round(clamp(15.5 * W.unit, 12, 20));
+  function layoutNations() {
+    const hy = (W.horizonY || W.h * 0.6) / W.h, tall = W.w / W.h <= 0.75;
+    const box = (x0, y0, x1, y1) => [x0, y0, x1, Math.max(y0 + 0.08, y1)];
+    const B = tall ? {
+      jap: box(0.04, 0.34, 0.46, hy - 0.05),
+      sem: box(0.3, 0.36, 0.72, hy - 0.06),
+      ham: box(0.56, 0.35, 0.97, hy - 0.04),
+    } : {
+      jap: box(0.34, 0.11, 0.55, hy - 0.16),
+      sem: box(0.56, 0.12, 0.77, hy - 0.14),
+      ham: box(0.78, 0.12, 0.97, hy - 0.12),
+    };
+    const r = U.mulberry32(1013), px = natPx(), placed = [];
+    const order = NATIONS.filter(n => n.keep).concat(NATIONS.filter(n => !n.keep));   // 留下的名先占好位置
+    for (const n of order) {
+      const b = B[n.fam], L = n.name.length;
+      let best = null, bestS = -1;
+      for (let k = 0; k < 90 && bestS < 1; k++) {
+        const x = lerp(b[0], b[2], r()) * W.w, y = lerp(b[1], b[3], r()) * W.h;
+        let s = 1e9;   // 与已放好的名之间最近的归一化距离（≥ 1 即互不相碰）
+        for (const q of placed) s = Math.min(s, Math.hypot((x - q.x) / (px * (0.65 * (L + q.L) + 0.7)), (y - q.y) / (px * 1.9)));
+        if (s > bestS) { bestS = s; best = [x, y]; }
+      }
+      n.dx = best[0]; n.dy = best[1];
+      placed.push({ x: n.dx, y: n.dy, L });
+    }
+  }
 
   // ════════════════════════════════════════════════════════════
   //  布局：城、吾珥、哈兰（x 以画面比例存，尺寸以"人高"为单位——随屏幕缩放）
@@ -320,6 +353,7 @@
       ur: houses(83, UR_X[0], UR_X[1], { w0: 0.9, w1: 1.6, h0: 0.9, h1: 1.35 }),
       haran: houses(97, HARAN_X[0] + 0.02, HARAN_X[1], { w0: 0.9, w1: 1.5, h0: 0.85, h1: 1.3 }),
     };
+    layoutNations();
   }
   const lay = () => { if (!LAY || LAY.w !== W.w || LAY.h !== W.h) layout(); return LAY; };
 
@@ -344,7 +378,7 @@
   // ════════════════════════════════════════════════════════════
   const SPEAK = ['bb:folk', 'bb:mold', 'bb:city'];
   const glyphs = [];
-  const GLYPH_MAX = 340;
+  const GLYPH_MAX = 440;
   let emitAcc = 0, buildT = 3, dustT = 0;
   function hashStr(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
   const sidOf = m => 1 + (hashStr(m.id || '') % (NS - 1));   // 变乱之后，各人自己的文字
@@ -368,10 +402,36 @@
   }
   function shard(x, y, s) {
     const a = rand(0, TAU), sp = rand(40, 170) * Math.max(0.6, W.unit);
-    glyphs.push({ mode: 'shard', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 40 * W.unit, grav: 46 * W.unit, drag: 1.3,
-      rot: rand(-0.6, 0.6), vr: rand(-3, 3), t: 0, dur: rand(1.5, 2.8), s, v: U.randInt(0, NV - 1), size: gsz(2) * rand(0.75, 1.15) });
+    let vx = Math.cos(a) * sp;
+    if (x < W.w * 0.56 && vx < 0) vx *= -0.6;   // 不往左边海上的经文里飞
+    glyphs.push({ mode: 'shard', x, y, vx, vy: Math.sin(a) * sp - 40 * W.unit, grav: 30 * W.unit, drag: 1.1,
+      rot: rand(-0.6, 0.6), vr: rand(-3, 3), t: 0, dur: rand(2, 3.4), s, v: U.randInt(0, NV - 1), size: gsz(2) * rand(1, 1.35) });
   }
-  // 「变乱他们的口音」：空中同一的字与那道金线，一齐碎成万种文字
+  // 塔上的人：坡道上走着的、塔顶砌砖的、脚手架上的（与 drawTower 里画他们的位置一致）
+  function towerSpots() {
+    const lv = W.lv.babelTower, out = [];
+    if (lv < 0.05) return out;
+    const d = towerDims(), { cx, Hf, B, gy } = d, un = W.unit, built = lv * Hf, fh = hmid() * 0.34;
+    for (const t of TIERS) {
+      if (t.f1 * Hf > built) break;
+      const yb = gy - t.f0 * Hf, yt = gy - t.f1 * Hf, wb = wAt(B, t.f0), wt = wb * 0.955, th = yb - yt, rt = th * 0.2, dir = t.i % 2 === 0 ? 1 : -1;
+      const half = y => lerp(wb, wt, (yb - y) / th) / 2 - 2 * un;
+      const C = [cx + dir * half(yt), yt], D = [cx - dir * half(yb - rt), yb - rt];
+      for (const s of [0.15, 0.4, 0.65, 0.9]) out.push([lerp(D[0], C[0], s), lerp(D[1], C[1], s) - fh * 1.1]);
+    }
+    const topY = gy - built, wTop = wAt(B, clamp(lv, 0, 1)) * 0.97, tierH = Hf * 0.12 * clamp(lv * 2.6, 0.45, 1);
+    for (const f of [-0.46, -0.3, -0.15, 0, 0.15, 0.3, 0.48]) out.push([cx + f * wTop, topY - fh * 1.1]);
+    for (const f of [-0.46, -0.2, 0.06, 0.3, 0.48]) out.push([cx + f * wTop, topY - tierH * 0.4]);
+    return out;
+  }
+  // 塔上的字：各人一种文字，飘向塔四围空旷的天
+  function towerGlyph(p, i, cx, burst) {
+    const un = Math.max(0.6, W.unit), side = p[0] < cx ? -1 : 1, up = p[1] < W.h * 0.25 ? 0.35 : 1;   // 塔顶的字多往两旁飘，不飘出画面顶上
+    glyphs.push({ mode: 'shard', x: p[0], y: p[1], vx: side * rand(burst ? 14 : 12, burst ? 60 : 42) * un / Math.sqrt(up), vy: -rand(burst ? 24 : 14, burst ? 70 : 34) * un * up,
+      grav: -5 * un * up, drag: 0.45, rot: rand(-0.4, 0.4), vr: rand(-1, 1), t: 0, dur: burst ? rand(3, 5) : rand(2.4, 3.6),
+      s: 1 + (i % (NS - 1)), v: U.randInt(0, NV - 1), size: gsz(2) * (burst ? 1.6 : 1.35) * rand(0.85, 1.1) });
+  }
+  // 「变乱他们的口音」：空中同一的字与那道金线，一齐碎成万种文字——塔上、窑边，处处都是
   function shatter() {
     const old = glyphs.splice(0, glyphs.length);
     for (const g of old) for (let k = 0; k < 3; k++) shard(g.x, g.y, 1 + U.randInt(0, NS - 2));
@@ -382,10 +442,26 @@
       }
     }
     for (const m of liveMembers(SPEAK)) { const h = headOf(m); for (let k = 0; k < 2; k++) shard(h[0], h[1], sidOf(m)); }
+    const cx = TOWER_X * W.w;
+    towerSpots().forEach((p, i) => { for (let k = 0; k < 2; k++) towerGlyph(p, i, cx, true); });
     if (glyphs.length > GLYPH_MAX) glyphs.splice(0, glyphs.length - GLYPH_MAX);
+  }
+  // 变乱之后的八九秒里，塔上的人仍在说，各说各的
+  let towerAcc = 0;
+  function emitTower(dt) {
+    const age = W.t - S.manyT0;
+    if (age < 0 || age > 9.5) return;
+    const spots = towerSpots();
+    if (!spots.length) return;
+    towerAcc += dt * 8 * (age < 7 ? 1 : 1 - (age - 7) / 2.5);
+    const cx = TOWER_X * W.w;
+    let guard = 6;
+    while (towerAcc >= 1 && guard-- > 0 && glyphs.length < GLYPH_MAX) { towerAcc -= 1; const i = U.randInt(0, spots.length - 1); towerGlyph(spots[i], i, cx, false); }
+    if (towerAcc > 2) towerAcc = 0;
   }
   function emit(dt) {
     if (S.speech === 'none' || W.replaying || W.ritual.holding) return;
+    if (S.speech === 'many') emitTower(dt);
     const ms = liveMembers(SPEAK);
     if (!ms.length) return;
     const mode = S.speech;
@@ -921,16 +997,21 @@
   function drawNations(ctx) {
     const k = W.lv.babelNations;
     if (k < 0.01) return;
-    const px = Math.round(clamp(14 * W.unit, 11, 18));
+    if (!lay()) return;
+    const px = natPx(), hn = hnear();
     for (const n of NATIONS) {
       const age = W.t - S.natT0 - n.delay;
+      if (age <= 0) continue;
+      if (!n.keep && age >= NAT_LIFE) continue;
       const born = clamp(age / 0.9, 0, 1);
-      if (born <= 0) continue;
-      const e = U.easeInOut(clamp(age / 9, 0, 1));
-      const x = lerp(n.sx, n.dx, e) * W.w + Math.sin(W.t * 0.3 + n.seed) * 4 * W.unit;
-      const y = lerp(n.sy, n.dy, e) * W.h + Math.cos(W.t * 0.23 + n.seed) * 3 * W.unit;
+      const t = U.easeInOut(clamp(age / (n.keep ? 5 : 4), 0, 1)), u = 1 - t;
+      // 自父亲头上升起：先直上（y 走得早），再横飘到自己的一方（x 走得晚）——不从左边海上的经文里穿过
+      const sx = n.src * W.w, sy = groundY(2, sx) - hn * 1.3;
+      const x = sx + t * t * (n.dx - sx) + Math.sin(W.t * 0.3 + n.seed) * 4 * W.unit * t;
+      const y = sy + (1 - u * u) * (n.dy - sy) + Math.cos(W.t * 0.23 + n.seed) * 3 * W.unit * t;
+      const a = n.keep ? 0.62 + 0.33 * u : (0.95 - 0.2 * t) * clamp((NAT_LIFE - age) / 1.3, 0, 1);
       const sp = textSprite(n.name, px, n.rgb);
-      ctx.globalAlpha = clamp(k * born * (0.36 + 0.5 * (1 - e)), 0, 1);
+      ctx.globalAlpha = clamp(k * born * a, 0, 1);
       ctx.drawImage(sp.c, x - sp.w / 2, y - sp.h / 2, sp.w, sp.h);
     }
     ctx.globalAlpha = 1;
@@ -1038,6 +1119,8 @@
   const genX = k => 0.9 - k * 0.05;
   const genId = k => (k === GENS.length - 1 ? 'terah' : 'bb:g' + k);
   function spiritRing(c) { if (!c.instant) safe('babel.ring', () => fx().ring(c.x, c.y, TINT, M() * 0.28, 1.8, 1.5)); }
+  // 地上的走兽绕开主要人物与布景所在的几段（W.beastAvoid：近岸层上宽度比例的区间；每卷开始时引擎会清空）
+  const avoid = (...rs) => { W.beastAvoid = rs; };
   function animal(id, o) {
     const C = cast();
     if (!C || !C.animal) return null;
@@ -1051,11 +1134,33 @@
     id: ACT, title: '巴别', sub: '创世记 10:1 — 11:32', tint: TINT,
     intro: [{ text: '挪亚的儿子闪、含、雅弗的后代记在下面。<br>洪水以后，他们都生了儿子。', ref: '创世记 10:1', hold: 6 }],
     outro: 34,
+    // 书成之后，按住本卷的人与物，显出它的经文
+    behold: {
+      '巴别塔': { text: '他们说：「来吧！我们要建造一座城和一座塔，塔顶通天，<br>为要传扬我们的名，免得我们分散在全地上。」', ref: '创世记 11:4' },
+      '巴别城': { text: '因为耶和华在那里变乱天下人的言语，使众人分散在全地上，<br>所以那城名叫巴别（就是「变乱」的意思）。', ref: '创世记 11:9' },
+      '巴别城（荒）': { text: '于是，耶和华使他们从那里分散在全地上；<br>他们就停工，不造那城了。', ref: '创世记 11:8' },
+      '砖窑': { text: '他们彼此商量说：「来吧！我们要作砖，把砖烧透了。」<br>他们就拿砖当石头，又拿石漆当灰泥。', ref: '创世记 11:3' },
+      '石漆坑': { text: '他们彼此商量说：「来吧！我们要作砖，把砖烧透了。」<br>他们就拿砖当石头，又拿石漆当灰泥。', ref: '创世记 11:3' },
+      '示拿的百姓': { text: '那时，天下人的口音、言语都是一样。', ref: '创世记 11:1' },
+      '雅弗的后裔': { text: '这些人的后裔将各国的地土、海岛分开居住，<br>各随各的方言、宗族立国。', ref: '创世记 10:5' },
+      '含的后裔': { text: '这些都是挪亚三个儿子的宗族，各随他们的支派立国。<br>洪水以后，他们在地上分为邦国。', ref: '创世记 10:32' },
+      '闪的后裔': { text: '这些都是挪亚三个儿子的宗族，各随他们的支派立国。<br>洪水以后，他们在地上分为邦国。', ref: '创世记 10:32' },
+      '宁录': { text: '古实又生宁录，他为世上英雄之首。', ref: '创世记 10:8' },
+      '希伯': { text: '希伯活到三十四岁，生了法勒。', ref: '创世记 11:16' },
+      '他拉': { text: '他拉共活了二百零五岁，就死在哈兰。', ref: '创世记 11:32' },
+      '亚伯兰': { text: '他拉活到七十岁，生了亚伯兰、拿鹤、哈兰。', ref: '创世记 11:26' },
+      '拿鹤': { text: '他拉活到七十岁，生了亚伯兰、拿鹤、哈兰。', ref: '创世记 11:26' },
+      '撒莱': { text: '撒莱不生育，没有孩子。', ref: '创世记 11:30' },
+      '罗得': { text: '他拉的后代记在下面。<br>他拉生亚伯兰、拿鹤、哈兰；哈兰生罗得。', ref: '创世记 11:27' },
+      '迦勒底的吾珥': { text: '耶和华又对他说：「我是耶和华，曾领你出了迦勒底的吾珥，<br>为要将这地赐你为业。」', ref: '创世记 15:7' },
+      '哈兰': { text: '他们走到哈兰，就住在那里。', ref: '创世记 11:31' },
+    },
     setup() {
       // 示拿的平原：干燥的土地
       GS.W.set('bare', 0.3, true); GS.W.set('bloom', 0.3, true);
       S = fresh();
-      glyphs.length = 0; emitAcc = 0;
+      glyphs.length = 0; emitAcc = 0; towerAcc = 0;
+      avoid([0.49, 0.7]);
       const L = { deep: 1, light: 1, gather: 1, dayNight: 1, vault: 1, clouds: 1, land: 1, grass: 1, herbs: 1, trees: 0.24,
         lights: 1, moon: 1, stars: 1, life: 1, good: 0, sabbath: 0, given: 1 };
       for (const k in L) if (W.hasLevel(k)) W.set(k, L[k], true);
@@ -1096,6 +1201,7 @@
               W.goTo(0.4, 12, b.instant);
               W.set('babelNations', 1, b.instant);
               S.natT0 = b.instant ? -1e9 : W.t;
+              avoid([0.44, 0.75]);
               cast().crowd('bb:jap', { n: 6, x0: 0.47, x1: 0.56, layer: 2, label: '雅弗的后裔', robe: ROBE.jap });
               cast().crowd('bb:ham', { n: 6, x0: 0.62, x1: 0.72, layer: 2, label: '含的后裔', robe: ROBE.ham });
               cast().crowd('bb:sem', { n: 7, x0: 0.55, x1: 0.7, layer: 1, label: '闪的后裔', robe: ROBE.sem });
@@ -1108,8 +1214,9 @@
               }
             }],
             [4.2, b => {
-              cast().crowdWalk('bb:jap', 0.4, 0.48);
-              cast().walk('japheth', 0.46, { pose: 'point' });
+              avoid([0.4, 0.52], [0.58, 0.66], [0.78, 0.99]);
+              cast().crowdWalk('bb:jap', 0.42, 0.5);
+              cast().walk('japheth', 0.48, { pose: 'point' });
               cast().crowdWalk('bb:ham', 0.8, 0.97);
               cast().walk('ham', 0.8, { pose: 'stand' });
               cast().crowdWalk('bb:sem', 0.76, 0.97);
@@ -1126,7 +1233,6 @@
         verse: [
           { text: '古实又生宁录，他为世上英雄之首。', ref: '创世记 10:8', hold: 4.5 },
           { text: '他国的起头是巴别、以力、亚甲、甲尼，都在示拿地。', ref: '创世记 10:10', hold: 5.5 },
-          { text: '那时，天下人的口音、言语都是一样。', ref: '创世记 11:1', hold: 5 },
           { text: '他们往东边迁移的时候，<br>在示拿地遇见一片平原，就住在那里。', ref: '创世记 11:2', hold: 6 },
         ],
         apply(c) {
@@ -1146,6 +1252,7 @@
               cast().crowdWalk('bb:folk', 0.6, 0.8);
               cast().crowdWalk('bb:mold', 0.5, 0.63);
               cast().crowdWalk('bb:city', 0.6, 0.88);
+              avoid([0.47, 0.84]);
               S.speech = 'one';
               W.set('babelOne', 0.35, b.instant);
               if (!b.instant) sfx('crowd', { soft: true });
@@ -1154,17 +1261,24 @@
         },
       },
 
-      // ── 11:3 作砖、烧砖、石漆 ─────────────────────────────
+      // ── 11:1–3 同一的言语；作砖、烧砖、石漆 ────────────────
+      //    说出的是神所看见的：天下人的口音、言语都是一样（金线大亮）；作砖、造塔的是人自己
       {
-        kind: 'act', utter: '拿砖当石头，又拿石漆当灰泥', cmd: 'make 砖 --fire 烧透 --mortar 石漆', ref: '11:3',
+        kind: 'act', utter: '天下人的口音、言语都是一样', cmd: 'locale -a | wc -l  # → 1', ref: '11:1–3',
         verse: [
+          { text: '那时，天下人的口音、言语都是一样。', ref: '创世记 11:1', hold: 5 },
           { text: '他们彼此商量说：「来吧！我们要作砖，把砖烧透了。」<br>他们就拿砖当石头，又拿石漆当灰泥。', ref: '创世记 11:3', hold: 8 },
         ],
         apply(c) {
           spiritRing(c);
           T(c, [
             [0, b => {
-              W.goTo(0.55, 12, b.instant);
+              W.set('babelOne', 0.75, b.instant);
+              W.goTo(0.55, 14, b.instant);
+              if (!b.instant) sfx('crowd', { soft: true });
+            }],
+            [5, b => {
+              avoid([0.45, 0.82]);
               W.set('babelYard', 1, b.instant);
               W.set('babelWork', 1, b.instant);
               cast().crowdWalk('bb:mold', 0.5, 0.63, { pose: 'kneel' });
@@ -1174,7 +1288,7 @@
                 sfx('fire');
               }
             }],
-            [2.6, b => {
+            [7.6, b => {
               W.set('babelTower', 0.13, b.instant);
               W.set('babelCity', 0.22, b.instant);
               cast().crowdWalk('bb:city', 0.6, 0.86, { pose: 'carry' });
@@ -1184,16 +1298,19 @@
         },
       },
 
-      // ── 11:4 城和塔 ───────────────────────────────────────
+      // ── 11:4–5 城和塔；耶和华降临 ─────────────────────────
+      //    人说「塔顶通天」，城与塔一层层升起；神降临要看看——一道光自天而降
       {
-        kind: 'act', utter: '建造一座城和一座塔，塔顶通天', cmd: 'build 城 塔 --target 天  # 为要传扬我们的名', ref: '11:4',
+        kind: 'act', utter: '耶和华降临，要看看世人所建造的城和塔', cmd: 'watch 城 塔 --descend  # 为要传扬我们的名', ref: '11:4–5',
         verse: [
           { text: '他们说：「来吧！我们要建造一座城和一座塔，塔顶通天，<br>为要传扬我们的名，免得我们分散在全地上。」', ref: '创世记 11:4', hold: 8.5 },
+          { text: '耶和华降临，要看看世人所建造的城和塔。', ref: '创世记 11:5', hold: 5 },
         ],
         apply(c) {
           spiritRing(c);
           T(c, [
             [0, b => {
+              avoid([0.45, 0.86]);
               W.goTo(0.61, 18, b.instant);
               W.set('babelYard', 1, b.instant);
               W.set('babelWork', 1, b.instant);
@@ -1203,24 +1320,28 @@
               if (!b.instant) sfx('build');
             }],
             [5, () => { cast().crowdWalk('bb:folk', 0.64, 0.84, { pose: 'carry' }); }],
+            [9, b => {
+              // 耶和华降临：光自天而降，落在塔上（造塔的人还不知道，仍在搬砖）
+              S.shaftT0 = b.instant ? -1e9 : W.t;
+              W.set('babelShaft', 1, b.instant);
+              if (!b.instant) sfx('harp', { soft: true });
+            }],
             [11, b => { cast().crowdWalk('bb:folk', 0.57, 0.76, { pose: 'carry' }); if (!b.instant) sfx('build'); }],
             [15, () => { cast().crowdWalk('bb:city', 0.62, 0.85, { pose: 'carry' }); cast().pose('nimrod', 'point'); }],
           ]);
         },
       },
 
-      // ── 11:5–6 耶和华降临 ─────────────────────────────────
+      // ── 11:6 看哪，一样的人民 ─────────────────────────────
       {
-        kind: 'judge', utter: '看哪，他们成为一样的人民', cmd: 'review 城 塔 --descend  # 一样的人民，一样的言语', ref: '11:6', hold: 3,
+        kind: 'judge', utter: '看哪，他们成为一样的人民', cmd: 'review 城 塔  # 一样的人民，一样的言语', ref: '11:6', hold: 3,
         verse: [
-          { text: '耶和华降临，要看看世人所建造的城和塔。', ref: '创世记 11:5', hold: 5 },
           { text: '耶和华说：「看哪，他们成为一样的人民，都是一样的言语，<br>如今既作起这事来，以后他们所要作的事就没有不成就的了。', ref: '创世记 11:6', hold: 8.5 },
         ],
         apply(c) {
           T(c, [
             [0, b => {
-              S.shaftT0 = b.instant ? -1e9 : W.t;
-              W.set('babelShaft', 1, b.instant);
+              W.set('babelShaft', 1, b.instant);   // 光已在上一句降下（11:5）
               W.goTo(0.665, 12, b.instant);
               if (!b.instant) sfx('harp', { soft: true });
             }],
@@ -1248,6 +1369,7 @@
               W.set('babelShaft', 1, b.instant);
               W.goTo(0.715, 10, b.instant);
               S.speech = 'many';
+              S.manyT0 = b.instant ? -1e9 : W.t;
               if (!b.instant) {
                 shatter();
                 const d = towerDims();
@@ -1286,6 +1408,7 @@
               W.set('babelOne', 0, b.instant);
               W.goTo(0.75, 16, b.instant);
               S.speech = 'scatter';
+              avoid([0.45, 0.78]);
               for (const g of SPEAK) cast().scatter(g);
               cast().walk('nimrod', 1.12, { speed: 0.03 });
               if (!b.instant) sfx('wind', { soft: true });
@@ -1322,6 +1445,7 @@
               W.set('babelYard', 0, b.instant);
               W.set('babelWork', 0, b.instant);
               S.speech = 'none';
+              avoid();
               for (const g of SPEAK) cast().removeCrowd(g);   // 分散的人若还在路上，也在夜色里隐去
               cast().remove('nimrod');
             }],
@@ -1329,6 +1453,7 @@
             [10.4, () => say([{ text: '希伯活到三十四岁，生了法勒。', ref: '创世记 11:16', hold: 4.5 }])],
             [21.4, () => say([{ text: '他拉活到七十岁，生了亚伯兰、拿鹤、哈兰。', ref: '创世记 11:26', hold: 5.5 }])],
             [22.6, () => {
+              avoid([0.4, 0.61]);
               cast().add('haran', { label: '哈兰', x: 0.465, facing: 1, robe: [112, 96, 84], from: 'light', glow: 0.45 });
               cast().add('abram', { label: '亚伯兰', x: 0.535, facing: -1, robe: [128, 100, 76], from: 'light', glow: 0.5 });
               cast().add('nahor', { label: '拿鹤', x: 0.567, facing: -1, robe: [104, 90, 96], from: 'light', glow: 0.45 });
@@ -1342,6 +1467,7 @@
           GENS.forEach((name, k) => {
             const t = 1.2 + k * 2.4, x = genX(k), id = genId(k);
             beats.push([t, b => {
+              if (k < GENS.length - 1) avoid([x - 0.05, x + 0.05]); else avoid([0.46, 0.55]);
               cast().add(id, { label: name, x, facing: -1, robe: k % 2 ? [124, 104, 86] : [112, 98, 92], from: 'light', glow: 0.55, age: k === GENS.length - 1 ? 'elder' : 'adult', prop: k === GENS.length - 1 ? 'staff' : undefined });
               if (!b.instant) {
                 S.gens.push({ name, x, t0: W.t });
@@ -1356,7 +1482,7 @@
 
       // ── 11:27–32 他拉出了吾珥，到哈兰 ────────────────────
       {
-        kind: 'act', utter: '出了迦勒底的吾珥，要往迦南地去', cmd: 'mv 他拉家 吾珥 → 哈兰  # 迦南: pending', ref: '11:31',
+        kind: 'call', utter: '我是耶和华，曾领你出了迦勒底的吾珥', cmd: 'mv 他拉家 吾珥 → 哈兰  # 迦南: pending', ref: '15:7',
         verse: [
           { text: '哈兰死在他的本地迦勒底的吾珥，在他父亲他拉之先。', ref: '创世记 11:28', hold: 5.5 },
           { text: '撒莱不生育，没有孩子。', ref: '创世记 11:30', hold: 4 },
@@ -1365,6 +1491,7 @@
           spiritRing(c);
           T(c, [
             [0, b => {
+              avoid([0.4, 0.62]);
               W.goTo(0.52, 9, b.instant);
               W.set('babelUr', 1, b.instant);
               cast().pose('haran', 'lie');
@@ -1391,6 +1518,7 @@
               cast().walk('sarai', 0.88, { speed: 0.026 });
               cast().walk('lot', 0.806, { speed: 0.026 });
               cast().face('nahor', 1);
+              avoid([0.4, 0.62], [0.76, 0.92]);
               W.set('babelHaran', 1, b.instant);
               animal('bb:donkey', { kind: 'donkey', x: 0.51, layer: 2, follow: 'abram' });
               animal('bb:sheep1', { kind: 'sheep', x: 0.47, layer: 2, follow: 'lot' });
