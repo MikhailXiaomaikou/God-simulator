@@ -168,6 +168,7 @@
   }
   const FISH = [];
   const SCH = [];
+  const TRN = 8;                                   // 荧光尾迹的采样数（每 0.1 秒一点）
   function school(i) {
     if (!SCH[i]) SCH[i] = { i, tx: W.w * 0.2, ty: W.h * 0.8, wt: 0, orbit: null, cx: 0, cy: 0, n: 0, basin: 0, chk: 0 };
     return SCH[i];
@@ -180,7 +181,7 @@
       len: K.len * rnd(0.85, 1.18), wid: K.wid * rnd(0.9, 1.1), ph: rnd(0, TAU),
       sub: rnd(0.25, 0.85), subB: rnd(0.25, 0.85), born: instant ? -99 : W.t, a: instant ? 1 : 0,
       flick: 0, flickAt: 0, panic: 0, ball: 0, ax: 0, ay: 0, vmin0: null, wx: 0, wy: 0, orb: rnd(0.35, 1), leap: null, seed: Math.random(),
-      D: 0.5, s: 1, fz: 0.5, band: 2, tr: new Float32Array(12), trH: 0, trN: 0, trT: 0,
+      D: 0.5, s: 1, fz: 0.5, band: 2, tr: new Float32Array(TRN * 2), trH: 0, trN: 0, trT: rnd(0, 0.1),
     };
   }
 
@@ -233,11 +234,24 @@
     }
     buildGrid();
     // 鱼群的中心、去处
-    for (const S of SCH) { if (S) { S.cx = 0; S.cy = 0; S.n = 0; } }
-    for (let i = 0; i < N; i++) { const f = FISH[i]; if (f.sc < 0) continue; const S = school(f.sc); S.cx += f.x; S.cy += f.y; S.n++; }
+    for (const S of SCH) { if (S) { S.cx = 0; S.cy = 0; S.n = 0; S.qx = 0; S.qy = 0; S.na = 0; } }
+    for (let i = 0; i < N; i++) {
+      const f = FISH[i]; if (f.sc < 0) continue;
+      const S = school(f.sc); S.cx += f.x; S.cy += f.y; S.qx += f.x * f.x; S.qy += f.y * f.y; S.n++; S.na += f.a;
+    }
     for (const S of SCH) {
       if (!S || !S.n) continue;
       S.cx /= S.n; S.cy /= S.n;
+      // 群的铺展（标准差，像素）：水下那一片鱼群的暗影据此画出
+      S.rx = Math.sqrt(Math.max(0, S.qx / S.n - S.cx * S.cx));
+      S.ry = Math.sqrt(Math.max(0, S.qy / S.n - S.cy * S.cy));
+      S.na /= S.n;
+      // 整群同时一转：银光如波，自一端扫过全群
+      S.flashT = (S.flashT == null ? rnd(2, 8) : S.flashT) - dt;
+      if (S.flashT <= 0) {
+        S.flashT = rnd(5, 12);
+        if (W.daylight > 0.3 && !SPC.listen && S.n > 6) schoolWave(S);
+      }
       S.chk -= dt;
       if (S.chk <= 0) { S.chk = 1; const b = basinAt(S.cx, S.cy); if (b) S.basin = b; }
       S.wt -= dt;
@@ -253,13 +267,13 @@
       const f = FISH[idx], K = FK[f.k];
       // 出现：自水中的闪光渐显
       if (f.a < 1) f.a = Math.min(1, f.a + dt / 1.3);
-      if (f.flick > 0) f.flick = Math.max(0, f.flick - dt * 2.6);
+      if (f.flick > 0) { f.flick = Math.max(0, f.flick - dt * 2.6); if (!f.flick) f.flickSide = 0; }
       if (f.flickAt && t >= f.flickAt) { f.flick = 1; f.flickAt = 0; }
       // 荧光尾迹的采样
       f.trT -= dt;
       if (f.trT <= 0) {
-        f.trT = 0.11;
-        f.trH = (f.trH + 1) % 6; f.tr[f.trH * 2] = f.x; f.tr[f.trH * 2 + 1] = f.y; if (f.trN < 6) f.trN++;
+        f.trT = 0.1;
+        f.trH = (f.trH + 1) % TRN; f.tr[f.trH * 2] = f.x; f.tr[f.trH * 2 + 1] = f.y; if (f.trN < TRN) f.trN++;
       }
       if (f.leap) { updateLeap(f, dt); continue; }
       const is = 1 / f.s, isz = 1 / (f.s * f.fz);
@@ -429,6 +443,18 @@
     }
   }
 
+  function schoolWave(S) {
+    let o = null;
+    for (let k = 0; k < 8 && !o; k++) { const f = FISH[(Math.random() * FISH.length) | 0]; if (f && f.sc === S.i && !f.leap) o = f; }
+    if (!o) return;
+    const sp = 70 * scaleAt(o.y) + 20, t = W.t;
+    for (let i = 0; i < FISH.length; i++) {
+      const f = FISH[i];
+      if (f.sc !== S.i || f.leap) continue;
+      f.flickAt = t + Math.hypot(f.x - o.x, (f.y - o.y) / f.fz) / sp + Math.random() * 0.08;
+      f.flickSide = o.seed < 0.5 ? 1 : -1;
+    }
+  }
   function newWaypoint(S) {
     const d = SCH_D[S.i] || [0.25, 0.9];
     const p = randSea(d[0], d[1], S.basin || BAS.big, 10) || randSea(0.15, 0.95, S.basin || BAS.big, 0) || null;
@@ -458,7 +484,7 @@
   // ════════════════════════════════════════════════════════════
   //  涟漪 · 水花 · 喷气
   // ════════════════════════════════════════════════════════════
-  // kind：0 光的涟漪 · 1 荧光 · 2 泡沫（填充） · 3 鲸歌（极淡的光环）
+  // kind：0 光的涟漪 · 1 荧光 · 2 泡沫（柔白的一片） · 3 鲸歌（极淡的光环） · 4 鲸的"脚印"（光滑的水面）
   const RIP = [];
   function addRipple(x, y, r0, r1, dur, kind, band, a, delay) {
     if (RIP.length > 90) RIP.shift();
@@ -470,7 +496,8 @@
     if (size > 0.4) addRipple(x, y, 1, 6 + 9 * size, 0.9 + size * 0.4, 0, band, 0.6, 0.25);
     if (size > 1) {
       addRipple(x, y, 4, 18 + 22 * size, 2.2 + size * 0.4, 0, band, 0.7, 0.5);
-      addRipple(x, y, 0.3 * size * 22, 0.55 * size * 24, 3.6, 2, band, 0.55);
+      addRipple(x, y, 0.3 * size * 22, 0.62 * size * 26, 5.5, 2, band, 0.7);
+      waterColumn(x, y, s, band, size / 2);
     }
     const n = Math.round((drops || 6) * (W.quality || 1));
     if (fxOK() && n > 0) {
@@ -486,26 +513,80 @@
     }
     emit('splash', { x, y, size });
   }
-  // 喷气的白雾（离屏预绘的柔光团，拉伸成雾柱）
-  let PUFF = null;
-  function makePuff() {
-    try {
-      const c = document.createElement('canvas');
-      c.width = c.height = 64;
-      const g = c.getContext('2d');
-      const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
-      gr.addColorStop(0, 'rgba(255,255,255,0.9)');
-      gr.addColorStop(0.45, 'rgba(255,255,255,0.45)');
-      gr.addColorStop(1, 'rgba(255,255,255,0)');
-      g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
-      PUFF = c;
-    } catch (e) { PUFF = null; }
+  // ── 离屏预绘的精灵（只在启动时画一次；绘制时缩放、旋转、前缩）──
+  //   PUFF 白雾团 · GLOW 青色荧光点 · DARK 鱼群在水下的暗影 · WT 鲸的俯视柔影（身 / 浅色长鳍 / 荧光）
+  let PUFF = null, GLOW = null, DARK = null, WT = null;
+  function mkCanvas(w, h) { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
+  function radialSprite(size, stops) {
+    const c = mkCanvas(size, size), g = c.getContext('2d'), r = size / 2;
+    const gr = g.createRadialGradient(r, r, 0, r, r, r);
+    for (const s of stops) gr.addColorStop(s[0], s[1]);
+    g.fillStyle = gr; g.fillRect(0, 0, size, size);
+    return c;
   }
+  // 平滑的闭合轮廓：以相邻点的中点为端点、原点为控制点的二次曲线（点列首尾相接）
+  function smoothClosed(g, P, n) {
+    const mx = (P[0] + P[(n - 1) * 2]) / 2, my = (P[1] + P[(n - 1) * 2 + 1]) / 2;
+    g.moveTo(mx, my);
+    for (let k = 0; k < n; k++) {
+      const j = (k + 1) % n;
+      g.quadraticCurveTo(P[k * 2], P[k * 2 + 1], (P[k * 2] + P[j * 2]) / 2, (P[k * 2 + 1] + P[j * 2 + 1]) / 2);
+    }
+    g.closePath();
+  }
+  // 座头鲸的俯视轮廓（a：头 +0.5 → 尾 −0.5；b：半宽，以身长计）
+  const WTOP = [[0.5, 0], [0.49, 0.034], [0.45, 0.066], [0.38, 0.092], [0.28, 0.11], [0.16, 0.116], [0.04, 0.11], [-0.08, 0.095],
+    [-0.2, 0.07], [-0.3, 0.045], [-0.38, 0.027], [-0.425, 0.022], [-0.445, 0.07], [-0.48, 0.135], [-0.525, 0.172], [-0.545, 0.16],
+    [-0.525, 0.1], [-0.505, 0.035], [-0.52, 0]];
+  // 长长的胸鳍（座头鲸的"大翅"），向后掠
+  const WFIN = [[0.27, 0.09], [0.22, 0.2], [0.13, 0.3], [0.05, 0.345], [0.02, 0.335], [0.07, 0.28], [0.13, 0.2], [0.17, 0.1]];
+  function whaleTopPts(L, fins) {
+    const P = [];
+    if (!fins) {
+      for (let k = 0; k < WTOP.length; k++) P.push(WTOP[k][0] * L, WTOP[k][1] * L);
+      for (let k = WTOP.length - 2; k >= 1; k--) P.push(WTOP[k][0] * L, -WTOP[k][1] * L);
+    }
+    return P;
+  }
+  function makeWhaleSprites() {
+    const Ls = 200, SW = 264, SH = 190, CX = 132, CY = 95, OFF = 5000;
+    const soft = (color, blur, withBody, withFins, grow) => {
+      const c = mkCanvas(SW, SH), g = c.getContext('2d');
+      g.shadowColor = color; g.shadowBlur = blur; g.shadowOffsetX = OFF;
+      g.translate(CX - OFF, CY);
+      if (grow) g.scale(grow, grow);
+      g.fillStyle = '#000';
+      if (withBody) { const P = whaleTopPts(Ls); g.beginPath(); smoothClosed(g, P, P.length / 2); g.fill(); }
+      if (withFins) {
+        for (let side = -1; side <= 1; side += 2) {
+          const P = [];
+          for (const q of WFIN) P.push(q[0] * Ls, q[1] * Ls * side);
+          g.beginPath(); smoothClosed(g, P, P.length / 2); g.fill();
+        }
+      }
+      return c;
+    };
+    return {
+      Ls, CX, CY,
+      body: soft('rgba(3,12,20,1)', 7, true, true),
+      fin: soft('rgba(176,228,226,1)', 4, false, true),
+      bio: soft('rgba(111,242,220,1)', 14, true, true, 1.05),
+    };
+  }
+  function makeSprites() {
+    try {
+      PUFF = radialSprite(64, [[0, 'rgba(255,255,255,0.9)'], [0.45, 'rgba(255,255,255,0.45)'], [1, 'rgba(255,255,255,0)']]);
+      GLOW = radialSprite(32, [[0, 'rgba(210,255,248,1)'], [0.22, 'rgba(111,242,220,0.6)'], [0.55, 'rgba(111,242,220,0.14)'], [1, 'rgba(111,242,220,0)']]);
+      DARK = radialSprite(64, [[0, 'rgba(3,12,22,0.85)'], [0.45, 'rgba(3,12,22,0.5)'], [1, 'rgba(3,12,22,0)']]);
+      WT = makeWhaleSprites();
+    } catch (e) { PUFF = GLOW = DARK = WT = null; }
+  }
+  // 雾柱与水柱：kind 0 鲸喷出的雾 · 1 跃身击浪激起的白色水柱
   const PLUME = [];
   function spout(x, y, s, band, k) {
     k = k || 1;
-    PLUME.push({ x, y, s, band, t: 0, dur: 2.6 * (0.7 + 0.3 * k), H: 58 * k, Wd: 16 * k, dx: rnd(-0.5, 0.5) });
-    if (PLUME.length > 8) PLUME.shift();
+    PLUME.push({ x, y, s, band, t: 0, dur: 2.8 * (0.7 + 0.3 * k), H: 64 * k, Wd: 17 * k, dx: rnd(-0.5, 0.5), kind: 0 });
+    if (PLUME.length > 10) PLUME.shift();
     const n = Math.round(26 * k * (W.quality || 1));
     if (fxOK()) {
       const lit = W.shade(MIST, 0.15, 0.3);
@@ -515,6 +596,11 @@
           grav: 38 * s, drag: 1.4, max: rnd(1.1, 2.3), size: rnd(0.4, 0.9) * ps, c: lit, a: 0.2, pass: BANDS[band] });
       }
     }
+  }
+  // 跃身击浪：白色的水柱（高而宽，迅速升起，缓缓塌落）
+  function waterColumn(x, y, s, band, k) {
+    PLUME.push({ x, y, s, band, t: 0, dur: 2.4 + 0.5 * k, H: 70 * k, Wd: 46 * k, dx: rnd(-0.3, 0.3), kind: 1 });
+    if (PLUME.length > 10) PLUME.shift();
   }
   function updateFx(dt) {
     for (let i = RIP.length - 1; i >= 0; i--) { const r = RIP[i]; r.t += dt; if (r.t >= r.dur) RIP.splice(i, 1); }
@@ -627,7 +713,10 @@
           }
           if (w.T >= w.dur) {
             w.arch = 0; w.fluke = 0; w.drip = false;
-            addRipple(w.x - Math.cos(w.hd) * w.L * 0.45 * s, w.y - Math.sin(w.hd) * w.L * 0.45 * s * fz, 3, 26, 2.4, 0, bandOf(w.y), 0.6);
+            const fx0 = w.x - Math.cos(w.hd) * w.L * 0.45 * s, fy0 = w.y - Math.sin(w.hd) * w.L * 0.45 * s * fz;
+            addRipple(fx0, fy0, 3, 26, 2.4, 0, bandOf(w.y), 0.6);
+            // 鲸的"脚印"：它沉下去之后，水面留下一片光滑如镜的圆斑，久久不散
+            addRipple(fx0, fy0, w.L * 0.12, w.L * 0.3, 9, 4, bandOf(w.y), 1);
             setSt(w, 'under', rnd(17, 28));
           }
           break;
@@ -846,9 +935,10 @@
   const FT = [[0.5, 0], [0.3, 0.82], [0.02, 0.92], [-0.32, 0.32], [-0.57, 0.95], [-0.48, 0],
     [-0.57, -0.95], [-0.32, -0.32], [0.02, -0.92], [0.3, -0.82]];
   const FT_S = [[0.5, 0], [0.12, 0.9], [-0.42, 0.25], [-0.56, 0.8], [-0.5, 0], [-0.56, -0.8], [-0.42, -0.25], [0.12, -0.9]];
-  // 蝠鲼（俯看的菱形，翼尖随扇动）
-  const RT = [[0.5, 0.1], [0.44, 0.17], [0.28, 0.32], [0.04, 0.5], [-0.14, 0.36], [-0.3, 0.14], [-0.38, 0.04],
-    [-0.38, -0.04], [-0.3, -0.14], [-0.14, -0.36], [0.04, -0.5], [0.28, -0.32], [0.44, -0.17], [0.5, -0.1], [0.45, 0]];
+  // 蝠鲼（俯看）：宽阔后掠的双翼，头前一对头鳍，细长的尾。右半边，自口至尾
+  //   [a 沿身（以身长计），b 横向（以半翼展计）]
+  const RT = [[0.42, 0], [0.5, 0.05], [0.49, 0.1], [0.4, 0.15], [0.26, 0.46], [0.08, 0.82], [-0.04, 1.0], [-0.09, 0.9],
+    [-0.11, 0.64], [-0.18, 0.36], [-0.27, 0.17], [-0.34, 0.07], [-0.36, 0]];
 
   function fishPath(ctx, f, T, flat) {
     const s = f.s, c = Math.cos(f.hd), sn = Math.sin(f.hd), fz = flat ? f.fz : 1;
@@ -863,25 +953,31 @@
     }
     // fill 会自动闭合子路径，省去 closePath
   }
+  const RP = new Float64Array(64);
   function rayPath(ctx, f) {
     const s = f.s, c = Math.cos(f.hd), sn = Math.sin(f.hd), fz = f.fz;
     const flap = Math.sin(f.ph), len = f.len, hw = f.wid * 0.5;
-    for (let k = 0; k < RT.length; k++) {
-      const b0 = RT[k][1], tipK = Math.abs(b0) / 0.5;
-      const a = RT[k][0] - 0.07 * flap * tipK * tipK;
-      const b = b0 * (0.88 + 0.12 * Math.cos(f.ph)) ;
-      const la = a * len, lb = b * hw * 2 * 0.5;
-      const X = f.x + s * (la * c - lb * sn), Y = f.y + s * fz * (la * sn + lb * c);
-      if (k === 0) ctx.moveTo(X, Y); else ctx.lineTo(X, Y);
+    const n = RT.length;
+    let m = 0;
+    // 翼的扇动：自上看，翼尖一前一后地划，翼展随之一收一放
+    for (let side = 1; side >= -1; side -= 2) {
+      for (let q = 0; q < n; q++) {
+        const k = side > 0 ? q : n - 1 - q;
+        if (side < 0 && (k === 0 || k === n - 1)) continue;
+        const b0 = RT[k][1], tk = b0 * b0;
+        const a = RT[k][0] - 0.07 * flap * tk;
+        const b = b0 * (1 - 0.1 * tk * (1 - Math.cos(f.ph))) * side;
+        const la = a * len, lb = b * hw;
+        RP[m++] = f.x + s * (la * c - lb * sn); RP[m++] = f.y + s * fz * (la * sn + lb * c);
+      }
     }
-    ctx.closePath();
+    smoothClosed(ctx, RP, m / 2);
     // 细长的尾
-    const tw = Math.sin(f.ph * 0.7) * 0.06;
-    const a0 = -0.38 * len, a1 = -1.1 * len;
-    ctx.moveTo(f.x + s * (a0 * c), f.y + s * fz * (a0 * sn));
-    const bx = tw * len;
+    const tw = Math.sin(f.ph * 0.7) * 0.05;
+    const a0 = -0.34 * len, a1 = -1.05 * len, bx = tw * len, w0 = 0.02 * len;
+    ctx.moveTo(f.x + s * (a0 * c - w0 * sn), f.y + s * fz * (a0 * sn + w0 * c));
     ctx.lineTo(f.x + s * (a1 * c - bx * sn), f.y + s * fz * (a1 * sn + bx * c));
-    ctx.lineTo(f.x + s * ((a0 - 1) * c + 0.4 * sn), f.y + s * fz * ((a0 - 1) * sn - 0.4 * c));
+    ctx.lineTo(f.x + s * (a0 * c + w0 * sn), f.y + s * fz * (a0 * sn - w0 * c));
     ctx.closePath();
   }
 
@@ -905,6 +1001,8 @@
     FC.light = c01(W.daylight * 1.1);
     FC.whale = W.shade(WHALE, 0);
     FC.belly = W.shade(BELLY, 0, 0.1);
+    FC.pale = W.shade([214, 226, 228], 0, 0.15);
+    FC.foam = W.shade(FOAM, 0.08, 0.3);
     const df = W.dayFactor, dusk = W.dusk;
     let rim = U.mixRGB([168, 190, 240], [255, 244, 222], df);
     rim = U.mixRGB(rim, [255, 178, 110], dusk * 0.8);
@@ -912,36 +1010,54 @@
     FC.rimA = (0.18 + 0.5 * W.daylight) * (W.lv.light);
     FC.bio = W.lv.life * sstep(0.4, 0.85, W.night);
     FC.spirit = sstep(0.45, 0.9, W.night) * W.lv.light;
+    FC.dayK = 0.3 + 0.7 * W.daylight;
     return FC;
   }
 
-  const P1 = [], P2 = [];
+  // 鱼群在水下的一片暗影：一群鱼自上看去，是一团缓缓变形的深色
+  function drawShoals(ctx, band, C) {
+    if (!DARK) return;
+    const lk = 0.3 + 0.7 * C.light;
+    for (const S of SCH) {
+      if (!S || S.n < 5 || !(S.rx >= 0) || bandOf(S.cy) !== band || !seaAt(S.cx, S.cy)) continue;
+      const D = depthAt(S.cy), s = scaleAt(S.cy);
+      const rx = S.rx * 2.4 + 9 * s, ry = S.ry * 2.4 + 6 * s * fzOf(D);
+      const spread = c01(1.6 - rx / (190 * s));        // 分成两截的鱼群（绕过小岛）不画整片的影
+      const a = 0.16 * lk * S.na * spread * sstep(0.12, 0.4, D) * Math.min(1, S.n / 14);
+      if (a < 0.01) continue;
+      ctx.globalAlpha = a;
+      ctx.drawImage(DARK, S.cx - rx, S.cy - ry, rx * 2, ry * 2);
+    }
+    ctx.globalAlpha = 1;
+  }
+
   function drawFish(ctx, band, C) {
     const N = FISH.length;
     if (!N) return;
-    const q = W.quality || 1;
-    // 1) 夜里的荧光尾迹
+    const q = W.quality || 1, t = W.t;
+    // 1) 夜里的荧光尾迹：按"段龄"分批，越旧越淡，平滑地消散
     if (C.bio > 0.02) {
       ctx.globalCompositeOperation = 'lighter';
-      ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-      for (let pass = 0; pass < 2; pass++) {
+      ctx.lineCap = 'round';
+      ctx.lineWidth = Math.max(0.8, W.unit * SB * 1.15);
+      for (let k = 0; k < TRN - 1; k++) {
         ctx.beginPath();
         let any = false;
-        const m = pass === 0 ? 6 : 3;
         for (let i = 0; i < N; i++) {
           const f = FISH[i];
-          if (f.band !== band || f.trN < 2 || f.leap || f.a < 0.3) continue;
+          if (f.band !== band || f.trN <= k || f.leap || f.a < 0.3) continue;
           if (q < 0.75 && (i & 1)) continue;
-          ctx.moveTo(f.x, f.y);
-          for (let k = 0; k < Math.min(m, f.trN); k++) {
-            const h = ((f.trH - k) % 6 + 6) % 6;
-            ctx.lineTo(f.tr[h * 2], f.tr[h * 2 + 1]);
-          }
+          const h1 = (f.trH - k + TRN * 2) % TRN;
+          let x0, y0;
+          if (k === 0) { x0 = f.x; y0 = f.y; } else { const h0 = (h1 + 1) % TRN; x0 = f.tr[h0 * 2]; y0 = f.tr[h0 * 2 + 1]; }
+          const x1 = f.tr[h1 * 2], y1 = f.tr[h1 * 2 + 1];
+          if (Math.abs(x1 - x0) + Math.abs(y1 - y0) > 40) continue;
+          ctx.moveTo(x0, y0); ctx.lineTo(x1, y1);
           any = true;
         }
         if (any) {
-          ctx.strokeStyle = css(BIO, C.bio * (pass === 0 ? 0.07 : 0.15));
-          ctx.lineWidth = Math.max(0.7, W.unit * SB * (pass === 0 ? 0.9 : 1.3));
+          const e = 1 - k / (TRN - 1);
+          ctx.strokeStyle = css(BIO, C.bio * 0.2 * e * e);
           ctx.stroke();
         }
       }
@@ -968,18 +1084,30 @@
       }
       if (any) { ctx.fillStyle = cols[key]; ctx.fill(); }
     }
-    // 蝠鲼
+    // 蝠鲼：深色的"翼"，迎光的前缘一道淡光；夜里周身一圈荧光
     for (let i = 0; i < N; i++) {
       const f = FISH[i];
       if (f.band !== band || f.k !== 2) continue;
-      const e = (0.72 - 0.34 * f.sub) * f.a * sstep(0.06, 0.3, f.D);
+      const e = (0.66 - 0.3 * f.sub) * f.a * sstep(0.06, 0.3, f.D);
       if (e < 0.04) continue;
-      ctx.globalAlpha = e;
       ctx.beginPath(); rayPath(ctx, f);
+      ctx.globalAlpha = e;
       ctx.fillStyle = C.ray[band]; ctx.fill();
       ctx.globalAlpha = 1;
+      if (C.light > 0.1) {
+        ctx.strokeStyle = css(C.lit, 0.1 * C.light * e);
+        ctx.lineWidth = Math.max(0.6, f.s * 1.1);
+        ctx.stroke();
+      }
+      if (C.bio > 0.03) {
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.strokeStyle = css(BIO, C.bio * 0.22 * f.a * (0.7 + 0.3 * Math.sin(t * 1.3 + f.seed * 9)));
+        ctx.lineWidth = Math.max(0.8, f.s * 1.6);
+        ctx.stroke();
+        ctx.globalCompositeOperation = 'source-over';
+      }
     }
-    // 3) 银光一闪（转身时侧腹映光）；夜里靠近灵的鱼映着灵的光
+    // 3) 银光一闪（转身时侧腹映光，或整群同转时如波扫过）；夜里靠近灵的鱼映着灵的光
     const light = C.light;
     if (light > 0.05 || C.spirit > 0.05) {
       ctx.globalCompositeOperation = 'lighter';
@@ -998,29 +1126,42 @@
           }
           if (fl < 0.12) continue;
           if ((fl > 0.55 ? 1 : 0) !== lvl) continue;
-          const s = f.s, c = Math.cos(f.hd), sn = Math.sin(f.hd), side = f.av > 0 ? 1 : -1, hw = f.wid * 0.3 * side;
+          const s = f.s, c = Math.cos(f.hd), sn = Math.sin(f.hd), side = f.flickSide || (f.av > 0 ? 1 : -1), hw = f.wid * 0.3 * side;
           ctx.moveTo(f.x + s * (0.3 * f.len * c - hw * sn), f.y + s * f.fz * (0.3 * f.len * sn + hw * c));
           ctx.lineTo(f.x + s * (-0.14 * f.len * c - hw * sn), f.y + s * f.fz * (-0.14 * f.len * sn + hw * c));
           any = true;
         }
         if (any) {
-          const L = C.lit;
-          const nightMix = C.spirit;
-          const col = U.mixRGB(L, SPIRIT_C, nightMix * 0.7);
-          ctx.strokeStyle = css(col, lvl ? 0.55 : 0.28);
-          ctx.lineWidth = Math.max(0.7, W.unit * SB * 0.9);
+          const col = U.mixRGB(C.lit, SPIRIT_C, C.spirit * 0.7);
+          ctx.strokeStyle = css(col, lvl ? 0.6 : 0.3);
+          ctx.lineWidth = Math.max(0.8, W.unit * SB * 1.0);
           ctx.stroke();
         }
       }
       ctx.globalCompositeOperation = 'source-over';
     }
+    // 4) 夜里（有了生命之光）：每条鱼是一粒微微明灭的青光
+    if (C.bio > 0.02 && GLOW) {
+      ctx.globalCompositeOperation = 'lighter';
+      for (let i = 0; i < N; i++) {
+        const f = FISH[i];
+        if (f.band !== band || f.leap || f.a < 0.3 || f.k === 2) continue;
+        if (q < 0.75 && (i & 1)) continue;
+        const r = Math.max(1.6, (2 + f.len * 0.42) * f.s);
+        ctx.globalAlpha = C.bio * f.a * (0.3 + 0.16 * Math.sin(t * 2.3 + f.seed * 40)) * (1 - 0.5 * f.sub);
+        ctx.drawImage(GLOW, f.x - r, f.y - r * f.fz * 1.4, r * 2, r * 2 * f.fz * 1.4);
+      }
+      ctx.globalAlpha = 1;
+      ctx.globalCompositeOperation = 'source-over';
+    }
   }
   // 跃出水面的鱼：侧影在画面平面里，沿抛物线翻转
   function drawLeaps(ctx, band, C) {
-    const lit = W.shade(U.mixRGB(FISH_DARK[0], SILVER, 0.55), 0, 0.2);
+    let lit = null;
     for (let i = 0; i < FISH.length; i++) {
       const f = FISH[i];
       if (!f.leap || f.band !== band) continue;
+      if (!lit) lit = W.shade(U.mixRGB(FISH_DARK[0], SILVER, 0.55), 0, 0.2);
       const L = f.leap, t = c01(L.t), s = f.s;
       const hgt = L.H * s * 4 * t * (1 - t);
       const vxs = f.vx * s, vys = f.vy * s * f.fz - L.H * s * 4 * (1 - 2 * t) / L.dur;
@@ -1046,254 +1187,264 @@
     }
   }
 
-  // ── 鲸的轮廓 ──
-  // 俯看（a：头 +0.5 → 尾 −0.5；b：半宽，以身长计）
-  const WB = [[0.5, 0], [0.47, 0.05], [0.4, 0.085], [0.28, 0.1], [0.12, 0.105], [-0.05, 0.094], [-0.2, 0.068], [-0.32, 0.04], [-0.41, 0.02],
-    [-0.45, 0.05], [-0.5, 0.13], [-0.55, 0.17], [-0.56, 0.14], [-0.52, 0.05], [-0.53, 0]];
-  // 侧看的脊线（高出水面的高度，以身长计）
-  const TOP = [[0.5, 0.0], [0.46, 0.03], [0.38, 0.055], [0.26, 0.072], [0.12, 0.08], [-0.02, 0.078], [-0.12, 0.072], [-0.16, 0.085], [-0.2, 0.094], [-0.23, 0.066], [-0.32, 0.046], [-0.42, 0.024], [-0.47, 0.01]];
-  // 侧影（跃出时）：上缘与下缘
-  const SIDE_T = [[0.5, 0.005], [0.47, 0.045], [0.38, 0.08], [0.24, 0.1], [0.08, 0.105], [-0.08, 0.09], [-0.15, 0.1], [-0.19, 0.12], [-0.22, 0.078], [-0.33, 0.045], [-0.43, 0.02]];
-  const SIDE_B = [[-0.43, -0.02], [-0.33, -0.042], [-0.2, -0.075], [-0.02, -0.11], [0.16, -0.115], [0.32, -0.09], [0.44, -0.045], [0.5, -0.01]];
-
-  function whaleTopPath(ctx, w, s, fz, scaleK, noFins) {
-    const c = Math.cos(w.hd), sn = Math.sin(w.hd), L = w.L * scaleK;
-    const n = WB.length;
-    const flk = 1 + 0.08 * Math.sin(W.t * 1.4 + w.L);
-    for (let k = 0; k < n; k++) {
-      const a = WB[k][0] * L, b = WB[k][1] * L * (k > 8 ? flk : 1);
-      const X = w.x + s * (a * c - b * sn), Y = w.y + s * fz * (a * sn + b * c);
-      if (k === 0) ctx.moveTo(X, Y); else ctx.lineTo(X, Y);
-    }
-    for (let k = n - 2; k >= 1; k--) {
-      const a = WB[k][0] * L, b = -WB[k][1] * L * (k > 8 ? flk : 1);
-      ctx.lineTo(w.x + s * (a * c - b * sn), w.y + s * fz * (a * sn + b * c));
-    }
-    ctx.closePath();
-    if (noFins) return;
-    // 长长的胸鳍（座头鲸），向后掠
-    const sw = Math.sin(W.t * 0.8 + w.L) * 0.02;
-    for (let side = -1; side <= 1; side += 2) {
-      for (let k = 0; k < 4; k++) {
-        const a = FIN[k][0] * L + (k === 1 || k === 2 ? sw * L : 0), b = FIN[k][1] * L * side;
-        const X = w.x + s * (a * c - b * sn), Y = w.y + s * fz * (a * sn + b * c);
-        if (k === 0) ctx.moveTo(X, Y); else ctx.lineTo(X, Y);
-      }
-      ctx.closePath();
-    }
-  }
-  const FIN = [[0.25, 0.085], [0.03, 0.2], [0.0, 0.185], [0.17, 0.08]];
-  // 露出水面的脊背：沿身轴取点，高出水面 e(a)
-  function exposure(w, a) {
-    if (w.st === 'surf' || (w.st === 'dive' && w.T < 2.8)) {
-      let e;
-      if (w.st === 'surf') {
-        const ac = lerp(0.62, -0.62, w.roll);
-        const x = (a - ac) / 0.34;
-        e = Math.max(0, 1 - x * x) * 0.9 + (a > -0.25 && a < 0.35 ? 0.18 : 0);
-      } else {
-        // 下潜：背高高拱起，拱峰自前向后移
-        const p = w.T / w.dur;
-        const ac = lerp(0.2, -0.5, c01(p / 0.62));
-        const x = (a - ac) / 0.4;
-        e = Math.max(0, 1 - x * x) * (0.7 + 1.1 * w.arch);
-      }
-      return e * w.surf;
-    }
-    return 0;
-  }
+  // ── 鲸 ──
+  // 水下：俯视的柔影（预绘的精灵，按朝向旋转、按透视前缩）；浅色的长鳍在水下泛着青白
   function drawWhaleUnder(ctx, w, C) {
+    if (!WT) return;
     const s = whaleScale(w), D = depthAt(w.y), fz = fzOf(D);
     const vis = w.a * w.fade * w.vis;
     if (vis < 0.02) return;
-    const deep = w.st === 'under' ? 1 : 0.4;
-    const hazeK = sstep(0.0, 0.25, D);
-    const col = W.shade(WHALE, (1 - D) * 0.35);
-    // 柔边：先画略大的一层淡影
-    ctx.beginPath(); whaleTopPath(ctx, w, s, fz, 1.1);
-    ctx.fillStyle = css(col, (0.1 + 0.08 * (1 - deep)) * vis * hazeK);
-    ctx.fill();
-    ctx.beginPath(); whaleTopPath(ctx, w, s, fz, 1);
-    ctx.fillStyle = css(col, (0.22 + 0.24 * (1 - deep)) * vis * hazeK);
-    ctx.fill();
+    const nearK = c01(w.surf);
+    const hazeK = sstep(0.0, 0.25, D) * (1 - 0.35 * sstep(0.2, 0.0, D));
+    const k = s * w.L / WT.Ls;
+    const yaw = Math.sin(W.t * 0.7 + w.L) * 0.03;
+    const c = Math.cos(w.hd + yaw), sn = Math.sin(w.hd + yaw);
+    ctx.save();
+    ctx.translate(w.x, w.y);
+    ctx.transform(c * k, sn * k * fz, -sn * k, c * k * fz, 0, 0);
+    ctx.globalAlpha = c01((0.34 + 0.26 * nearK) * vis * hazeK * (0.55 + 0.45 * C.dayK));
+    ctx.drawImage(WT.body, -WT.CX, -WT.CY);
+    const fa = (0.2 + 0.2 * nearK) * vis * hazeK * W.daylight;
+    if (fa > 0.01) { ctx.globalAlpha = fa; ctx.drawImage(WT.fin, -WT.CX, -WT.CY); }
     // 夜里：生命之光在它周身隐隐发亮
     if (C.bio > 0.03) {
       ctx.globalCompositeOperation = 'lighter';
-      const pulse = 0.7 + 0.3 * Math.sin(W.t * 0.9 + w.L);
-      ctx.beginPath(); whaleTopPath(ctx, w, s, fz, 1.18, true);
-      ctx.fillStyle = css(BIO, C.bio * 0.05 * vis * pulse);
-      ctx.fill();
-      ctx.beginPath(); whaleTopPath(ctx, w, s, fz, 1, true);
-      ctx.strokeStyle = css(BIO, C.bio * 0.13 * vis * pulse);
-      ctx.lineWidth = Math.max(0.8, s * 1.2);
-      ctx.stroke();
+      ctx.globalAlpha = c01(C.bio * 0.3 * vis * (0.7 + 0.3 * Math.sin(W.t * 0.9 + w.L)));
+      ctx.drawImage(WT.bio, -WT.CX, -WT.CY);
       ctx.globalCompositeOperation = 'source-over';
     }
+    ctx.restore();
   }
-  const WBX = new Float64Array(16), WBY = new Float64Array(16), WTY = new Float64Array(16);
+
+  // 侧看的脊线（高出水面的高度，以身长计；头 +0.5 → 尾），小小的背鳍立在驼峰上
+  const TOPH = [[0.5, 0], [0.46, 0.028], [0.38, 0.052], [0.26, 0.068], [0.12, 0.076], [0.0, 0.077], [-0.1, 0.075],
+    [-0.14, 0.08], [-0.175, 0.104], [-0.205, 0.086], [-0.26, 0.064], [-0.35, 0.044], [-0.43, 0.026], [-0.48, 0.014]];
+  function topH(a) {
+    for (let k = 1; k < TOPH.length; k++) {
+      if (a >= TOPH[k][0]) { const p = TOPH[k - 1], q = TOPH[k]; return lerp(q[1], p[1], (a - q[0]) / (p[0] - q[0])); }
+    }
+    return TOPH[TOPH.length - 1][1];
+  }
+  const bump = x => { const q = 1 - x * x; return q > 0 ? q * q : 0; };
+  // 露出水面的程度（0..1）：换气时脊背自头至尾滚过水面；下潜时背高高拱起，拱峰自前向后移
+  function exposure(w, a) {
+    if (w.st === 'surf') {
+      const ac = lerp(0.66, -0.62, w.roll);
+      return (0.95 * bump((a - ac) / 0.36) + 0.28 * bump((a + 0.02) / 0.42)) * w.surf;
+    }
+    if (w.st === 'dive' && w.T < 2.9) {
+      const p = w.T / w.dur;
+      const ac = lerp(0.12, -0.4, c01(p / 0.62));
+      return bump((a - ac) / 0.42) * (0.8 + 1.25 * w.arch) * w.surf;
+    }
+    return 0;
+  }
+  const BN = 20, WBX = new Float64Array(BN), WBY = new Float64Array(BN), WTY = new Float64Array(BN);
   function drawWhaleBack(ctx, w, C) {
     if (w.surf < 0.01 || w.st === 'breach' || w.st === 'under') return;
     const vis = w.a * w.fade * w.vis;
     if (vis < 0.02) return;
     const s = whaleScale(w), D = depthAt(w.y), fz = fzOf(D);
     const c = Math.cos(w.hd), sn = Math.sin(w.hd), L = w.L;
-    const n = TOP.length;
-    const bx = WBX, by = WBY, ty = WTY;
-    let any = false;
-    for (let k = 0; k < n; k++) {
-      const a = TOP[k][0];
-      const e = TOP[k][1] * L * exposure(w, a) * s;
+    const arch = w.st === 'dive' ? w.arch : 0;
+    let k0 = -1, k1 = -1;
+    for (let k = 0; k < BN; k++) {
+      const a = lerp(0.5, -0.48, k / (BN - 1));
+      const e = Math.min(0.17, topH(a) + 0.045 * arch) * L * exposure(w, a) * s;
       const X = w.x + s * (a * L * c), Y = w.y + s * fz * (a * L * sn);
-      bx[k] = X; by[k] = Y; ty[k] = Y - e;
-      if (e > 0.4) any = true;
+      WBX[k] = X; WBY[k] = Y; WTY[k] = Y - e;
+      if (e > 0.35) { if (k0 < 0) k0 = k; k1 = k; }
     }
     const col = W.shade(WHALE, (1 - D) * 0.3);
-    if (any) {
+    const dayK = C.dayK;
+    if (k0 >= 0) {
+      const a0 = Math.max(0, k0 - 1), a1 = Math.min(BN - 1, k1 + 1);
+      // 光滑的脊背：以相邻点的中点为端，逐段二次曲线
       ctx.beginPath();
-      ctx.moveTo(bx[0], by[0]);
-      for (let k = 0; k < n; k++) ctx.lineTo(bx[k], ty[k]);
-      for (let k = n - 1; k >= 0; k--) ctx.lineTo(bx[k], by[k] + fz * s * L * 0.012);
-      ctx.closePath();
-      ctx.fillStyle = css(col, 0.95 * vis);
-      ctx.fill();
-      // 迎光的一道描边
-      ctx.beginPath();
-      let started = false;
-      for (let k = 0; k < n; k++) {
-        if (by[k] - ty[k] < 0.5) { started = false; continue; }
-        if (!started) { ctx.moveTo(bx[k], ty[k]); started = true; } else ctx.lineTo(bx[k], ty[k]);
-      }
-      ctx.strokeStyle = css(C.rim, C.rimA * 0.55 * vis);
-      ctx.lineWidth = Math.max(0.6, s * 0.9);
-      ctx.stroke();
-      // 水线：脊背两端出水处的一点白沫
-      let k0 = -1, k1 = -1;
-      for (let k = 0; k < n; k++) if (by[k] - ty[k] > 0.6) { if (k0 < 0) k0 = k; k1 = k; }
-      if (k0 >= 0) {
-        ctx.fillStyle = css(W.shade(FOAM, 0.1, 0.25), 0.22 * vis * (0.3 + 0.7 * W.daylight));
-        ctx.beginPath();
-        const rx = Math.max(1, 0.04 * L * s), ry = Math.max(0.5, rx * fz * 0.5);
-        ctx.ellipse(bx[k0], by[k0], rx, ry, 0, 0, TAU);
-        ctx.moveTo(bx[k1] + rx * 0.8, by[k1]);
-        ctx.ellipse(bx[k1], by[k1], rx * 0.8, ry, 0, 0, TAU);
-        ctx.fill();
-      }
-    }
-    // 下潜时举起的尾鳍
-    if (w.st === 'dive' && w.fluke > 0.02) {
-      const tk = -0.46;
-      const X = w.x + s * (tk * L * c), Y = w.y + s * fz * (tk * L * sn);
-      const hf = w.fluke * 0.2 * L * s;
-      const wf = 0.19 * L * s * (0.62 + 0.38 * Math.abs(sn));
-      const tilt = c * 0.18;
-      const st = 0.018 * L * s;
-      ctx.beginPath();
-      ctx.moveTo(X - st * 1.5, Y);
-      ctx.quadraticCurveTo(X - st, Y - hf * 0.35, X - st * 0.6, Y - hf * 0.62);
-      ctx.quadraticCurveTo(X - wf * 0.55, Y - hf * 0.6 - tilt * wf, X - wf, Y - hf * 1.02 - tilt * wf);
-      ctx.quadraticCurveTo(X - wf * 0.55, Y - hf * 0.95, X - wf * 0.2, Y - hf * 0.96);
-      ctx.quadraticCurveTo(X - wf * 0.06, Y - hf * 0.95, X, Y - hf * 0.86);
-      ctx.quadraticCurveTo(X + wf * 0.06, Y - hf * 0.95, X + wf * 0.2, Y - hf * 0.96);
-      ctx.quadraticCurveTo(X + wf * 0.55, Y - hf * 0.95, X + wf, Y - hf * 1.02 + tilt * wf);
-      ctx.quadraticCurveTo(X + wf * 0.55, Y - hf * 0.6 + tilt * wf, X + st * 0.6, Y - hf * 0.62);
-      ctx.quadraticCurveTo(X + st, Y - hf * 0.35, X + st * 1.5, Y);
+      ctx.moveTo(WBX[a0], WBY[a0]);
+      for (let k = a0; k < a1; k++) ctx.quadraticCurveTo(WBX[k], WTY[k], (WBX[k] + WBX[k + 1]) / 2, (WTY[k] + WTY[k + 1]) / 2);
+      ctx.lineTo(WBX[a1], WBY[a1]);
+      const sink = fz * s * L * 0.012;
+      for (let k = a1; k >= a0; k--) ctx.lineTo(WBX[k], WBY[k] + sink);
       ctx.closePath();
       ctx.fillStyle = css(col, 0.96 * vis);
       ctx.fill();
-      // 远去时看见尾鳍浅色的腹面
-      const pale = Math.max(0, -sn) * 0.85;
-      if (pale > 0.05) {
-        ctx.beginPath();
-        ctx.moveTo(X, Y - hf * 0.7);
-        ctx.quadraticCurveTo(X - wf * 0.5, Y - hf * 0.66, X - wf * 0.9, Y - hf * 1.0 - tilt * wf);
-        ctx.quadraticCurveTo(X - wf * 0.45, Y - hf * 0.9, X, Y - hf * 0.84);
-        ctx.quadraticCurveTo(X + wf * 0.45, Y - hf * 0.9, X + wf * 0.9, Y - hf * 1.0 + tilt * wf);
-        ctx.quadraticCurveTo(X + wf * 0.5, Y - hf * 0.66, X, Y - hf * 0.7);
-        ctx.fillStyle = css(C.belly, pale * vis * 0.8);
-        ctx.fill();
-      }
-      ctx.strokeStyle = css(C.rim, C.rimA * 0.6 * vis);
-      ctx.lineWidth = Math.max(0.6, s);
+      // 湿亮的脊背映着天光：一道描光，外加一层更淡更宽的
+      ctx.beginPath();
+      ctx.moveTo((WBX[a0] + WBX[a0 + 1]) / 2, (WTY[a0] + WTY[a0 + 1]) / 2);
+      for (let k = a0 + 1; k < a1; k++) ctx.quadraticCurveTo(WBX[k], WTY[k], (WBX[k] + WBX[k + 1]) / 2, (WTY[k] + WTY[k + 1]) / 2);
+      ctx.strokeStyle = css(C.rim, C.rimA * 0.22 * vis);
+      ctx.lineWidth = Math.max(1.4, s * 3);
       ctx.stroke();
+      ctx.strokeStyle = css(C.rim, C.rimA * 0.75 * vis);
+      ctx.lineWidth = Math.max(0.7, s * 1.1);
+      ctx.stroke();
+      // 水线：露出处一道白，前端推起的浪与后端的漩，是柔白的水沫
+      ctx.beginPath();
+      ctx.moveTo(WBX[k0], WBY[k0] + sink * 0.5);
+      for (let k = k0 + 1; k <= k1; k++) ctx.lineTo(WBX[k], WBY[k] + sink * 0.5);
+      ctx.strokeStyle = css(C.foam, 0.3 * vis * dayK);
+      ctx.lineWidth = Math.max(0.7, s * 1.2);
+      ctx.stroke();
+      if (PUFF) {
+        const rx = Math.max(2, 0.07 * L * s), ry = Math.max(1, rx * fz * 0.7);
+        ctx.globalAlpha = 0.34 * vis * dayK;
+        ctx.drawImage(PUFF, WBX[k0] - rx, WBY[k0] - ry, rx * 2, ry * 2);
+        ctx.globalAlpha = 0.24 * vis * dayK;
+        ctx.drawImage(PUFF, WBX[k1] - rx * 0.8, WBY[k1] - ry * 0.8, rx * 1.6, ry * 1.6);
+        ctx.globalAlpha = 1;
+      }
+    }
+    // 下潜时举起的尾鳍
+    if (w.st === 'dive' && w.fluke > 0.02) drawFluke(ctx, w, s, fz, col, C, vis);
+  }
+  // 尾鳍：自水中竖起，宽阔的双叶微微上翘，后缘有细锯齿；背向我们时露出浅色的腹面
+  function drawFluke(ctx, w, s, fz, col, C, vis) {
+    const L = w.L, c = Math.cos(w.hd), sn = Math.sin(w.hd);
+    const tk = -0.46;
+    const X = w.x + s * (tk * L * c), Y = w.y + s * fz * (tk * L * sn);
+    const hf = w.fluke * 0.25 * L * s;                       // 举起的高度
+    const wf = 0.165 * L * s * (0.45 + 0.55 * Math.abs(sn));  // 半翼展：侧对我们时变窄
+    const tilt = c * 0.12 * wf;
+    const st = 0.02 * L * s;
+    const yb = Y - hf * 0.64, yt = Y - hf;                    // 尾叶的根、尖
+    ctx.beginPath();
+    ctx.moveTo(X - st * 1.6, Y);
+    ctx.quadraticCurveTo(X - st * 0.9, Y - hf * 0.3, X - st * 0.7, yb);
+    // 前缘（下）：自根部向外鼓出，扫向翼尖
+    ctx.quadraticCurveTo(X - wf * 0.55, yb + hf * 0.02 - tilt * 0.5, X - wf, yt - hf * 0.06 - tilt);
+    // 后缘（上）：自翼尖回到中央的缺刻，细细的锯齿
+    const serr = Math.max(0.4, hf * 0.025);
+    for (let i = 1; i <= 4; i++) {
+      const u = i / 5, xx = X - wf * (1 - u), yy = lerp(yt - hf * 0.06 - tilt, yt + hf * 0.1, u) + (i & 1 ? serr : -serr);
+      ctx.lineTo(xx, yy);
+    }
+    ctx.lineTo(X, yt + hf * 0.14);
+    for (let i = 4; i >= 1; i--) {
+      const u = i / 5, xx = X + wf * (1 - u), yy = lerp(yt - hf * 0.06 + tilt, yt + hf * 0.1, u) + (i & 1 ? serr : -serr);
+      ctx.lineTo(xx, yy);
+    }
+    ctx.lineTo(X + wf, yt - hf * 0.06 + tilt);
+    ctx.quadraticCurveTo(X + wf * 0.55, yb + hf * 0.02 + tilt * 0.5, X + st * 0.7, yb);
+    ctx.quadraticCurveTo(X + st * 0.9, Y - hf * 0.3, X + st * 1.6, Y);
+    ctx.closePath();
+    ctx.fillStyle = css(col, 0.97 * vis);
+    ctx.fill();
+    ctx.strokeStyle = css(C.rim, C.rimA * 0.55 * vis);
+    ctx.lineWidth = Math.max(0.6, s * 0.9);
+    ctx.stroke();
+    // 远去时看见尾鳍浅色的腹面（座头鲸各自不同的花纹）
+    const pale = Math.max(0, -sn) * 0.9;
+    if (pale > 0.05) {
+      ctx.beginPath();
+      ctx.moveTo(X, yb - hf * 0.04);
+      ctx.quadraticCurveTo(X - wf * 0.45, yb - hf * 0.02, X - wf * 0.86, yt - hf * 0.02 - tilt * 0.9);
+      ctx.quadraticCurveTo(X - wf * 0.42, yt + hf * 0.1, X, yt + hf * 0.16);
+      ctx.quadraticCurveTo(X + wf * 0.42, yt + hf * 0.1, X + wf * 0.86, yt - hf * 0.02 + tilt * 0.9);
+      ctx.quadraticCurveTo(X + wf * 0.45, yb - hf * 0.02, X, yb - hf * 0.04);
+      ctx.fillStyle = css(C.pale, pale * vis * 0.8);
+      ctx.fill();
+    }
+    // 自尾叶淌下的水帘
+    if (PUFF && w.fluke > 0.3) {
+      const a = 0.22 * vis * C.dayK * w.fluke;
+      ctx.globalAlpha = a;
+      ctx.drawImage(PUFF, X - wf * 0.9, Y - hf * 0.12, wf * 1.8, hf * 0.3);
+      ctx.globalAlpha = 1;
     }
   }
-  // 跃出：侧影沿抛物弧翻滚；水下的部分只剩淡影
-  function sidePath(ctx, cx, cy, ux, uy, px, py, L, roll) {
-    const n1 = SIDE_T.length, n2 = SIDE_B.length;
-    const topK = 1 - 0.25 * Math.sin(roll);
-    for (let k = 0; k < n1; k++) {
-      const a = SIDE_T[k][0] * L, v = SIDE_T[k][1] * L * topK;
-      const X = cx + a * ux + v * px, Y = cy + a * uy + v * py;
-      if (k === 0) ctx.moveTo(X, Y); else ctx.lineTo(X, Y);
-    }
-    // 尾鳍：翻滚时渐渐看见其宽
-    const fw = (0.03 + 0.13 * Math.abs(Math.sin(roll + 0.6))) * L;
-    const fa = -0.52 * L;
-    ctx.lineTo(cx + fa * ux + fw * px, cy + fa * uy + fw * py);
-    ctx.lineTo(cx + (fa + 0.035 * L) * ux, cy + (fa + 0.035 * L) * uy);
-    ctx.lineTo(cx + fa * ux - fw * px, cy + fa * uy - fw * py);
-    for (let k = 0; k < n2; k++) {
-      const a = SIDE_B[k][0] * L, v = SIDE_B[k][1] * L;
-      ctx.lineTo(cx + a * ux + v * px, cy + a * uy + v * py);
-    }
-    ctx.closePath();
+
+  // 跃身击浪：侧影沿抛物弧翻滚。水面以上完整，水下只剩一片暗影
+  //   上缘（背）自头至尾；下缘（腹，带褶沟的喉）自尾至头
+  const SIDE_T = [[0.5, 0.0], [0.48, 0.03], [0.42, 0.058], [0.32, 0.08], [0.18, 0.098], [0.04, 0.104], [-0.08, 0.098],
+    [-0.14, 0.1], [-0.172, 0.12], [-0.2, 0.094], [-0.28, 0.062], [-0.37, 0.036], [-0.44, 0.02]];
+  const SIDE_B = [[-0.44, -0.02], [-0.37, -0.04], [-0.26, -0.07], [-0.12, -0.1], [0.02, -0.118], [0.16, -0.126],
+    [0.3, -0.11], [0.4, -0.082], [0.47, -0.046], [0.505, -0.012]];
+  const SP_ = new Float64Array(80);
+  function sidePts(g, topK, flukeW) {
+    // 以 (a, v) → 屏幕：P = c + a·u + v·p
+    let m = 0;
+    const put = (a, v) => { SP_[m++] = g.cx + a * g.L * g.ux + v * g.L * g.px; SP_[m++] = g.cy + a * g.L * g.uy + v * g.L * g.py; };
+    for (let k = 0; k < SIDE_T.length; k++) put(SIDE_T[k][0], SIDE_T[k][1] * topK);
+    put(-0.47, flukeW * 0.25); put(-0.555, flukeW); put(-0.535, flukeW * 0.55); put(-0.515, 0);
+    put(-0.535, -flukeW * 0.55); put(-0.555, -flukeW); put(-0.47, -flukeW * 0.25);
+    for (let k = 0; k < SIDE_B.length; k++) put(SIDE_B[k][0], SIDE_B[k][1]);
+    return m / 2;
   }
   function breachGeom(w) {
     const s = scaleAt(w.by), L = w.L * s, p = c01(w.T / w.dur);
-    const h = (-0.52 + 2.7 * p * (1 - p)) * L;
-    const phi = p < 0.42 ? lerp(1.32, 1.02, U.easeOut(p / 0.42)) : lerp(1.02, 0.12, U.easeInOut((p - 0.42) / 0.58));
-    const cx = w.bx + w.bdir * L * (0.1 * p + 0.22 * sstep(0.35, 1, p)), cy = w.by - h;
+    const h = (-0.5 + 2.85 * p * (1 - p)) * L;
+    const phi = p < 0.42 ? lerp(1.34, 1.04, U.easeOut(p / 0.42)) : lerp(1.04, 0.1, U.easeInOut((p - 0.42) / 0.58));
+    const cx = w.bx + w.bdir * L * (0.08 * p + 0.24 * sstep(0.35, 1, p)), cy = w.by - h;
     const ux = w.bdir * Math.cos(phi), uy = -Math.sin(phi);
     const px = -w.bdir * Math.sin(phi), py = -Math.cos(phi);
     const roll = Math.PI * 0.9 * sstep(0.3, 0.9, p);
     return { s, L, cx, cy, ux, uy, px, py, roll, p };
   }
-  function drawBreachBody(ctx, w, g, C, a) {
+  function drawBreachBody(ctx, w, g, C, a, ghost) {
     const col = W.shade(WHALE, (1 - depthAt(w.by)) * 0.25);
-    ctx.beginPath(); sidePath(ctx, g.cx, g.cy, g.ux, g.uy, g.px, g.py, g.L, g.roll);
+    const topK = 1 - 0.22 * Math.sin(g.roll);
+    const flukeW = 0.025 + 0.14 * Math.abs(Math.sin(g.roll + 0.6));
+    const n = sidePts(g, topK, flukeW);
+    ctx.beginPath(); smoothClosed(ctx, SP_, n);
     ctx.fillStyle = css(col, a);
     ctx.fill();
-    // 浅色的腹：翻滚时越来越多地朝向我们
     const bk = 0.2 + 0.8 * Math.sin(g.roll * 0.9);
-    ctx.beginPath();
-    const n2 = SIDE_B.length;
-    for (let k = 0; k < n2; k++) {
-      const aa = SIDE_B[k][0] * g.L, v = SIDE_B[k][1] * g.L;
-      const X = g.cx + aa * g.ux + v * g.px, Y = g.cy + aa * g.uy + v * g.py;
-      if (k === 0) ctx.moveTo(X, Y); else ctx.lineTo(X, Y);
+    const pt = (aa, v) => [g.cx + aa * g.L * g.ux + v * g.L * g.px, g.cy + aa * g.L * g.uy + v * g.L * g.py];
+    if (!ghost) {
+      // 浅色的腹与喉部的褶沟：翻滚时越来越多地朝向我们
+      const pale = U.mixRGB(col, C.belly, 0.5 + 0.4 * bk);
+      ctx.beginPath();
+      let m = 0;
+      for (let k = 3; k < SIDE_B.length; k++) {
+        const q = pt(SIDE_B[k][0], SIDE_B[k][1] * 1.02); SP_[m++] = q[0]; SP_[m++] = q[1];
+      }
+      for (let k = SIDE_B.length - 1; k >= 3; k--) {
+        const q = pt(SIDE_B[k][0], SIDE_B[k][1] * (0.5 - 0.25 * bk)); SP_[m++] = q[0]; SP_[m++] = q[1];
+      }
+      smoothClosed(ctx, SP_, m / 2);
+      ctx.fillStyle = css(pale, a);
+      ctx.fill();
+      // 褶沟：自下颌向后的几道细线
+      if (g.L > 60) {
+        ctx.beginPath();
+        for (let j = 1; j <= 3; j++) {
+          const f = j / 4;
+          for (let k = 0; k <= 6; k++) {
+            const aa = lerp(0.47, -0.06, k / 6);
+            const vb = aa > 0.3 ? lerp(-0.11, -0.03, (aa - 0.3) / 0.2) : aa > 0.02 ? -0.118 : -0.112;
+            const q = pt(aa, vb * lerp(0.95, 0.55 - 0.2 * bk, f));
+            if (k === 0) ctx.moveTo(q[0], q[1]); else ctx.lineTo(q[0], q[1]);
+          }
+        }
+        ctx.strokeStyle = css(col, 0.3 * a);
+        ctx.lineWidth = Math.max(0.5, g.L * 0.004);
+        ctx.stroke();
+      }
+      // 描光：背脊迎着天光
+      ctx.beginPath();
+      for (let k = 0; k < SIDE_T.length; k++) {
+        const q = pt(SIDE_T[k][0], SIDE_T[k][1] * topK);
+        if (k === 0) ctx.moveTo(q[0], q[1]); else ctx.lineTo(q[0], q[1]);
+      }
+      ctx.strokeStyle = css(C.rim, C.rimA * 0.8 * a);
+      ctx.lineWidth = Math.max(0.8, g.s * 1.3);
+      ctx.stroke();
     }
-    for (let k = n2 - 1; k >= 0; k--) {
-      const aa = SIDE_B[k][0] * g.L, v = SIDE_B[k][1] * g.L * (1 - 0.5 * bk);
-      ctx.lineTo(g.cx + aa * g.ux + v * g.px, g.cy + aa * g.uy + v * g.py);
-    }
-    ctx.closePath();
-    ctx.fillStyle = css(U.mixRGB(col, C.belly, 0.45 + 0.4 * bk), a);
-    ctx.fill();
-    // 长长的白色胸鳍，随翻滚摆开
+    // 长长的白色胸鳍（身长的三分之一），随翻滚摆开
     const fa = Math.sin(g.roll + 0.4);
-    const r0 = 0.25 * g.L, len = 0.28 * g.L;
-    const bx = g.cx + r0 * g.ux - 0.07 * g.L * g.px, by = g.cy + r0 * g.uy - 0.07 * g.L * g.py;
-    const dx = -0.55 * g.ux - (0.6 + 0.4 * fa) * g.px, dy = -0.55 * g.uy - (0.6 + 0.4 * fa) * g.py;
-    const dl = Math.hypot(dx, dy) || 1;
-    const ex = bx + (dx / dl) * len, ey = by + (dy / dl) * len;
-    const nx = -(dy / dl) * 0.026 * g.L, ny = (dx / dl) * 0.026 * g.L;
+    const r0 = pt(0.25, -0.05);
+    let dx = -0.55 * g.ux - (0.62 + 0.4 * fa) * g.px, dy = -0.55 * g.uy - (0.62 + 0.4 * fa) * g.py;
+    const dl = Math.hypot(dx, dy) || 1; dx /= dl; dy /= dl;
+    const len = 0.32 * g.L, ex = r0[0] + dx * len, ey = r0[1] + dy * len;
+    const nx = -dy * 0.034 * g.L, ny = dx * 0.034 * g.L;
     ctx.beginPath();
-    ctx.moveTo(bx + nx, by + ny);
-    ctx.quadraticCurveTo((bx + ex) / 2 + nx * 1.4, (by + ey) / 2 + ny * 1.4, ex, ey);
-    ctx.quadraticCurveTo((bx + ex) / 2 - nx * 0.6, (by + ey) / 2 - ny * 0.6, bx - nx, by - ny);
+    ctx.moveTo(r0[0] + nx, r0[1] + ny);
+    ctx.quadraticCurveTo(r0[0] + dx * len * 0.5 + nx * 1.3, r0[1] + dy * len * 0.5 + ny * 1.3, ex, ey);
+    ctx.quadraticCurveTo(r0[0] + dx * len * 0.5 - nx * 0.5, r0[1] + dy * len * 0.5 - ny * 0.5, r0[0] - nx * 0.6, r0[1] - ny * 0.6);
     ctx.closePath();
-    ctx.fillStyle = css(U.mixRGB(C.belly, col, 0.2), a);
+    ctx.fillStyle = ghost ? css(col, a) : css(U.mixRGB(C.belly, C.pale, 0.55), a);
     ctx.fill();
-    // 描光
-    ctx.beginPath();
-    for (let k = 0; k < SIDE_T.length; k++) {
-      const aa = SIDE_T[k][0] * g.L, v = SIDE_T[k][1] * g.L * (1 - 0.25 * Math.sin(g.roll));
-      const X = g.cx + aa * g.ux + v * g.px, Y = g.cy + aa * g.uy + v * g.py;
-      if (k === 0) ctx.moveTo(X, Y); else ctx.lineTo(X, Y);
-    }
-    ctx.strokeStyle = css(C.rim, C.rimA * a);
-    ctx.lineWidth = Math.max(0.8, g.s * 1.4);
-    ctx.stroke();
   }
   function drawBreach(ctx, w, C) {
     const vis = w.a * w.fade;
@@ -1303,70 +1454,108 @@
     // 水面以上：完整
     ctx.save();
     ctx.beginPath(); ctx.rect(g.cx - g.L * 1.3, top, g.L * 2.6, Math.max(0, w.by - top)); ctx.clip();
-    drawBreachBody(ctx, w, g, C, 0.97 * vis);
+    drawBreachBody(ctx, w, g, C, 0.98 * vis, false);
     ctx.restore();
-    // 水面以下：淡影
+    // 水面以下：一片暗影
     ctx.save();
     ctx.beginPath(); ctx.rect(g.cx - g.L * 1.3, w.by, g.L * 2.6, Math.max(0, bottom - w.by)); ctx.clip();
-    ctx.globalAlpha = 0.28;
-    drawBreachBody(ctx, w, g, C, vis);
-    ctx.globalAlpha = 1;
+    drawBreachBody(ctx, w, g, C, 0.3 * vis, true);
     ctx.restore();
-    // 出水处的白沫
-    const fo = W.shade(FOAM, 0.1, 0.25);
-    const k = Math.sin(Math.PI * c01(g.p / 0.95));
-    if (k > 0.02) {
-      const wx = g.cx, rx = g.L * 0.16 * (0.5 + k), ry = rx * fzOf(depthAt(w.by)) * 0.9;
-      ctx.beginPath();
-      ctx.ellipse(wx, w.by, rx, Math.max(0.5, ry), 0, 0, TAU);
-      ctx.fillStyle = css(fo, 0.16 * k * vis * (0.4 + 0.6 * W.daylight));
-      ctx.fill();
+    // 出水处：身子破开水面的一圈白浪；上升时水自身上成片泻下
+    if (PUFF) {
+      const dayK = C.dayK, fzb = fzOf(depthAt(w.by));
+      const k = Math.sin(Math.PI * c01(g.p / 0.92));
+      let xc = g.cx;
+      if (Math.abs(g.uy) > 0.05) xc = g.cx + ((w.by - g.cy) / g.uy) * g.ux;
+      if (!(Math.abs(xc - g.cx) < g.L)) xc = g.cx;
+      if (k > 0.02) {
+        const rx = g.L * (0.14 + 0.1 * k), ry = Math.max(1, rx * fzb * 0.9);
+        ctx.globalAlpha = 0.5 * k * vis * dayK;
+        ctx.drawImage(PUFF, xc - rx, w.by - ry * 0.7, rx * 2, ry * 1.6);
+        ctx.globalAlpha = 0.35 * k * vis * dayK;
+        ctx.drawImage(PUFF, xc - rx * 0.45, w.by - rx * 0.5, rx * 0.9, rx * 0.6);
+      }
+      if (g.p < 0.5) {
+        // 泻下的水帘：沿着出水的身子，几团白雾
+        const e = 1 - g.p / 0.5;
+        for (let i = 0; i < 3; i++) {
+          const aa = 0.15 - i * 0.18;
+          const X = g.cx + aa * g.L * g.ux, Y = g.cy + aa * g.L * g.uy;
+          if (Y > w.by) continue;
+          const r = g.L * (0.09 + 0.03 * i);
+          ctx.globalAlpha = 0.28 * e * vis * dayK;
+          ctx.drawImage(PUFF, X - r, Y - r * 0.6, r * 2, r * 1.8);
+        }
+      }
+      ctx.globalAlpha = 1;
     }
   }
 
   function drawRipples(ctx, band, C) {
     if (!RIP.length) return;
     const lightC = W.shade([250, 246, 236], 0.05, 0.45);
-    const dayK = 0.3 + 0.7 * W.daylight;
+    const dayK = C.dayK;
     for (let i = 0; i < RIP.length; i++) {
       const r = RIP[i];
       if (r.band !== band || r.t < 0) continue;
       const p = r.t / r.dur, e = U.easeOut(p);
       const R = (r.r0 + (r.r1 - r.r0) * e) * r.s;
       if (R < 0.4) continue;
-      const fade = (1 - p) * (1 - p);
-      ctx.beginPath();
-      ctx.ellipse(r.x, r.y, R, Math.max(0.3, R * r.fz * 0.85), 0, 0, TAU);
-      if (r.kind === 2) {
-        ctx.fillStyle = css(W.shade(FOAM, 0.1, 0.2), 0.14 * fade * r.a * dayK);
-        ctx.fill();
+      const fade = (1 - p) * (1 - p) * Math.min(1, r.t / 0.12);
+      const Ry = Math.max(0.3, R * r.fz * 0.85);
+      if (r.kind === 2 || r.kind === 4) {
+        // 泡沫 / 鲸的"脚印"：柔边的一片（不是描边的圆）
+        if (!PUFF) continue;
+        const a = r.kind === 2 ? 0.34 * fade * r.a * dayK : 0.13 * Math.sin(Math.PI * Math.min(1, p * 1.4)) * (1 - p) * r.a * (0.25 + 0.75 * dayK);
+        if (a < 0.005) continue;
+        ctx.globalAlpha = a;
+        ctx.drawImage(PUFF, r.x - R, r.y - Ry, R * 2, Ry * 2);
+        ctx.globalAlpha = 1;
         continue;
       }
+      ctx.beginPath();
+      ctx.ellipse(r.x, r.y, R, Ry, 0, 0, TAU);
       if (r.kind === 1 || r.kind === 3) {
         ctx.globalCompositeOperation = 'lighter';
-        ctx.strokeStyle = r.kind === 1 ? css(BIO, 0.5 * fade * r.a * C.bio) : css([190, 225, 240], 0.1 * fade * r.a * (0.4 + 0.6 * C.bio));
+        ctx.strokeStyle = r.kind === 1 ? css(BIO, 0.45 * fade * r.a * C.bio) : css([190, 225, 240], 0.1 * fade * r.a * (0.4 + 0.6 * C.bio));
+        ctx.lineWidth = Math.max(0.6, r.s * (r.kind === 3 ? 2 : 1.1));
+        ctx.stroke();
+        ctx.globalCompositeOperation = 'source-over';
       } else {
-        ctx.strokeStyle = css(lightC, 0.5 * fade * r.a * dayK);
+        ctx.strokeStyle = css(lightC, 0.36 * fade * r.a * dayK);
+        ctx.lineWidth = Math.max(0.7, r.s * 1.2);
+        ctx.stroke();
       }
-      ctx.lineWidth = Math.max(0.6, r.s * (r.kind === 3 ? 2 : 1.1));
-      ctx.stroke();
-      ctx.globalCompositeOperation = 'source-over';
     }
   }
-  function drawPlumes(ctx, band) {
+  function drawPlumes(ctx, band, C) {
     if (!PUFF || !PLUME.length) return;
     const dayK = 0.25 + 0.75 * W.daylight;
     for (let i = 0; i < PLUME.length; i++) {
       const p = PLUME[i];
       if (p.band !== band) continue;
       const e = p.t / p.dur;
+      const drift = ((W.wind || 0) * 14 + p.dx * 10) * p.s * e;
+      if (p.kind === 1) {
+        // 白色水柱：迅速升起，顶上散开，缓缓塌落
+        const rise = U.easeOut(c01(p.t / 0.45));
+        const H = p.H * p.s * rise * (1 - 0.55 * sstep(0.35, 1, e)), Wd = p.Wd * p.s * (0.6 + 0.9 * e);
+        const a = Math.pow(1 - e, 1.3) * 0.7 * dayK;
+        if (a < 0.01 || H < 0.5) continue;
+        ctx.globalAlpha = a;
+        ctx.drawImage(PUFF, p.x - Wd * 0.6, p.y - H * 0.35, Wd * 1.2, H * 0.5);
+        ctx.drawImage(PUFF, p.x - Wd * 0.35 + drift * 0.3, p.y - H * 0.8, Wd * 0.7, H * 0.75);
+        ctx.globalAlpha = a * 0.8;
+        ctx.drawImage(PUFF, p.x - Wd * 0.55 + drift * 0.7, p.y - H * 1.12, Wd * 1.1, H * 0.55);
+        ctx.globalAlpha = 1;
+        continue;
+      }
+      // 喷气：自下而上三团，由窄而宽，随风飘散
       const grow = U.easeOut(c01(p.t / 0.55));
       const H = p.H * p.s * grow * (1 + e * 0.3), Wd = p.Wd * p.s * (0.5 + 1.3 * e);
-      const a = Math.pow(1 - e, 1.6) * 0.5 * dayK;
+      const a = Math.pow(1 - e, 1.6) * 0.55 * dayK;
       if (a < 0.01 || H < 0.5) continue;
-      const drift = ((W.wind || 0) * 14 + p.dx * 10) * p.s * e;
       ctx.globalAlpha = a;
-      // 自下而上三团，由窄而宽
       ctx.drawImage(PUFF, p.x - Wd * 0.3 + drift * 0.2, p.y - H * 0.5, Wd * 0.6, H * 0.55);
       ctx.drawImage(PUFF, p.x - Wd * 0.55 + drift * 0.6, p.y - H * 0.85, Wd * 1.1, H * 0.55);
       ctx.drawImage(PUFF, p.x - Wd * 0.8 + drift, p.y - H * 1.15, Wd * 1.6, H * 0.6);
@@ -1379,6 +1568,7 @@
     if (band == null || !ready) return;
     if (!FISH.length && !WHALES.length && !RIP.length && !PLUME.length) return;
     const C = frameColors();
+    drawShoals(ctx, band, C);
     for (let i = 0; i < WHALES.length; i++) {
       const w = WHALES[i];
       if (w.st !== 'breach' && bandOf(w.y) === band) drawWhaleUnder(ctx, w, C);
@@ -1394,7 +1584,7 @@
       if (w.st === 'breach' && bandOf(w.by) === band) drawBreach(ctx, w, C);
     }
     drawLeaps(ctx, band, C);
-    drawPlumes(ctx, band);
+    drawPlumes(ctx, band, C);
     ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = 'source-over';
   }
@@ -1432,7 +1622,7 @@
     lastW = W.w; lastH = W.h;
   }
   function init() {
-    makePuff();
+    makeSprites();
     GS.bus.on('bless', e => U.safe('sea.bless', () => {
       if (!e) return;
       const r = e.r || 100;

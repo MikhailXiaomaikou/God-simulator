@@ -869,7 +869,7 @@
       if (baked) { if (t.snap) { freeImg(t.snap.img); t.snap = null; } continue; }
       const sn = t.snap;
       const st = !sn || sn.H !== t.H ? 9 : t.g - sn.g + (W.frame - sn.f) * 0.0002;
-      if (sn && sn.H === t.H && (t.g - sn.g < 0.02 && (sn.g >= 1 || W.frame - sn.f < 45))) continue;
+      if (sn && sn.H === t.H && t.g - sn.g < 0.02 && W.frame - sn.f < 45) continue;
       SNAPC.push(st, t);
     }
     if (!SNAPC.length) return;
@@ -941,7 +941,7 @@
     if (sp) {
       const a = sp[0] + 8 * u, b = Math.min(sp[1], W.w - 6 * u);
       const width = Math.max(1, b - a);
-      const N = clamp(Math.round(width / (82 * u)), 4, 13);
+      const N = clamp(Math.round(width / (82 * u * (portrait > 1 ? 1.3 : 1))), 4, 13);   // 竖屏：地窄，树疏一些
       const spc = width / N;
       const oxc = clamp(ox, a + 2 * u, b);
       const D = Math.max(oxc - a, b - oxc, 1);
@@ -963,14 +963,19 @@
     if (sm) {
       const a = sm[0] + 6 * u, b = Math.min(sm[1], W.w - 4 * u);
       const width = Math.max(1, b - a);
-      const N = clamp(Math.round(width / (64 * u)), 5, 10);
+      const N = clamp(Math.round(width / (64 * u * (portrait > 1 ? 1.3 : 1))), 4, 10);
       const spc = width / N;
       const D = Math.max(Math.abs(ox - a), Math.abs(b - ox), 1);
       const Hb = 108 * u * 0.52 * portrait;
+      // 各从其类：近岸未有的种类先长在中丘上（竖屏近岸的树少，也要七类俱全）
+      const have = new Set(LY[2].trees.map(t => t.kind));
+      const seq = [];
+      for (let j = 0; j < KSEQ.length; j++) { const kd = KSEQ[(j * 5 + 2) % KSEQ.length]; if (!have.has(kd)) seq.push(kd); }
+      for (let j = 0; j < KSEQ.length; j++) { const kd = KSEQ[(j * 5 + 2) % KSEQ.length]; if (have.has(kd)) seq.push(kd); }
       for (let k = 0; k < N; k++) {
         const r = U.mulberry32(2000 + k * 7919);
         const x = gentle(Lm, a + (k + 0.5) * spc + (r() - 0.5) * 0.6 * spc, 0.6);
-        let kind = KSEQ[(k * 5 + 2) % KSEQ.length];
+        let kind = seq[(k + seq.length - 1) % seq.length];
         if (k === 0) kind = 'palm';
         const H = Hb * KIND[kind].h * (0.8 + 0.3 * r());
         mk(1, x, kind, 7000 + k * 173, H, 0.12 + 0.55 * Math.abs(x - ox) / D, 0.3, false);
@@ -2046,11 +2051,11 @@
   function drawHerbs(ctx, L) {
     const hs = L.herbs;
     if (!hs.length || W.lv.herbs <= 0 || L.spanA < 0) return;
-    // 菜蔬摇得缓：每三帧重建一次（两层错开）；生长中、或灵快速掠过这一层时每帧重建
+    // 菜蔬摇得缓：每四帧重建一次（两层错开）；生长中、或灵快速掠过这一层时每帧重建
     let G = L.hg;
     const sp = W.spirit;
     const fast = sp.speed > 150 && sp.y > L.minY - 90 * uu() && sp.y < (L.i === 2 ? W.h : L.wl) + 60;
-    if (!G || !FR.herbAll || G.pv !== L.pv || G.n !== hs.length || fast || (W.frame + L.i) % 3 === 0 || W.frame - G.f > 3) {
+    if (!G || !FR.herbAll || G.pv !== L.pv || G.n !== hs.length || fast || (W.frame + 2 * L.i) % 4 === 0 || W.frame - G.f > 4) {
       if (PROF.on) { const t0 = performance.now(); G = L.hg = buildHerbs2(L); PROF.t.hb = (PROF.t.hb || 0) + performance.now() - t0; PROF.t.nhb = (PROF.t.nhb || 0) + 1; } else G = L.hg = buildHerbs2(L);
     }
     const d = depthOf(L.i), u = uu(), near = L.i === 2;
@@ -2306,8 +2311,10 @@
             addRim(dx, dy, W.night * S.a * (layer === 2 ? 0.85 : 0.6) * f * f, c01(1 - dd / (t.H * 0.45)));
           }
         }
+        const rk = t.kind === 'palm' ? 0.55 : 1;      // 棕的羽叶细，整片都会被描亮：减半
         for (let k = 0; k < 4; k++) {
-          if (OW[k] > 0.02) { ctx.globalAlpha = Math.min(1, OW[k]); ctx.drawImage(c['o' + k], b.x0, b.y0, b.w, b.h); }
+          const a = OW[k] * rk;
+          if (a > 0.02) { ctx.globalAlpha = Math.min(1, a); ctx.drawImage(c['o' + k], b.x0, b.y0, b.w, b.h); }
         }
         ctx.globalAlpha = 1;
       } else if (t.snap && t.snap.H === t.H) {
@@ -2471,7 +2478,7 @@
       const t = bakeQ.shift(); t.queued = false;
       if (t.g >= 1 && t.bakeKey !== bakeKey(t)) U.safe('land.bake', () => bakeTree(t));
     }
-    processSnaps(12);
+    // （生长快照要用此刻的光，留给 update——restore 可能在世界的光第一次算出之前被调用）
   }
 
   // ════════════════════════════════════════════════════════════
@@ -2539,7 +2546,7 @@
   GS.land = {
     init, resize, update, draw, reset, restore, pick,
     treeSpots, perches, flowerSpots, groundY,
-    KIND, prof: PROF,
+    KIND, prof: PROF, __trees: trees,
     get debug() { return { trees: trees.length, near: LY[2].trees.length, mid: LY[1].trees.length, baked: trees.filter(t => t.bake && t.bake.H === t.H).length, queue: bakeQ.length, blades: LY[1].nb + LY[2].nb, herbs: LY[1].herbs.length + LY[2].herbs.length, blooms: blooms.length, drift: drift.length }; },
   };
 })(window.GS);

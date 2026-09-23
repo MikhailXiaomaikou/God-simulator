@@ -2035,14 +2035,14 @@
           }],
           [52, b => { W.goTo(0.76, 9, b.instant); walk('isaac', 0.585, { speed: 0.02, pose: 'pray' }); }],
           [60, b => { pose('isaac', 'stand'); face('isaac', 1); say(b, [{ text: '天将晚，以撒出来在田间默想，举目一看，见来了些骆驼。', ref: '创世记 24:63', hold: 6 }]); }],
-          [63, () => { ride('rebekah', null); walk('rebekah', 0.64, { speed: 0.02 }); hold('rebekah', 'coat'); }],
+          [63, () => { ride('rebekah', null); walk('rebekah', 0.64, { speed: 0.02 }); face('rebekah', -1); }],
           [68, b => {
             walk('isaac', X.tent - 0.012, { speed: 0.014 }); walk('rebekah', X.tent + 0.012, { speed: 0.014 });
             walk('servant', X.tent + 0.05, { speed: 0.014 });
             prop('tentM', null, { lit: 0.8 });
             say(b, [{ text: '以撒便领利百加进了他母亲撒拉的帐棚，娶了她为妻，并且爱她。<br>以撒自从他母亲不在了，这才得了安慰。', ref: '创世记 24:67', hold: 8 }]);
           }],
-          [78, b => { hold('rebekah', null); prop('tentM', null, { lit: 0.2 }); if (!b.instant) fx().ring(X.tent * W.w, gY(2, X.tent) - 20 * LS(2), [255, 220, 170], M() * 0.35, 2.4, 2); }],
+          [78, b => { prop('tentM', null, { lit: 0.2 }); if (!b.instant) fx().ring(X.tent * W.w, gY(2, X.tent) - 20 * LS(2), [255, 220, 170], M() * 0.35, 2.4, 2); }],
         ]);
       },
     },
