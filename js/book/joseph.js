@@ -1074,7 +1074,7 @@
     const e = W.lv.jsEgypt, fam = W.lv.jsFamine;
     if (e < 0.01 && fam < 0.01) return;
     const xb = XB[l], dep = DEP(l);
-    const Ae = Math.max(0.84 * e, 0.62 * fam), Af = 0.5 * fam;
+    const Ae = Math.max(0.84 * e, 0.62 * fam), Af = 0.34 * fam;
     const c = W.shade(U.mixRGB(SAND[l], [188, 160, 118], fam * 0.35), dep, 0.06);
     const col = a => U.rgba(c[0], c[1], c[2], clamp(a, 0, 1));
     const g = ctx.createLinearGradient(0, 0, W.w, 0);
@@ -1971,8 +1971,8 @@
     prop('pyr2', 'pyramid', { x: 0.607, layer: 1, size: 0.92, label: '金字塔' });
     prop('pyr3', 'pyramid', { x: 0.635, layer: 1, size: 0.6, label: '金字塔' });
   }
-  function landLevels(b, o) {                 // 地上的草木：迦南的青草自右而来，埃及是沙地
-    for (const k in o) W.set(k, o[k], b.instant);
+  function landLevels(b, o) {                 // 地上的草木：迦南的青草自右而来，埃及是沙地（bare / bloom 由大地模块提供，缺则略过）
+    for (const k in o) if (!W.hasLevel || W.hasLevel(k)) W.set(k, o[k], b.instant);
   }
   const FIELDS = ['fieldW', 'fieldE1', 'fieldE2'];
   function fields(o) { FIELDS.forEach(id => prop(id, null, o)); }
@@ -1999,7 +1999,7 @@
   function resetScene() { P.clear(); FXL.length = 0; sorted = []; sortedN = -1; S = fresh(); }
   function setup() {
     const lv = { deep: 1, light: 1, gather: 1, dayNight: 1, vault: 1, clouds: 0.4, land: 1, grass: 1, herbs: 1, trees: 0.42, lights: 1, moon: 1, stars: 1, life: 1, good: 0, given: 1, sabbath: 0.15,
-      jsEgypt: 0, jsNile: 0, jsFamine: 0, jsGoshen: 0, jsDream: 0, jsWith: 0, jsTribes: 0, jsPromise: 0 };
+      jsEgypt: 0, jsNile: 0, jsFamine: 0, jsGoshen: 0, jsDream: 0, jsWith: 0, jsTribes: 0, jsPromise: 0, bare: 0, bloom: 1 };
     for (const k in lv) if (!W.hasLevel || W.hasLevel(k)) W.set(k, lv[k], true);
     const ox = W.w * 0.99, oy = W.ridgeBaseY(2, ox);
     W.setOrigin('grass', ox, oy); W.setOrigin('herbs', ox, oy); W.setOrigin('trees', ox, oy);
@@ -2382,7 +2382,7 @@
           [L[3] + 2, b => {
             // 一夜之间：左边的地化作埃及
             W.set('jsEgypt', 1, b.instant); W.set('jsNile', 1, b.instant);
-            landLevels(b, { grass: 0.3, herbs: 0.26, trees: 0.28, clouds: 0.22 });
+            landLevels(b, { grass: 0.3, herbs: 0.26, trees: 0.28, clouds: 0.22, bare: 0.2, bloom: 0.6 });
             egyptProps();
             unprop('coat2');
           }],
@@ -2650,7 +2650,7 @@
           [0, b => {
             W.goTo(0.5, 4, b.instant);
             W.set('jsFamine', 1, b.instant); W.set('jsNile', 0.7, b.instant);
-            landLevels(b, { grass: 0, herbs: 0, trees: 0.14, clouds: 0.08 });
+            landLevels(b, { grass: 0.16, herbs: 0.04, trees: 0.14, clouds: 0.08, bare: 1, bloom: 0 });
             fields({ dry: 1, gold: 0 });
             fxAdd(b, { type: 'dust', dur: 14 });
             sfx(b, 'wind');
@@ -2912,7 +2912,7 @@
           [L[2], b => {
             walk('jacob', X.bed + 0.02, { speed: 0.03 }); walk('joseph', X.jhouse - 0.004, { speed: 0.03 });
             W.set('jsGoshen', 1, b.instant); W.set('jsFamine', 0, b.instant); W.set('jsNile', 1, b.instant);
-            landLevels(b, { grass: 0.3, herbs: 0.26, trees: 0.3, clouds: 0.3 });
+            landLevels(b, { grass: 0.3, herbs: 0.26, trees: 0.3, clouds: 0.3, bare: 0.2, bloom: 0.75 });
             fields({ dry: 0, gold: 0.5 });
             prop('tentG1', 'tent', { x: X.tentG1, size: 0.88, label: '以色列人的帐棚' });
             prop('tentG2', 'tent', { x: X.tentG2, size: 0.8, label: '以色列人的帐棚' });
