@@ -410,13 +410,17 @@
     c.f = W.frame; c.k0 = key0; c.k1 = key1; c.k2 = key2; c.k3 = key3; c.e0 = e0; c.e1 = e1; c.e2 = e2;
     // 缓存为 Path2D：之后几帧只需 fill，不必逐条回放
     c.paths = c.paths || [];
+    c.pk = c.pk || [];
+    c.pn = 0;
     c.union = HAS_P2D ? new Path2D() : null;
+    if (!HAS_P2D) return;
+    // 相邻而同色的组合成一条路径（head 与 body 同色）
+    let P = null, lastK = null;
     for (let i = 0; i < nOps; i++) {
-      if (!HAS_P2D) { c.paths[i] = null; continue; }
-      const P = new Path2D();
+      const k = G_KEY[i] === 'head' ? 'body' : G_KEY[i];
+      if (k !== lastK) { P = new Path2D(); c.paths[c.pn] = P; c.pk[c.pn] = k; c.pn++; lastK = k; }
       replay(P, G_A[i], G_B[i], 0, 0);
       replay(c.union, G_A[i], G_B[i], 0, 0);
-      c.paths[i] = P;
     }
   }
   const HAS_P2D = typeof Path2D !== 'undefined';
@@ -435,8 +439,8 @@
       ctx.translate(-rim.dx, -rim.dy);
     }
     let last = null;
-    for (let i = 0; i < c.gn; i++) {
-      const col = COL[c.gk[i]];
+    for (let i = 0; i < c.pn; i++) {
+      const col = COL[c.pk[i]];
       if (col !== last) { ctx.fillStyle = col; last = col; }
       ctx.fill(c.paths[i]);
     }
