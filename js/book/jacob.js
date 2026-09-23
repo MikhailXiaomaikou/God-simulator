@@ -285,7 +285,7 @@
     },
     field(p) {
       const r = U.mulberry32(p.seed + 5), tuft = [];
-      for (let i = 0; i < 420; i++) tuft.push([r(), r(), r()]);
+      for (let i = 0; i < 360; i++) tuft.push([r(), r(), r()]);
       return { tuft };
     },
     stream(p) {
@@ -567,7 +567,7 @@
         const y = lerp(top, bot, Math.pow(f, 1.3)) + (q[2] - 0.5) * 2 * s, x = cx + u * lerp(hwT, hwB, f);
         const th = lerp(4, 13, f) * s * hgt * (0.7 + 0.5 * q[2]);
         const sw = sway * (0.3 + f) + Math.sin(W.t * 1.5 + q[2] * 9 + f * 3) * 0.7 * s;
-        ctx.moveTo(x, y); ctx.quadraticCurveTo(x + sw * 0.3, y - th * 0.6, x + sw, y - th);
+        ctx.moveTo(x, y); ctx.lineTo(x + sw, y - th);
       }
       ctx.stroke();
     }
@@ -582,7 +582,7 @@
         const y = lerp(top, bot, Math.pow(f, 1.3)) + (q[2] - 0.5) * 2 * s, x = cx + u * lerp(hwT, hwB, f);
         const th = lerp(4, 13, f) * s * hgt * (0.7 + 0.5 * q[2]);
         const sw = sway * (0.3 + f) + Math.sin(W.t * 1.5 + q[2] * 9 + f * 3) * 0.7 * s, r = lerp(0.7, 1.5, f) * s;
-        ctx.moveTo(x + sw + r * 0.6, y - th - r); ctx.ellipse(x + sw, y - th - r, r * 0.6, r * 1.5, 0.2, 0, TAU);
+        ctx.rect(x + sw - r * 0.55, y - th - r * 2.4, r * 1.1, r * 2.6);
       }
       ctx.fill();
     }
@@ -968,9 +968,9 @@
     if (k > 1.01) {                     // 以东诸王之后：赤色的余晖
       SP || sprites();
       ctx.globalCompositeOperation = 'lighter';
-      ctx.globalAlpha = (k - 1) * 0.6 * (0.4 + 0.6 * nightK());
-      const g = (x1 - x0) * 1.2;
-      ctx.drawImage(SP.rose, (x0 + x1) / 2 - g / 2, base - H - g * 0.3, g, g * 0.6);
+      ctx.globalAlpha = (k - 1) * (0.22 + 0.3 * W.dusk);
+      const g = (x1 - x0) * 1.3;
+      ctx.drawImage(SP.rose, (x0 + x1) / 2 - g / 2, base - H * 0.8 - g * 0.12, g, g * 0.24);
       ctx.globalCompositeOperation = 'source-over';
     }
     ctx.globalAlpha = 1;
@@ -1033,11 +1033,11 @@
       ctx.restore();
     }
     // 光雾：沿梯而上
-    for (let i = 0; i < 18; i++) {
-      const t = (i + 0.5) / 18;
+    for (let i = 0; i < 9; i++) {
+      const t = Math.pow((i + 0.5) / 9, 1.3);
       if (t < r0 || t > r1) continue;
-      const x = lerp(LG.bx, LG.tx, t), y = lerp(LG.by, LG.ty, t), r = lerp(110, 34, t) * s;
-      ctx.globalAlpha = A * 0.16 * (0.85 + 0.15 * Math.sin(W.t * 1.3 + i));
+      const x = lerp(LG.bx, LG.tx, t), y = lerp(LG.by, LG.ty, t), r = lerp(110, 36, t) * s;
+      ctx.globalAlpha = A * 0.22 * (0.85 + 0.15 * Math.sin(W.t * 1.3 + i));
       ctx.drawImage(SP.gold, x - r, y - r, 2 * r, 2 * r);
     }
     // 地上的一片光（雅各躺卧之处）
@@ -1054,21 +1054,30 @@
       ctx.strokeStyle = 'rgb(255,222,160)'; ctx.lineWidth = 6.5 * s; ctx.globalAlpha = A * 0.16; ctx.stroke();
       ctx.strokeStyle = 'rgb(255,246,224)'; ctx.lineWidth = Math.max(1, 1.5 * s); ctx.globalAlpha = A * 0.8; ctx.stroke();
     }
-    // 阶：光自下而上流过
+    // 阶：光自下而上流过（按亮度分三束，各一笔画成）
     ctx.lineCap = 'round';
     ctx.strokeStyle = 'rgb(255,240,208)';
-    const R = 32;
-    for (let i = 1; i < R; i++) {
-      const t = Math.pow(i / R, 0.8);
-      if (t < r0 || t > r1) continue;
-      const a0 = lad(t, -1), ax = a0[0], ay = a0[1], b0 = lad(t, 1);
-      const flow = Math.pow(0.5 + 0.5 * Math.sin(t * 24 - W.t * 2.1), 3);
-      const wd = Math.max(0.8, lerp(2.4, 0.8, t) * s);
-      ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(b0[0], b0[1]);
-      ctx.globalAlpha = A * (0.12 + 0.2 * flow) * (1 - t * 0.4);
-      ctx.lineWidth = wd * 3.2; ctx.stroke();
-      ctx.globalAlpha = A * (0.4 + 0.6 * flow) * (1 - t * 0.3);
-      ctx.lineWidth = wd; ctx.stroke();
+    const R = 32, NB = 3;
+    for (let bk = 0; bk < NB; bk++) {
+      for (let near = 0; near < 2; near++) {        // near 0：下半截（宽），1：上半截（细）
+        ctx.beginPath();
+        let any = false;
+        for (let i = 1; i < R; i++) {
+          const t = Math.pow(i / R, 0.8);
+          if (t < r0 || t > r1 || (t < 0.45) !== (near === 0)) continue;
+          const flow = Math.pow(0.5 + 0.5 * Math.sin(t * 24 - W.t * 2.1), 3);
+          if (Math.min(NB - 1, Math.floor(flow * NB)) !== bk) continue;
+          const a0 = lad(t, -1), ax = a0[0], ay = a0[1], b0 = lad(t, 1);
+          ctx.moveTo(ax, ay); ctx.lineTo(b0[0], b0[1]);
+          any = true;
+        }
+        if (!any) continue;
+        const f = (bk + 0.5) / NB, tm = near ? 0.7 : 0.22, wd = Math.max(0.8, lerp(2.4, 0.8, tm) * s);
+        ctx.globalAlpha = A * (0.12 + 0.2 * f) * (1 - tm * 0.4);
+        ctx.lineWidth = wd * 3.2; ctx.stroke();
+        ctx.globalAlpha = A * (0.4 + 0.6 * f) * (1 - tm * 0.3);
+        ctx.lineWidth = wd; ctx.stroke();
+      }
     }
     // 天的门：梯子的头顶着天
     if (r1 > 0.85) {
@@ -1323,7 +1332,7 @@
     ctx.globalCompositeOperation = 'lighter';
     for (const st of S.stars) {
       if (W.t < st.born) continue;
-      const x = st.x * W.w, y = st.y * W.h, a = A * (0.85 + 0.15 * Math.sin(W.t * 1.3 + st.x * 20)) * smoothstep(st.born, st.born + 2, W.t);
+      const x = st.x * W.w, y = st.y * W.h, a = A * (0.85 + 0.15 * Math.sin(W.t * 1.3 + st.x * 20)) * (st.born <= 0 ? 1 : smoothstep(st.born, st.born + 2, W.t));
       ctx.globalAlpha = a;
       ctx.fillStyle = 'rgb(246,242,255)';
       ctx.beginPath(); ctx.arc(x, y, 1.6 * u, 0, TAU); ctx.fill();
@@ -1696,11 +1705,9 @@
   const V16 = [
     { text: '「我所赐给亚伯拉罕和以撒的地，我要赐给你与你的后裔。」', ref: '创世记 35:12', hold: 6.5 },
     { text: '雅各共有十二个儿子。', ref: '创世记 35:22', hold: 4.5 },
-    { text: '雅各来到他父亲以撒那里，到了基列亚巴的幔利，<br>乃是亚伯拉罕和以撒寄居的地方。', ref: '创世记 35:27', hold: 7 },
-    { text: '以撒共活了一百八十岁。<br>以撒年纪老迈，日子满足，气绝而死，归到他列祖那里。', ref: '创世记 35:28–29', hold: 8 },
+    { text: '雅各来到他父亲以撒那里，到了基列亚巴的幔利……<br>以撒年纪老迈，日子满足，气绝而死，归到他列祖那里。', ref: '创世记 35:27–29', hold: 8.5 },
     { text: '他两个儿子以扫、雅各把他埋葬了。', ref: '创世记 35:29', hold: 5 },
-    { text: '以扫就是以东，他的后代记在下面。', ref: '创世记 36:1', hold: 5 },
-    { text: '以扫带着他的妻子、儿女，与家中一切的人口……往别处去，离了他兄弟雅各。<br>因为二人的财物群畜甚多，寄居的地方容不下他们，所以不能同居。', ref: '创世记 36:6–7', hold: 9 },
+    { text: '因为二人的财物群畜甚多，寄居的地方容不下他们，所以不能同居。', ref: '创世记 36:7', hold: 6.5 },
     { text: '于是以扫住在西珥山里；以扫就是以东。', ref: '创世记 36:8', hold: 5.5 },
     { text: '以色列人未有君王治理以先，在以东地作王的记在下面。', ref: '创世记 36:31', hold: 6 },
   ];
@@ -2004,6 +2011,7 @@
             add('leah', { label: '利亚', sex: 'f', age: 'adult', x: X.tentLa + 0.02, facing: -1, robe: ROBE.leah, glow: 0.3, from: b.instant ? 'none' : 'fade' });
             add('zilpah', { label: '悉帕', sex: 'f', age: 'adult', x: X.tentLa + 0.04, facing: -1, robe: ROBE.zilpah, glow: 0.15, from: b.instant ? 'none' : 'fade' });
             walk('jacob', X.tentJ + 0.014, { speed: 0.025 });
+            sfx(b, 'crowd');
           }],
           [L[5] + 10.6, b => { W.goTo(0.0, 1.6, b.instant); walk('leah', X.tentJ - 0.012, { speed: 0.025 }); walk('zilpah', X.tentJ - 0.035, { speed: 0.025 }); }],
           [L[6] + 0.4, b => { W.goTo(0.27, 3, b.instant); uncrowd('feast'); prop('tentLa', null, { lit: 0 }); prop('tentJ', null, { lit: 0 }); }],
@@ -2099,6 +2107,7 @@
           [L[3], b => {
             if (!hasCrowd('flockS')) herd('flockS', { kind: 'sheep', n: 7, speckled: true, x0: X.troughs - 0.05, x1: X.troughs + 0.05, label: '有点有斑的羊', from: b.instant ? 'none' : 'dust' });
             if (!b.instant) fx().sparkle(X.troughs * W.w, gY(2, X.troughs) - 10, 30, [255, 240, 214], 40, 'top');
+            sfx(b, 'bleat');
           }],
           [L[3] + 3, b => { if (!hasCrowd('goatS')) herd('goatS', { kind: 'goat', n: 5, speckled: true, x0: X.troughs - 0.07, x1: X.troughs - 0.02, label: '有纹有斑的山羊', from: b.instant ? 'none' : 'dust' }); }],
           [L[4], b => {
@@ -2145,6 +2154,7 @@
             ['gad', 'asher'].forEach((id, i) => walk(id, X.gilead + 0.084 + i * 0.006, { speed: 0.02 }));
             flocks(X.gilead + 0.1, X.gilead + 0.17);
             crowdWalk('sv', X.gilead + 0.11, X.gilead + 0.15, { speed: 0.02 });
+            sfx(b, 'camel');
           }],
           // 拉班追上
           [L[4], b => {
@@ -2314,6 +2324,7 @@
             if (!hasCrowd('edom')) crowd('edom', { n: 7, x0: 0.42, x1: 0.47, layer: 2, label: '以扫的四百人', from: b.instant ? 'none' : 'fade', mill: false });
             crowdWalk('edom', 0.5, 0.58, { speed: 0.028 });
             crowdWalk('edomM', 0.55, 0.64, { speed: 0.02 });
+            sfx(b, 'crowd');
             // 两个使女和她们的孩子在前头，利亚和她的孩子在后头，拉结和约瑟在尽后头（33:2）
             walk('jacob', 0.7, { speed: 0.02 });
             const q = (id, x) => { if (fig(id)) walk(id, x, { speed: 0.025 }); };
@@ -2501,14 +2512,14 @@
             walk('jacob', X.tentM + 0.046, { speed: 0.02 });
             face('jacob', -1);
           }],
-          [L[2] + 4, () => pose('jacob', 'kneel')],
-          [L[3], b => { W.goTo(0.745, 7, b.instant); walk('isaac', X.tentM + 0.018, { speed: 0.01, pose: 'lie' }); glow('isaac', 0.6); pose('jacob', 'kneel'); }],
-          [L[3] + 3.5, b => { soul(b, 'isaac', [0.53, 0.13]); glow('isaac', 0.1); }],
-          [L[3] + 4, b => {
+          [L[2] + 2.5, () => pose('jacob', 'kneel')],
+          [L[2] + 3.5, b => { W.goTo(0.745, 6, b.instant); walk('isaac', X.tentM + 0.018, { speed: 0.01, pose: 'lie' }); glow('isaac', 0.6); }],
+          [L[2] + 6.5, b => { soul(b, 'isaac', [0.53, 0.13]); glow('isaac', 0.1); }],
+          [L[2] + 7, b => {
             add('esau', { label: '以扫', sex: 'm', age: 'elder', x: 0.44, facing: 1, robe: ROBE.esau, glow: 0.2, from: b.instant ? 'none' : 'fade' });
-            walk('esau', X.tentM - 0.01, { speed: 0.025 });
+            walk('esau', X.tentM - 0.01, { speed: 0.03 });
           }],
-          [L[4], b => {
+          [L[3], b => {
             const f = fig('isaac'), x = f ? f.nx : X.tentM + 0.018;
             rm('isaac');
             prop('bier', 'bier', { x, label: '以撒' });
@@ -2517,27 +2528,29 @@
             pose('jacob', 'stand');
             walk('esau', X.cave - 0.008, { speed: 0.012 }); walk('jacob', X.cave + 0.034, { speed: 0.012 });
           }],
-          [L[4] + 6, b => { unprop('bier'); prop('cave', null, { seal: 1, lit: 0 }); pose('esau', 'kneel'); pose('jacob', 'kneel'); sfx(b, 'seal'); }],
-          [L[5], b => { pose('esau', 'stand'); pose('jacob', 'stand'); edomNames(b, ['以利法', '流珥', '耶乌施', '雅兰', '可拉'], 0.07); }],
-          [L[6], b => {
+          [L[3] + 5, b => { unprop('bier'); prop('cave', null, { seal: 1, lit: 0 }); pose('esau', 'kneel'); pose('jacob', 'kneel'); sfx(b, 'seal'); }],
+          [L[4], b => {
+            pose('esau', 'stand'); pose('jacob', 'stand');
             if (!hasCrowd('edomH')) crowd('edomH', { n: 5, x0: 0.44, x1: 0.49, layer: 2, label: '以扫的家人', from: b.instant ? 'none' : 'fade', mill: false });
             if (!hasCrowd('edomF')) herd('edomF', { kind: 'goat', n: 5, x0: 0.45, x1: 0.5, label: '以扫的群畜', from: b.instant ? 'none' : 'fade' });
+            edomNames(b, ['以利法', '流珥', '耶乌施', '雅兰', '可拉'], 0.07);
+          }],
+          [L[4] + 2, () => {
             walk('esau', 0.4, { speed: 0.02 });
             crowdWalk('edomH', 0.35, 0.41, { speed: 0.02 });
             crowdWalk('edomF', 0.36, 0.42, { speed: 0.02 });
           }],
-          [L[6] + 9, () => { rm('esau'); uncrowd('edomH'); uncrowd('edomF'); }],
-          [L[7], b => { W.set('jbSeir', 1.5, b.instant); edomNames(b, ['提幔', '阿抹', '洗玻', '基纳斯', '亚玛力'], 0.12); }],
-          [L[8], b => {
+          [L[5], b => { W.set('jbSeir', 1.5, b.instant); edomNames(b, ['提幔', '阿抹', '洗玻', '基纳斯', '亚玛力'], 0.12); }],
+          [L[5] + 4, () => { rm('esau'); uncrowd('edomH'); uncrowd('edomF'); }],
+          [L[6], b => {
             W.goTo(0.9, 10, b.instant);
             edomNames(b, ['比拉', '约巴', '户珊', '哈达', '桑拉', '扫罗'], 0.18);
             prop('tentJ', 'tent', { x: 0.7, size: 0.95, label: '雅各的帐棚' });
             prop('tentJ2', 'tent', { x: 0.748, size: 0.85, label: '帐棚' });
             walk('jacob', 0.622, { speed: 0.018, pose: 'sit' });
-            face('jacob', -1);
             SONS12.forEach((id, i) => { if (fig(id)) walk(id, 0.635 + (i % 6) * 0.011 + (i >= 6 ? 0.095 : 0), { speed: 0.02, pose: 'sit' }); });
           }],
-          [L[8] + 7, () => face('jacob', -1)],
+          [L[6] + 7, () => face('jacob', -1)],
         );
         T(c, beats);
       },
@@ -2545,7 +2558,7 @@
   ];
 
   GS.book.act({
-    id: ACT, title: '雅各', sub: '创世记 25:19 — 36:43', tint: [228, 216, 255], outro: 24,
+    id: ACT, title: '雅各', sub: '创世记 25:19 — 36:43', tint: [228, 216, 255], outro: 56,
     intro: [
       { text: '亚伯拉罕的儿子以撒的后代记在下面。亚伯拉罕生以撒。', ref: '创世记 25:19', hold: 5.5 },
       { text: '以撒因他妻子不生育，就为她祈求耶和华；<br>耶和华应允他的祈求，他的妻子利百加就怀了孕。', ref: '创世记 25:21', hold: 7 },

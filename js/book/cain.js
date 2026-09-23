@@ -966,7 +966,8 @@
     const b = body('lamechW') || body('noah');
     if (!b) return;
     ctx.globalCompositeOperation = 'lighter';
-    glow(ctx, 'warm', b.x, b.y - b.h * 0.5, b.h * 2.4, b.h * 1.4, 0.2 * c * (0.7 + 0.5 * (1 - W.daylight)));
+    glow(ctx, 'warm', b.x, b.y - b.h * 0.5, b.h * 2.4, b.h * 1.4, c * (0.2 + 0.14 * (1 - W.daylight)));
+    glow(ctx, 'gold', b.x, b.y - b.h * 0.55, b.h * 0.8, b.h * 0.8, c * 0.16);
     ctx.globalCompositeOperation = 'source-over';
   }
   // 田间：光熄灭（不画暴力；只有黑暗合拢，又退去）
@@ -1136,7 +1137,7 @@
       {
         kind: 'act', utter: '夏娃就怀孕，生了该隐', cmd: 'spawn 该隐 && spawn 亚伯  # 耶和华使我得了一个男子', ref: '4:1–2',
         verse: [
-          { text: '有一日，那人和他妻子夏娃同房，夏娃就怀孕，生了该隐，<br>便说：「耶和华使我得了一个男子。」', ref: '创世记 4:1', hold: 8 },
+          { text: '有一日，那人和他妻子夏娃同房，夏娃就怀孕，生了该隐（就是得的意思），<br>便说：「耶和华使我得了一个男子。」', ref: '创世记 4:1', hold: 8.5 },
           { text: '又生了该隐的兄弟亚伯。<br>亚伯是牧羊的；该隐是种地的。', ref: '创世记 4:2', hold: 8 },
         ],
         apply(c) {
@@ -1146,7 +1147,11 @@
             [0, b => { cast().pose('eve', 'sit', { stop: true }); cast().face('adam', 'eve'); if (!inst(b)) sfx('harp', b, { soft: true }); }],
             [2.2, b => {
               cast().carry('eve', 'baby');
-              if (!inst(b)) { sparkAt('eve', 26, [255, 232, 206], 0.3); const e = body('eve'); if (e) fx().ring(e.x, e.y - e.h * 0.45, [255, 226, 196], M() * 0.14, 2.2, 1.2); }
+              if (!inst(b)) {
+                sparkAt('eve', 26, [255, 232, 206], 0.3);
+                const e = body('eve'); if (e) fx().ring(e.x, e.y - e.h * 0.45, [255, 226, 196], M() * 0.14, 2.2, 1.2);
+                nameOver('该隐', 'eve', [255, 230, 196], { hold: 2.2, lift: 1.6 });
+              }
             }],
             [3.4, () => walk('adam', E - 0.022, 0.02, 'kneel')],
             [5, b => W.goTo(0.99, 3.6, inst(b))],
@@ -1155,7 +1160,7 @@
               cast().add('cain', { label: '该隐', sex: 'm', age: 'child', layer: 2, x: E - 0.045, facing: 1, pose: 'stand', robe: ROBE.cain, glow: 0.4, from: 'fade' });
               cast().pose('eve', 'stand', { stop: true });
               cast().pose('adam', 'stand', { stop: true });
-              if (!inst(b)) sparkAt('eve', 18, [255, 236, 214], 0.25);
+              if (!inst(b)) { sparkAt('eve', 18, [255, 236, 214], 0.25); nameOver('亚伯', 'eve', [236, 240, 255], { hold: 2, lift: 1.6 }); }
             }],
             [9, b => W.goTo(0.3, 3.6, inst(b))],
             [13.2, b => W.goTo(0.99, 3.4, inst(b))],
@@ -1413,6 +1418,7 @@
               lv('cainBlood', 0, b); lv('cainGround', 0, b); lv('cainBloom', 1, b);
               if (!inst(b)) {
                 sparkAt('eve', 26, [255, 240, 214], 0.3);
+                nameOver('塞特', 'eve', [255, 236, 206], { hold: 2.4, lift: 1.6 });
                 const x = at(SPOT.fall) * W.w;
                 fx().sparkle(x, gY(x) - hNear() * 0.15, 30, [246, 241, 231], hNear() * 0.5, 'near');
                 sfx('harp', b);
@@ -1426,7 +1432,7 @@
               cast().pose('eve', 'stand', { stop: true });
               cast().add('seth', { label: '塞特', sex: 'm', age: 'adult', layer: 2, x: at(0.8), facing: -1, pose: 'stand', robe: ROBE.seth, glow: 0.4, from: 'fade' });
               cast().add('sethW', { label: '塞特的妻子', sex: 'f', age: 'adult', layer: 2, x: at(0.77), facing: -1, pose: 'stand', robe: ROBE.sethW, glow: 0.35, from: 'fade', carry: 'baby' });
-              if (!inst(b)) sparkAt('sethW', 16, [255, 236, 210], 0.3);
+              if (!inst(b)) { sparkAt('sethW', 16, [255, 236, 210], 0.3); nameOver('以挪士', 'sethW', [236, 240, 255], { hold: 2, lift: 1.6 }); }
             }],
             [15.4, b => W.goTo(0.71, 5, inst(b))],
             [18, () => {
