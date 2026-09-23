@@ -94,6 +94,7 @@
   }
   const fY = (px, v) => { const g = gY(px); return g + v * Math.max(0, W.h - g); };
   function lv(name, v, b) { W.set(name, v, inst(b)); }
+  const since = t0 => (W.t - t0) * (W.fast || 1);             // 情节里的秒数（随 fast 加速）
   function walk(id, x, sp, pose) { cast().walk(id, x, { speed: sp || 0.03, pose: pose || 'stand' }); }
   function sfx(name, b, o) {
     if (inst(b)) return;
@@ -133,7 +134,7 @@
     if (!b) return;
     o = o || {};
     const n = Array.from(str).length;
-    const size = o.size || Math.max(13, M() * 0.034);
+    const size = o.size || Math.max(14, M() * 0.04);
     const cx = clamp(b.x, size * n * 0.6 + 4, W.w - size * n * 0.6 - 4);
     const cy = Math.max(size, b.head - b.h * 0.35 - size * (o.lift || 1.1));
     fx().nameStr(str, cx, cy, size, col || [255, 236, 200],
@@ -173,7 +174,7 @@
     GEO = { stalks: [], rows: 6, thorns: [], fieldThorns: [], houses: [], flowers: [], crack: [] };
     // 犁沟上的庄稼
     const fw = (at(SPOT.field1) - at(SPOT.field0)) * W.w;
-    const gap = Math.max(2.2, 4.4 * P.s) / Math.max(0.5, W.quality || 1);
+    const gap = Math.max(2.4, 5.2 * P.s) / Math.max(0.5, W.quality || 1);
     const per = clamp(Math.round(fw / gap), 8, 90);
     for (let r = 0; r < GEO.rows; r++) {
       for (let i = 0; i < per; i++) {
@@ -541,7 +542,7 @@
   // 烟：亚伯的笔直上升、发光；该隐的压下来，贴着地爬开
   function drawSmoke(ctx, x, y, amt, acc, abel, seed) {
     if (amt < 0.02) return;
-    const N = (W.quality || 1) < 0.75 ? 10 : 16;
+    const N = ((W.quality || 1) < 0.75 ? 10 : 16) + (abel ? Math.round(14 * acc) : 0);
     const H0 = W.h * 0.17, H1 = W.h * (abel ? 0.5 : 0.05);
     const lit = 0.3 + 0.7 * W.daylight;
     for (let i = 0; i < N; i++) {
@@ -552,7 +553,7 @@
       const ny = y - u * H0;
       if (abel) {
         const px = lerp(nx, x + Math.sin(u * 6 + W.t * 0.8) * 1.4 * P.s, acc), py = lerp(ny, y - u * H1, acc);
-        const rr = r * lerp(1, 0.5, acc);
+        const rr = r * lerp(1, 0.7, acc);
         glow(ctx, 'smoke', px, py, rr, rr * 0.9, fade * 0.3 * (1 - acc) * lit);
         if (acc > 0.02) {
           ctx.globalCompositeOperation = 'lighter';
@@ -568,7 +569,7 @@
         r *= lerp(1, 1.3, acc);
         const flat = lerp(0.9, 0.5, acc * low);
         glow(ctx, 'smoke', px, py, r, r * flat, fade * 0.3 * (1 - acc) * lit);
-        glow(ctx, 'ash', px, py, r, r * flat, fade * 0.42 * acc * (0.55 + 0.45 * lit));
+        glow(ctx, 'ash', px, py, r, r * flat, fade * 0.55 * acc * (0.55 + 0.45 * lit));
       }
     }
   }
@@ -637,7 +638,7 @@
     if (!S.cairns.length) return;
     const h = hNear(), ra = rimA();
     for (const c of S.cairns) {
-      const k = clamp((W.t - c.t0) / 2.5, 0, 1);
+      const k = clamp(since(c.t0) / 2.5, 0, 1);
       if (k <= 0) continue;
       const x = c.x * W.w, y = gY(x) + 1, ls = lightSide(x);
       CAIRN.forEach((s, i) => {
@@ -707,9 +708,8 @@
     ctx.globalCompositeOperation = 'source-over';
   }
 
-  // 罪伏在门前：一团蹲伏的暗影，伏在该隐身后，头向着他（不画面目）
-  const SHB = [[-0.42, 0.14, 0.26], [-0.2, 0.22, 0.34], [0.05, 0.26, 0.36], [0.3, 0.24, 0.3], [0.5, 0.34, 0.22], [0.64, 0.47, 0.17],
-    [-0.05, 0.08, 0.42], [0.25, 0.08, 0.36]];
+  // 罪伏在门前：一团蹲伏的暗影，伏在该隐身后，头向着他（不画面目；只是暗，像烟）
+  const SHB = [[-0.42, 0.1, 0.24], [-0.18, 0.18, 0.3], [0.08, 0.2, 0.3], [0.34, 0.2, 0.24], [0.5, 0.28, 0.18], [0.0, 0.06, 0.4]];
   function drawSin(ctx) {
     const a = LV.cainShadow;
     if (a < 0.01 || shadowX == null) return;
@@ -717,17 +717,40 @@
     if (!b) return;
     const dir = Math.sign(b.x - shadowX) || 1;
     const k = (1 + 1.5 * LV.cainDark) * U.easeOut(clamp(a, 0, 1));
-    const w = b.h * 0.95 * k, gy = gY(shadowX);
+    const w = b.h * 1.3 * k, gy = gY(shadowX) + 1;
+    const br = Math.sin(W.t * 1.1) * 0.025, lean = Math.sin(W.t * 0.45) * 0.03;
+    // 周围的暗雾
     for (let i = 0; i < SHB.length; i++) {
-      const s = SHB[i];
-      const wob = Math.sin(W.t * (0.7 + i * 0.13) + i * 1.9);
-      const px = shadowX + dir * (s[0] + 0.05 * wob) * w;
-      const py = gy - (s[1] + 0.035 * Math.sin(W.t * 1.1 + i)) * w * 0.9;
-      const r = s[2] * w * (1 + 0.08 * wob);
-      glow(ctx, 'dark', px, py, r * 1.3, r, 0.55 * a);
+      const s = SHB[i], wob = Math.sin(W.t * (0.7 + i * 0.13) + i * 1.9);
+      glow(ctx, 'dark', shadowX + dir * (s[0] + 0.04 * wob) * w, gy - s[1] * w, s[2] * w * 1.5, s[2] * w * 1.1, 0.32 * a);
+    }
+    // 蹲伏的形：低低的背，抬起的头向着他
+    ctx.save();
+    ctx.translate(shadowX, gy);
+    ctx.scale(dir * w, w);
+    ctx.beginPath();
+    ctx.moveTo(-0.56, 0.02);
+    ctx.bezierCurveTo(-0.52, -0.16, -0.32, -(0.33 + br), -0.06, -(0.32 + br));
+    ctx.bezierCurveTo(0.12, -(0.31 + br), 0.2, -0.22, 0.28 + lean, -0.25);
+    ctx.bezierCurveTo(0.34 + lean, -0.35, 0.46 + lean, -0.37, 0.52 + lean, -0.29);
+    ctx.bezierCurveTo(0.57 + lean, -0.21, 0.55, -0.12, 0.6, -0.05);
+    ctx.lineTo(0.68, 0.02);
+    ctx.closePath();
+    ctx.fillStyle = rgba([7, 5, 11], 0.7 * a);
+    ctx.fill();
+    // 夜里一道冷暗的边，免得它在黑暗里完全看不见
+    ctx.strokeStyle = rgba([120, 80, 110], (0.1 + 0.25 * W.night) * a);
+    ctx.lineWidth = 1.2 / w;
+    ctx.stroke();
+    ctx.restore();
+    // 自背上升起的暗缕
+    for (let i = 0; i < 6; i++) {
+      const u = U.fract(W.t * 0.22 + i / 6);
+      const px = shadowX + dir * (-0.4 + i * 0.16 + Math.sin(u * 4 + i) * 0.05) * w, py = gy - (0.26 + u * 0.55) * w;
+      glow(ctx, 'dark', px, py, (0.07 + u * 0.1) * w, (0.07 + u * 0.1) * w, 0.45 * a * Math.sin(u * Math.PI));
     }
     ctx.globalCompositeOperation = 'lighter';
-    glow(ctx, 'blood', shadowX + dir * 0.2 * w, gy - 0.1 * w, w * 0.8, w * 0.24, 0.05 * a * (0.4 + W.night));
+    glow(ctx, 'blood', shadowX + dir * 0.2 * w, gy - 0.05 * w, w * 0.8, w * 0.2, 0.06 * a * (0.4 + W.night));
     ctx.globalCompositeOperation = 'source-over';
   }
 
@@ -843,8 +866,8 @@
     const a = LV.cainAccept;
     if (a < 0.01) return;
     const [x, y] = altarTop('A'), h = hNear();
-    const k = clamp((W.t - S.acceptT0) / 2.4, 0, 1), e = U.easeOut(k);
-    const settle = clamp((W.t - S.acceptT0 - 3) / 9, 0, 1);
+    const k = clamp(since(S.acceptT0) / 2.4, 0, 1), e = U.easeOut(k);
+    const settle = clamp((since(S.acceptT0) - 3) / 9, 0, 1);
     const al = a * 0.55 * (1 - U.easeInOut(settle)) * (0.9 + 0.1 * Math.sin(W.t * 1.3));
     if (al < 0.004) return;
     ctx.globalCompositeOperation = 'lighter';
@@ -856,7 +879,7 @@
   function drawSearch(ctx) {
     const a = LV.cainSearch;
     if (a < 0.01) return;
-    const u = clamp((W.t - S.searchT0) / 9, 0, 1), e = U.easeInOut(u);
+    const u = clamp(since(S.searchT0) / 9, 0, 1), e = U.easeInOut(u);
     const xa = at(SPOT.fall) * W.w, xs = at(0.12) * W.w;
     const x = lerp(xs, xa, e) + Math.sin(W.t * 0.6) * (1 - e) * W.w * 0.03;
     const g = gY(x), h = hNear();
@@ -886,7 +909,7 @@
       if (!b || b.a < 0.05) continue;
       const hx = b.x + b.dir * b.h * 0.035, hy = b.head;
       const pulse = 0.8 + 0.2 * Math.sin(W.t * 1.4);
-      const k = clamp((W.t - S.markT0) / 3, 0, 1);
+      const k = clamp(since(S.markT0) / 3, 0, 1);
       const A = m * b.a;
       ctx.globalCompositeOperation = 'lighter';
       glow(ctx, 'gold', hx, hy, b.h * 0.45, b.h * 0.45, A * (0.3 + 0.6 * (1 - k)) * pulse);
@@ -905,7 +928,7 @@
     const c = LV.cainCall;
     if (c < 0.01) return;
     const [x, y] = altarTop('A'), h = hNear();
-    const k = U.easeOut(clamp((W.t - S.callT0) / 3, 0, 1));
+    const k = U.easeOut(clamp(since(S.callT0) / 3, 0, 1));
     ctx.globalCompositeOperation = 'lighter';
     beam(ctx, 'gold', x, -4, lerp(0, y, k), h * 2.2, c * (0.24 + 0.05 * Math.sin(W.t * 0.9)));
     glow(ctx, 'warm', x, y + h * 0.3, h * 3, h * 1, c * 0.22 * k);
@@ -928,8 +951,8 @@
     }
     if (tk > 0.01) {
       const x = S.enochX * W.w, g = gY(x), h = hNear();
-      const fl = clamp(1 - (W.t - S.takenT0 - 6) / 8, 0, 1);
-      const k = U.easeOut(clamp((W.t - S.takenT0) / 2.5, 0, 1));
+      const fl = clamp(1 - (since(S.takenT0) - 6) / 8, 0, 1);
+      const k = U.easeOut(clamp(since(S.takenT0) / 2.5, 0, 1));
       ctx.globalCompositeOperation = 'lighter';
       beam(ctx, 'gold', x, -4, lerp(0, g, k), h * 1.8, tk * (0.2 + 0.3 * fl));
       glow(ctx, 'gold', x, g, h * 1.6, h * 0.4, tk * (0.2 + 0.25 * fl) * k);
@@ -1220,7 +1243,7 @@
             [18, () => { cast().pose('abel', 'stand', { stop: true }); cast().face('abel', 1); }],
             [19.4, b => {
               cast().face('cain', 'abel');
-              say(b, [{ text: '该隐与他兄弟亚伯说话；二人正在田间，<br>该隐起来打他兄弟亚伯，把他杀了。', ref: '创世记 4:8', hold: 10 }]);
+              say(b, [{ text: '该隐与他兄弟亚伯说话；二人正在田间，<br>该隐起来打他兄弟亚伯，把他杀了。', ref: '创世记 4:8', hold: 12.5 }]);
             }],
             [20.6, () => { walk('cain', fall + 0.022, 0.03); walk('abel', fall - 0.004, 0.029); }],
             [28.6, b => {
@@ -1230,10 +1253,11 @@
             }],
             [31.4, b => {
               cast().pose('abel', 'fall', { stop: true });
+              cast().glow('abel', 0.03);
               cast().crowdWalk('cain:flock', at(0.05), at(0.2), { run: true, pose: 'stand' });
               if (!inst(b)) sfx('thunder', b, { soft: true, low: true, far: true });
             }],
-            [33.6, b => { lv('cainShadow', 0, b); lv('cainDark', 0.32, b); lv('cainFireA', 0.12, b); }],
+            [33.6, b => { lv('cainShadow', 0, b); lv('cainDark', 0.15, b); lv('cainFireA', 0.12, b); }],
             [34.5, b => W.goTo(0.86, 9, inst(b))],
             [35.5, () => { cast().face('cain', 1); cast().pose('cain', 'stand', { stop: true }); }],
             [38, () => { cast().pose('adam', 'sit'); cast().pose('eve', 'sit'); }],
@@ -1460,32 +1484,32 @@
               cast().pose('eve', 'kneel', { stop: true, weep: true });
               if (!inst(b)) sfx('weep', b, { soft: true });
             }],
-            [16.8, b => W.passDay(5.2, inst(b))],
-            [18.6, () => cast().remove('eve')],
-            [22, b => W.passDay(5.2, inst(b))],
-            [27.2, b => W.passDay(5.2, inst(b))],
-            [32.6, b => W.goTo(0.735, 7, inst(b))],
+            [16.6, b => W.passDay(6.5, inst(b))],                    // 一夜过去
+            [19.5, () => cast().remove('eve')],
+            [23.2, b => W.goTo(0.6, 13, inst(b))],
+            [33.6, b => say(b, [{ text: '雅列活到一百六十二岁，生了以诺。', ref: '创世记 5:18', hold: 5 }])],
+            [37.6, b => W.goTo(0.735, 8, inst(b))],
           ];
           // 一代一代如季节经过：子出现在父的东边（左），名字在他头上聚成；父老了，渐渐隐去
           GENS.forEach(([id, name], k) => {
-            const t = 17.2 + k * 3.3, prev = k ? GENS[k - 1][0] : 'seth';
+            const t = 23.4 + k * 3, prev = k ? GENS[k - 1][0] : 'seth';
             beats.push([t, b => {
               cast().add(id, { label: name, sex: 'm', age: 'adult', layer: 2, x: at(GEN_F[k]), facing: -1, pose: 'stand',
                 robe: id === 'enoch' ? ROBE.enoch : ROBE.gen[k % ROBE.gen.length], glow: id === 'enoch' ? 0.6 : 0.42, from: 'light' });
               cast().add(prev, { age: 'elder' });
-              if (!inst(b)) nameOver(name, id, [255, 234, 200], { hold: 1.4 });
+              if (!inst(b)) nameOver(name, id, [255, 234, 200], { hold: 1.8, lift: k % 2 ? 2.4 : 1.1 });
             }]);
             beats.push([t + 2.3, () => cast().remove(prev)]);
           });
           beats.push(
-            [33.4, b => {
-              cast().add('methu', { label: '玛土撒拉', sex: 'm', age: 'adult', layer: 2, x: at(0.33), facing: 1, pose: 'stand', robe: ROBE.methu, glow: 0.4, from: 'light' });
+            [38.4, b => {
+              cast().add('methu', { label: '玛土撒拉', sex: 'm', age: 'adult', layer: 2, x: at(0.4), facing: 1, pose: 'stand', robe: ROBE.methu, glow: 0.4, from: 'light' });
               lv('cainWalk', 1, b);
               say(b, [{ text: '以诺生玛土撒拉之后，与神同行三百年，并且生儿养女。', ref: '创世记 5:22', hold: 8 }]);
               if (!inst(b)) sfx('harp', b, { soft: true });
             }],
-            [34.4, () => walk('enoch', at(0.62), 0.014)],
-            [43.4, b => {
+            [39.2, () => walk('enoch', at(0.62), 0.014)],
+            [48.8, b => {
               S.enochX = at(0.62);
               lv('cainTaken', 1, b);
               S.takenT0 = inst(b) ? -1e9 : W.t;
@@ -1493,15 +1517,15 @@
               say(b, [{ text: '以诺与神同行，神将他取去，他就不在世了。', ref: '创世记 5:24', hold: 9 }]);
               if (!inst(b)) sfx('harp', b);
             }],
-            [44.6, () => { cast().place('enoch', at(0.62)); cast().pose('enoch', 'gaze', { stop: true }); }],
-            [45.6, () => { cast().pose('enoch', 'raise', { stop: true }); cast().fly('enoch', at(0.62), 0.14, { dur: 6.5, pose: 'raise' }); }],
-            [51.6, b => {
+            [50, () => { cast().place('enoch', at(0.62)); cast().pose('enoch', 'gaze', { stop: true }); }],
+            [51, () => { cast().pose('enoch', 'raise', { stop: true }); cast().fly('enoch', at(0.62), 0.14, { dur: 6.5, pose: 'raise' }); }],
+            [57, b => {
               const eb = body('enoch');
               cast().remove('enoch');
               lv('cainWalk', 0, b);
               if (!inst(b) && eb) { fx().sparkle(eb.x, eb.y - eb.h * 0.5, 50, [255, 244, 220], eb.h * 0.8, 'top'); fx().ring(eb.x, eb.y - eb.h * 0.5, [255, 238, 200], M() * 0.3, 2.6, 1.2); }
             }],
-            [53, b => { lv('cainTaken', 0.22, b); cast().pose('methu', 'gaze'); }],
+            [58.4, b => { lv('cainTaken', 0.22, b); cast().pose('methu', 'gaze'); }],
           );
           T(c, beats);
         },
@@ -1570,12 +1594,9 @@
               say(b, [{ text: '挪亚五百岁生了闪、含、雅弗。', ref: '创世记 5:32', hold: 8 }]);
             }],
             [31, b => W.goTo(0.33, 5, inst(b))],
-            [33.4, b => {
-              if (inst(b)) return;
-              nameOver('闪', 'shem', [255, 232, 200], { hold: 1.8, size: Math.max(12, M() * 0.03) });
-              setTimeout(() => nameOver('含', 'ham', [255, 232, 200], { hold: 1.8, size: Math.max(12, M() * 0.03) }), 500 / (W.fast || 1));
-              setTimeout(() => nameOver('雅弗', 'japheth', [255, 232, 200], { hold: 1.8, size: Math.max(12, M() * 0.03) }), 1000 / (W.fast || 1));
-            }],
+            [33.4, b => { if (!inst(b)) nameOver('闪', 'shem', [255, 232, 200], { hold: 1.8, size: Math.max(12, M() * 0.03) }); }],
+            [33.9, b => { if (!inst(b)) nameOver('含', 'ham', [255, 232, 200], { hold: 1.8, size: Math.max(12, M() * 0.03) }); }],
+            [34.4, b => { if (!inst(b)) nameOver('雅弗', 'japheth', [255, 232, 200], { hold: 1.8, size: Math.max(12, M() * 0.03) }); }],
             [38, () => { cast().face('noah', -1); cast().pose('noah', 'gaze', { stop: true }); cast().face('lamech', -1); }],
           ]);
         },

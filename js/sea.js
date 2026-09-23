@@ -1036,7 +1036,7 @@
     if (!N) return;
     const q = W.quality || 1, t = W.t;
     // 1) 夜里的荧光尾迹：按"段龄"分批，越旧越淡，平滑地消散
-    if (C.bio > 0.02) {
+    if (C.bio > 0.02 && !GS.__noTrail) {
       ctx.globalCompositeOperation = 'lighter';
       ctx.lineCap = 'round';
       ctx.lineWidth = Math.max(0.8, W.unit * SB * 1.15);
@@ -1084,28 +1084,32 @@
       }
       if (any) { ctx.fillStyle = cols[key]; ctx.fill(); }
     }
-    // 蝠鲼：深色的"翼"，迎光的前缘一道淡光；夜里周身一圈荧光
+    // 蝠鲼：水下一片柔边的暗影托着深色的"翼"；夜里整个身子幽幽地亮
     for (let i = 0; i < N; i++) {
       const f = FISH[i];
       if (f.band !== band || f.k !== 2) continue;
-      const e = (0.66 - 0.3 * f.sub) * f.a * sstep(0.06, 0.3, f.D);
+      const e = (0.62 - 0.3 * f.sub) * f.a * sstep(0.06, 0.3, f.D);
       if (e < 0.04) continue;
+      const span = f.wid * f.s * 1.25, sy = span * f.fz * 0.9;
+      if (DARK) {
+        ctx.globalAlpha = e * 0.35 * (0.5 + 0.5 * C.light);
+        ctx.drawImage(DARK, f.x - span, f.y - sy, span * 2, sy * 2);
+      }
       ctx.beginPath(); rayPath(ctx, f);
       ctx.globalAlpha = e;
       ctx.fillStyle = C.ray[band]; ctx.fill();
-      ctx.globalAlpha = 1;
-      if (C.light > 0.1) {
-        ctx.strokeStyle = css(C.lit, 0.1 * C.light * e);
-        ctx.lineWidth = Math.max(0.6, f.s * 1.1);
-        ctx.stroke();
-      }
       if (C.bio > 0.03) {
+        const pulse = 0.7 + 0.3 * Math.sin(t * 1.3 + f.seed * 9);
         ctx.globalCompositeOperation = 'lighter';
-        ctx.strokeStyle = css(BIO, C.bio * 0.22 * f.a * (0.7 + 0.3 * Math.sin(t * 1.3 + f.seed * 9)));
-        ctx.lineWidth = Math.max(0.8, f.s * 1.6);
-        ctx.stroke();
+        ctx.globalAlpha = c01(C.bio * 0.12 * f.a * pulse);
+        ctx.fillStyle = css(BIO, 1); ctx.fill();
+        if (GLOW) {
+          ctx.globalAlpha = c01(C.bio * 0.3 * f.a * pulse);
+          ctx.drawImage(GLOW, f.x - span * 0.8, f.y - sy * 0.8, span * 1.6, sy * 1.6);
+        }
         ctx.globalCompositeOperation = 'source-over';
       }
+      ctx.globalAlpha = 1;
     }
     // 3) 银光一闪（转身时侧腹映光，或整群同转时如波扫过）；夜里靠近灵的鱼映着灵的光
     const light = C.light;
@@ -1141,7 +1145,7 @@
       ctx.globalCompositeOperation = 'source-over';
     }
     // 4) 夜里（有了生命之光）：每条鱼是一粒微微明灭的青光
-    if (C.bio > 0.02 && GLOW) {
+    if (C.bio > 0.02 && GLOW && !GS.__noGlow) {
       ctx.globalCompositeOperation = 'lighter';
       for (let i = 0; i < N; i++) {
         const f = FISH[i];
@@ -1207,11 +1211,10 @@
     const fa = (0.2 + 0.2 * nearK) * vis * hazeK * W.daylight;
     if (fa > 0.01) { ctx.globalAlpha = fa; ctx.drawImage(WT.fin, -WT.CX, -WT.CY); }
     // 夜里：生命之光在它周身隐隐发亮
-    if (C.bio > 0.03) {
-      ctx.globalCompositeOperation = 'lighter';
-      ctx.globalAlpha = c01(C.bio * 0.3 * vis * (0.7 + 0.3 * Math.sin(W.t * 0.9 + w.L)));
+    // （夜海近乎全黑，普通叠加与"相加"看来无异，而前者便宜得多）
+    if (C.bio > 0.03 && !GS.__noWB) {
+      ctx.globalAlpha = c01(C.bio * 0.26 * vis * (0.7 + 0.3 * Math.sin(W.t * 0.9 + w.L)));
       ctx.drawImage(WT.bio, -WT.CX, -WT.CY);
-      ctx.globalCompositeOperation = 'source-over';
     }
     ctx.restore();
   }

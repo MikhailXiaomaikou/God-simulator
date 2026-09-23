@@ -70,7 +70,7 @@
 
   // ── 本卷的状态（只在 setup / apply / 情节里改动，重演时一样）───────
   let S = fresh();
-  function fresh() { return { twins: 0, stars: [] }; }
+  function fresh() { return { twins: 0, stars: [], wrestle: 0 }; }
 
   // ════════════════════════════════════════════════════════════
   //  小工具
@@ -285,7 +285,7 @@
     },
     field(p) {
       const r = U.mulberry32(p.seed + 5), tuft = [];
-      for (let i = 0; i < 240; i++) tuft.push([r(), r(), r()]);
+      for (let i = 0; i < 420; i++) tuft.push([r(), r(), r()]);
       return { tuft };
     },
     stream(p) {
@@ -538,54 +538,53 @@
     ctx.globalAlpha = 1;
   }
 
-  // 百倍的收成（26:12）：前景里的田，由青转金
+  // 百倍的收成（26:12）：前景里的一片田，一行一行的禾稼由青转金
   function drawField(ctx, p) {
     const g = p.grow * p.a;
     if (g < 0.01) return;
-    const s = LS(2), cx = p.x * W.w, top = gY(2, p.x) + 5 * s, bot = top + (W.h - top) * 0.66;
-    const hwT = 0.055 * W.w, hwB = 0.09 * W.w;
-    ctx.globalAlpha = g * 0.85;
-    ctx.fillStyle = css([88, 66, 44], 2);
+    const s = LS(2), cx = p.x * W.w, top = gY(2, p.x) + 4 * s, bot = top + (W.h - top) * 0.62;
+    const hwT = 0.05 * W.w, hwB = 0.085 * W.w;
+    // 翻过的土：柔和的一片
+    ctx.globalAlpha = g * 0.32;
+    ctx.fillStyle = css([98, 74, 48], 2);
     ctx.beginPath();
-    ctx.moveTo(cx - hwT, top); ctx.lineTo(cx + hwT, top); ctx.lineTo(cx + hwB, bot); ctx.lineTo(cx - hwB, bot); ctx.closePath(); ctx.fill();
-    const col = U.mixRGB([78, 118, 58], [218, 178, 86], p.gold);
-    const ROWS = 9;
-    ctx.strokeStyle = css(col, 2, 1, 0.05 + 0.15 * p.gold);
-    ctx.lineCap = 'round';
-    for (let k = 0; k < ROWS; k++) {
-      const f = (k + 0.5) / ROWS, y = lerp(top, bot, Math.pow(f, 1.25)), hw = lerp(hwT, hwB, f) * 0.94;
-      ctx.lineWidth = Math.max(0.7, lerp(1, 2.6, f) * s);
-      ctx.globalAlpha = g * 0.9;
-      ctx.beginPath(); ctx.moveTo(cx - hw, y); ctx.lineTo(cx + hw, y); ctx.stroke();
-    }
-    // 麦穗：长高、摇曳
-    const hgt = p.grow * (0.4 + 0.6 * p.gold);
-    if (hgt > 0.05) {
-      const tuft = p.model.tuft, sway = W.wind * 2.2 * s;
-      ctx.lineWidth = Math.max(0.6, 0.9 * s);
-      ctx.globalAlpha = g;
+    ctx.moveTo(cx - hwT, top); ctx.quadraticCurveTo(cx, top - 2 * s, cx + hwT, top);
+    ctx.lineTo(cx + hwB, bot); ctx.quadraticCurveTo(cx, bot + 8 * s, cx - hwB, bot);
+    ctx.closePath(); ctx.fill();
+    // 禾稼：长高、摇曳、成熟
+    const hgt = p.grow * (0.45 + 0.55 * p.gold), tuft = p.model.tuft, ROWS = 13;
+    const sway = W.wind * 2.4 * s;
+    const lit = 0.04 + 0.14 * p.gold;
+    for (let pass = 0; pass < 2; pass++) {
+      const col = pass ? U.mixRGB([104, 142, 70], [236, 196, 104], p.gold) : U.mixRGB([70, 104, 52], [196, 150, 70], p.gold);
+      ctx.strokeStyle = css(col, 2, 1, lit);
+      ctx.lineWidth = Math.max(0.6, 0.85 * s);
+      ctx.globalAlpha = g * 0.95;
       ctx.beginPath();
-      for (let i = 0; i < tuft.length; i++) {
-        const q = tuft[i], f = (Math.floor(q[0] * ROWS) + 0.5) / ROWS;
-        const y = lerp(top, bot, Math.pow(f, 1.25)), hw = lerp(hwT, hwB, f) * 0.94;
-        const tx = cx + (q[1] * 2 - 1) * hw, th = lerp(3, 10, f) * s * hgt * (0.7 + 0.5 * q[2]);
-        const sw = sway * f + Math.sin(W.t * 1.6 + q[2] * 9) * 0.6 * s;
-        ctx.moveTo(tx, y); ctx.lineTo(tx + sw, y - th);
+      for (let i = pass; i < tuft.length; i += 2) {
+        const q = tuft[i], f = (Math.floor(q[0] * ROWS) + 0.5) / ROWS, u = q[1] * 2 - 1;
+        if (Math.abs(u) > 0.88 && q[2] < 0.6) continue;
+        const y = lerp(top, bot, Math.pow(f, 1.3)) + (q[2] - 0.5) * 2 * s, x = cx + u * lerp(hwT, hwB, f);
+        const th = lerp(4, 13, f) * s * hgt * (0.7 + 0.5 * q[2]);
+        const sw = sway * (0.3 + f) + Math.sin(W.t * 1.5 + q[2] * 9 + f * 3) * 0.7 * s;
+        ctx.moveTo(x, y); ctx.quadraticCurveTo(x + sw * 0.3, y - th * 0.6, x + sw, y - th);
       }
       ctx.stroke();
-      if (p.gold > 0.3) {
-        ctx.globalCompositeOperation = 'lighter';
-        ctx.fillStyle = 'rgb(255,226,150)';
-        ctx.globalAlpha = g * (p.gold - 0.3) * 0.5 * (0.3 + 0.7 * W.daylight);
-        for (let i = 0; i < tuft.length; i += 3) {
-          const q = tuft[i], f = (Math.floor(q[0] * ROWS) + 0.5) / ROWS;
-          const y = lerp(top, bot, Math.pow(f, 1.25)), hw = lerp(hwT, hwB, f) * 0.94;
-          const tx = cx + (q[1] * 2 - 1) * hw, th = lerp(3, 10, f) * s * hgt * (0.7 + 0.5 * q[2]);
-          const sw = sway * f + Math.sin(W.t * 1.6 + q[2] * 9) * 0.6 * s, r = lerp(0.6, 1.5, f) * s;
-          ctx.fillRect(tx + sw - r * 0.5, y - th - r, r, r * 2);
-        }
-        ctx.globalCompositeOperation = 'source-over';
+    }
+    // 穗
+    if (p.gold > 0.15) {
+      ctx.fillStyle = css([246, 214, 130], 2, 1, 0.12);
+      ctx.globalAlpha = g * smoothstep(0.15, 0.8, p.gold);
+      ctx.beginPath();
+      for (let i = 0; i < tuft.length; i += 2) {
+        const q = tuft[i], f = (Math.floor(q[0] * ROWS) + 0.5) / ROWS, u = q[1] * 2 - 1;
+        if (Math.abs(u) > 0.88 && q[2] < 0.6) continue;
+        const y = lerp(top, bot, Math.pow(f, 1.3)) + (q[2] - 0.5) * 2 * s, x = cx + u * lerp(hwT, hwB, f);
+        const th = lerp(4, 13, f) * s * hgt * (0.7 + 0.5 * q[2]);
+        const sw = sway * (0.3 + f) + Math.sin(W.t * 1.5 + q[2] * 9 + f * 3) * 0.7 * s, r = lerp(0.7, 1.5, f) * s;
+        ctx.moveTo(x + sw + r * 0.6, y - th - r); ctx.ellipse(x + sw, y - th - r, r * 0.6, r * 1.5, 0.2, 0, TAU);
       }
+      ctx.fill();
     }
     ctx.globalAlpha = 1;
   }
@@ -764,7 +763,7 @@
     ctx.closePath(); ctx.fill();
     // 水：映着天
     const sky = U.mixRGB(W.haze, [70, 110, 150], 0.45);
-    const lit = 0.35 + 0.65 * W.daylight + 0.15 * nightK();
+    const lit = 0.22 + 0.78 * W.daylight + 0.1 * W.lv.moon * W.night;
     ctx.fillStyle = U.rgb(sky[0] * lit, sky[1] * lit, sky[2] * lit);
     ctx.beginPath();
     for (let i = 0; i < STR_N; i++) { if (i) ctx.lineTo(STR_L[2 * i], STR_L[2 * i + 1]); else ctx.moveTo(STR_L[0], STR_L[1]); }
@@ -778,7 +777,7 @@
       const q = gl[i], t = U.fract(q[0] + W.t * 0.035 * q[2]), f = t * (STR_N - 1), k = Math.min(STR_N - 2, Math.floor(f)), r = f - k;
       const cx = lerp(STR_C[2 * k], STR_C[2 * k + 2], r), cy = lerp(STR_C[2 * k + 1], STR_C[2 * k + 3], r);
       const w = lerp(2.5, 34, Math.pow(t, 1.3)) * s;
-      ctx.globalAlpha = p.a * (0.18 + 0.4 * W.daylight + moon) * Math.sin(t * Math.PI) * (0.5 + 0.5 * Math.sin(W.t * 2 + i));
+      ctx.globalAlpha = p.a * (0.1 + 0.4 * W.daylight + moon * 0.8) * Math.sin(t * Math.PI) * (0.5 + 0.5 * Math.sin(W.t * 2 + i));
       const gw = w * 0.5 * (0.5 + 0.5 * q[2]);
       ctx.fillRect(cx + q[1] * w - gw / 2, cy, gw, Math.max(0.7, 0.9 * s));
     }
@@ -1000,10 +999,10 @@
   // 发光的人形（天梯上的使者）
   function lightFigure(ctx, x, y, h, a, seed) {
     if (a < 0.01 || h < 0.8) return;
-    ctx.globalAlpha = a * 0.55;
+    ctx.globalAlpha = a * 0.45;
     ctx.drawImage(SP.gold, x - h * 0.9, y - h * 1.4, h * 1.8, h * 1.8);
-    ctx.globalAlpha = a * 0.92;
-    ctx.fillStyle = 'rgb(255,244,222)';
+    ctx.globalAlpha = a;
+    ctx.fillStyle = 'rgb(255,250,236)';
     const sw = Math.sin(W.t * 1.7 + seed) * 0.03 * h;
     ctx.beginPath();
     ctx.moveTo(x - 0.17 * h, y);
@@ -1027,9 +1026,9 @@
       const L0 = LG.len * r0, L1 = LG.len * r1;
       ctx.save();
       ctx.translate(LG.bx, LG.by); ctx.rotate(ang);
-      ctx.globalAlpha = A * 0.34;
-      ctx.drawImage(SP.shaft, -LG.w0 * 3.2, -L1, LG.w0 * 6.4, L1 - L0);
-      ctx.globalAlpha = A * 0.5;
+      ctx.globalAlpha = A * 0.3;
+      ctx.drawImage(SP.shaft, -LG.w0 * 3.4, -L1, LG.w0 * 6.8, L1 - L0);
+      ctx.globalAlpha = A * 0.24;
       ctx.drawImage(SP.shaft, -LG.w0 * 1.3, -L1, LG.w0 * 2.6, L1 - L0);
       ctx.restore();
     }
@@ -1073,7 +1072,7 @@
     }
     // 天的门：梯子的头顶着天
     if (r1 > 0.85) {
-      let gt = (LG.by - W.h * 0.05) / Math.max(1, LG.by - LG.ty);
+      let gt = (LG.by - W.h * (W.h > W.w ? 0.13 : 0.05)) / Math.max(1, LG.by - LG.ty);
       gt = clamp(gt, 0.6, 0.98);
       const gx = lerp(LG.bx, LG.tx, gt), gy = lerp(LG.by, LG.ty, gt);
       let pulse = 0;
@@ -1265,6 +1264,31 @@
     ctx.globalAlpha = 1;
   }
 
+  // 雅博渡口：黑夜里角力的两人，四围一层淡淡的光与扬起的尘
+  function drawWrestle(ctx) {
+    if (!S.wrestle) return;
+    const a = figPt('jacob', 0.45), b = figPt('man', 0.45);
+    if (!a || !b) return;
+    SP || sprites();
+    const u = SU(), x = (a[0] + b[0]) / 2, y = (a[1] + b[1]) / 2, k = 0.35 + 0.65 * nightK();
+    ctx.globalCompositeOperation = 'lighter';
+    const g = 120 * u * (1 + 0.06 * Math.sin(W.t * 1.3));
+    ctx.globalAlpha = 0.32 * k;
+    ctx.drawImage(SP.pale, x - g / 2, y - g / 2, g, g);
+    ctx.globalAlpha = 0.18 * k;
+    ctx.drawImage(SP.pale, x - g, y - g * 0.3, g * 2, g * 0.6);
+    ctx.fillStyle = 'rgb(214,206,190)';
+    const gy = gY(2, x / W.w);
+    for (let i = 0; i < 14; i++) {
+      const ph = U.fract(W.t * (0.35 + rt(i * 3) * 0.4) + rt(i * 3 + 1));
+      const dx = (rt(i * 3 + 2) - 0.5) * 40 * u + Math.sin(W.t * 2 + i) * 4 * u;
+      ctx.globalAlpha = 0.5 * k * Math.sin(ph * Math.PI);
+      ctx.fillRect(x + dx, gy - ph * 16 * u, 1.4 * u, 1.4 * u);
+    }
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 1;
+  }
+
   // 天上的甘露（27:28）：自天降在田野上的微光
   function drawDew(ctx) {
     const k = W.lv.jbDew;
@@ -1388,6 +1412,7 @@
       if (pass === 'air') {
         drawDew(ctx);
         drawTwins(ctx);
+        drawWrestle(ctx);
         drawFX(ctx, 'air');
         // 示剑的黑暗（34 章）
         const sk = W.lv.jbShadow;
@@ -2146,7 +2171,7 @@
             pose('jacob', 'stand'); pose('laban', 'stand'); crowdPose('lb', 'stand');
             if (!b.instant) fx().ring((X.gilead + 0.012) * W.w, gY(2, X.gilead) - 10 * LS(2), [255, 236, 196], M() * 0.35, 2.6, 2);
           }],
-          [L[7] + 5, () => prop('heap', null, { lit: 0.15 })],
+          [L[7] + 5, () => prop('heap', null, { lit: 0 })],
           [L[8], () => { walk('laban', X.gilead + 0.05, { speed: 0.02, pose: 'raise' }); face('rachel', 1); face('leah', 1); }],
           [L[8] + 3.5, () => {
             pose('laban', 'stand');
@@ -2211,9 +2236,9 @@
           // 夜间过雅博渡口
           [L[4] - 1, b => { W.goTo(0.93, 6, b.instant); pose('jacob', 'stand'); prop('stream', null, { label: '雅博渡口' }); }],
           [L[4] + 0.5, () => {
-            household(0.708, { k: 0.5, jacob: false, speed: 0.022 });
-            flocks(0.62, 0.7, { speed: 0.022 });
-            crowdWalk('sv', 0.66, 0.7, { speed: 0.022 });
+            household(0.664, { k: 0.5, jacob: false, speed: 0.022 });
+            flocks(0.6, 0.655, { speed: 0.022 });
+            crowdWalk('sv', 0.62, 0.66, { speed: 0.022 });
             walk('jacob', X.peniel - 0.004, { speed: 0.02 });
           }],
           [L[5] - 1, b => W.goTo(0.02, 5, b.instant)],
@@ -2223,7 +2248,10 @@
           }],
           [L[5] + 2, () => {
             const gap = (34 * LS(2) * 0.3) / Math.max(1, W.w);
-            walk('jacob', X.peniel - gap / 2, { speed: 0.02, pose: 'wrestle' });
+            if (C().place) C().place('jacob', X.peniel - gap / 2);
+            face('jacob', 1);
+            pose('jacob', 'wrestle');
+            S.wrestle = 1;
             walk('man', X.peniel + gap / 2, { speed: 0.03, pose: 'wrestle' });
           }],
           [L[6] + 0.5, b => { touch(b, 'jacob'); if (!b.instant) W.shake = 0.55; sfx(b, 'wind'); }],
@@ -2266,6 +2294,7 @@
           [L[1] + 6, b => {
             if (!b.instant) { const p = figPt('man', 0.5); if (p) fx().sparkle(p[0], p[1], 40, [255, 240, 214], 14, 'top'); }
             rm('man');
+            S.wrestle = 0;
           }],
           [L[3], () => { pose('jacob', 'stand'); hold('jacob', 'staff'); walk('jacob', 0.705, { speed: 0.01 }); glow('jacob', 0.45); }],
         ]);
@@ -2291,6 +2320,8 @@
             q('bilhah', 0.713); q('dan', 0.717); q('naphtali', 0.721); q('zilpah', 0.726); q('gad', 0.73); q('asher', 0.734);
             q('leah', 0.742); LEAH_KIDS.forEach((id, i) => q(id, 0.746 + i * 0.0035));
             q('rachel', 0.768); q('joseph', 0.772);
+            flocks(0.79, 0.9, { speed: 0.05 });
+            crowdWalk('sv', 0.8, 0.86, { speed: 0.05 });
           }],
         ];
         // 一连七次俯伏在地
@@ -2307,6 +2338,7 @@
           // 疏割、示剑：支搭帐棚、筑坛
           [L[5], b => {
             prop('city', 'city', { x: X.city, layer: 1, label: '示剑城' });
+            unprop('heap');
             prop('tentS', 'tent', { x: X.tentS, label: '帐棚' });
             prop('oak', 'oak', { x: X.oak, size: 0.95, label: '橡树' });
             prop('altarS', 'altar', { x: X.altarS, grow: 1, label: '伊利伊罗伊以色列' });
@@ -2325,7 +2357,7 @@
           [L[6], () => { pose('jacob', 'stand'); prop('altarS', null, { fire: 0.2 }); walk('dinah', X.city - 0.018, { speed: 0.02 }); }],
           [L[6] + 5, () => rm('dinah')],
           [L[7], b => {
-            W.set('jbShadow', 0.5, b.instant);
+            W.set('jbShadow', 0.38, b.instant);
             W.goTo(0.7, 5, b.instant);
             ['simeon', 'levi'].forEach((id, i) => { if (fig(id)) walk(id, X.altarS + 0.03 + i * 0.01, { speed: 0.03 }); });
           }],
@@ -2341,8 +2373,9 @@
               walk(id, X.altarS + 0.028 + i * 0.01, { speed: 0.02 });
             });
           }],
-          [L[8] + 1, () => { walk('jacob', X.altarS + 0.004, { speed: 0.02, pose: 'sit' }); face('jacob', 1); }],
-          [L[8] + 4, b => W.set('jbShadow', 0.72, b.instant)],
+          [L[8] + 1, () => walk('jacob', X.altarS + 0.004, { speed: 0.02, pose: 'sit' })],
+          [L[8] + 3, () => face('jacob', 1)],
+          [L[8] + 4, b => W.set('jbShadow', 0.5, b.instant)],
         );
         T(c, beats);
       },

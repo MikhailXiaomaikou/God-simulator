@@ -4,6 +4,13 @@
  *   青草与结种子的菜蔬自灵所在之处向两边蔓延；
  *   结果子的树木，各从其类（橄榄、无花果、棕、香柏、石榴、皂荚、杏）。
  *   对外：treeSpots() / perches() / flowerSpots() / groundY(layer, x)
+ *
+ *   要点：
+ *   - 出水：湿土更深，脊上湿亮，一层水帘（流动的纹理）自脊上泻下，水线处翻起白沫，近岸的海岸坡上水落回海中。
+ *   - 青草：沿地面蔓延的一条参差的前沿（脊上先到，坡下略迟），草叶与菜蔬随同一前沿生长。
+ *   - 树：一株幼苗长成大树（整体由小变大，枝、叶、果依次）；生长中用隔几帧重画的快照缩放着画，
+ *     长成后分几步烘焙（昼 / 晨 / 昏 / 夜 + 四向轮廓光），烘好的位图存在库里，重新布局时取回。
+ *   - 夜里只有灵是灯：树是墨色剪影，只在朝月、朝灵的一侧有一道细细的轮廓光；果子不自己发光。
  * ───────────────────────────────────────────────────────────── */
 (function (GS) {
   'use strict';
@@ -2474,7 +2481,7 @@
     updFronts(); updGust(); updLight();
     // 立即烘焙，免得第一帧逐棵现画
     const t0 = performance.now();
-    while (bakeQ.length && performance.now() - t0 < 40) {
+    while (bakeQ.length && performance.now() - t0 < 150) {   // 一次性的（载入 / 恢复时，幕后）；烘焙库使卷间的 resync 不必重烘
       const t = bakeQ.shift(); t.queued = false;
       if (t.g >= 1 && t.bakeKey !== bakeKey(t)) U.safe('land.bake', () => bakeTree(t));
     }
@@ -2546,7 +2553,7 @@
   GS.land = {
     init, resize, update, draw, reset, restore, pick,
     treeSpots, perches, flowerSpots, groundY,
-    KIND, prof: PROF, __trees: trees,
+    KIND, prof: PROF,
     get debug() { return { trees: trees.length, near: LY[2].trees.length, mid: LY[1].trees.length, baked: trees.filter(t => t.bake && t.bake.H === t.H).length, queue: bakeQ.length, blades: LY[1].nb + LY[2].nb, herbs: LY[1].herbs.length + LY[2].herbs.length, blooms: blooms.length, drift: drift.length }; },
   };
 })(window.GS);
