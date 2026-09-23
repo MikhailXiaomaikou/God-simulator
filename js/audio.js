@@ -518,6 +518,224 @@
       a: 0.004, d: 0.12 + 0.06 * s, at, pan: panX(x), rev: 0.25, bus: 'amb', prio: 0 });
   }
 
+  // ── 其后各卷的乐器：一个声部里排程多个音（省声部、省节点）────────
+  // 弦（竖琴 / 里拉 / 乌德）：ns = [[f, at, g, d?], ...]；每根弦各有一道渐暗的低通——拨弦的亮在前、暗在后；
+  // 低弦在左、高弦在右（像站在琴前听）
+  function strings(ns, o) {
+    o = o || {};
+    const v = voice(o.prio == null ? 1 : o.prio);
+    if (!v) return;
+    const t = T() + (o.at || 0) + 0.015;
+    const sum = v.g(1), wv = o.wave || PW.harp, d0 = o.d || 2.4, br = o.bright || 6;
+    let end = t;
+    for (const n of ns) {
+      const f = n[0], g = n[2], d = n[3] || d0;
+      if (!fin(f) || !fin(g) || g <= 0) continue;
+      const t0 = t + Math.max(0, n[1] || 0);
+      const osc = v.o(wv, f);
+      osc.detune.value = rnd(-3, 3);
+      if (o.bend) { osc.frequency.setValueAtTime(f * 0.982, t0); osc.frequency.setTargetAtTime(f, t0, 0.035); }  // 乌德的指滑
+      const f1 = Math.min(15000, f * br), lp = v.f('lowpass', f1, 0.6);
+      lp.frequency.setValueAtTime(f1, t0);
+      lp.frequency.exponentialRampToValueAtTime(Math.max(120, f * 1.4), t0 + d * 0.7);
+      const g0 = v.g(0);
+      osc.connect(lp); lp.connect(g0);
+      if (hasPan && o.spread !== 0) {
+        const pn = v.p(clamp((o.pan || 0) + (o.spread == null ? 0.3 : o.spread) * Math.log2(f / 440), -0.9, 0.9));
+        g0.connect(pn); pn.connect(sum);
+      } else g0.connect(sum);
+      end = Math.max(end, perc(g0.gain, t0, o.a || 0.004, g, d));
+    }
+    if (!v.s.length) { v.play(t, t); return; }
+    v.out(sum, o.bus || 'evt', hasPan && o.spread !== 0 ? null : o.pan, o.rev == null ? 0.5 : o.rev);
+    v.play(t, end);
+  }
+
+  // 笛（牧笛 / 苇笛）：一口气吹完的一句——音高逐音排程，起音带"气"，颤音迟到
+  // ns = [[f, dur, acc?], ...]；o: { g, at, pan, breath, bend, vib, vibHz, bright, bus, rev, prio }
+  function pipe(ns, o) {
+    o = o || {};
+    if (!ns || !ns.length) return;
+    const v = voice(o.prio == null ? 0 : o.prio);
+    if (!v) return;
+    const t = T() + (o.at || 0) + 0.02, g = o.g || 0.03, bright = o.bright || 4;
+    const f0 = ns[0][0];
+    const osc = v.o(PW.flute, f0), lp = v.f('lowpass', Math.min(12000, f0 * bright), 0.6), env = v.g(0), mix = v.g(1);
+    osc.connect(lp); lp.connect(env); env.connect(mix);
+    const vl = v.o('sine', o.vibHz || rnd(4.6, 5.4)), vg = v.g(0);
+    vl.connect(vg); vg.connect(osc.detune);
+    const n = v.nz('pink'), bp = v.f('bandpass', Math.min(12000, f0 * 2), 1.1), bg = v.g(0);
+    n.connect(bp); bp.connect(bg); bg.connect(mix);
+    const br = (o.breath == null ? 0.35 : o.breath) * g;
+    let tt = t, prev = f0, last = 1;
+    env.gain.setValueAtTime(0, t); bg.gain.setValueAtTime(0, t); vg.gain.setValueAtTime(0, t);
+    ns.forEach(([f, dur, acc], i) => {
+      const fr = osc.frequency, a = acc == null ? 1 : acc;
+      if (i === 0) fr.setValueAtTime(o.bend ? f * 0.955 : f, tt); else fr.setValueAtTime(prev, tt);
+      fr.setTargetAtTime(f, tt, o.bend ? 0.06 : 0.018);
+      lp.frequency.setValueAtTime(Math.min(12000, f * bright), tt);
+      bp.frequency.setValueAtTime(Math.min(12000, f * 2), tt);
+      env.gain.setTargetAtTime(g * a, tt, i === 0 ? 0.05 : 0.03);
+      vg.gain.setTargetAtTime(0, tt, 0.02);
+      vg.gain.setTargetAtTime(o.vib == null ? 11 : o.vib, tt + Math.min(0.3, dur * 0.45), 0.15);  // 颤音（音分）迟到
+      bg.gain.setTargetAtTime(br * 2.2 * a, tt, 0.006);                                         // 起音的"气"
+      bg.gain.setTargetAtTime(br * 0.55 * a, tt + 0.04, 0.07);
+      prev = f; tt += Math.max(0.05, dur); last = a;
+    });
+    const rel = 0.4;
+    env.gain.setTargetAtTime(0, tt, rel / 4);
+    bg.gain.setTargetAtTime(0, tt, rel / 4);
+    const end = tail(env.gain, tt, g * last, rel / 4, tt + rel);
+    tail(bg.gain, tt, br * 0.55 * last, rel / 4, tt + rel);
+    v.out(mix, o.bus || 'mus', o.pan, o.rev == null ? 0.55 : o.rev);
+    v.play(t, end);
+  }
+
+  // 合唱（天使、天梯）：成对微失谐的锯齿经三个共振峰（'aw' 元音）——没有面孔的人声
+  function choirInto(v, fs, gs, o) {
+    o = o || {};
+    const sum = v.g(1), vib = v.o('sine', o.vibHz || 5.1), vg = v.g(o.vib == null ? 9 : o.vib);
+    vib.connect(vg);
+    fs.forEach((f, i) => [-1, 1].forEach(s => {
+      const x = v.o('sawtooth', f);
+      x.detune.value = s * rnd(4, 8);
+      vg.connect(x.detune);
+      const xg = v.g((gs ? gs[i] : 1) * 0.5), pn = v.p(clamp(s * (0.15 + 0.12 * i), -0.85, 0.85));
+      x.connect(xg); xg.connect(pn); pn.connect(sum);
+    }));
+    const out = v.g(1);
+    [[o.f1 || 650, 3.2, 1], [o.f2 || 1080, 4.5, 0.5], [o.f3 || 2750, 6, 0.16]].forEach(([f, q, g]) => {
+      const bp = v.f('bandpass', f, q), gg = v.g(g);
+      sum.connect(bp); bp.connect(gg); gg.connect(out);
+    });
+    const body = v.f('lowpass', 420, 0.7), bg = v.g(0.12);
+    sum.connect(body); body.connect(bg); bg.connect(out);
+    return out;
+  }
+  function choir(fs, o) {
+    o = o || {};
+    const v = voice(o.prio == null ? 1 : o.prio);
+    if (!v) return;
+    const t = T() + (o.at || 0) + 0.02;
+    const src = choirInto(v, fs, o.gs, o), g = v.g(0);
+    src.connect(g);
+    const end = swell(g.gain, t, o.a || 1.2, o.g || 0.05, o.s || 1.5, o.r || 3);
+    v.out(g, o.bus || 'evt', o.pan, o.rev == null ? 0.7 : o.rev);
+    v.play(t, end);
+  }
+
+  // 敲击（锤、凿、放石头）：一个噪声源 + 一个正弦，逐次排程其滤波、音高与包络
+  // hits = [[at, fNoise, fBody, g, heavy], ...]
+  function knocks(hits, o) {
+    o = o || {};
+    if (!hits.length) return;
+    const v = voice(o.prio == null ? 1 : o.prio);
+    if (!v) return;
+    const t = T() + (o.at || 0) + 0.015;
+    const n = v.nz('white'), bp = v.f('bandpass', 1500, o.q || 2.4), ng = v.g(0);
+    n.connect(bp); bp.connect(ng);
+    const s = v.o('sine', 200), sg = v.g(0);
+    s.connect(sg);
+    const lp = v.f('lowpass', o.lp || 7000, 0.6);
+    ng.connect(lp); sg.connect(lp);
+    let end = t;
+    for (const [at, fn, fb, g, heavy] of hits) {
+      const tt = t + Math.max(0, at);
+      bp.frequency.setValueAtTime(fn, tt);
+      ng.gain.setValueAtTime(0, tt);
+      ng.gain.linearRampToValueAtTime(g, tt + 0.0015);
+      ng.gain.setTargetAtTime(0, tt + 0.0015, heavy ? 0.028 : 0.013);
+      s.frequency.setValueAtTime(fb * 1.6, tt);
+      s.frequency.exponentialRampToValueAtTime(fb, tt + 0.035);
+      sg.gain.setValueAtTime(0, tt);
+      sg.gain.linearRampToValueAtTime(g * (heavy ? 1.5 : 0.8), tt + 0.003);
+      sg.gain.setTargetAtTime(0, tt + 0.003, heavy ? 0.075 : 0.035);
+      end = Math.max(end, tt + (heavy ? 0.7 : 0.35));
+    }
+    v.out(lp, o.bus || 'evt', o.pan, o.rev == null ? 0.3 : o.rev);
+    v.play(t, end);
+  }
+
+  // 人声（哀哭、笑）：声门般的波形经两个共振峰，外加一缕低处的身躯与气声；音高逐句排程
+  // ph = [[at, dur, f0, f1, g], ...]（每一句从 f0 滑到 f1，先起后落）
+  function vox(ph, o) {
+    o = o || {};
+    if (!ph.length) return;
+    const v = voice(o.prio == null ? 1 : o.prio);
+    if (!v) return;
+    const t = T() + (o.at || 0) + 0.02;
+    const osc = v.o(PW.reed, ph[0][2]);
+    if (o.vib !== 0) { const vl = v.o('sine', o.vibHz || 5.3), vg = v.g(o.vib == null ? 16 : o.vib); vl.connect(vg); vg.connect(osc.detune); }
+    const F1 = v.f('bandpass', o.F1 || 420, o.q1 || 4), F2 = v.f('bandpass', o.F2 || 950, o.q2 || 6), low = v.f('lowpass', o.F1 || 420, 0.7);
+    const g1 = v.g(1), g2 = v.g(0.45), g3 = v.g(0.3), env = v.g(0), mix = v.g(1);
+    osc.connect(F1); osc.connect(F2); osc.connect(low);
+    F1.connect(g1); F2.connect(g2); low.connect(g3); g1.connect(env); g2.connect(env); g3.connect(env); env.connect(mix);
+    const n = v.nz('pink'), nb = v.f('bandpass', o.Fb || 1500, 0.9), ng = v.g(0);
+    n.connect(nb); nb.connect(ng); ng.connect(mix);
+    const brk = o.breath == null ? 0.5 : o.breath;
+    let end = t;
+    for (const [at, dur, fa, fb, g] of ph) {
+      const tt = t + Math.max(0, at), a = Math.min(o.att || 0.07, dur * 0.3), r = Math.min(0.3, dur * 0.45);
+      osc.frequency.setValueAtTime(fa, tt);
+      osc.frequency.exponentialRampToValueAtTime(Math.max(20, fb), tt + dur);
+      env.gain.setValueAtTime(0, tt);
+      env.gain.linearRampToValueAtTime(g, tt + a);
+      env.gain.linearRampToValueAtTime(g * (o.sus == null ? 0.6 : o.sus), tt + dur - r);
+      env.gain.linearRampToValueAtTime(0, tt + dur);
+      ng.gain.setValueAtTime(0, tt);
+      ng.gain.linearRampToValueAtTime(g * brk, tt + a * 0.6);
+      ng.gain.linearRampToValueAtTime(g * brk * 0.25, tt + dur - r);
+      ng.gain.linearRampToValueAtTime(0, tt + dur);
+      end = Math.max(end, tt + dur);
+    }
+    v.out(mix, o.bus || 'evt', o.pan, o.rev == null ? 0.45 : o.rev);
+    v.play(t, end + 0.05);
+  }
+
+  // 一阵风：带通噪声的中心先升后落，声像横过；可带一缕风哨
+  function gust(o) {
+    const v = voice(o.prio == null ? 1 : o.prio);
+    if (!v) return;
+    const t = T() + (o.at || 0) + 0.02, dur = o.dur || 4;
+    const n = v.nz('pink'), bp = v.f('bandpass', o.f0, o.q || 1.1), g = v.g(0);
+    n.connect(bp); bp.connect(g);
+    bp.frequency.setValueAtTime(o.f0, t);
+    bp.frequency.exponentialRampToValueAtTime(o.f1, t + dur * 0.45);
+    bp.frequency.exponentialRampToValueAtTime(o.f0 * 0.85, t + dur);
+    if (o.whistle) {
+      const h = v.nz('white'), hb = v.f('bandpass', o.f1 * 1.5, 12), hg = v.g(o.whistle);
+      hb.frequency.setValueAtTime(o.f0 * 1.5, t);
+      hb.frequency.exponentialRampToValueAtTime(o.f1 * 1.6, t + dur * 0.5);
+      hb.frequency.exponentialRampToValueAtTime(o.f0 * 1.3, t + dur);
+      h.connect(hb); hb.connect(hg); hg.connect(g);
+    }
+    const end = swell(g.gain, t, dur * 0.42, o.g, dur * 0.08, dur * 0.5);
+    let x = g;
+    if (hasPan) {
+      const pn = v.p(o.p0 || 0);
+      pn.pan.setValueAtTime(clamp(o.p0 || 0, -1, 1), t);
+      pn.pan.linearRampToValueAtTime(clamp(o.p1 || 0, -1, 1), end);
+      g.connect(pn); x = pn;
+    }
+    v.out(x, o.bus || 'evt', null, o.rev == null ? 0.3 : o.rev);
+    v.play(t, end);
+  }
+
+  // 雷的滚动：褐噪声低通（渐暗）+ 不规则的起伏
+  function roll(o) {
+    const v = voice(o.prio == null ? 1 : o.prio);
+    if (!v) return;
+    const t = T() + (o.at || 0) + 0.02;
+    const n = v.nz('brown'), lp = v.f('lowpass', o.f0 || 320, 0.8), am = v.g(0.6), g = v.g(0);
+    lp.frequency.setValueAtTime(o.f0 || 320, t);
+    lp.frequency.exponentialRampToValueAtTime(o.f1 || 90, t + (o.a || 0.1) + (o.s || 0.3) + (o.r || 4) * 0.8);
+    v.nlfo(o.rate || 0.03, o.depth || 0.55, am.gain);
+    n.connect(lp); lp.connect(am); am.connect(g);
+    const end = swell(g.gain, t, o.a || 0.08, o.g, o.s || 0.3, o.r || 4);
+    v.out(g, o.bus || 'evt', o.pan, o.rev == null ? 0.5 : o.rev);
+    v.play(t, end);
+  }
+
   // ── 常驻声床：按需建立、静默久了便拆除 ─────────────────
   function Bed(build, dest) { this.build = build; this.dest = dest; this.x = null; this.idle = 0; }
   let bedBuilt = false;                                 // 每一拍至多新建一个声床，免得卡顿
@@ -681,6 +899,175 @@
         return { g, per, next: 0, amp: rnd(0.7, 1) };
       });
     }, amb);
+
+    // ── 其后各卷的世界之声 ──────────────────────────────────
+    // 雨：左右两股去相关的白噪声作雨幕的嘶声，粉红噪声作水幕的身躯，稀疏起伏的高频作一颗颗雨点
+    beds.rain = new Bed((v, out) => {
+      const hp = v.f('highpass', 700, 0.5), lp = v.f('lowpass', 6500, 0.5), hiss = v.g(0.5);
+      [-0.6, 0.6].forEach(p => { const n = v.nzd('white'), pn = v.p(p); n.connect(pn); pn.connect(hp); });
+      hp.connect(lp); lp.connect(hiss); hiss.connect(out);
+      const b = v.nzd('pink'), blp = v.f('lowpass', 1300, 0.6), body = v.g(0.75);
+      v.nlfo(0.004, 0.3, body.gain);                              // 雨势一阵一阵
+      b.connect(blp); blp.connect(body); body.connect(out);
+      const d = v.nzd('white'), bp = v.f('bandpass', 3400, 0.9), vca = v.g(0), m = v.nz('brown', 0.7), sh = v.ws(sparseCurve());
+      const dg = v.g(1.1), dp = v.p(0.15);
+      m.connect(sh); sh.connect(vca.gain);                        // 雨点：随机起伏只取其峰
+      d.connect(bp); bp.connect(vca); vca.connect(dg); dg.connect(dp); dp.connect(out);
+      v.c.lp = ctl(lp.frequency, 6500);
+    }, amb);
+    // 暴风雨：深处的滚动（褐噪声低通）、狂风（带通，声像摇摆）、一缕呼啸的风哨
+    beds.storm = new Bed((v, out) => {
+      const r = v.nzd('brown'), rlp = v.f('lowpass', 110, 0.8), rg = v.g(0.9);
+      v.nlfo(0.008, 0.6, rg.gain);
+      r.connect(rlp); rlp.connect(rg); rg.connect(out);
+      const w = v.nzd('pink'), wbp = v.f('bandpass', 420, 0.8), wg = v.g(0.6), wp = v.p(0);
+      v.nlfo(0.005, 0.65, wg.gain);
+      if (hasPan) v.lfo(0.045, 0.55, wp.pan);
+      w.connect(wbp); wbp.connect(wg); wg.connect(wp); wp.connect(out);
+      const h = v.nzd('white'), hbp = v.f('bandpass', 620, 14), hg = v.g(0.05);
+      v.lfo(0.06, 110, hbp.frequency); v.nlfo(0.01, 0.07, hg.gain);
+      h.connect(hbp); hbp.connect(hg); hg.connect(out);
+      v.c.f = ctl(wbp.frequency, 420);
+    }, amb);
+    // 虹：高处 A 大九和弦的微光——每个音都有一个差 4.5 音分的影子（慢慢的拍），各自起伏
+    beds.bow = new Bed((v, out) => {
+      [[F.A5, 0.3, -0.5], [F.Cs6, 0.24, 0.35], [F.E6, 0.22, -0.2], [F.A6, 0.13, 0.55], [F.B6, 0.06, -0.6]].forEach(([f, g, p]) => {
+        const tg = v.g(0.6), pn = v.p(p);
+        v.lfo(rnd(0.12, 0.3), 0.35, tg.gain);
+        [0, 4.5].forEach(dc => { const o = v.o('sine', f); o.detune.value = dc + rnd(-1, 1); const og = v.g(g * (dc ? 0.6 : 1)); o.connect(og); og.connect(tg); });
+        tg.connect(pn); pn.connect(out);
+      });
+    }, mus);
+    // 天梯上的天使：无字的合唱（A 大和弦），缓缓涌起
+    beds.choir = new Bed((v, out) => {
+      const src = choirInto(v, [F.A3, F.E4, F.A4, F.Cs5, F.E5], [1, 0.8, 0.7, 0.5, 0.32], { vib: 8 });
+      const am = v.g(0.8);
+      v.nlfo(0.004, 0.35, am.gain);
+      src.connect(am); am.connect(out);
+    }, mus);
+    // 巴别的工程：同一的言语、同一的节律——A3 八分音般的脉动，E4 以其半应和，A2 两拍一沉（平滑的锯齿作包络：拨奏般的脉冲）
+    beds.work = new Bed((v, out) => {
+      const lp = v.f('lowpass', 1500, 0.6);
+      [[F.A3, 2.2, 0.5, -0.3], [F.E4, 1.1, 0.34, 0.35], [F.A2, 0.55, 0.5, 0]].forEach(([f, rate, g, pan]) => {
+        const o = v.o('triangle', f), am = v.g(0.5), og = v.g(g), pn = v.p(pan);
+        v.lfo(rate, 0.5, am.gain, PW.ratchet);
+        o.connect(am); am.connect(og); og.connect(pn); pn.connect(lp);
+      });
+      lp.connect(out);
+    }, mus);
+    // 各卷的乐垫
+    for (const id of ACT_IDS) if (PAD[id]) beds['pad_' + id] = padBed(PAD[id]);
+  }
+
+  // ── 各卷的乐垫：每卷一个声床，内分几组声部，组与组之间交叉淡变（随卷中的光景）──
+  // 声部：[f, 波形('s' 正弦 | 't' 三角 | PW 之名), 增益, 声像, 失谐(音分)]
+  const PAD = {
+    // 伊甸：明亮的 A 加九；堕落之后没有三音（A E B D）——悬而未决
+    eden: { lp: 1900, groups: {
+      bright: [[F.A2, 's', 0.5, -0.1], [F.E3, 'soft', 0.42, 0.15], [F.A3, 'soft', 0.24, -0.3, -4], [F.Cs4, 'soft', 0.22, 0.35], [F.E4, 's', 0.15, -0.4], [F.B4, 's', 0.07, 0.5]],
+      fallen: [[F.A2, 's', 0.5, 0.1], [F.E3, 'soft', 0.4, -0.15], [F.B3, 'soft', 0.17, -0.3], [F.D4, 'soft', 0.16, 0.3]],
+    } },
+    // 该隐：低处的 A 小七（A E C G）；求告耶和华的名、以诺与神同行之后，大三度回来
+    cain: { lp: 800, groups: {
+      dark: [[F.A1, 's', 0.55, 0], [F.E2, 'soft', 0.42, 0.1], [F.C3, 'soft', 0.22, -0.3], [F.G3, 's', 0.09, 0.35]],
+      hope: [[F.A2, 's', 0.42, 0], [F.E3, 'soft', 0.34, 0.2], [F.Cs4, 'soft', 0.19, -0.3], [F.E4, 's', 0.09, 0.4]],
+    } },
+    // 洪水：忧伤（A 小 b6）→ 暴风雨里只剩低处的挂四 → 水退之后清澈开阔的 A 加九
+    flood: { lp: 900, groups: {
+      grief: [[F.A1, 's', 0.5, 0], [F.E2, 'soft', 0.38, 0.1], [F.C3, 'soft', 0.22, -0.3], [F.F3, 's', 0.1, 0.35]],
+      storm: [[F.A1, 'soft', 0.5, 0], [F.D2, 'soft', 0.28, -0.2], [F.E2, 'soft', 0.32, 0.2]],
+      clear: [[F.A2, 's', 0.42, 0], [F.E3, 'soft', 0.34, -0.2], [F.B3, 's', 0.15, 0.35], [F.Cs4, 'soft', 0.19, -0.35], [F.E4, 's', 0.11, 0.4], [F.A4, 's', 0.055, -0.5]],
+    } },
+    // 巴别：开阔的挂二 → 同一的言语（八度的齐声）→ 变乱（Bb、D#、F 的裂缝）
+    babel: { lp: 1300, groups: {
+      calm: [[F.A2, 's', 0.42, 0], [F.E3, 'soft', 0.36, -0.2], [F.B3, 'soft', 0.17, 0.3], [F.E4, 's', 0.09, -0.4]],
+      one: [[F.A2, 's', 0.45, 0], [F.A3, 'soft', 0.28, -0.15, -3], [F.A3, 'soft', 0.28, 0.15, 3], [F.E4, 'soft', 0.18, 0.3]],
+      broken: [[F.A2, 's', 0.34, 0], [F.Bb2, 'soft', 0.1, -0.5], [F.E3, 'soft', 0.24, 0.4], [F.Ds4, 's', 0.06, -0.3], [F.F4, 's', 0.045, 0.5]],
+    } },
+    // 亚伯拉罕：旷野的白昼（挂二，开阔）；星空之夜（A 大七 #11——利底亚的惊奇）；惊人的大黑暗
+    abraham: { lp: 1500, groups: {
+      day: [[F.A2, 's', 0.45, 0], [F.E3, 'soft', 0.37, -0.15], [F.B3, 'soft', 0.2, 0.3], [F.E4, 's', 0.11, -0.35], [F.Fs4, 's', 0.05, 0.45]],
+      night: [[F.A2, 's', 0.42, 0], [F.E3, 'soft', 0.33, 0.15], [F.Cs4, 'soft', 0.17, -0.3], [F.Gs4, 's', 0.065, 0.35], [F.Ds5, 's', 0.032, -0.45]],
+      dark: [[F.A1, 's', 0.55, 0], [F.E2, 'soft', 0.3, 0.1], [F.C3, 's', 0.1, -0.2]],
+    } },
+    // 雅各：牧场的 A6（A C# E F#）；夜里挂二；示剑的黑暗
+    jacob: { lp: 1500, groups: {
+      day: [[F.A2, 's', 0.45, 0], [F.E3, 'soft', 0.35, -0.2], [F.Cs4, 'soft', 0.2, 0.3], [F.Fs4, 's', 0.09, -0.4]],
+      night: [[F.A2, 's', 0.42, 0], [F.E3, 'soft', 0.32, 0.2], [F.B3, 'soft', 0.19, -0.3], [F.E4, 's', 0.11, 0.35]],
+      shadow: [[F.A1, 's', 0.45, 0], [F.E2, 'soft', 0.3, 0.1], [F.C3, 'soft', 0.16, -0.25]],
+    } },
+    // 约瑟：迦南的牧场 → 埃及（A 的低音持续，Bb 与 D 的 Hijaz 色彩）→ 歌珊（Bb 淡去）→ 平安（纯净的 A 大）
+    joseph: { lp: 1500, groups: {
+      canaan: [[F.A2, 's', 0.45, 0], [F.E3, 'soft', 0.35, -0.2], [F.Cs4, 'soft', 0.2, 0.3], [F.Fs4, 's', 0.09, -0.4]],
+      egypt: [[F.A1, 's', 0.42, 0], [F.A2, 'soft', 0.3, -0.1], [F.E3, 'soft', 0.28, 0.2], [F.Bb3, 's', 0.055, -0.4], [F.D4, 'soft', 0.1, 0.35]],
+      goshen: [[F.A1, 's', 0.4, 0], [F.A2, 'soft', 0.3, -0.1], [F.E3, 'soft', 0.28, 0.2], [F.Cs4, 'soft', 0.13, -0.35], [F.D4, 's', 0.05, 0.4]],
+      peace: [[F.A2, 's', 0.45, 0], [F.E3, 'soft', 0.36, -0.2], [F.A3, 'soft', 0.25, 0.25], [F.Cs4, 'soft', 0.21, -0.35], [F.E4, 's', 0.13, 0.4]],
+    } },
+  };
+  // 各卷的分量：底鸣（造物主之声，比第一卷轻）与乐垫
+  const ACT_MUS = {
+    eden: { drone: 0.5, pad: 1 }, cain: { drone: 0.75, pad: 0.95 }, flood: { drone: 0.7, pad: 0.95 }, babel: { drone: 0.5, pad: 0.9 },
+    abraham: { drone: 0.6, pad: 0.95 }, jacob: { drone: 0.5, pad: 0.95 }, joseph: { drone: 0.55, pad: 1 },
+  };
+  function padBed(spec) {
+    return new Bed((v, out) => {
+      const lp = v.f('lowpass', spec.lp, 0.5);
+      v.c.lp = ctl(lp.frequency, spec.lp);
+      v.c.g = {};
+      let gi = 0;
+      for (const name in spec.groups) {
+        const gg = v.g(0), br = v.g(0.8);
+        v.lfo(0.043 + 0.021 * gi, 0.2, br.gain);                 // 每组各有一口缓慢的呼吸（乘在组的增益之后：组静默时它也静默）
+        gg.connect(br); br.connect(lp);
+        v.c.g[name] = ctl(gg.gain, 0);
+        for (const [f, wv, g, pan, det] of spec.groups[name]) {
+          const o = v.o(wv === 's' ? 'sine' : wv === 't' ? 'triangle' : PW[wv] || PW.soft, f);
+          o.detune.value = det != null ? det : rnd(-3, 3);
+          const og = v.g(g);
+          o.connect(og);
+          if (pan && hasPan) { const pn = v.p(pan); og.connect(pn); pn.connect(gg); } else og.connect(gg);
+        }
+        gi++;
+      }
+      lp.connect(out);
+    }, () => N.bus.mus.in);
+  }
+  // 乐垫各组的分量与低通（随本卷的程度）
+  function padMix(id, night) {
+    switch (id) {
+      case 'eden': {
+        const b = smoothstep(0.25, 0.85, clamp(lvlOr('edenGlow', 1), 0, 1));
+        return { g: { bright: b, fallen: 1 - b }, lp: lerp(850, 1900, b) };
+      }
+      case 'cain': {
+        const h = clamp(Math.max(lvl('cainCall'), lvl('cainWalk'), lvl('cainComfort') * 0.8, lvl('cainTaken')), 0, 1);
+        const d = clamp(Math.max(lvl('cainDark'), lvl('cainBlood')), 0, 1);
+        return { g: { dark: 1 - h * 0.85, hope: h }, lp: lerp(800, 1400, h) * (1 - 0.5 * d) };
+      }
+      case 'flood': {
+        const s = clamp(lvl('storm'), 0, 1);
+        const cl = clamp(Math.max(smoothstep(0.45, 0.9, lvl('ararat')), lvl('rainbow'), 0.5 * lvl('flGrace')), 0, 1) * (1 - s);
+        return { g: { storm: s, clear: cl, grief: Math.max(0, 1 - s - cl) }, lp: s > 0.5 ? lerp(900, 520, s) : lerp(900, 2200, cl) };
+      }
+      case 'babel': {
+        const one = clamp(lvl('babelOne'), 0, 1), br = (1 - one) * clamp(lvl('babelShaft'), 0, 1);
+        return { g: { one, broken: br, calm: Math.max(0, 1 - one - br) }, lp: 1300 - 400 * br };
+      }
+      case 'abraham': {
+        const dk = clamp(lvl('abDark'), 0, 1), nk = Math.max(smoothstep(0.3, 0.8, night), clamp(lvl('abStars'), 0, 1)) * (1 - dk);
+        return { g: { day: (1 - nk) * (1 - dk), night: nk, dark: dk }, lp: lerp(1500, 2400, nk) * (1 - 0.7 * dk) };
+      }
+      case 'jacob': {
+        const sh = clamp(lvl('jbShadow'), 0, 1), nk = smoothstep(0.3, 0.8, night);
+        return { g: { day: (1 - nk) * (1 - sh), night: nk * (1 - sh), shadow: sh }, lp: lerp(1500, 1100, nk) * (1 - 0.45 * sh) };
+      }
+      case 'joseph': {
+        const pc = clamp(lvl('jsPromise'), 0, 1), e = clamp(lvl('jsEgypt'), 0, 1), gs = clamp(lvl('jsGoshen'), 0, 1);
+        return { g: { canaan: (1 - e) * (1 - pc), egypt: e * (1 - gs) * (1 - pc), goshen: e * gs * (1 - pc), peace: pc },
+          lp: lerp(1500, 900, clamp(lvl('jsFamine'), 0, 1)) * (1 + 0.3 * clamp(lvl('jsWith'), 0, 1)) };
+      }
+    }
+    return null;
   }
 
   function scheduleCrickets(v, t) {
@@ -789,6 +1176,9 @@
       voice: wave([1, 0.46, 0.3, 0.17, 0.1, 0.06, 0.035]),      // 灵的哼鸣：有身躯的 A3，小喇叭也听得见
       grit: wave([1, 0.62, 0.45, 0.33, 0.25, 0.19, 0.14, 0.1, 0.07, 0.05]), // 低吼（经低通随充盈打开）
       ratchet: wave([1, 0.45, 0.25, 0.14, 0.07]),                // 只有五个谐波的锯齿（作 LFO 用：无跳变）
+      harp: wave([1, 0.42, 0.24, 0.13, 0.08, 0.05, 0.03, 0.02]),  // 竖琴 / 里拉的弦（经渐暗的低通）
+      flute: wave([1, 0.14, 0.06, 0.025]),                       // 牧笛：近乎正弦，一点点二次谐波
+      oud: wave([1, 0.72, 0.5, 0.4, 0.3, 0.22, 0.16, 0.12, 0.09, 0.06]), // 乌德：更亮、更多泛音的拨弦
     };
     const sum = gain(1);
     const comp = AC.createDynamicsCompressor();
@@ -812,7 +1202,7 @@
     C.out = ctl(out.gain, muted || hidden ? 0 : 1);
     makeBeds();
     const t = T();
-    for (const k of ['pluck', 'star', 'whale', 'moo', 'bleat', 'theme', 'themeCheck', 'song']) nx[k] = t + rnd(3, 10);
+    for (const k of ['pluck', 'star', 'whale', 'moo', 'bleat', 'theme', 'themeCheck', 'song', 'm1', 'm2']) nx[k] = t + rnd(3, 10);
     nx.whale = t + rnd(20, 50); nx.theme = t + 20;
     lastStage = W.stage | 0;
     // 其余的缓冲在手势之后分几步于后台备好，免得第一次按下时卡顿
@@ -859,6 +1249,9 @@
   }
 
   // ── 每 0.1 秒：世界驱动的声床与生成的音乐 ──────────────
+  let actNow = 0, lastAct = -1;
+  // 按住言说时，世界（与乐声）让开多少：越庄重的话，让得越多
+  const DEEP_DUCK = { human: 1, behold: 1, holy: 1, judge: 1, name: 1 };
   function tick(dt) {
     const t = T(), lv = W.lv, st = W.stage | 0, nst = NST();
     const night = W.night || 0, dayF = W.dayFactor == null ? 1 : W.dayFactor;
@@ -867,26 +1260,38 @@
     const hk = hold ? hold.kind : '';
     bedBuilt = false;
 
-    // 造物主之声：七息里渐渐退去，安息之后（约 20 秒）永远止息；声床随之拆除
-    const div = st >= nst ? 0 : st === nst - 1 ? Math.max(0.3, 1 - 0.1 * breathN) : 1;
+    // 卷：七日之后，造物主之声以每卷自己的色彩回来（比第一卷轻）；全书终了，缓缓归于安息
+    const act = W.act | 0, later = act >= 1, id = later ? actId() : 'seven', AM = ACT_MUS[id] || null;
+    if (act !== lastAct) { lastAct = act; nx.m1 = t + rnd(5, 9); nx.m2 = t + rnd(6, 12); }
+    const am = later && st < bookLen() ? 1 : 0;
+    actNow += (am - actNow) * (1 - Math.exp(-dt / (am ? 2.5 : 7)));
+    if (!am && actNow < 0.002) actNow = 0;
+
+    // 造物主之声（第一卷）：七息里渐渐退去，安息之后（约 20 秒）止息；声床随之拆除
+    const div = later ? 0 : st >= nst ? 0 : st === nst - 1 ? Math.max(0.3, 1 - 0.1 * breathN) : 1;
     if (divNow < 0) divNow = div;
     divNow += (div - divNow) * (1 - Math.exp(-dt / (st >= nst ? 6 : 2)));
     if (divNow < 0.002 && div === 0) divNow = 0;
     const thin = st >= nst - 1 ? 0.3 : 1;                 // 圣日之后：和声变薄
-    const deepDuck = hk === 'human' || hk === 'behold' || hk === 'holy';
+    const deepDuck = !!DEEP_DUCK[hk];
     // 卷与卷之间落下幕布时，世界的声音也随之低下去
     const curtain = clamp((lv.curtain || 0), 0, 1);
     const duck = (holding ? (deepDuck ? 0.4 : 0.7) : 1) * (1 - 0.6 * curtain);
     set(C.duckA, duck, holding ? 0.35 : 1.4);
-    set(C.duckM, (holding && deepDuck ? 0.5 : 1) * (1 - 0.5 * curtain), holding ? 0.5 : 1.6);
+    set(C.duckM, (holding ? (deepDuck ? 0.5 : later ? 0.72 : 1) : 1) * (1 - 0.5 * curtain), holding ? 0.5 : 1.6);
     set(C.rev, 0.5 + 0.5 * (lv.vault || 0), 2.5);      // 穹苍张开，空间变大
 
-    // 底鸣
-    const d = beds.drone.want(lv.deep * LV.drone * divNow, st >= nst ? 0.3 : 2);
+    const rain = clamp(lvl('rain'), 0, 1), storm = clamp(lvl('storm'), 0, 1), sea = clamp(lvl('flSea'), 0, 1);
+    const dry = clamp(Math.max(lvl('jsFamine'), lvl('abDrought'), lvl('jbDrought')), 0, 1);
+
+    // 底鸣：第一卷随日子调准；其后各卷是已调准的 A，轻一些，随卷的色彩开合
+    const dl = later ? actNow * (AM ? AM.drone : 0.5) : divNow;
+    const d = beds.drone.want(lv.deep * LV.drone * dl, later ? 0.6 : st >= nst ? 0.3 : 2);
     if (d) {
       const ch = stageChaos(st), tuned = ch === 55;
+      const dk = id === 'cain' ? 0.8 : id === 'flood' ? 1 + 0.6 * storm : lvl('abDark') > 0.3 ? 0.75 : 1;
       set(d.c.chaos, ch, 3); set(d.c.ochaos, ch, 3); set(d.c.sub, stageSub(st), 2.7);
-      set(d.c.lp, lerp(170, 95, night), 2); set(d.c.olp, lerp(520, 300, night), 2);
+      set(d.c.lp, lerp(170, 95, night) * dk, 2); set(d.c.olp, lerp(520, 300, night) * dk, 2);
       set(d.c.truth, tuned ? 0 : 0.34, 5); set(d.c.otruth, tuned ? 0 : 0.8, 5);
     }
     // 光垫（第四日起低通随日：夜 600Hz，正午 2400Hz）
@@ -899,11 +1304,37 @@
     const eve = st >= nst && W.freeClock ? (W.dusk || 0) * smoothstep(0.55, 0.62, W.tod || 0) : 0;
     beds.sunset.want(eve * LV.sunset, 3);
 
-    // 海
-    const w = beds.water.want(lv.deep * LV.water * (1 - 0.45 * night), 2);
+    // 各卷的乐垫：只有当前的一卷在响，前一卷的缓缓散去
+    for (let i = 0; i < ACT_IDS.length; i++) {
+      const k = ACT_IDS[i], b = beds['pad_' + k];
+      if (!b) continue;
+      const on = later && k === id;
+      const x = b.want(on ? actNow * LV.pad * (AM ? AM.pad : 1) : 0, on ? 2.5 : 2);
+      if (x && on && x.c.g) {
+        const m = padMix(k, night);
+        if (m) {
+          for (const g in x.c.g) set(x.c.g[g], m.g[g] || 0, 2.2);
+          set(x.c.lp, clamp(m.lp * (k === 'abraham' ? 1 : 1 - 0.25 * night), 200, 6000), 2);
+        }
+      }
+    }
+    // 巴别的工程节律：同一的言语时忙碌，变乱时戛然而止
+    const one = clamp(lvl('babelOne'), 0, 1);
+    const busy = id === 'babel' ? clamp(lvl('babelWork'), 0, 1) * (0.35 + 0.65 * one) * (1 - clamp(lvl('babelShaft'), 0, 1) * (1 - one)) : 0;
+    beds.work.want(busy * LV.work * actNow, busy > 0.05 ? 2 : 0.45);
+    // 天梯上的天使（雅各）
+    beds.choir.want(id === 'jacob' ? clamp(lvl('jbLadder'), 0, 1) * LV.choir * Math.max(0.3, actNow) : 0, 2.5);
+    // 雨、暴风雨、虹（世界的程度，哪一卷定义都可以）
+    const rn = beds.rain.want(rain * LV.rain, 1.2);
+    if (rn) set(rn.c.lp, 3600 + 3200 * rain, 1.5);
+    const sm = beds.storm.want(storm * LV.storm, 1.5);
+    beds.bow.want(clamp(lvl('rainbow'), 0, 1) * LV.bow * (1 - 0.7 * storm), 3);
+
+    // 海（洪水时海浪汹涌）
+    const w = beds.water.want(lv.deep * LV.water * (1 - 0.45 * night) * (1 + 0.8 * sea), 2);
     if (w) {
-      set(w.c.foam, 0.3 + 0.7 * (lv.land || 0) + 0.2 * Math.abs(W.wind || 0), 2);
-      set(w.c.lp, 480 + 200 * (lv.land || 0), 3);
+      set(w.c.foam, 0.3 + 0.7 * (lv.land || 0) + 0.2 * Math.abs(W.wind || 0) + 0.8 * sea, 2);
+      set(w.c.lp, 480 + 200 * (lv.land || 0) + 450 * sea, 3);
       if (w.c.pan) set(w.c.pan, -0.35 * (lv.land || 0), 3);
     }
     const sp = W.spirit;
@@ -911,34 +1342,40 @@
     const stir = lv.deep * over * clamp(((sp && sp.speed) || 0) / 700, 0, 1);
     const s = beds.stir.want(stir * LV.stir, stir > 0.02 ? 0.12 : 0.5);
     if (s) { if (s.c.pan) set(s.c.pan, panX(sp.x), 0.15); set(s.c.f, 520 + 500 * W.seaDepth(sp.y), 0.3); }
-    // 风
-    const gust = Math.min(1, Math.abs(W.wind || 0));
-    const wd = beds.wind.want((lv.vault || 0) * LV.wind * (0.12 + 0.88 * Math.pow(gust, 1.6)) * (1 - 0.4 * night), 0.8);
+    // 风（神叫风吹地、暴风、旱年的干风都让它更响）
+    const blow = Math.max(storm * 0.6, lvl('flWind') * 0.8, dry * 0.35);
+    const gust = Math.min(1, Math.abs(W.wind || 0) + blow);
+    const wd = beds.wind.want((lv.vault || 0) * LV.wind * (0.12 + 0.88 * Math.pow(gust, 1.6)) * (1 - 0.4 * night * (1 - blow)), 0.8);
     if (wd) { set(wd.c.f, 280 + 700 * gust, 0.8); set(wd.c.wf, 700 + 900 * gust, 0.8); if (wd.c.pan) set(wd.c.pan, clamp(W.wind || 0, -1, 1) * 0.6, 1); }
-    // 叶
-    const leaf = (lv.trees || 0) * (0.25 + 0.75 * gust) * LV.leaves;
+    if (sm) set(sm.c.f, 300 + 450 * storm + 250 * gust, 1);
+    // 叶（大雨盖过叶声；旱年叶稀）
+    const leaf = (lv.trees || 0) * (0.25 + 0.75 * gust) * LV.leaves * (1 - 0.7 * dry) * (1 - 0.8 * rain);
     beds.leaves.want(leaf, 1.2);
-    // 夜虫（言说时也安静下来）
-    const cr = beds.crickets.want(W.popN('creeper') > 0 ? smoothstep(0.35, 0.8, night) * LV.cricket * (holding ? 0.15 : 1) : 0, 1.5);
+    // 夜虫（言说时、雨里都安静下来）
+    const cr = beds.crickets.want(W.popN('creeper') > 0 ? smoothstep(0.35, 0.8, night) * LV.cricket * (holding ? 0.15 : 1) * (1 - rain) : 0, 1.5);
     if (cr) scheduleCrickets(cr, t);
 
-    generate(dt, t, st, nst, night, dayF, holding);
+    generate(dt, t, st, nst, night, dayF, holding, rain);
+    if (later && am) generateAct(t, id, night, dayF, holding);
   }
 
   // 生成的事件：大地的拨弦、星的轻鸣、鸟、鲸、气泡、啃草、远处的牛羊、人的主题
-  function generate(dt, t, st, nst, night, dayF, holding) {
-    const lv = W.lv, calm = holding ? 0.1 : 1, q = W.quality < 0.75 ? 0.6 : 1;
-    const rested = st >= nst;
+  function generate(dt, t, st, nst, night, dayF, holding, rain) {
+    const lv = W.lv, calm = (holding ? 0.1 : 1) * (1 - 0.85 * (rain || 0)), q = W.quality < 0.75 ? 0.6 : 1;
+    const rested = st >= nst, later = (W.act | 0) >= 1;
     const day = smoothstep(0.35, 0.8, dayF) * (1 - night);
     // 地的拨弦（第三日起，每 6–14 秒一个五声音）
     if (t >= nx.pluck) {
       nx.pluck = t + (rested ? rnd(9, 20) : rnd(6, 14));
-      if ((lv.grass || 0) > 0.5 && !holding) pluck(pent(F.A3, rint(0, 8)), rnd(0, 0.1), LV.pluck * (0.6 + 0.4 * day), rnd(0.05, 0.75), 0.9, 'amb');
+      // 其后各卷：拨弦随本卷的音阶（埃及的 Hijaz、该隐的小调……）
+      if ((lv.grass || 0) > 0.5 && !holding && calm > 0.5) pluck(later ? deg(scaleNow(), F.A3, rint(0, 8)) : pent(F.A3, rint(0, 8)), rnd(0, 0.1), LV.pluck * (0.6 + 0.4 * day), rnd(0.05, 0.75), 0.9, 'amb');
     }
     // 星的轻鸣（夜里，每 2–5 秒）
+    // 「你向天观看，数算众星」：数不过来的星，轻鸣也更密
     if (t >= nx.star) {
-      nx.star = t + rnd(2, 5);
-      if ((lv.stars || 0) > 0.5 && night > 0.45 && !holding) ping(pent(F.A5, rint(0, 7)), rnd(0, 0.1), LV.star * night, rnd(-0.8, 0.8), 'amb');
+      const many = clamp(lvl('abStars'), 0, 1);
+      nx.star = t + rnd(2, 5) / (1 + 2 * many);
+      if ((lv.stars || 0) > 0.5 && night > 0.45 && !holding && calm > 0.5) ping(later ? deg(scaleNow(), F.A5, rint(0, 7)) : pent(F.A5, rint(0, 7)), rnd(0, 0.1), LV.star * night * (1 + 0.4 * many), rnd(-0.8, 0.8), 'amb');
     }
     // 鸟：白日与黎明的合唱
     const nB = W.popN('bird');
