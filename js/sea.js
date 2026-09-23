@@ -469,9 +469,10 @@
       const ps = Math.max(0.6, s * 1.25);
       for (let i = 0; i < n; i++) {
         const a = rnd(-1, 1);
-        GS.fx.add({ x: x + a * 3 * s * size, y, vx: a * rnd(20, 70) * s * Math.sqrt(size), vy: -rnd(50, 150) * s * Math.sqrt(size + 0.2),
-          grav: 420 * s, drag: 0.4, max: rnd(0.45, 0.95) * (0.8 + size * 0.2), size: rnd(0.5, 1.2) * ps,
-          c: lit, a: 0.8, pass: BANDS[band] });
+        const big = size > 1;
+        GS.fx.add({ x: x + a * (big ? 14 : 3) * s * size, y: y - (big ? rnd(0, 6) * s : 0), vx: a * rnd(20, 70) * s * Math.sqrt(size), vy: -rnd(50, big ? 200 : 150) * s * Math.sqrt(size + 0.2),
+          grav: 420 * s, drag: 0.4, max: rnd(0.45, 0.95) * (0.8 + size * 0.2), size: rnd(big ? 0.35 : 0.5, big ? 0.95 : 1.2) * ps,
+          c: lit, a: big ? 0.6 : 0.8, pass: BANDS[band] });
       }
     }
     emit('splash', { x, y, size });
@@ -496,13 +497,13 @@
     k = k || 1;
     PLUME.push({ x, y, s, band, t: 0, dur: 2.6 * (0.7 + 0.3 * k), H: 58 * k, Wd: 16 * k, dx: rnd(-0.5, 0.5) });
     if (PLUME.length > 8) PLUME.shift();
-    const n = Math.round(30 * k * (W.quality || 1));
+    const n = Math.round(26 * k * (W.quality || 1));
     if (fxOK()) {
       const lit = W.shade(MIST, 0.15, 0.3);
       const ps = Math.max(0.7, s * 1.5);
       for (let i = 0; i < n; i++) {
         GS.fx.add({ x: x + rnd(-2, 2) * s, y: y - rnd(0, 4) * s, vx: rnd(-16, 16) * s + (W.wind || 0) * 18 * s, vy: -rnd(70, 165) * s * k,
-          grav: 38 * s, drag: 1.4, max: rnd(1.1, 2.3), size: rnd(0.6, 1.4) * ps, c: lit, a: 0.42, pass: BANDS[band] });
+          grav: 38 * s, drag: 1.4, max: rnd(1.1, 2.3), size: rnd(0.4, 0.9) * ps, c: lit, a: 0.2, pass: BANDS[band] });
       }
     }
   }
@@ -612,7 +613,7 @@
             w.drip = true;
             const tx = w.x - Math.cos(w.hd) * w.L * 0.47 * s, ty = w.y - Math.sin(w.hd) * w.L * 0.47 * s * fz;
             const lit = W.shade(FOAM, 0.1, 0.2);
-            for (let k = 0; k < 9; k++) GS.fx.add({ x: tx + rnd(-1, 1) * w.L * 0.12 * s, y: ty - w.L * 0.16 * s, vx: rnd(-6, 6) * s, vy: rnd(0, 20) * s, grav: 260 * s, drag: 0.3, max: rnd(0.5, 0.9), size: Math.max(0.6, s * 1.2), c: lit, a: 0.7, pass: BANDS[bandOf(w.y)] });
+            for (let k = 0; k < 7; k++) { const q = rnd(-1, 1); GS.fx.add({ x: tx + q * w.L * 0.15 * s, y: ty - w.L * (0.17 - 0.03 * q * q) * s * w.fluke, vx: rnd(-4, 4) * s, vy: rnd(0, 15) * s, grav: 260 * s, drag: 0.3, max: rnd(0.4, 0.8), size: Math.max(0.5, s * 0.8), c: lit, a: 0.45, pass: BANDS[bandOf(w.y)] }); }
           }
           if (w.T >= w.dur) {
             w.arch = 0; w.fluke = 0; w.drip = false;
@@ -624,14 +625,14 @@
         case 'breach': {
           const p = w.T / w.dur;
           w.surf = 0;
-          if (!w.sp1 && p > 0.05) { w.sp1 = true; splash(w.bx, w.by, 1.6 * w.L / 200, bandOf(w.by), 34); }
-          if (!w.sp2 && p > 0.86) {
+          if (!w.sp1 && p > 0.05) { w.sp1 = true; splash(w.bx, w.by, 1.6 * w.L / 200, bandOf(w.by), 60); }
+          if (!w.sp2 && p > 0.8) {
             w.sp2 = true;
-            const ex = w.bx + w.bdir * w.L * 0.42 * s;
-            splash(ex, w.by, 2.4 * w.L / 200, bandOf(w.by), 60);
+            const ex = w.bx + w.bdir * w.L * 0.3 * s;
+            splash(ex, w.by, 2.4 * w.L / 200, bandOf(w.by), 110);
           }
           if (w.T >= w.dur) {
-            w.x = w.bx + w.bdir * w.L * 0.42 * s;
+            w.x = w.bx + w.bdir * w.L * 0.3 * s;
             if (!seaAt(w.x, w.y)) w.x = w.bx;
             setSt(w, 'under', rnd(6, 10));
           }
@@ -1140,35 +1141,40 @@
         if (by[k] - ty[k] < 0.5) { started = false; continue; }
         if (!started) { ctx.moveTo(bx[k], ty[k]); started = true; } else ctx.lineTo(bx[k], ty[k]);
       }
-      ctx.strokeStyle = css(C.rim, C.rimA * 0.8 * vis);
-      ctx.lineWidth = Math.max(0.7, s * 1.3);
+      ctx.strokeStyle = css(C.rim, C.rimA * 0.55 * vis);
+      ctx.lineWidth = Math.max(0.6, s * 0.9);
       ctx.stroke();
-      // 水线的泡沫
-      ctx.beginPath();
-      started = false;
-      for (let k = 0; k < n; k++) {
-        if (by[k] - ty[k] < 0.3) { started = false; continue; }
-        if (!started) { ctx.moveTo(bx[k], by[k]); started = true; } else ctx.lineTo(bx[k], by[k]);
+      // 水线：脊背两端出水处的一点白沫
+      let k0 = -1, k1 = -1;
+      for (let k = 0; k < n; k++) if (by[k] - ty[k] > 0.6) { if (k0 < 0) k0 = k; k1 = k; }
+      if (k0 >= 0) {
+        ctx.fillStyle = css(W.shade(FOAM, 0.1, 0.25), 0.22 * vis * (0.3 + 0.7 * W.daylight));
+        ctx.beginPath();
+        const rx = Math.max(1, 0.04 * L * s), ry = Math.max(0.5, rx * fz * 0.5);
+        ctx.ellipse(bx[k0], by[k0], rx, ry, 0, 0, TAU);
+        ctx.moveTo(bx[k1] + rx * 0.8, by[k1]);
+        ctx.ellipse(bx[k1], by[k1], rx * 0.8, ry, 0, 0, TAU);
+        ctx.fill();
       }
-      ctx.strokeStyle = css(W.shade(FOAM, 0.1, 0.25), 0.55 * vis * (0.35 + 0.65 * W.daylight));
-      ctx.lineWidth = Math.max(0.8, s * 1.8);
-      ctx.stroke();
     }
     // 下潜时举起的尾鳍
     if (w.st === 'dive' && w.fluke > 0.02) {
       const tk = -0.46;
       const X = w.x + s * (tk * L * c), Y = w.y + s * fz * (tk * L * sn);
       const hf = w.fluke * 0.2 * L * s;
-      const wf = 0.17 * L * s * (0.42 + 0.58 * Math.abs(sn));
-      const tilt = c * 0.25;
+      const wf = 0.19 * L * s * (0.62 + 0.38 * Math.abs(sn));
+      const tilt = c * 0.18;
+      const st = 0.018 * L * s;
       ctx.beginPath();
-      ctx.moveTo(X - 0.025 * L * s, Y);
-      ctx.lineTo(X - 0.02 * L * s, Y - hf * 0.6);
-      ctx.quadraticCurveTo(X - wf * 0.6, Y - hf * 0.62 - tilt * wf, X - wf, Y - hf * 1.05 - tilt * wf);
-      ctx.quadraticCurveTo(X - wf * 0.5, Y - hf * 0.86, X, Y - hf * 0.92);
-      ctx.quadraticCurveTo(X + wf * 0.5, Y - hf * 0.86, X + wf, Y - hf * 1.05 + tilt * wf);
-      ctx.quadraticCurveTo(X + wf * 0.6, Y - hf * 0.62 + tilt * wf, X + 0.02 * L * s, Y - hf * 0.6);
-      ctx.lineTo(X + 0.025 * L * s, Y);
+      ctx.moveTo(X - st * 1.5, Y);
+      ctx.quadraticCurveTo(X - st, Y - hf * 0.35, X - st * 0.6, Y - hf * 0.62);
+      ctx.quadraticCurveTo(X - wf * 0.55, Y - hf * 0.6 - tilt * wf, X - wf, Y - hf * 1.02 - tilt * wf);
+      ctx.quadraticCurveTo(X - wf * 0.55, Y - hf * 0.95, X - wf * 0.2, Y - hf * 0.96);
+      ctx.quadraticCurveTo(X - wf * 0.06, Y - hf * 0.95, X, Y - hf * 0.86);
+      ctx.quadraticCurveTo(X + wf * 0.06, Y - hf * 0.95, X + wf * 0.2, Y - hf * 0.96);
+      ctx.quadraticCurveTo(X + wf * 0.55, Y - hf * 0.95, X + wf, Y - hf * 1.02 + tilt * wf);
+      ctx.quadraticCurveTo(X + wf * 0.55, Y - hf * 0.6 + tilt * wf, X + st * 0.6, Y - hf * 0.62);
+      ctx.quadraticCurveTo(X + st, Y - hf * 0.35, X + st * 1.5, Y);
       ctx.closePath();
       ctx.fillStyle = css(col, 0.96 * vis);
       ctx.fill();
@@ -1176,11 +1182,11 @@
       const pale = Math.max(0, -sn) * 0.85;
       if (pale > 0.05) {
         ctx.beginPath();
-        ctx.moveTo(X, Y - hf * 0.8);
-        ctx.quadraticCurveTo(X - wf * 0.5, Y - hf * 0.72, X - wf * 0.85, Y - hf * 0.98 - tilt * wf);
-        ctx.quadraticCurveTo(X - wf * 0.45, Y - hf * 0.84, X, Y - hf * 0.88);
-        ctx.quadraticCurveTo(X + wf * 0.45, Y - hf * 0.84, X + wf * 0.85, Y - hf * 0.98 + tilt * wf);
-        ctx.quadraticCurveTo(X + wf * 0.5, Y - hf * 0.72, X, Y - hf * 0.8);
+        ctx.moveTo(X, Y - hf * 0.7);
+        ctx.quadraticCurveTo(X - wf * 0.5, Y - hf * 0.66, X - wf * 0.9, Y - hf * 1.0 - tilt * wf);
+        ctx.quadraticCurveTo(X - wf * 0.45, Y - hf * 0.9, X, Y - hf * 0.84);
+        ctx.quadraticCurveTo(X + wf * 0.45, Y - hf * 0.9, X + wf * 0.9, Y - hf * 1.0 + tilt * wf);
+        ctx.quadraticCurveTo(X + wf * 0.5, Y - hf * 0.66, X, Y - hf * 0.7);
         ctx.fillStyle = css(C.belly, pale * vis * 0.8);
         ctx.fill();
       }
@@ -1212,12 +1218,12 @@
   }
   function breachGeom(w) {
     const s = scaleAt(w.by), L = w.L * s, p = c01(w.T / w.dur);
-    const h = (-0.5 + 3.0 * p * (1 - p)) * L;
-    const phi = lerp(1.25, -0.95, Math.pow(p, 0.92));
-    const cx = w.bx + w.bdir * L * 0.42 * p, cy = w.by - h;
+    const h = (-0.52 + 2.7 * p * (1 - p)) * L;
+    const phi = p < 0.42 ? lerp(1.32, 1.02, U.easeOut(p / 0.42)) : lerp(1.02, 0.12, U.easeInOut((p - 0.42) / 0.58));
+    const cx = w.bx + w.bdir * L * (0.1 * p + 0.22 * sstep(0.35, 1, p)), cy = w.by - h;
     const ux = w.bdir * Math.cos(phi), uy = -Math.sin(phi);
-    const px = w.bdir * Math.sin(phi), py = -Math.cos(phi);
-    const roll = Math.PI * 0.95 * sstep(0.18, 0.85, p);
+    const px = -w.bdir * Math.sin(phi), py = -Math.cos(phi);
+    const roll = Math.PI * 0.9 * sstep(0.3, 0.9, p);
     return { s, L, cx, cy, ux, uy, px, py, roll, p };
   }
   function drawBreachBody(ctx, w, g, C, a) {
@@ -1226,7 +1232,7 @@
     ctx.fillStyle = css(col, a);
     ctx.fill();
     // 浅色的腹：翻滚时越来越多地朝向我们
-    const bk = 0.25 + 0.75 * Math.sin(g.roll * 0.9);
+    const bk = 0.2 + 0.8 * Math.sin(g.roll * 0.9);
     ctx.beginPath();
     const n2 = SIDE_B.length;
     for (let k = 0; k < n2; k++) {
@@ -1235,26 +1241,26 @@
       if (k === 0) ctx.moveTo(X, Y); else ctx.lineTo(X, Y);
     }
     for (let k = n2 - 1; k >= 0; k--) {
-      const aa = SIDE_B[k][0] * g.L, v = SIDE_B[k][1] * g.L * (1 - 0.55 * bk) + 0.02 * g.L * bk;
+      const aa = SIDE_B[k][0] * g.L, v = SIDE_B[k][1] * g.L * (1 - 0.5 * bk);
       ctx.lineTo(g.cx + aa * g.ux + v * g.px, g.cy + aa * g.uy + v * g.py);
     }
     ctx.closePath();
-    ctx.fillStyle = css(C.belly, a * (0.55 + 0.4 * bk));
+    ctx.fillStyle = css(U.mixRGB(col, C.belly, 0.45 + 0.4 * bk), a);
     ctx.fill();
     // 长长的白色胸鳍，随翻滚摆开
     const fa = Math.sin(g.roll + 0.4);
-    const r0 = 0.24 * g.L, len = 0.3 * g.L;
+    const r0 = 0.25 * g.L, len = 0.28 * g.L;
     const bx = g.cx + r0 * g.ux - 0.07 * g.L * g.px, by = g.cy + r0 * g.uy - 0.07 * g.L * g.py;
     const dx = -0.55 * g.ux - (0.6 + 0.4 * fa) * g.px, dy = -0.55 * g.uy - (0.6 + 0.4 * fa) * g.py;
     const dl = Math.hypot(dx, dy) || 1;
     const ex = bx + (dx / dl) * len, ey = by + (dy / dl) * len;
-    const nx = -(dy / dl) * 0.035 * g.L, ny = (dx / dl) * 0.035 * g.L;
+    const nx = -(dy / dl) * 0.026 * g.L, ny = (dx / dl) * 0.026 * g.L;
     ctx.beginPath();
     ctx.moveTo(bx + nx, by + ny);
     ctx.quadraticCurveTo((bx + ex) / 2 + nx * 1.4, (by + ey) / 2 + ny * 1.4, ex, ey);
     ctx.quadraticCurveTo((bx + ex) / 2 - nx * 0.6, (by + ey) / 2 - ny * 0.6, bx - nx, by - ny);
     ctx.closePath();
-    ctx.fillStyle = css(U.mixRGB(C.belly, col, 0.25), a * 0.95);
+    ctx.fillStyle = css(U.mixRGB(C.belly, col, 0.2), a);
     ctx.fill();
     // 描光
     ctx.beginPath();
@@ -1291,7 +1297,7 @@
       const wx = g.cx, rx = g.L * 0.16 * (0.5 + k), ry = rx * fzOf(depthAt(w.by)) * 0.9;
       ctx.beginPath();
       ctx.ellipse(wx, w.by, rx, Math.max(0.5, ry), 0, 0, TAU);
-      ctx.fillStyle = css(fo, 0.35 * k * vis * (0.4 + 0.6 * W.daylight));
+      ctx.fillStyle = css(fo, 0.16 * k * vis * (0.4 + 0.6 * W.daylight));
       ctx.fill();
     }
   }
@@ -1310,7 +1316,7 @@
       ctx.beginPath();
       ctx.ellipse(r.x, r.y, R, Math.max(0.3, R * r.fz * 0.85), 0, 0, TAU);
       if (r.kind === 2) {
-        ctx.fillStyle = css(W.shade(FOAM, 0.1, 0.2), 0.3 * fade * r.a * dayK);
+        ctx.fillStyle = css(W.shade(FOAM, 0.1, 0.2), 0.14 * fade * r.a * dayK);
         ctx.fill();
         continue;
       }
