@@ -280,7 +280,7 @@
       },
     },
     {
-      day: 5, kind: 'cmd', utter: '要有雀鸟飞在天空之中', cmd: 'spawn 雀鸟 --in 天空', ref: '1:21', good: 1,
+      day: 5, kind: 'cmd', utter: '要有雀鸟飞在地面以上，天空之中', cmd: 'spawn 雀鸟 --in 天空', ref: '1:20–21', good: 1,
       verse: [{ text: '又造出各样飞鸟，各从其类。神看着是好的。', ref: '创世记 1:21' }],
       apply(c) {
         const p = skyPoint(chooseX(c, 'x'), chooseY(c, 'y'));
@@ -324,7 +324,7 @@
       },
     },
     {
-      day: 6, kind: 'human', utter: '我们要照着我们的形像造人', cmd: 'create 人 --image 神 --as 男,女', ref: '1:26–27', hold: 4,
+      day: 6, kind: 'human', utter: '我们要照着我们的形像、按着我们的样式造人', cmd: 'create 人 --image 神 --as 男,女', ref: '1:26–27', hold: 4.4,
       verse: [
         { text: '神说：「我们要照着我们的形像、按着我们的样式造人，<br>使他们管理海里的鱼、空中的鸟、地上的牲畜，<br>和全地，并地上所爬的一切昆虫。」', ref: '创世记 1:26', hold: 8 },
         { text: '神就照着自己的形像造人，<br>乃是照着他的形像造男造女。', ref: '创世记 1:27', hold: 6 },
@@ -351,7 +351,7 @@
       },
     },
     {
-      day: 6, kind: 'behold', utter: '看哪，一切所造的都甚好', cmd: 'review --all  # ✓ 甚好', ref: '1:31', good: 2, hold: 5,
+      day: 6, kind: 'behold', utter: '神看着一切所造的都甚好', cmd: 'review --all  # ✓ 甚好', ref: '1:31', good: 2, hold: 5,
       verse: [{ text: '神看着一切所造的都甚好。', ref: '创世记 1:31', hold: 6 }],
       apply(c) {
         W.set('good', 1, c.instant);
@@ -423,8 +423,19 @@
     '鹿': 'beast', '狮子': 'beast', '马': 'beast', '象': 'beast', '兔子': 'beast',
     '蝴蝶': 'creep', '萤火虫': 'creep', '甲虫': 'creep', '人': 'human',
   };
-  function beholdAt(x, y, label) {
+  // p：被拾取的对象（可能自带经文 verse）；mod：它来自哪个模块
+  function beholdAt(x, y, label, mod, p) {
+    if (p && p.verse && p.verse.text) return { kind: 'thing', verse: p.verse };
+    // 各卷可登记自己人物与布景的经文：GS.book.act({ behold: { 标签: {text, ref} } })
+    if (label && GS.book) {
+      for (let i = GS.book.ACTS.length - 1; i >= 0; i--) {
+        const b = GS.book.ACTS[i].behold;
+        if (b && b[label]) return { kind: 'thing', verse: b[label] };
+      }
+    }
     let k = label ? (LABEL_KIND[label] || (/树/.test(label) ? 'tree' : null)) : null;
+    if (!k && mod === 'cast') k = 'human';               // 创世记里的人：都是照着神的形像造的
+    if (!k && mod === 'scenes') return { kind: 'thing', verse: null };   // 布景自有其名，不配一句无关的经文
     if (!k) {
       if (y < W.horizonY) {
         if (W.lv.moon > 0.5 && Math.hypot(x - W.moon.x, y - W.moon.y) < M() * 0.12 && W.moon.elev > -0.05) k = 'moon';
@@ -433,7 +444,7 @@
         else if (W.lv.vault > 0.5) k = 'sky';
         else k = 'light';
       } else if (W.isSea(x, y)) k = 'waters';
-      else k = W.lv.trees > 0.5 ? 'grass' : 'waters';
+      else k = 'grass';
     }
     return { kind: k, verse: BEHOLD[k] };
   }

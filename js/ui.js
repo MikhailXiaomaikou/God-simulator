@@ -15,7 +15,7 @@
   let utterText = '', utterShown = 0, utterFadeT = 0, utterState = 'idle';
 
   const DAY_CH = ['一', '二', '三', '四', '五', '六', '七'];
-  const DAY_NAME = ['起初', '第一日', '第二日', '第三日', '第四日', '第五日', '第六日', '第七日'];
+  const DAY_NAME = ['起初', '头一日', '第二日', '第三日', '第四日', '第五日', '第六日', '第七日'];
 
   function init() {
     el = {
@@ -29,7 +29,7 @@
   }
 
   // ── 神谕：按住时逐字浮现 ────────────────────────────────────
-  let utterKind = '';
+  let utterKind = '', utterChars = [];
   const PUNCT = /[，。、；：！？「」『』（）…—,.;:!?]/;
   // 每个字带一点手写的随性：微斜、微高低、微大小，言说时轻轻浮动
   function utterBegin(text, tint, kind) {
@@ -39,15 +39,20 @@
     utterState = 'speaking';
     el.utter.className = 'layer' + (kind ? ' k-' + kind : '');
     let k = 0;
-    el.utter.innerHTML = Array.from(text).map(ch => {
-      if (ch === ' ') return '<span class="ch pu">&nbsp;</span>';
+    // 以标点为界分成若干段，段内不折行：名字与词语不会被拆到两行（太长的段仍可折行，免得溢出窄屏）
+    const segs = [[]];
+    Array.from(text).forEach(ch => {
+      if (ch === ' ') { segs.push([]); return; }
       const pu = PUNCT.test(ch);
       const r = pu ? 0 : (Math.random() * 2 - 1) * 3.4;
       const y = pu ? 0 : (Math.random() * 2 - 1) * 0.07;
       const sc = pu ? 1 : 0.93 + Math.random() * 0.17;
-      return '<span class="ch' + (pu ? ' pu' : '') + '" style="--r:' + r.toFixed(2) + 'deg;--y:' + y.toFixed(3) + 'em;--s:' + sc.toFixed(3) +
-        ';--f:' + (-Math.random() * 3.4).toFixed(2) + 's;--k:' + (k++) + '"><i>' + ch + '</i></span>';
-    }).join('');
+      segs[segs.length - 1].push('<span class="ch' + (pu ? ' pu' : '') + '" style="--r:' + r.toFixed(2) + 'deg;--y:' + y.toFixed(3) + 'em;--s:' + sc.toFixed(3) +
+        ';--f:' + (-Math.random() * 3.4).toFixed(2) + 's;--k:' + (k++) + '"><i>' + ch + '</i></span>');
+      if (pu) segs.push([]);
+    });
+    el.utter.innerHTML = segs.filter(g => g.length).map(g => '<span class="seg' + (g.length > 8 ? ' long' : '') + '">' + g.join('') + '</span>').join('');
+    utterChars = el.utter.querySelectorAll('.ch');
     el.utter.style.transition = 'opacity 0.3s ease';
     el.utter.style.opacity = '1';
     el.utter.style.transform = '';
@@ -58,7 +63,7 @@
   // 返回当前显出的字数
   function utterProgress(charge) {
     if (utterState !== 'speaking') return utterShown;
-    const chars = el.utter.children;
+    const chars = utterChars;
     // 「甚好」：先看，后说——前半段只是凝视，话语在后半段才浮现
     const f = utterKind === 'behold' ? Math.max(0, (charge - 0.45) / 0.4) : charge / 0.85;
     const n = Math.min(chars.length, Math.ceil(f * chars.length));
@@ -71,7 +76,7 @@
   // 说满松手：话语成就——一字接一字化光升去
   function utterFulfill() {
     utterState = 'fulfilled';
-    const chars = el.utter.children;
+    const chars = utterChars;
     for (let i = 0; i < chars.length; i++) chars[i].classList.add('on');
     el.utter.classList.add('done');
     el.utter.style.transition = 'transform 2.6s ease, filter 1.4s ease';
@@ -135,6 +140,11 @@
       narrTimer = later(Math.max(delay * 1000, wasShown ? 900 : 0), show);
     } else show();
   }
+  // 故事仍在展开时，经文下方有一行轻轻呼吸的「· · ·」
+  let unfolding = false;
+  function setUnfolding(on) { if (on !== unfolding) { unfolding = on; el.scripture.classList.toggle('unfolding', on); } }
+  // 大地已成之后，经文移到海的一侧（不遮住地上正发生的事）
+  function setStage(acts) { document.body.classList.toggle('acts', !!acts); }
   function clearNarration() {
     narrQueue = []; cancel(narrTimer); narrShowing = false;
     el.scripture.classList.remove('show');
@@ -318,7 +328,7 @@
 
   GS.ui = {
     init, utterBegin, utterProgress, utterFulfill, utterCancel,
-    narrate, clearNarration, narrating, hint, hideHint,
+    narrate, clearNarration, narrating, hint, hideHint, setUnfolding, setStage,
     setDays, showDays, showTools, renderLedger, toggleLedger, toggleHelp, panelOpen,
     showTitle, hideTitle, setTitlePrompt, dimTitle, tag, finale, setSoundButton, setAct, actCard,
     DAY_NAME,

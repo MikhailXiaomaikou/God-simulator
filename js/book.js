@@ -86,6 +86,8 @@
   const timers = [];
   function after(sec, fn) { const h = { at: W.t + Math.max(0, sec) / (W.fast || 1), fn }; timers.push(h); timers.sort((a, b) => a.at - b.at); return h; }
   function cancel(h) { const i = timers.indexOf(h); if (i >= 0) timers.splice(i, 1); }
+  // 丢弃一切未发生的情节与计时（恢复存档 / 跳转时）
+  function reset() { pending.length = 0; timers.length = 0; }
   function tick() {
     let guard = 50;
     while (pending.length && pending[0].at <= W.t && guard--) run(pending[0], false);
@@ -93,7 +95,13 @@
     while (timers.length && timers[0].at <= W.t && guard--) { const t = timers.shift(); safe('timer', t.fn); }
   }
   // 把尚未发生的情节立即补完（按原先的先后）
-  function flush() { let guard = 500; while (pending.length && guard--) run(pending[0], true); }
+  function flush() {
+    if (!pending.length) return;
+    // 先让正走在路上的人走到（与瞬间重演一致），再补完未发生的情节
+    safe('flush.settle', () => GS.cast && GS.cast.restore && GS.cast.restore());
+    let guard = 500;
+    while (pending.length && guard--) run(pending[0], true);
+  }
   const busy = () => pending.length > 0;
 
   // ── 各卷布景的总调度 ────────────────────────────────────────
@@ -148,7 +156,7 @@
 
   // 每一卷开始时，这些"卷内"的程度先回到默认，再由该卷的 setup 自行设定（前一卷的枯黄、花隐等不会误带过来）
   const ACT_DEFAULTS = { bare: 0, bloom: 1 };
-  function resetActLevels() { for (const k in ACT_DEFAULTS) if (W.hasLevel(k)) W.set(k, ACT_DEFAULTS[k], true); }
+  function resetActLevels() { for (const k in ACT_DEFAULTS) if (W.hasLevel(k)) W.set(k, ACT_DEFAULTS[k], true); W.beastAvoid = []; }
 
-  GS.book = { ACTS, act, actOf, timeline, flush, busy, after, cancel, resync, current, resetActLevels, ACT_DEFAULTS, CN_NUM, scenes };
+  GS.book = { ACTS, act, actOf, timeline, flush, busy, after, cancel, reset, resync, current, resetActLevels, ACT_DEFAULTS, CN_NUM, scenes };
 })(window.GS);

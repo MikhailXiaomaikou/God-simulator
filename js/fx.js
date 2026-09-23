@@ -162,20 +162,23 @@
   function drawHeavens(ctx) {
     const A = starAlpha();
     ctx.globalCompositeOperation = 'lighter';
-    if (constellation && A > 0.01) {
-      // 星座的连线：只在深夜隐约可见，像一张星图
-      ctx.strokeStyle = U.rgba(200, 215, 255, 0.07 * A);
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      for (let i = 0; i < constellation.length; i++) {
-        const X = constellation[i][0] * W.w, Y = constellation[i][1] * W.h;
-        if (i === 0) ctx.moveTo(X, Y); else ctx.lineTo(X, Y);
+    // 你的星座：此后每夜都在，但只在深夜清楚（黄昏黎明时淡去）；连线只在七日与全书终了后显出
+    const cA = W.lv.stars * overcast() * Math.pow(clamp(W.night, 0, 1), 1.5);
+    if (constellation && cA > 0.01) {
+      if (W.act === 0 || W.stage >= (GS.story ? GS.story.STAGES.length : 1e9)) {
+        ctx.strokeStyle = U.rgba(200, 215, 255, 0.07 * cA);
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        for (let i = 0; i < constellation.length; i++) {
+          const X = constellation[i][0] * W.w, Y = constellation[i][1] * W.h;
+          if (i === 0) ctx.moveTo(X, Y); else ctx.lineTo(X, Y);
+        }
+        ctx.stroke();
       }
-      ctx.stroke();
       for (let i = 0; i < constellation.length; i++) {
         const X = constellation[i][0] * W.w, Y = constellation[i][1] * W.h;
         const tw = 0.75 + 0.25 * Math.sin(W.t * (1.3 + (i % 5) * 0.37) + i * 2.1);
-        flare(ctx, X, Y, 1.5 + (i % 3) * 0.35, [244, 247, 255], A * tw);
+        flare(ctx, X, Y, 1.5 + (i % 3) * 0.35, [244, 247, 255], cA * tw);
       }
     }
     if (goodStar) {
