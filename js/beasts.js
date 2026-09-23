@@ -131,7 +131,17 @@
     const a = x0 + m * 0.4, b = Math.min(x1, W.w - m);
     return b - a > 20 ? [a, b] : null;
   }
-  function calcSpans() { SPAN[1] = scan(1); SPAN[2] = scan(2); }
+  // 近地的纵深：窄高的屏幕（竖屏手机）上，田野相对生灵更高，便让它们散得更开
+  const VMAX = [0.3, 0.4, 0.55];
+  function calcSpans() {
+    SPAN[1] = scan(1); SPAN[2] = scan(2);
+    const s = SPAN[2];
+    if (s) {
+      const fh = W.h - W.ridgeBaseY(2, (s[0] + s[1]) / 2);
+      const rel = fh / (cu() * 100);
+      VMAX[2] = clamp(0.33 + 0.15 * rel, 0.5, 0.8);
+    }
+  }
   function span(layer) { if (!SPAN[layer]) SPAN[layer] = scan(layer); return SPAN[layer] || [W.w * 0.55, W.w * 0.95]; }
   function clampX(layer, x, m) { const s = span(layer); m = Math.min(m || 0, (s[1] - s[0]) * 0.3); return clamp(x, s[0] + m, s[1] - m); }
 
@@ -143,7 +153,7 @@
     LT.sunCol = mix(RIM_DAY, RIM_WARM, c01(dk * 1.2));
     LT.sx = W.core.x; LT.sy = W.core.y;
     const mo = W.moon;
-    LT.moonA = mo && mo.vis > 0 ? mo.vis * W.night * sstep(-0.06, 0.2, mo.elev) * 0.6 : 0;
+    LT.moonA = mo && mo.vis > 0 ? mo.vis * W.night * sstep(-0.06, 0.2, mo.elev) * 0.85 : 0;
     LT.mx = mo ? mo.x : 0; LT.my = mo ? mo.y : 0;
     const sp = W.spirit;
     LT.spx = sp.x; LT.spy = sp.y;
@@ -694,12 +704,12 @@
     let x, v;
     if (instant) {
       x = clampX(layer, anchorX + rnd(-1, 1) * (s[1] - s[0]) * 0.42, 20 * u);
-      v = layer === 2 ? Math.pow(Math.random(), 1.3) * 0.5 : rnd(0.05, 0.4);
+      v = layer === 2 ? Math.pow(Math.random(), 1.3) * VMAX[2] * 0.92 : rnd(0.05, 0.4);
     } else {
       const pair = Math.floor(k / 2), side = pair % 2 ? 1 : -1, ring = Math.ceil(pair / 2);
       x = anchorX + side * ring * 34 * u + (k % 2 ? 1 : -1) * 8 * u + rnd(-4, 4) * u;
       x = clampX(layer, x, 16 * u);
-      v = layer === 2 ? 0.04 + (pair % 3) * 0.13 + rnd(0, 0.05) : rnd(0.05, 0.3);
+      v = layer === 2 ? 0.04 + (pair % 3) * 0.24 * VMAX[2] + rnd(0, 0.05) : rnd(0.05, 0.3);
     }
     const a = newAnimal(sp, layer, x, v, instant);
     individuate(a, countSp(sp));
@@ -784,14 +794,14 @@
     if (i < kinds.beetles) {
       c.kind = 'beetle';
       c.x = clampX(2, instant ? rnd(s[0], s[1]) : anchorX + rnd(-50, 50) * u, 6 * u);
-      c.v = rnd(0.08, 0.55); c.dir = Math.random() < 0.5 ? -1 : 1; c.spd = 0; c.pause = rnd(0, 3); c.leg = 0;
+      c.v = rnd(0.08, VMAX[2]); c.dir = Math.random() < 0.5 ? -1 : 1; c.spd = 0; c.pause = rnd(0, 3); c.leg = 0;
       if (!instant && fxOK()) GS.fx.dust(c.x, footY(2, c.x, c.v), 6, [150, 120, 84], 3 * u);
       return c;
     }
     c.kind = i < kinds.beetles + kinds.bf ? 'bf' : 'ff';
     // 萤：栖在近地的草上
     c.hx = instant ? rnd(s[0], s[1]) : clampX(2, anchorX + rnd(-160, 160) * u, 0);
-    c.hv = Math.pow(Math.random(), 0.8) * 0.8;
+    c.hv = Math.pow(Math.random(), 0.8) * Math.min(0.85, VMAX[2] + 0.2);
     c.hh = rnd(6, 38);
     c.bp = rnd(1.0, 1.6); c.bph = Math.random() * TAU; c.att = 0; c.fx = c.hx; c.fy = 0; c.fa = 0;
     if (c.kind === 'bf') {
@@ -813,6 +823,7 @@
   function popN(kind) { const p = W.pop && W.pop[kind]; return p && p.n > 0 ? p.n : 0; }
   function syncPops(forceInstant) {
     let addC = [], addB = [];
+    const hadG = GQ.length, hadH = HQ.length, hadC = CQ.length;
     for (const kind of ['cattle', 'beast']) {
       const p = W.pop[kind];
       if (!p) continue;
@@ -835,7 +846,7 @@
       while (src.length && src[0].sp === sp && n < 2) { const it = src.shift(); GQ.push({ sp: it.sp, kind: it.kind, pair: pairIdx, k: n }); n++; }
       pairIdx++;
     }
-    if (GQ.length && next.ground < W.t) next.ground = W.t + 0.35 / fastK();
+    if (GQ.length && !hadG) next.ground = Math.max(next.ground, W.t + 0.35 / fastK());
 
     // 人
     const hp = W.pop.human;
@@ -847,7 +858,7 @@
         if (inst) spawnHuman(kind, clampX(2, hp.x || W.w * 0.7, 0), true);
         else HQ.push({ kind });
       }
-      if (HQ.length && next.human < W.t) next.human = W.t + (HQ[0].kind === 'child' ? 1.2 : 0.4) / fastK();
+      if (HQ.length && !hadH) next.human = Math.max(next.human, W.t + (HQ[0].kind === 'child' ? 1.2 : 0.4) / fastK());
     }
     // 昆虫
     const cp = W.pop.creeper;
@@ -858,7 +869,7 @@
         if (inst) CR.push(newCreeper(i, cp.n, cp.x || W.w * 0.72, true));
         else CQ.push({ i, n: cp.n });
       }
-      if (CQ.length && next.creeper < W.t) next.creeper = W.t + 0.8 / fastK();
+      if (CQ.length && !hadC) next.creeper = Math.max(next.creeper, W.t + 0.8 / fastK());
     }
   }
   function runQueues() {
@@ -922,7 +933,7 @@
       x = a.x + rnd(-1, 1) * (far ? 160 : 90) * u;
     }
     a.tx = clampX(a.layer, x, M.len * 0.5 * u);
-    const vmax = a.layer === 2 ? 0.55 : 0.4;
+    const vmax = VMAX[a.layer];
     a.tv = clamp(a.v + rnd(-0.12, 0.12), 0.02, vmax);
   }
   function think(a) {
@@ -939,9 +950,13 @@
     if (W.t > a.drinkAt && a.st !== 'drink') {
       a.drinkAt = W.t + rnd(60, 120);
       const s = span(a.layer);
+      let busy = 0;
+      for (const b of AN) if (b.st === 'drink') busy++;
+      if (busy >= 2 || a.x - s[0] > 300 * cu() * LK[a.layer]) { a.drinkAt = W.t + rnd(20, 60); think(a); return; }
       a.tx = s[0] + rnd(2, 10) * cu() * LK[a.layer]; a.tv = rnd(0.0, 0.06);
       a.phase = 0; setSt(a, 'drink', 60); return;
     }
+    a.tx = a.x;
     if ((noon && r < 0.35) || r < 0.06 * restK) { setSt(a, 'rest', rnd(10, 26) * restK); return; }
     if (r < 0.46) { setSt(a, 'graze', rnd(M.graze[0], M.graze[1])); return; }
     if (r < 0.82) { pickTarget(a, Math.random() < 0.2); setSt(a, 'walk', 25); return; }
@@ -968,7 +983,7 @@
     const sp = W.spirit, u = cu() * LK[a.layer];
     const cx = a.x, cy = a.y - M.top * a.S * 0.5;
     const dxs = sp.x - cx, dys = sp.y - cy, ds = Math.hypot(dxs, dys);
-    const night = W.night > 0.5;
+    const night = W.night > 0.62;
     let mode = '';
     if (W.ritual.holding || awe()) mode = 'listen';
     else if (a.fleeT > 0) mode = 'flee';
@@ -994,7 +1009,7 @@
       faceT = sgn(dxs);
       neckT = lookAngleAt(a, sp.x, sp.y);
       a.curious = Math.min(a.curious + dt, 10);
-      const stop = 50 * Math.max(0.6, uu());
+      const stop = (46 + a.seed * 64) * Math.max(0.6, uu());
       if (M.curious !== undefined || M.cls === 'cattle') {
         if (Math.abs(dxs) > stop + 6 && a.curious > 0.8 && a.sp !== 'lion') { spdT = M.walk * 0.7; a.dir = sgn(dxs); }
       }
@@ -1032,7 +1047,8 @@
         case 'drink': {
           const s = span(a.layer);
           if (a.phase === 0) {
-            spdT = M.walk; neckT = M.up;
+            spdT = M.walk * 1.15; neckT = M.up;
+            if (a.stT > 60) { think(a); break; }
             if (Math.abs(a.tx - a.x) < 2 || a.x <= s[0] + 2) { a.phase = 1; a.stT = 0; a.dur = rnd(5, 8); }
           } else {
             a.dir = -1; neckT = a.type === 'q' ? M.grazeA - 0.05 : -1; pitchT = 0.07;
@@ -1095,7 +1111,7 @@
         const am = a.lie > 0.5 ? 0.2 : 1, bm = b.lie > 0.5 ? 0.2 : 1;
         a.x = clampX(a.layer, a.x - s * push * am, 0);
         b.x = clampX(b.layer, b.x + s * push * bm, 0);
-        if (Math.abs(dx) < need * 0.5) { a.v = clamp(a.v - 0.02 * dt * am, 0.01, 0.6); b.v = clamp(b.v + 0.02 * dt * bm, 0.01, 0.6); }
+        if (Math.abs(dx) < need * 0.5) { a.v = clamp(a.v - 0.02 * dt * am, 0.01, VMAX[a.layer]); b.v = clamp(b.v + 0.02 * dt * bm, 0.01, VMAX[b.layer]); }
       }
     }
   }
@@ -1113,10 +1129,10 @@
   }
   function band() {
     const t = W.tod;
-    if (W.night > 0.55 || t < 0.2 || t > 0.86) return 'night';
-    if (t < 0.28) return 'dawn';
-    if (t > 0.69) return 'dusk';
-    if (!W.freeClock && !W.cycling) return 'day';
+    if (!W.freeClock && !W.cycling) return W.night > 0.55 ? 'night' : 'day';
+    if (t >= 0.8 || t < 0.21) return 'night';
+    if (t < 0.29) return 'dawn';
+    if (t >= 0.68) return 'dusk';
     if (t > 0.46 && t < 0.6) return 'noon';
     return 'day';
   }
@@ -1128,6 +1144,7 @@
     if (b === 'night') { h.act = 'sleep'; h.actDur = 1e9; return; }
     if (b === 'dawn') { h.act = 'wake'; h.actDur = 1e9; return; }
     if (b === 'dusk') {
+      if (h.act === 'sunset') { h.actDur = 1e9; return; }
       h.act = 'sunset'; h.actDur = 1e9;
       h.tx = clampX(2, h.x + rnd(-40, 40) * u, 16 * u); h.tv = 0.03;
       return;
@@ -1192,6 +1209,7 @@
     const sp = W.spirit;
     let base = h.pose, spdT = 0, faceT = h.dir;
     h.raiseT = 0; h.reachT = 0; h.lookT = 0; h.holding = false;
+    if (h.blessT > 0) { h.blessT -= dt; h.raiseT = 1; }
     // ── 成形：尘 → 卧着的人形 → 灵的气息流入胸口 → 坐起 → 站立 → 仰望 ──
     if (h.eT < EMH) {
       const e0 = h.eT;
@@ -1239,7 +1257,9 @@
     if (sp.speed > FAST() && ds < 260 * Math.max(0.6, uu())) humanLook(h, sp.x, sp.y, 0.6);   // 目光追随，不惧怕
     // ── 日程 ──
     if (lead) {
-      if (!h.act || h.actT > h.actDur || bandChanged(h)) planLeader(h);
+      const bc = bandChanged(h), b = band();
+      const wantName = W.lv.sabbath > 0.9 && W.t > nameNext && (b === 'day' || b === 'noon') && (h.act === 'tree' || h.act === 'walk' || h.act === 'sea') && h.actT > 6;
+      if (!h.act || h.actT > h.actDur || bc || wantName) planLeader(h);
       h.actT += dt;
       const r = doAct(h, dt);
       base = r.pose; spdT = r.spd; faceT = r.face;
@@ -1274,7 +1294,7 @@
     return false;
   }
   function doAct(h, dt) {
-    const u = cu(), W_ = 13;     // 步速（模型像素 / 秒）
+    const u = cu(), W_ = 16;     // 步速（模型像素 / 秒）
     const r = { pose: 'stand', spd: 0, face: h.dir };
     switch (h.act) {
       case 'sleep': {
@@ -1381,7 +1401,7 @@
   }
   // 女人随男人同行：并肩、牵手；他坐她也坐
   function follow(h, lead, dt) {
-    const u = cu(), W_ = 13;
+    const u = cu(), W_ = 16;
     const r = { pose: 'stand', spd: 0, face: h.dir };
     const gap = 9.5 * u;
     const lp = lead.pose;
@@ -1425,7 +1445,7 @@
     if (h.playT <= 0) {
       h.playT = rnd(2, 6);
       h.tx = clampX(2, L.x + rnd(-60, 60) * u, 6 * u);
-      h.tv = clamp(L.v + rnd(-0.04, 0.2), 0.03, 0.4);
+      h.tv = clamp(L.v + rnd(-0.04, 0.2) * VMAX[2] / 0.55, 0.03, VMAX[2] * 0.75);
       h.still = Math.random() < 0.35;
     }
     h.v = approach(h.v, h.tv, 0.6, dt);
@@ -1448,7 +1468,7 @@
       h.x = clampX(2, h.x + h.dir * mv * h.S * dt, 6 * cu());
       h.v = approach(h.v, h.tv, 0.4, dt);
     }
-    h.gait = c01(h.spd / 13);
+    h.gait = c01(h.spd / 15);
     h.ph += (h.spd / 7.5) * Math.PI * dt;
     // 姿势趋近
     const rate = h.eT < EMH ? 2.2 : 3.2;
@@ -2012,7 +2032,7 @@
         if (!e) return;
         const R = e.r || 200;
         for (const a of AN) { if (Math.hypot(a.x - e.x, a.y - e.y) < R && a.eT >= EM) { a.joy = rnd(1.8, 3); a.joyX = e.x; } }
-        for (const h of HU) { if (Math.hypot(h.x - e.x, h.y - e.y) < R && h.eT >= EMH && h.kind !== 'child') { h.raiseT = 1; } }
+        for (const h of HU) { if (Math.hypot(h.x - e.x, h.y - e.y) < R && h.eT >= EMH && h.kind !== 'child') { h.blessT = 2.4; } }
       });
     }
   }
