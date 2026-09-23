@@ -1339,7 +1339,7 @@
     const rise = fin || smoothstep(2.2, 4.5, t), gather = fin || smoothstep(4.5, 8.5, t), bow = fin || smoothstep(7.5, 10.5, t);
     const A = fade * alpha;
     if (A < 0.01) return;
-    const rx = Math.max(46 * u, 0.065 * W.w) * (e.ghost ? 0.8 : 1), ry = 14 * u;
+    const rx = Math.max(50 * u, 0.075 * W.w) * (e.ghost ? 0.8 : 1), ry = 18 * u;
     const list = [];
     for (let i = 0; i < 11; i++) {
       const sx = cx + (i - 5) * rx * 0.2 + (i < 5 ? -rx * 0.35 : rx * 0.35), sy = cy + (rt(i + 300) - 0.5) * 4 * u;
@@ -1347,7 +1347,7 @@
       const ex = cx + Math.cos(th) * rx, ey = cy + Math.sin(th) * ry;
       const x = lerp(sx, ex, U.easeInOut(gather)), y = lerp(sy, ey, U.easeInOut(gather));
       const dx = x - cx;
-      const tilt = -Math.sign(dx) * Math.min(1, Math.abs(dx) / (rx * 0.6)) * 0.62 * bow;
+      const tilt = -Math.sign(dx) * Math.min(1, Math.abs(dx) / (rx * 0.6)) * 0.48 * bow;
       list.push([y, x, tilt, 0.88 - 0.12 * bow]);
     }
     list.push([cy + 0.1, cx, 0, 0.9 + 0.3 * rise, true]);
@@ -1368,7 +1368,7 @@
     ctx.fill();
   }
   function heavensLayout(e, t, focal) {
-    const u = SU(), R = Math.max(70 * u, M() * 0.17);
+    const u = SU(), R = Math.max(62 * u, M() * 0.15);
     const fin = e.ghost ? 1 : 0;
     const gather = fin || U.easeInOut(smoothstep(3, 8.5, t)), bow = fin || smoothstep(7.5, 10.5, t);
     const out = [];
@@ -1388,7 +1388,7 @@
   function drawHeavens(ctx, e, alpha) {
     const t = e.t, u = SU();
     const jp = figPt(e.id || 'joseph', 0.9) || [0.87 * W.w, W.h * 0.8];
-    const focal = [clamp(jp[0], W.w * 0.2, W.w * 0.85), Math.min(jp[1] - 60 * u, W.h * 0.44)];
+    const focal = [clamp(jp[0], W.w * 0.2, W.w * 0.85), Math.max(jp[1] - 34 * u, W.h * 0.42)];
     const fade = e.ghost ? Math.sin(clamp(t / e.dur, 0, 1) * Math.PI) : smoothstep(0, 2.5, t) * (1 - smoothstep(e.dur - 3.5, e.dur, t));
     const A = fade * alpha;
     if (A < 0.01) return;
