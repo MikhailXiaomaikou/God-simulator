@@ -296,7 +296,7 @@
   // ── 卷：顶部的卷名，与卷首的大字 ─────────────────────────────
   function setAct(a) {
     if (!el.act) return;
-    if (!a) { el.act.classList.remove('show'); showDays(true); return; }
+    if (!a) { el.act.classList.remove('show'); return; }
     showDays(false);
     const html = '<b>' + a.numeral + '</b>' + a.title + '<span>' + (a.sub || '') + '</span>';
     if (el.act.dataset.id !== a.id) { el.act.innerHTML = html; el.act.dataset.id = a.id; }

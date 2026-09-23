@@ -81,6 +81,7 @@
     const a = ACTS[W.act] || ACTS[0];
     if (a.index === 0) {
       GS.ui.setAct(null);
+      if (S.mode !== 'title') GS.ui.showDays(true);
       GS.ui.setDays(W.day, S.sealed, W.stage > ACTS[0].last, goods(), S.mode === 'play' && isRestStage() ? S.breaths : null);
     } else GS.ui.setAct(a);
     GS.ui.renderLedger(STAGES, W.stage, ACTS);
