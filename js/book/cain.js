@@ -1117,6 +1117,8 @@
       for (const k of MY) W.set(k, 0, true);
       P.w = 0;
       layout();
+      // 两座坛、田间与亚伯倒下之处：走兽让开这一片
+      W.beastAvoid = [[at(SPOT.altarA) - 0.04, at(SPOT.field1) + 0.02]];
       const gx = W.w * 0.96, hx = W.w * 0.94, tx = W.w * 0.995;
       W.setOrigin('grass', gx, W.ridgeBaseY(2, gx));
       W.setOrigin('herbs', hx, W.ridgeBaseY(2, hx));
