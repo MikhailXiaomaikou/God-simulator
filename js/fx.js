@@ -43,10 +43,10 @@
     rings.push({ x, y, t: 0, dur: dur || 1.6, maxR: maxR || Math.hypot(W.w, W.h) * 0.5, c: c || [255, 244, 220], width: width || 2 });
   }
   // 升腾的尘土（生灵自地而出）
-  function dust(x, y, n, c, spread) {
+  function dust(x, y, n, c, spread, pass) {
     for (let i = 0; i < (n || 20); i++) {
       add({ x: x + rand(-1, 1) * (spread || 14), y: y + rand(-3, 3), vx: rand(-30, 30), vy: rand(-70, -15), max: rand(0.8, 2.0),
-        size: rand(1, 2.4), c: c || [226, 196, 150], drag: 1.8, grav: 18, a: 0.75, pass: 'near' });
+        size: rand(1, 2.4), c: c || [226, 196, 150], drag: 1.8, grav: 18, a: 0.75, pass: pass || 'near' });
     }
   }
   // 闪光的微尘（生命的火花）
@@ -77,15 +77,26 @@
       if (!document.fonts || !document.fonts.load) return;
       document.fonts.load('200px "GS Brush"', '天地海昼夜圣一二三四五六七头第日').then(() => {
         for (const k in glyphCache) delete glyphCache[k];
+        // 空闲时预先取点，免得第一次聚名时卡顿
+        const warm = Array.from('昼夜天海地圣头一二三四五六七第日');
+        const idle = window.requestIdleCallback || (f => setTimeout(f, 60));
+        const next = () => { const ch = warm.shift(); if (!ch) return; glyphPoints(ch); idle(next); };
+        idle(next);
       }).catch(() => {});
     } catch (e) { /* 老浏览器：用系统字 */ }
   }
+  let glyphCanvas = null, glyphCtx = null;
   function glyphPoints(ch) {
     if (glyphCache[ch]) return glyphCache[ch];
     const S = 240;
-    const c = document.createElement('canvas');
-    c.width = S; c.height = S;
-    const g = c.getContext('2d');
+    if (!glyphCanvas) {
+      glyphCanvas = document.createElement('canvas');
+      glyphCanvas.width = S; glyphCanvas.height = S;
+      glyphCtx = glyphCanvas.getContext('2d', { willReadFrequently: true });
+    }
+    const c = glyphCanvas, g = glyphCtx;
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.clearRect(0, 0, S, S);
     g.font = '900 200px ' + FONT;
     g.textAlign = 'center';
     g.textBaseline = 'middle';
@@ -302,8 +313,12 @@
     const breath = 0.92 + 0.08 * Math.sin(W.t * 1.3);
     const g = ctx.createRadialGradient(x, y, 0, x, y, rad);
     const tint = R.tint || [255, 250, 235];
+    const mid = 0.42 + ch * 0.2;
     g.addColorStop(0, U.rgba(lerp(220, tint[0], ch), lerp(235, tint[1], ch), lerp(255, tint[2], ch), (0.85 + ch * 0.15) * breath));
-    g.addColorStop(0.18 - ch * 0.06, U.rgba(150, 195, 255, 0.42 + ch * 0.2));
+    g.addColorStop(0.18 - ch * 0.06, U.rgba(150, 195, 255, mid));
+    // 缓缓收尾，免得光晕外缘出现一圈硬边
+    g.addColorStop(0.42, U.rgba(110, 160, 235, mid * 0.36));
+    g.addColorStop(0.7, U.rgba(70, 115, 200, mid * 0.1));
     g.addColorStop(1, 'rgba(40, 80, 160, 0)');
     ctx.fillStyle = g;
     ctx.beginPath();
@@ -340,7 +355,8 @@
       const a = Math.pow(1 - p, 0.6) * b.strength;
       const g = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, R);
       g.addColorStop(0, U.rgba(b.c[0], b.c[1], b.c[2], a));
-      g.addColorStop(0.6, U.rgba(220, 235, 255, a * 0.5));
+      g.addColorStop(0.35, U.rgba(235, 242, 255, a * 0.42));
+      g.addColorStop(0.75, U.rgba(220, 235, 255, a * 0.12));
       g.addColorStop(1, 'rgba(255,255,255,0)');
       ctx.globalCompositeOperation = 'lighter';
       ctx.fillStyle = g;

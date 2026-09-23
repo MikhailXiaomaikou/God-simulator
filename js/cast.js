@@ -671,6 +671,8 @@
     if (o.weep != null) p.sobbing = !!o.weep;
     if (ps === 'run' && p.tx != null && !W.replaying) { p.speed = Math.max(p.speed, 0.085); setPose(p, 'run'); return; }
     if (p.tx != null && !o.stop && !W.replaying) { p.afterWalk = ps; return; }
+    // 重演时（下一句话提前成就）：正走着的先走到，再换姿势——与看完时一样
+    if (p.tx != null && !o.stop && W.replaying) { p.nx = p.tx; if (p.faceTo) faceNow(p); p.fd = p.facing; settleFollowers(p.id); }
     p.tx = null; setPose(p, ps);
     if (ps === 'embrace' && W.replaying && !p.isAnimal) closeGap(p, true);
   }

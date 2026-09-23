@@ -124,10 +124,10 @@
     const sp = o.speed || 0.022, t = X.tent;
     const q = (id, x) => walk(id, x, { speed: sp });
     q('abram', t - 0.028); q('sarai', t + 0.016); q('hagar', t + 0.04); q('ishmael', t + 0.056); q('isaac', t + 0.028);
-    if (hasCrowd('hh')) C().crowdWalk('hh', t - 0.15, t - 0.11, { speed: sp });
-    q('cam1', t - 0.17); q('cam2', t - 0.195); q('cam3', t - 0.132); q('don1', t - 0.095);
-    if (hasCrowd('flock2')) C().crowdWalk('flock2', t - 0.28, t - 0.2, { speed: sp });
-    if (hasCrowd('herdC')) C().crowdWalk('herdC', t - 0.25, t - 0.19, { speed: sp });
+    if (hasCrowd('hh')) C().crowdWalk('hh', t + 0.058, t + 0.088, { speed: sp });
+    q('cam1', t + 0.1); q('cam2', t + 0.124); q('cam3', t + 0.148); q('don1', t + 0.078);
+    if (hasCrowd('flock2')) C().crowdWalk('flock2', t + 0.17, t + 0.25, { speed: sp });
+    if (hasCrowd('herdC')) C().crowdWalk('herdC', t + 0.2, t + 0.245, { speed: sp });
   }
 
   // 旁白（情节里补充的经文；瞬间重演时不念）

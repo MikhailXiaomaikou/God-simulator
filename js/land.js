@@ -1937,26 +1937,39 @@
     const invG = 1 / gustStep, lastG = gust.length - 2.001;
     const calm = W.ritual && W.ritual.holding ? 1 - 0.7 * W.ritual.charge : 1;
     const w0 = W.wind * 0.3 * calm, gk = 0.5 * calm;
-    // 近岸铺展面上的草簇摇得轻：隔帧重建，其余帧沿用
+    // 草随风摇得缓：隔帧重建，其余帧沿用上一帧的路径（灵快速掠过这一层时，脊上的草每帧重建）
     const TC = L.tc;
-    const reuse = all && TC && TC.pv === L.pv && (W.frame & 1) === 1 && W.frame - TC.f <= 2;
-    let tone = -1, pth = ctx, built = null;
+    const band = sy > L.minY - Rb - 30 && sy < (L.i === 2 ? H : wl) + Rb;
+    const fastNear = sp.speed > 150 && band;
+    const canReuse = all && TC && TC.pv === L.pv && (W.frame & 1) === 1 && W.frame - TC.f <= 2 && TC.glowOn === glowOn;
+    const glowFill = () => {
+      const g = ctx.createRadialGradient(S.x, S.y, 0, S.x, S.y, gR);
+      const a = S.a * W.night * (L.i === 2 ? 0.75 : 0.5);
+      g.addColorStop(0, css([190, 220, 255], a));
+      g.addColorStop(0.5, css(RIM_SPIRIT, a * 0.35));
+      g.addColorStop(1, css(RIM_SPIRIT, 0));
+      return g;
+    };
+    if (canReuse && !fastNear) {
+      for (let k = 0; k < 4; k++) if (TC.p[k]) { ctx.fillStyle = cols[k]; ctx.fill(TC.p[k]); }
+      if (TC.glow) { ctx.fillStyle = glowFill(); ctx.fill(TC.glow); }
+      return;
+    }
+    const reuse = canReuse;           // 只沿用铺展面上的草簇
+    let tone = -1, pth = null;
+    const built = [null, null, null, null];
     const flush = () => {
       if (tone < 0) return;
       ctx.fillStyle = cols[tone];
-      if (pth === ctx) ctx.fill(); else { ctx.fill(pth); built[tone] = pth; }
+      ctx.fill(pth); built[tone] = pth;
     };
-    ctx.beginPath();
     for (let i = 0; i < n; i++) {
       const tn = B.tone[i];
       if (tn !== tone) {
         flush();
         tone = tn;
-        if (tn >= 2) {
-          if (reuse) { tone = -1; break; }
-          if (!built) built = [];
-          pth = new Path2D();
-        } else { pth = ctx; ctx.beginPath(); }
+        if (tn >= 2 && reuse) { tone = -1; break; }
+        pth = new Path2D();
       }
       const x = B.x[i];
       let gr = 1;
@@ -2012,34 +2025,32 @@
       }
     }
     flush();
-    if (built) L.tc = { f: W.frame, pv: L.pv, p: built };
-    else if (reuse) { for (let k = 2; k < 4; k++) if (TC.p[k]) { ctx.fillStyle = cols[k]; ctx.fill(TC.p[k]); } }
+    if (reuse) { for (let k = 2; k < 4; k++) if (TC.p[k]) { ctx.fillStyle = cols[k]; ctx.fill(TC.p[k]); } }
     // 夜里，灵照亮它身边的草尖
+    let glow = null;
     if (ng) {
-      ctx.beginPath();
+      glow = new Path2D();
       for (let k = 0; k < ng; k++) {
         const i = gi[k], o = i * 5, x = B.x[i], w = B.w[i];
-        ctx.moveTo(x - w, tmp[o]);
-        ctx.quadraticCurveTo(tmp[o + 3] - w * 0.35, tmp[o + 4], tmp[o + 1], tmp[o + 2]);
-        ctx.quadraticCurveTo(tmp[o + 3] + w * 0.35, tmp[o + 4], x + w, tmp[o]);
+        glow.moveTo(x - w, tmp[o]);
+        glow.quadraticCurveTo(tmp[o + 3] - w * 0.35, tmp[o + 4], tmp[o + 1], tmp[o + 2]);
+        glow.quadraticCurveTo(tmp[o + 3] + w * 0.35, tmp[o + 4], x + w, tmp[o]);
       }
-      const g = ctx.createRadialGradient(S.x, S.y, 0, S.x, S.y, gR);
-      const a = S.a * W.night * (L.i === 2 ? 0.75 : 0.5);
-      g.addColorStop(0, css([190, 220, 255], a));
-      g.addColorStop(0.5, css(RIM_SPIRIT, a * 0.35));
-      g.addColorStop(1, css(RIM_SPIRIT, 0));
-      ctx.fillStyle = g;
-      ctx.fill();
+      ctx.fillStyle = glowFill();
+      ctx.fill(glow);
     }
+    if (!reuse && all) L.tc = { f: W.frame, pv: L.pv, p: built, glow, glowOn };
   }
 
   // 结种子的菜蔬：麦穗形、伞形、开花的
   function drawHerbs(ctx, L) {
     const hs = L.herbs;
     if (!hs.length || W.lv.herbs <= 0 || L.spanA < 0) return;
-    // 菜蔬摇得缓：隔帧重建（两层错开），生长中则每帧重建
+    // 菜蔬摇得缓：每三帧重建一次（两层错开）；生长中、或灵快速掠过这一层时每帧重建
     let G = L.hg;
-    if (!G || !FR.herbAll || G.pv !== L.pv || G.n !== hs.length || (W.frame & 1) === (L.i & 1) || W.frame - G.f > 2) {
+    const sp = W.spirit;
+    const fast = sp.speed > 150 && sp.y > L.minY - 90 * uu() && sp.y < (L.i === 2 ? W.h : L.wl) + 60;
+    if (!G || !FR.herbAll || G.pv !== L.pv || G.n !== hs.length || fast || (W.frame + L.i) % 3 === 0 || W.frame - G.f > 3) {
       G = L.hg = buildHerbs2(L);
     }
     const d = depthOf(L.i), u = uu(), near = L.i === 2;
