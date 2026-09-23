@@ -1415,6 +1415,158 @@
     }
   }
 
+  // ── 其后各卷的乐句（稀疏；言说时、幕布落下时都静候）─────────────
+  // 里拉：本卷音阶上的一句，多为级进，偶有跳进与回转；末音更长
+  function lyre(base, n, g, pan, sc, o) {
+    o = o || {};
+    sc = sc || scaleNow();
+    const L = sc.length, ns = [];
+    let dir = Math.random() < 0.5 ? 1 : -1, i = rint(0, L - 1) + (dir < 0 ? L : 0), at = 0;
+    for (let k = 0; k < n; k++) {
+      const last = k === n - 1;
+      ns.push([deg(sc, base, i), at, g * rnd(0.8, 1) * (last ? 1.1 : 1), last ? 3.6 : 2.6]);
+      at += (o.gap || rnd(0.24, 0.34)) * (k === n - 2 ? 1.5 : 1);
+      i += dir * (Math.random() < 0.8 ? 1 : 2);
+      if (Math.random() < 0.18) dir = -dir;
+    }
+    strings(ns, { bus: 'mus', prio: 0, pan, rev: 0.6, bright: o.bright || 5, d: 2.8, wave: o.wave });
+  }
+  // 牧笛：大调五声上的一句（附点的节奏），收在 A 或 E
+  const RHY = [[0.25, 0.25, 0.5], [0.375, 0.125, 0.5], [0.5, 0.25, 0.25], [0.25, 0.5, 0.25, 0.75]];
+  function shepherd(g, pan) {
+    const n = rint(4, 7), ns = [], beat = rnd(0.42, 0.52), r = RHY[rint(0, RHY.length - 1)];
+    let i = rint(5, 8);
+    for (let k = 0; k < n; k++) {
+      const last = k === n - 1;
+      ns.push([deg(SC.maj, F.A3, last ? (Math.random() < 0.6 ? 5 : 8) : i), (last ? 1.4 : r[k % r.length] * 2) * beat, k % 2 ? 0.85 : 1]);
+      i = clamp(i + (Math.random() < 0.7 ? (Math.random() < 0.5 ? 1 : -1) : (Math.random() < 0.5 ? 2 : -2)), 4, 11);
+    }
+    pipe(ns, { g, pan, bright: 5, breath: 0.3, vib: 9, bus: 'mus', rev: 0.55 });
+  }
+  // 苇笛（旷野）：缓慢、滑入的长音，多是下行，收在 A 或 E
+  function ney(g, pan) {
+    const sc = scaleNow(), L = sc.length, n = rint(3, 5), ns = [];
+    let i = L + rint(0, L - 1);
+    for (let k = 0; k < n; k++) {
+      const last = k === n - 1;
+      ns.push([last ? (Math.random() < 0.5 ? F.A4 : F.E4) : deg(sc, F.A3, i), last ? rnd(1.6, 2.2) : rnd(0.7, 1.3), 1 - k * 0.06]);
+      i += Math.random() < 0.65 ? -1 : 1;
+    }
+    pipe(ns, { g: g * 0.9, pan, bend: true, bright: 3, breath: 0.65, vib: 14, vibHz: 4.8, bus: 'mus', rev: 0.7 });
+  }
+  // 乌德（埃及）：Hijaz 上的一串拨弦——b2 与增二度，指滑入音，落在 A 或 E
+  function oud(g, pan) {
+    const n = rint(5, 8), ns = [], beat = rnd(0.17, 0.22), pat = [1, 1, 2, 1, 1, 2, 2, 4];
+    let i = rint(0, 4), at = 0;
+    for (let k = 0; k < n; k++) {
+      const last = k === n - 1;
+      ns.push([last ? (Math.random() < 0.6 ? F.A3 : F.E3) : deg(SC.hijaz, F.A3, i), at, g * (k % 2 ? 0.75 : 1) * rnd(0.85, 1), last ? 1.6 : 0.9]);
+      at += pat[k % pat.length] * beat;
+      i = clamp(i + (Math.random() < 0.72 ? (Math.random() < 0.55 ? -1 : 1) : (Math.random() < 0.5 ? 2 : -2)), -2, 9);
+    }
+    strings(ns, { wave: PW.oud, bend: true, bright: 9, d: 0.9, bus: 'mus', prio: 0, pan, rev: 0.4, spread: 0.15 });
+  }
+  // 弓弦的长音（该隐、忧伤、示剑的黑暗）
+  function bowed(f, g, pan) {
+    note({ f, type: PW.warm, lp: Math.min(1400, f * 4), g, a: 2.2, s: 1.4, r: 4, vib: [4.6, 0.0035], pan, bus: 'mus', rev: 0.6, prio: 0 });
+    if (Math.random() < 0.4) note({ f: f * 1.5, type: PW.warm, lp: Math.min(1600, f * 5), g: g * 0.45, a: 2.6, s: 0.8, r: 3.5, at: 1.2, vib: [4.3, 0.003], pan: -pan, bus: 'mus', rev: 0.6, prio: 0 });
+  }
+  // 水晶般的高音（水退之后、虹）
+  function glass(g, n) {
+    n = n || rint(1, 3);
+    for (let k = 0; k < n; k++) {
+      const f = deg(SC.maj, F.A5, rint(0, 5)), at = k * rnd(0.6, 1.0), p = rnd(-0.7, 0.7);
+      note({ f, g, a: 0.004, d: rnd(2.5, 3.5), at, pan: p, rev: 0.8, bus: 'mus', prio: 0 });
+      note({ f: f * 2.76, g: g * 0.08, a: 0.003, d: 0.5, at, pan: p, bus: 'mus', prio: 0 });
+    }
+  }
+  // 变乱的口音：同一句话的碎片，各在各的调上（另一种"语言"），散在左右
+  const TONGUES = [1, 3, 6, 8, 10, 11, 2, 5];
+  function tongues(g) {
+    const base = semi(F.A4, TONGUES[rint(0, TONGUES.length - 1)] - (Math.random() < 0.5 ? 12 : 0));
+    const n = rint(2, 3), p = rnd(-0.9, 0.9), ns = [];
+    let i = rint(0, 4), at = 0;
+    if (Math.random() < 0.5) {
+      for (let k = 0; k < n; k++) { ns.push([deg(SC.maj, base, i), at, g * rnd(0.7, 1)]); at += rnd(0.12, 0.22); i += Math.random() < 0.5 ? 1 : -1; }
+      strings(ns, { bus: 'mus', prio: 0, pan: p, spread: 0, d: 1.6, bright: 5, rev: 0.55 });
+    } else {
+      for (let k = 0; k < n; k++) { ns.push([deg(SC.maj, base, i), rnd(0.15, 0.3)]); i += Math.random() < 0.5 ? 1 : -1; }
+      pipe(ns, { g: g * 0.8, pan: p, bright: 4, breath: 0.4, vib: 6, bus: 'mus', rev: 0.55 });
+    }
+  }
+  // 天梯：天使上去下来——一串上行或下行的玻璃音
+  function angelRun(g) {
+    const up = Math.random() < 0.5, n = rint(4, 6), i0 = up ? rint(0, 2) : rint(6, 8), ns = [];
+    for (let k = 0; k < n; k++) ns.push([deg(SC.maj, F.A5, up ? i0 + k : i0 - k), k * 0.13, g * (0.7 + 0.3 * (up ? k / n : 1 - k / n)), 2.2]);
+    strings(ns, { wave: 'sine', bright: 2, d: 2.2, bus: 'mus', prio: 0, pan: up ? -0.2 : 0.2, spread: 0.2, rev: 0.8 });
+  }
+  // 数不过来的星：利底亚音阶上的一声玻璃
+  function starPing(g) {
+    const f = deg(SC.lyd, F.A5, rint(0, 11)), p = rnd(-0.85, 0.85);
+    note({ f, g: g * rnd(0.5, 0.9), a: 0.002, d: rnd(1.4, 2.4), pan: p, rev: 0.85, bus: 'mus', prio: 0 });
+    note({ f: f * 2.76, g: g * 0.06, a: 0.002, d: 0.3, pan: p, bus: 'mus', prio: 0 });
+  }
+  function generateAct(t, id, night, dayF, holding) {
+    if (holding || actNow < 0.5 || (W.lv.curtain || 0) > 0.15) return;
+    const g = LV.motif * actNow, pan = () => rnd(-0.6, 0.7);
+    if (t >= nx.m1) {
+      let gap = rnd(12, 20);
+      switch (id) {
+        case 'eden': {
+          const fallen = lvlOr('edenGlow', 1) < 0.5;
+          lyre(fallen ? F.A3 : F.A4, fallen ? 3 : rint(4, 6), g * (fallen ? 0.8 : 1), pan());
+          gap = fallen ? rnd(20, 32) : rnd(11, 18);
+          break;
+        }
+        case 'cain': {
+          if (scaleNow() === SC.maj) { shepherd(g * 0.85, pan()); gap = rnd(18, 28); }
+          else { bowed([F.A2, F.C3, F.E3, F.D3, F.G3][rint(0, 4)], g * 0.9, pan()); gap = rnd(15, 26); }
+          break;
+        }
+        case 'flood': {
+          if (lvl('storm') > 0.35) gap = rnd(6, 10);                  // 暴风雨本身就是音乐
+          else if (scaleNow() === SC.maj) { glass(g * 0.8); gap = rnd(8, 14); }
+          else { bowed([F.A2, F.C3, F.E3, F.F3][rint(0, 3)], g * 0.85, pan()); gap = rnd(16, 26); }
+          break;
+        }
+        case 'babel': {
+          const br = (1 - lvl('babelOne')) * lvl('babelShaft');
+          if (br > 0.3) { tongues(g); gap = rnd(1.4, 3.4); }          // 变乱：各说各的
+          else if (lvl('babelWork') > 0.3) gap = rnd(8, 12);          // 工程的节律由声床奏出
+          else { lyre(lvl('babelAge') > 0.2 ? F.A3 : F.A4, rint(3, 5), g * 0.8, pan()); gap = rnd(15, 26); }
+          break;
+        }
+        case 'abraham': {
+          if (lvl('abDark') > 0.5) gap = rnd(10, 16);
+          else if (night > 0.5 || lvl('abStars') > 0.3) { lyre(F.A4, rint(3, 5), g * 0.75, pan(), SC.lyd); gap = rnd(16, 24); }
+          else { ney(g, pan()); gap = rnd(15, 25); }
+          break;
+        }
+        case 'jacob': {
+          if (lvl('jbShadow') > 0.5) { bowed([F.A2, F.C3, F.E3][rint(0, 2)], g * 0.85, pan()); gap = rnd(16, 24); }
+          else if (night > 0.5) { lyre(F.A3, rint(3, 5), g * 0.8, pan()); gap = rnd(18, 26); }
+          else { shepherd(g, pan()); gap = rnd(14, 22); }
+          break;
+        }
+        case 'joseph': {
+          if (lvl('jsPromise') > 0.5) { lyre(F.A4, rint(3, 5), g * 0.7, pan(), SC.maj); gap = rnd(18, 26); }
+          else if (scaleNow() === SC.hijaz) { oud(g, pan()); gap = rnd(12, 20) * (1 + lvl('jsFamine')); }
+          else { shepherd(g, pan()); gap = rnd(14, 22); }
+          break;
+        }
+      }
+      nx.m1 = t + gap;
+    }
+    // 次要的一层：数不过来的星、天梯上的天使、虹下的玻璃音
+    if (t >= nx.m2) {
+      let gap = rnd(4, 8);
+      if (id === 'abraham' && lvl('abStars') > 0.3) { starPing(g); gap = rnd(0.8, 2.2) / (0.5 + lvl('abStars')); }
+      else if (id === 'jacob' && lvl('jbLadder') > 0.4) { angelRun(g * 0.8); gap = rnd(4, 7); }
+      else if (lvl('rainbow') > 0.4) { glass(g * 0.6, 1); gap = rnd(6, 10); }
+      nx.m2 = t + gap;
+    }
+  }
+
   // ── 言说之声 ────────────────────────────────────────────
   // 每种按住的声音：build(h) 建立节点，返回 set(c)；充盈度只推动音量与滤波
   // 地鸣：褐噪声低通 f0→f1 + 一层中频的"身躯"（粉红噪声 240→520Hz 带通）——
@@ -1682,6 +1834,114 @@
       n.connect(bp); bp.connect(am); am.connect(ng); ng.connect(h.out);
       return c => { to(lp.frequency, 300 + 1100 * c, 0.12); to(g.gain, 0.16 * Math.pow(c, 1.2), 0.12); to(ng.gain, 0.18 * c, 0.12); };
     },
+    // ── 其后各卷的话语 ──
+    // 护理（'act'，神的作为）：温暖的低垫（带本卷的三音）与一缕高处的恩光，底下一口气息
+    providence(h) {
+      const lp = h.f('lowpass', 260, 0.7), g = h.g(0);
+      [[F.A2, 'sine', 0.7, 0], [F.E3, 'triangle', 0.3, -0.25], [semi(F.A3, thirdNow()), PW.soft, 0.22, 0.3]].forEach(([f, ty, gg, p]) => {
+        const o = h.o(ty, f); o.detune.value = rnd(-3, 3);
+        const og = h.g(gg), pn = h.p(p);
+        o.connect(og); og.connect(pn); pn.connect(lp);
+      });
+      lp.connect(g); g.connect(h.out);
+      const hi = h.g(0), sh = h.g(0.7);
+      h.lfo(0.3, 0.3, sh.gain);
+      [[F.A5, 1, -0.35], [F.E6, 0.6, 0.35]].forEach(([f, gg, p]) => {
+        const o = h.o('sine', f); o.detune.value = rnd(-4, 4);
+        const og = h.g(gg), pn = h.p(p);
+        o.connect(og); og.connect(pn); pn.connect(sh);
+      });
+      sh.connect(hi); hi.connect(h.out);
+      const n = h.nz('pink'), bp = h.f('bandpass', 900, 0.8), am = h.g(0.8), ng = h.g(0);
+      h.lfo(0.22, 0.25, am.gain);
+      n.connect(bp); bp.connect(am); am.connect(ng); ng.connect(h.out);
+      return c => { to(lp.frequency, 260 + 1000 * c, 0.12); to(g.gain, 0.13 * Math.pow(c, 1.2), 0.12); to(hi.gain, 0.012 * c * c, 0.2); to(ng.gain, 0.12 * c, 0.12); };
+    },
+    // 发问（「你在哪里？」）：没有三音的挂留（A E B D），上方一缕悬着的 E5 在后半浮现；气息的滤波随充盈上扬
+    ask(h) {
+      const lp = h.f('lowpass', 320, 0.7), g = h.g(0);
+      [[F.A2, 'sine', 0.7, 0], [F.E3, 'triangle', 0.3, -0.25], [F.B3, PW.soft, 0.24, 0.3], [F.D4, PW.soft, 0.16, -0.35]].forEach(([f, ty, gg, p]) => {
+        const o = h.o(ty, f); o.detune.value = rnd(-3, 3);
+        const og = h.g(gg), pn = h.p(p);
+        o.connect(og); og.connect(pn); pn.connect(lp);
+      });
+      lp.connect(g); g.connect(h.out);
+      const q = h.o('sine', F.E5), qt = h.g(0.7), qg = h.g(0), qp = h.p(0.3);
+      h.lfo(0.4, 0.3, qt.gain);
+      q.connect(qt); qt.connect(qg); qg.connect(qp); qp.connect(h.out);
+      const n = h.nz('pink'), bp = h.f('bandpass', 600, 1.2), ng = h.g(0);
+      n.connect(bp); bp.connect(ng); ng.connect(h.out);
+      return c => {
+        to(lp.frequency, 320 + 1300 * c, 0.12); to(g.gain, 0.13 * Math.pow(c, 1.2), 0.12);
+        to(qg.gain, 0.018 * smoothstep(0.35, 0.9, c), 0.2); to(bp.frequency, 600 + 1800 * c, 0.15); to(ng.gain, 0.12 * c, 0.12);
+      };
+    },
+    // 审判：庄重而低——轻的地鸣、A1 的低吟、小三度的阴影，每 2.2 秒一声低沉的钟（不是暴力）
+    judge(h) {
+      const r = rumble(h, 36, 90, 0.3, 0.2);
+      const o = h.o(PW.grit, F.A1), lp = h.f('lowpass', 110, 0.7), hum = h.g(0);
+      o.connect(lp); lp.connect(hum); hum.connect(h.out);
+      const m3 = h.o('sine', F.C3), e2 = h.o('sine', F.E2), mg = h.g(0), eg = h.g(0);
+      m3.connect(mg); e2.connect(eg); mg.connect(h.out); eg.connect(h.out);
+      h.toll = T() + 0.5;
+      return c => {
+        r(c); to(lp.frequency, 110 + 190 * c, 0.12); to(hum.gain, 0.07 * Math.pow(c, 1.5), 0.1);
+        to(mg.gain, 0.022 * c, 0.2); to(eg.gain, 0.04 * c, 0.2);
+        const t = T();
+        if (h.toll < t) h.toll = t + 0.05;
+        while (h.toll < t + 0.3) { tollBell(F.A1, 0.03 + 0.05 * c, 5, h.toll - t, 0, h.out, 0.55); h.toll += 2.2; }
+      };
+    },
+    // 应许：温暖、金色、上升——A 大和弦的音自低而高一个个亮起（亮起时一声金色的轻鸣），低通随之打开
+    promise(h) {
+      const lp = h.f('lowpass', 500, 0.7), g = h.g(1);
+      const fs = [F.A2, F.E3, F.A3, F.Cs4, F.E4, F.A4, F.Cs5, F.E5], G = [0.07, 0.05, 0.045, 0.04, 0.033, 0.026, 0.019, 0.014];
+      const gs = fs.map((f, i) => {
+        const o = h.o(i < 3 ? 'sine' : PW.soft, f); o.detune.value = rnd(-3, 3);
+        const og = h.g(0), pn = h.p(((i % 2) ? 1 : -1) * (0.08 + 0.07 * i));
+        o.connect(og); og.connect(pn); pn.connect(lp);
+        return og;
+      });
+      lp.connect(g); g.connect(h.out);
+      const n = h.nz('pink'), bp = h.f('bandpass', 1200, 0.8), ng = h.g(0);
+      n.connect(bp); bp.connect(ng); ng.connect(h.out);
+      h.lit = 0;
+      return c => {
+        to(lp.frequency, 500 + 2200 * c, 0.15);
+        const on = Math.min(fs.length, Math.floor(1 + c * 8.5)), k0 = 0.4 + 0.6 * smoothstep(0, 0.3, c);
+        for (let i = 0; i < fs.length; i++) to(gs[i].gain, i < on ? G[i] * k0 : 0, i < on ? 0.35 : 0.2);
+        for (let k = Math.max(h.lit, 3); k < on; k++) ping(fs[k] * 2, 0, 0.02, ((k % 2) ? 1 : -1) * 0.45, 'rit');
+        if (on > h.lit) h.lit = on;
+        to(ng.gain, 0.06 * c, 0.15);
+      };
+    },
+    // 呼唤（「亚伯拉罕！」）：清亮的号角般的长音 E4 与 A3，一呼一吸般的起伏；远处有回声
+    call(h) {
+      const lp = h.f('lowpass', 700, 0.7), pulse = h.g(0.78), g = h.g(0);
+      h.lfo(0.6, 0.22, pulse.gain);
+      [[F.E4, 0.5, 0.2, 2], [F.A3, 0.42, -0.2, -2], [F.A4, 0.12, 0.05, 1]].forEach(([f, gg, p, dc], i) => {
+        const o = h.o(i < 2 ? PW.warm : 'sine', f); o.detune.value = dc;
+        h.lfo(4.8 + i * 0.3, 4, o.detune);
+        const og = h.g(gg), pn = h.p(p);
+        o.connect(og); og.connect(pn); pn.connect(lp);
+      });
+      lp.connect(pulse); pulse.connect(g); g.connect(h.out);
+      const echo = h.g(0.9);
+      h.out.connect(echo); echo.connect(N.revIn);                       // 呼唤在远处回响（随言说的总音量一同收去）
+      return c => { to(lp.frequency, 700 + 1600 * c, 0.12); to(g.gain, 0.085 * Math.pow(c, 1.1), 0.1); };
+    },
+    // 新名（亚伯兰→亚伯拉罕、雅各→以色列）：玻璃般的微粒越聚越密，钟一般的 A 音一层层亮起
+    rename(h) {
+      const cr = crackler(h, 2600, 7200, 3.2, 0);
+      const gs = [[F.A2, 0.05, 0], [F.A4, 0.022, -0.3], [F.E5, 0.016, 0.3], [F.A5, 0.01, -0.15], [F.Cs6, 0.007, 0.4]].map(([f, gg, p], i) => {
+        const o = h.o('sine', f); o.detune.value = rnd(-3, 3);
+        const tr = h.g(0.75), og = h.g(0), pn = h.p(p);
+        if (i) h.lfo(rnd(0.2, 0.5), 0.25, tr.gain);
+        o.connect(tr); tr.connect(og); og.connect(pn); pn.connect(h.out);
+        return [og, gg, i];
+      });
+      return c => { cr(4 + 40 * c * c, 0.035 + 0.06 * c); gs.forEach(([og, gg, i]) => to(og.gain, gg * smoothstep(i * 0.12, i * 0.12 + 0.45, c), 0.15)); };
+    },
     // 安息后的观看：温暖的金色低吟
     sabbath(h) {
       const gs = [[F.A4, 0.035, -0.2], [F.E5, 0.022, 0.2], [F.A5, 0.012, 0]].map(([f, g, p]) => [tone(h, 'sine', f, p), g]);
@@ -1698,7 +1958,7 @@
       case 'rest': return null;
     }
     const idx = W.stage | 0;
-    if (idx >= NST()) return 'word';                    // 七日之后各卷的话语
+    if (idx >= NST()) return LATE_HOLD[kind] || 'word';  // 七日之后各卷的话语：按话语的种类
     const byIdx = { 5: 'wind', 6: 'wind', 8: 'grind', 9: 'names3', 10: 'rustle', 11: 'growth', 13: 'shimmer', 14: 'moon', 17: 'underwater', 18: 'flutter', 21: 'heave' };
     const st = GS.story && GS.story.STAGES && GS.story.STAGES[idx];
     if (st && st.day === day && byIdx[idx]) return byIdx[idx];
@@ -1857,6 +2117,58 @@
     bless() { for (let i = 0; i < 10; i++) pluck(pent(F.A5, rint(0, 6)), 0.3 + i * 0.2, 0.03, rnd(-0.9, 0.9), 0.6); },
   };
 
+  // ── 其后各卷：话语的种类 → 按住时的声音 ──
+  const LATE_HOLD = { act: 'providence', ask: 'ask', judge: 'judge', promise: 'promise', call: 'call', name: 'rename', cmd: 'word' };
+  // ── 其后各卷：成就的手势（按话语的种类，带本卷的色彩）──
+  const FUL_LATE = {
+    // 护理：一口暖和弦（本卷的三音），上面几声竖琴
+    act() {
+      chord([F.A2, F.E3, semi(F.A3, thirdNow()), F.A3], { gs: [0.1, 0.07, 0.05, 0.035], a: 0.8, s: 0.8, r: 3.5, rev: 0.5, spread: 0.3 });
+      harp({ soft: true, at: 0.35 });
+    },
+    // 发问：挂留的和弦不解决，最上面一声 E5 在末尾向上一扬（F#5）——问句的语调；一口上扬的空气
+    ask() {
+      chord([F.A2, F.E3, F.B3, F.D4], { gs: [0.1, 0.07, 0.05, 0.04], a: 0.6, s: 1.2, r: 3.5, rev: 0.6, spread: 0.4 });
+      note({ f: F.E5, path: [[F.E5, 0.9], [F.Fs5, 0.35]], g: 0.03, a: 0.3, s: 1.2, r: 2.5, rev: 0.7, pan: 0.2, prio: 2 });
+      burst({ buf: 'pink', f: 500, f2: 2200, sweep: 2, q: 0.8, g: 0.05, a: 0.8, s: 0.3, r: 1.5, rev: 0.4, pan: -0.2, pan2: 0.3 });
+    },
+    // 审判：一声低沉的钟，A 小和弦在低处涌起又沉下；一口闷住的地声（不是雷，不是暴力）
+    judge() {
+      tollBell(F.A1, 0.12, 7, 0.05, 0, 'evt', 0.6);
+      chord([F.A1, F.E2, F.C3], { gs: [0.12, 0.08, 0.045], a: 0.9, s: 1, r: 5, rev: 0.5, at: 0.1 });
+      burst({ buf: 'brown', ft: 'lowpass', f: 220, q: 0.7, g: 0.22, a: 0.4, s: 0.6, r: 2.5, rev: 0.3 });
+    },
+    // 应许：金色的上行琶音，温暖的 A 大和弦，末了三声金铃
+    promise() {
+      strings([F.A3, F.Cs4, F.E4, F.A4, F.Cs5, F.E5, F.A5].map((f, i) => [f, 0.15 + i * 0.13, 0.042 * (1 - i * 0.05), 3]), { d: 3, bright: 5, rev: 0.6, prio: 2 });
+      chord([F.A2, F.E3, F.A3, F.Cs4, F.E4], { gs: [0.09, 0.07, 0.055, 0.045, 0.035], a: 1.5, s: 2.5, r: 5, spread: 0.5, rev: 0.55, at: 0.2,
+        types: ['sine', 'sine', 'triangle', 'triangle', 'triangle'] });
+      bells([F.A5, F.Cs6, F.E6], 0.18, 0.045, 3, 1.1);
+    },
+    // 呼唤：两声号角般的呼——E4，再 A4 长长地；远处回响
+    call() {
+      note({ f: F.E4, type: PW.warm, lp: 1800, g: 0.07, a: 0.08, s: 0.35, r: 1.4, rev: 0.8, vib: [5, 0.004], pan: -0.1, prio: 2 });
+      note({ f: F.A4, type: PW.warm, lp: 2000, g: 0.065, a: 0.1, s: 1.1, r: 2.8, at: 0.75, rev: 0.85, vib: [5, 0.004], pan: 0.1, prio: 2 });
+      note({ f: F.A3, type: PW.warm, lp: 900, g: 0.045, a: 0.3, s: 1.4, r: 3, at: 0.7, rev: 0.6, prio: 2 });
+      note({ f: F.A2, g: 0.07, a: 0.5, s: 1.5, r: 3.5, rev: 0.4, prio: 2 });
+    },
+    // 新名：微粒聚拢，然后钟声组成一个 A 大和弦
+    name() {
+      grains({ buf: 'white', n: 40, dur: 2.2, f0: 2500, f1: 7000, len: 0.018, q: 2.8, g: 0.07, spread: 0.9, rev: 0.45, prio: 2 });
+      bells([F.A4, F.Cs5, F.E5, F.A5], 0.15, 0.06, 3.5, 2.0);
+      chord([F.A2, F.E3, F.A3, F.Cs4], { gs: [0.09, 0.07, 0.05, 0.04], a: 1.2, s: 2, r: 4.5, at: 1.6, spread: 0.4, rev: 0.55 });
+    },
+    // 赐福：本卷音阶上的一阵轻拨，底下一口温暖的和弦
+    bless() {
+      const sc = scaleNow();
+      for (let i = 0; i < 10; i++) pluck(deg(sc, F.A5, rint(0, sc.length + 1)), 0.3 + i * 0.2, 0.03, rnd(-0.9, 0.9), 0.6);
+      chord([F.A2, F.E3, semi(F.A3, thirdNow())], { gs: [0.08, 0.06, 0.04], a: 1, s: 1.5, r: 4, rev: 0.5, spread: 0.3 });
+    },
+    // 命令：与第一卷同一口开阔的五度，稍轻
+    cmd() { chord([F.A1, F.E2, F.A2, F.E3], { gs: [0.13, 0.095, 0.07, 0.035], a: 0.5, s: 0.5, r: 3.5, rev: 0.45 }); },
+    behold() { bells([F.A5, F.Cs6, F.E6], 0.16, 0.06, 2.8); chord([F.A2, F.E3, F.A3, F.Cs4], { gs: [0.08, 0.06, 0.045, 0.035], a: 1.2, s: 2, r: 5, spread: 0.5, rev: 0.55 }); },
+  };
+
   // 名字的音（聚成的一刻）
   const NAME_TONE = {
     '昼': at => { note({ f: F.E5, g: 0.1, a: 0.02, d: 3, at, rev: 0.5 }); note({ f: F.E6, type: 'triangle', g: 0.03, a: 0.02, d: 3, at, rev: 0.5 }); },
@@ -1885,11 +2197,290 @@
     light: () => [880, 1320, 1760].forEach((f, i) => note({ f, g: 0.025, a: 0.2, s: 0.2, r: 2.5, pan: (i - 1) * 0.4, rev: 0.7 })),
   };
 
+  // ── 其后各卷的音效：GS.audio.sfx(name, { soft, far, low, size, x }) ──────
+  // 选项 → 响度、声像、远近（x：像素，或 0..1 的比例）
+  function sopt(o, defPan) {
+    o = o && typeof o === 'object' ? o : {};
+    const soft = !!o.soft, far = !!o.far, low = !!o.low;
+    let pan = fin(defPan) ? defPan : 0;
+    if (fin(o.x)) pan = o.x > 1.5 ? panX(o.x) : clamp(o.x * 2 - 1, -1, 1) * 0.8;
+    else if (fin(o.pan)) pan = clamp(o.pan, -1, 1);
+    return { soft, far, low, pan, k: (soft ? 0.6 : 1) * (far ? 0.55 : 1) * (fin(o.gain) ? clamp(o.gain, 0, 2) : 1),
+      size: fin(o.size) ? clamp(o.size, 0.1, 8) : 1, at: fin(o.at) ? clamp(o.at, 0, 10) : 0 };
+  }
+  const landPan = () => rnd(0.1, 0.5);                   // 故事多在右边的陆地上发生
+
+  // 竖琴：恩典与启示——最常听见的一声，所以每次都不同：上行、下行、滚奏的和弦、一声叹息、回音形；音阶随本卷
+  let lastHarp = '';
+  const HARP_SHAPES = ['up', 'down', 'roll', 'sigh', 'turn', 'up', 'roll'];
+  function harp(o) {
+    const s = sopt(o, rnd(-0.3, 0.3)), sc = scaleNow(), L = sc.length, th = thirdNow();
+    let shape = HARP_SHAPES[rint(0, HARP_SHAPES.length - 1)];
+    if (shape === lastHarp) shape = HARP_SHAPES[(HARP_SHAPES.indexOf(shape) + 1 + rint(0, 3)) % HARP_SHAPES.length];
+    lastHarp = shape;
+    const base = s.low ? F.A2 : (s.soft || Math.random() < 0.55) ? F.A4 : F.A3;
+    const g = 0.05 * s.k, sp = rnd(0.1, 0.15), ns = [];
+    let i = rint(0, L - 1), at = 0;
+    switch (shape) {
+      case 'up': {
+        const n = s.soft ? rint(3, 4) : rint(4, 6);
+        for (let k = 0; k < n; k++) { ns.push([deg(sc, base, i), at, g * rnd(0.85, 1) * (k === n - 1 ? 1.15 : 1), k === n - 1 ? 3.4 : 2.4]); at += sp * (1 + k * 0.08); i += Math.random() < 0.8 ? 1 : 2; }
+        break;
+      }
+      case 'down': {
+        i += L + rint(0, 2);
+        const n = s.soft ? 3 : rint(4, 5);
+        for (let k = 0; k < n; k++) { ns.push([deg(sc, base, i), at, g * rnd(0.85, 1), k === n - 1 ? 3.2 : 2.4]); at += sp * 1.1; i -= 1; }
+        break;
+      }
+      case 'roll': [0, th, 7, 12, 12 + th].slice(0, s.soft ? 3 : rint(4, 5)).forEach((st, k) => ns.push([semi(base, st), k * rnd(0.045, 0.07), g * (1 - k * 0.08), 3.2])); break;
+      case 'sigh': ns.push([deg(sc, base, i + 1), 0, g * 1.05, 1.8], [deg(sc, base, i), 0.42, g * 0.9, 3.4]); break;
+      default: [0, 1, 2, 1, 0].forEach((d, k) => ns.push([deg(sc, base, i + d), k * sp, g * (k === 2 ? 1.1 : 0.9), k === 4 ? 3.2 : 2]));
+    }
+    strings(ns, { at: s.at, d: 2.6, bright: s.far ? 3.5 : 6, rev: s.far ? 0.8 : 0.55, pan: s.pan, spread: 0.3, prio: 1 });
+  }
+  // 风：一阵（low：低处的、不祥的风）
+  function windSfx(o) {
+    const s = sopt(o), dir = Math.random() < 0.5 ? 1 : -1;
+    if (s.low) gust({ f0: 130, f1: 360, q: 1.2, g: 0.3 * s.k, dur: rnd(4.5, 6), p0: -0.5 * dir, p1: 0.5 * dir, rev: 0.45, at: s.at });
+    else gust({ f0: rnd(280, 360), f1: rnd(850, 1100), q: 1.1, g: 0.26 * s.k, dur: rnd(3.5, 5), whistle: s.soft ? 0 : 0.05, p0: -0.65 * dir, p1: 0.65 * dir, rev: 0.3, at: s.at });
+  }
+  // 建造：锤声（木）或放石头（先一声刮擦，再一声沉的）
+  function buildSfx(o) {
+    const s = sopt(o, landPan()), heavy = Math.random() < 0.3, scrape = heavy && !s.soft;
+    const n = s.soft ? rint(2, 3) : rint(3, 5), gap = rnd(0.34, 0.48), hits = [];
+    if (scrape) burst({ buf: 'pink', f: 950, f2: 420, sweep: 0.35, q: 1.3, g: 0.045 * s.k, a: 0.06, d: 0.3, pan: s.pan, rev: 0.25, at: s.at });
+    let at = scrape ? 0.32 : 0;
+    for (let i = 0; i < n; i++) {
+      hits.push([at, heavy ? rnd(650, 1050) : rnd(1500, 2600), heavy ? rnd(85, 115) : rnd(170, 270), (heavy ? 0.1 : 0.075) * s.k * rnd(0.75, 1), heavy]);
+      at += gap * rnd(0.88, 1.12);
+    }
+    knocks(hits, { lp: s.far ? 2000 : 7000, pan: s.pan, rev: s.far ? 0.6 : 0.3, at: s.at });
+  }
+  // 哀哭：低低的哼唱般的叹息，一句比一句低（D→C#、C#→B、B→A；小调里 D→C）；low 是男声
+  function weepSfx(o) {
+    const s = sopt(o, landPan()), k = s.low ? 0.5 : 1, minor = thirdNow() === 3;
+    const P = minor ? [[F.D4, F.C4], [F.C4, F.B3], [F.B3, F.A3]] : [[F.D4, F.Cs4], [F.Cs4, F.B3], [F.B3, F.A3]];
+    const n = s.soft ? 2 : 3, ph = [];
+    let at = 0;
+    for (let i = 0; i < n; i++) {
+      const dur = i === n - 1 ? 1.5 : rnd(0.95, 1.15);
+      ph.push([at, dur, P[i][0] * k, P[i][1] * k, 0.05 * s.k * (1 - i * 0.12)]);
+      at += dur + rnd(0.25, 0.4);
+    }
+    vox(ph, { F1: s.low ? 330 : 420, F2: s.low ? 820 : 960, q1: 4, q2: 6, vib: 18, breath: 0.6, sus: 0.55, att: 0.09, rev: 0.55, pan: s.pan, at: s.at });
+  }
+  // 雷：近处有一声裂响与碎响，然后滚动；far 只有远处的滚动；low+far 是一声深沉的单音（远处的、神的雷）
+  function thunderSfx(o) {
+    const s = sopt(o, rnd(-0.4, 0.4));
+    if (s.low && s.far) {
+      const k = s.soft ? 0.65 : 1;
+      note({ f: F.A1, type: PW.soft, lp: 260, g: 0.12 * k, a: 0.5, s: 0.9, r: 3.8, rev: 0.6, prio: 2, at: s.at });
+      note({ f: F.A0, g: 0.1 * k, a: 0.7, s: 0.7, r: 3.2, prio: 1, at: s.at });
+      note({ f: F.E2, g: 0.025 * k, a: 0.8, s: 0.5, r: 3, rev: 0.6, at: s.at });
+      burst({ buf: 'brown', ft: 'lowpass', f: 140, q: 0.7, g: 0.16 * k, a: 0.6, s: 0.6, r: 3, rev: 0.4, at: s.at });
+      return;
+    }
+    const k = s.k, at = s.at + (s.far ? rnd(0.1, 0.4) : 0);
+    if (!s.far) {
+      burst({ buf: 'white', ft: 'highpass', f: 900, q: 0.5, g: 0.09 * k, a: 0.002, d: 0.35, at, pan: s.pan, rev: 0.6, prio: 2 });
+      grains({ buf: 'white', n: 8, dur: 0.5, f0: 400, f1: 2400, len: 0.05, q: 1.2, g: 0.07 * k, at: at + 0.02, spread: 0.5, pan: s.pan, rev: 0.5 });
+      note({ f: 50, path: [[34, 1.6]], g: 0.1 * k, a: 0.02, d: 2.2, at, prio: 1 });
+    }
+    roll({ f0: s.far ? 150 : 320, f1: s.far ? 70 : 90, g: (s.far ? 0.5 : 0.6) * k, a: s.far ? 0.5 : 0.06, s: 0.3, r: s.far ? 3.8 : 4.2,
+      at: at + (s.far ? 0 : 0.05), pan: s.pan, rev: 0.5, depth: 0.6, prio: 2 });
+  }
+  // 坛上的火：火焰的身躯（低通的褐噪声）、一口"呼"、噼啪的火星
+  function fireSfx(o) {
+    const s = sopt(o, landPan()), k = s.k;
+    burst({ buf: 'brown', ft: 'lowpass', f: 420, q: 0.7, g: 0.28 * k, a: 0.7, s: 2.6, r: 2.2, pan: s.pan, rev: 0.3, am: [0.7, 0.25], at: s.at });
+    burst({ buf: 'pink', f: 900, f2: 1600, sweep: 1.2, q: 0.9, g: 0.045 * k, a: 0.4, s: 2, r: 2.2, pan: s.pan, rev: 0.3, at: s.at });
+    grains({ buf: 'white', n: s.soft ? 16 : 30, dur: 4.6, f0: 1100, f1: 4200, len: 0.01, q: 1.6, g: 0.09 * k, spread: 0.25, pan: s.pan, rev: 0.25, at: s.at + 0.2 });
+    if (!s.soft) grains({ buf: 'pink', n: 8, dur: 4, f0: 350, f1: 900, len: 0.03, q: 1.3, g: 0.07 * k, spread: 0.2, pan: s.pan, rev: 0.3, at: s.at + 0.5 });
+  }
+  // 封（关门、立约、封洞）：一声闷住的合上，低沉的钟，A 的五度在底下留一会儿
+  function sealSfx(o) {
+    const s = sopt(o), k = s.k;
+    note({ f: 72, path: [[44, 0.3]], g: 0.2 * k, a: 0.004, d: 0.7, prio: 2, at: s.at });
+    burst({ buf: 'brown', ft: 'lowpass', f: 300, q: 0.7, g: 0.32 * k, a: 0.004, d: 0.55, rev: 0.4, at: s.at });
+    burst({ buf: 'white', f: 900, q: 2, g: 0.035 * k, a: 0.002, d: 0.08, at: s.at });
+    tollBell(F.A1, 0.1 * k, 7, s.at + 0.03, 0, 'evt', 0.7);
+    tollBell(F.A2, 0.045 * k, 5.5, s.at + 0.06, 0.1, 'evt', 0.7);
+    chord([F.A1, F.E2, F.A2], { gs: [0.06 * k, 0.045 * k, 0.03 * k], a: 0.8, s: 1.2, r: 5, at: s.at + 0.2, rev: 0.6 });
+  }
+  // 众人的低语：几个声门般的声音（语调缓缓游移、音节一开一合）经元音的共振峰，外加一层气声
+  function crowdSfx(o) {
+    const s = sopt(o, landPan()), k = s.k, dur = s.soft ? 3 : 4.5;
+    const v = voice(1);
+    if (!v) return;
+    const t = T() + s.at + 0.02, sum = v.g(1), nv = s.soft ? 3 : 5;
+    for (let i = 0; i < nv; i++) {
+      const f = rnd(100, 240), osc = v.o(PW.reed, f), am = v.g(0.3), pn = v.p(clamp(s.pan + rnd(-0.6, 0.6), -0.9, 0.9));
+      v.nlfo(0.02, f * 0.25, osc.frequency);                   // 语调
+      v.nlfo(rnd(0.025, 0.04), 1.2, am.gain);                  // 音节
+      osc.connect(am); am.connect(pn); pn.connect(sum);
+    }
+    const out = v.g(1);
+    [[560, 2.2, 1], [1250, 3, 0.55], [2600, 4, 0.15]].forEach(([f, q, g]) => { const bp = v.f('bandpass', f, q), gg = v.g(g); sum.connect(bp); bp.connect(gg); gg.connect(out); });
+    const n = v.nz('pink'), nb = v.f('bandpass', 900, 0.8), na = v.g(0.35);
+    v.nlfo(0.035, 0.9, na.gain);
+    n.connect(nb); nb.connect(na); na.connect(out);
+    const env = v.g(0);
+    out.connect(env);
+    const end = swell(env.gain, t, 0.9, 0.06 * k, Math.max(0.3, dur - 2.3), 1.4);
+    v.out(env, 'evt', null, 0.35);
+    v.play(t, end);
+  }
+  // 水花（size：0.4 是河边的一捧，3–4 是方舟落在山上）
+  function splashSfx(o) {
+    const s = sopt(o, rnd(-0.2, 0.4)), z = s.size, zz = Math.min(z, 4), k = s.k;
+    burst({ buf: 'white', f: rnd(1000, 2200), q: 0.7, g: (0.035 + 0.035 * Math.sqrt(zz)) * k, a: 0.004, d: 0.15 + 0.12 * zz, pan: s.pan, rev: 0.3, at: s.at });
+    if (z >= 1.5) {
+      const b = Math.min(1, z / 4);
+      note({ f: 95, path: [[42, 0.35]], g: 0.1 * b * k, a: 0.006, d: 0.5, pan: s.pan, at: s.at });
+      burst({ buf: 'pink', ft: 'lowpass', f: 1200, f2: 300, sweep: 1.4, q: 0.6, g: 0.18 * b * k, a: 0.02, s: 0.2, r: 1.4, pan: s.pan, rev: 0.35, at: s.at });
+    }
+    grains({ buf: 'white', n: Math.round(4 + 5 * zz), dur: 0.4 + 0.25 * zz, f0: 1800, f1: 4200, len: 0.012, q: 5, g: 0.05 * k, at: s.at + 0.08, pan: s.pan, spread: 0.4, rev: 0.3 });
+  }
+  // 羊（有时是山羊，更高更颤）
+  function bleatSfx(o) {
+    const s = sopt(o, landPan()), goat = Math.random() < 0.35;
+    sheep(s.at, s.pan, 0.07 * s.k, s.far, 'evt', goat ? rnd(290, 330) : null);
+    if (!s.soft && Math.random() < 0.6) sheep(s.at + rnd(0.6, 1.2), clamp(s.pan + rnd(-0.25, 0.25), -1, 1), 0.045 * s.k, true, 'evt');
+  }
+  // 沉重的门：木轴的"咯吱"（黏滑的摩擦），然后一声闷响
+  function gateSfx(o) {
+    const s = sopt(o, landPan()), k = s.k, v = voice(1);
+    if (v) {
+      const t = T() + s.at + 0.02, f = rnd(58, 70), osc = v.o(PW.reed, f);
+      osc.frequency.setValueAtTime(f, t); osc.frequency.linearRampToValueAtTime(f * 1.18, t + 0.9);
+      v.nlfo(0.05, f * 0.1, osc.frequency);
+      const am = v.g(0.55);
+      v.lfo(rnd(16, 24), 0.45, am.gain, PW.ratchet);
+      const bp = v.f('bandpass', 520, 2.5), lp = v.f('lowpass', 1800, 0.7), g = v.g(0);
+      osc.connect(am); am.connect(bp); bp.connect(lp); lp.connect(g);
+      const end = swell(g.gain, t, 0.25, 0.12 * k, 0.45, 0.3);
+      v.out(g, 'evt', s.pan, 0.35);
+      v.play(t, end);
+    }
+    const at = s.at + 1.0;
+    note({ f: 66, path: [[40, 0.25]], g: 0.17 * k, a: 0.004, d: 0.6, at, pan: s.pan, prio: 2 });
+    burst({ buf: 'brown', ft: 'lowpass', f: 320, q: 0.7, g: 0.28 * k, a: 0.004, d: 0.5, at, pan: s.pan, rev: 0.5 });
+    burst({ buf: 'white', f: 750, q: 2.5, g: 0.045 * k, a: 0.002, d: 0.1, at, pan: s.pan });
+  }
+  // 一阵雨（持续的雨由 W.lv.rain 的声床奏出）
+  function rainSfx(o) {
+    const s = sopt(o), k = s.k;
+    burst({ buf: 'white', ft: 'highpass', f: 900, q: 0.5, g: 0.11 * k, a: 1.4, s: 1.8, r: 2.6, pan: -0.3, pan2: 0.3, rev: 0.25, at: s.at });
+    burst({ buf: 'pink', ft: 'lowpass', f: 1400, q: 0.6, g: 0.15 * k, a: 1.4, s: 1.8, r: 2.6, rev: 0.2, at: s.at });
+    grains({ buf: 'white', n: 50, dur: 4.5, f0: 2500, f1: 6500, len: 0.006, q: 3, g: 0.06 * k, spread: 0.9, rev: 0.2, at: s.at + 0.3 });
+  }
+  // 鸽子：一阵扑翅，然后两声「咕—咕」
+  function doveSfx(o) {
+    const s = sopt(o, rnd(-0.3, 0.3)), k = s.k;
+    if (!s.soft) burst({ buf: 'white', f: 1400, q: 1, g: 0.04 * k, a: 0.05, s: 0.25, r: 0.3, am: [14, 0.6], pan: s.pan, rev: 0.3, at: s.at });
+    dove(s.at + 0.45, s.pan, 0.06 * k, 'evt');
+  }
+  // 骆驼（与驴）：喉中咕噜的低吼，常带几声驼铃
+  function camelSfx(o, donkey) {
+    const s = sopt(o, landPan()), k = s.k;
+    const grumble = (at, f, dur, g) => {
+      const v = voice(1);
+      if (!v) return;
+      const t = T() + at + 0.02, osc = v.o(PW.reed, f);
+      osc.frequency.setValueAtTime(f, t);
+      osc.frequency.linearRampToValueAtTime(f * 1.28, t + dur * 0.25);
+      osc.frequency.linearRampToValueAtTime(f * 0.8, t + dur);
+      const am = v.g(0.5);
+      v.lfo(rnd(22, 30), 0.5, am.gain);
+      const f1 = v.f('bandpass', donkey ? 700 : 380, 3), f2 = v.f('bandpass', donkey ? 1400 : 850, 4), lp = v.f('lowpass', 1700, 0.7), g0 = v.g(0);
+      osc.connect(am); am.connect(f1); am.connect(f2); f1.connect(lp); f2.connect(lp); lp.connect(g0);
+      const end = swell(g0.gain, t, 0.1, g, Math.max(0.1, dur - 0.5), 0.4);
+      v.out(g0, 'evt', s.pan, s.far ? 0.5 : 0.3);
+      v.play(t, end);
+    };
+    grumble(s.at, donkey ? rnd(170, 210) : rnd(80, 105), rnd(0.9, 1.3), 0.16 * k);
+    if (Math.random() < 0.5) grumble(s.at + rnd(1.2, 1.6), donkey ? rnd(150, 180) : rnd(75, 95), rnd(0.6, 0.9), 0.11 * k);
+    if (!donkey && Math.random() < 0.65) {
+      const n = rint(3, 5);
+      for (let i = 0; i < n; i++) {
+        const f = pent(F.A6, rint(0, 3)), at = s.at + 0.2 + i * rnd(0.2, 0.32);
+        note({ f, g: 0.012 * k, a: 0.002, d: 0.6, at, pan: s.pan, rev: 0.45, prio: 0 });
+        note({ f: f * 2.72, g: 0.003 * k, a: 0.002, d: 0.2, at, pan: s.pan, prio: 0 });
+      }
+    }
+  }
+  // 笑（撒拉、以撒——「神使我喜笑」）：几声轻轻的「哈」，与一串温暖的轻拨一同落下
+  function laughSfx(o) {
+    const s = sopt(o, landPan()), k = s.k, base = s.low ? 200 : rnd(380, 420), n = rint(5, 7), ph = [], ns = [];
+    let at = 0;
+    for (let i = 0; i < n; i++) {
+      const f = base * (1.06 - i * 0.03);
+      ph.push([at, 0.1, f, f * 0.93, 0.045 * k * (1 - i * 0.1)]);
+      ns.push([deg(SC.maj, F.A5, 4 - i), at + 0.02, 0.02 * k * (1 - i * 0.08), 0.8]);
+      at += 0.155 - i * 0.004;
+    }
+    vox(ph, { F1: s.low ? 650 : 820, F2: s.low ? 1100 : 1300, q1: 3, q2: 5, vib: 0, breath: 0.9, sus: 0.3, att: 0.012, rev: 0.4, pan: s.pan, at: s.at });
+    strings(ns, { wave: 'triangle', bright: 3, d: 0.8, rev: 0.5, pan: s.pan, spread: 0.2, prio: 0, at: s.at });
+  }
+  // 天使：无字的合唱（A 大和弦）与高处的几声微光
+  function angelSfx(o) {
+    const s = sopt(o), k = s.k;
+    choir([F.A3, F.Cs4, F.E4, F.A4, F.E5], { gs: [1, 0.8, 0.75, 0.6, 0.35], g: 0.05 * k, a: 1.4, s: 1.8, r: 3.4, rev: 0.8, at: s.at, pan: s.pan });
+    for (let i = 0; i < 4; i++) ping(pent(F.A6, rint(0, 5)), s.at + 0.5 + i * rnd(0.3, 0.5), 0.018 * k, rnd(-0.7, 0.7), 'evt');
+    note({ f: F.E6, g: 0.01 * k, a: 1, s: 1, r: 2.5, trem: [5.5, 0.5], rev: 0.8, at: s.at + 0.5 });
+  }
+  // 众星：玻璃般的轻鸣，散在天上（夜里用利底亚音阶）
+  function starsSfx(o) {
+    const s = sopt(o), k = s.k, sc = lvl('abStars') > 0.2 || (W.night || 0) > 0.5 ? SC.lyd : SC.maj, n = s.soft ? 4 : rint(6, 9);
+    for (let i = 0; i < n; i++) {
+      const f = deg(sc, F.A5, rint(0, sc.length * 2)), at = s.at + rnd(0, 2.4), p = rnd(-0.85, 0.85);
+      note({ f, g: 0.028 * k * rnd(0.6, 1), a: 0.002, d: rnd(1.2, 2.2), at, pan: p, rev: 0.85, prio: 1 });
+      note({ f: f * 2.76, g: 0.004 * k, a: 0.002, d: 0.3, at, pan: p, prio: 0 });
+    }
+  }
+  // 乌鸦：两声粗哑的「呱」
+  function ravenSfx(o) {
+    const s = sopt(o, rnd(-0.5, 0.5));
+    for (let i = 0; i < 2; i++) note({ f: rnd(640, 720), type: PW.reed, path: [[rnd(480, 540), 0.22]], lp: 2400, trem: [34, 0.5], g: 0.035 * s.k, a: 0.01, s: 0.08, r: 0.14, at: s.at + i * 0.42, pan: s.pan, rev: 0.4 });
+  }
+  // 未知的名字：一声温和的铃（由名字定音高），从不报错
+  function chimeSfx(o, name) {
+    const s = sopt(o), str = String(name || '');
+    let h = 7;
+    for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0;
+    bells([pent(F.A5, h % 5), pent(F.A5, 2 + ((h >>> 3) % 4))], 0.14, 0.028 * s.k, 2.2, s.at, { prio: 1 });
+  }
+  const SFX = {
+    harp, wind: windSfx, build: buildSfx, weep: weepSfx, thunder: thunderSfx, fire: fireSfx, seal: sealSfx, crowd: crowdSfx,
+    splash: splashSfx, bleat: bleatSfx, gate: gateSfx, rain: rainSfx, dove: doveSfx, camel: o => camelSfx(o, false), donkey: o => camelSfx(o, true),
+    laugh: laughSfx, angel: angelSfx, stars: starsSfx, raven: ravenSfx, chime: chimeSfx,
+    cow: o => { const s = sopt(o, landPan()); cow(s.at, s.pan, 0.1 * s.k, s.far, 'evt'); },
+    bird: o => { const s = sopt(o, rnd(-0.6, 0.6)); birdPhrase(s.at, s.pan, 0.07 * s.k); },
+    wings: o => { const s = sopt(o, rnd(-0.5, 0.5)); burst({ buf: 'white', f: 1500, q: 1, g: 0.08 * s.k, a: 0.1, s: 0.3, r: 0.5, am: [15, 0.6], pan: s.pan, pan2: -s.pan, rev: 0.3, at: s.at }); },
+  };
+  const SFX_ALIAS = {
+    lyre: 'harp', grace: 'harp', hammer: 'build', stone: 'build', stones: 'build', chisel: 'build', brick: 'build', bricks: 'build',
+    cry: 'weep', lament: 'weep', mourn: 'weep', sob: 'weep', storm: 'thunder', lightning: 'thunder',
+    flame: 'fire', altar: 'fire', sacrifice: 'fire', burn: 'fire', door: 'gate', close: 'seal', covenant: 'seal', shut: 'seal',
+    people: 'crowd', murmur: 'crowd', voices: 'crowd', water: 'splash', river: 'splash', well: 'splash', spring: 'splash',
+    sheep: 'bleat', goat: 'bleat', lamb: 'bleat', ram: 'bleat', flock: 'bleat', ox: 'cow', cattle: 'cow', herd: 'cow',
+    choir: 'angel', angels: 'angel', ladder: 'angel', star: 'stars', ping: 'stars', twinkle: 'stars', shower: 'rain',
+    gust: 'wind', breeze: 'wind', crow: 'raven', wing: 'wings', flutter: 'wings', ass: 'donkey', caravan: 'camel',
+  };
+  // 每个名字的最短间隔（秒）：同一声不会叠成一团
+  const SFX_GAP = { harp: 0.3, wind: 0.8, build: 0.25, weep: 1.5, thunder: 0.9, fire: 1, seal: 0.8, crowd: 1.2, splash: 0.12, bleat: 0.6,
+    gate: 0.8, rain: 1.5, dove: 1, camel: 0.8, donkey: 0.8, laugh: 1, angel: 2, stars: 0.6, cow: 1, bird: 0.4, raven: 0.8, wings: 0.4, chime: 0.3 };
+  const sfxLast = {};
+  let lastName = -1e9;
+
   // ── 声床的电平（混音在此校准）────────────────────────────
   const LV = {
     drone: 0.028, light: 0.035, air: 0.037, earth: 0.02, human: 0.032, sunset: 0.024,
     water: 0.13, stir: 0.04, wind: 0.5, leaves: 0.42, cricket: 0.03,
     pluck: 0.03, star: 0.03, bird: 0.025, whale: 0.035, bubble: 0.03, graze: 0.02, herd: 0.05, theme: 0.02,
+    // 其后各卷
+    pad: 0.03, work: 0.018, choir: 0.02, motif: 0.035, rain: 0.13, storm: 0.3, bow: 0.012,
   };
 
   // ── 对外的接口：未 init / 静音 / 无 WebAudio 时都是安全的空操作 ──
@@ -1986,10 +2577,12 @@
     fulfill: api('fulfill', (day, index, kind) => {
       const st = GS.story && GS.story.STAGES ? GS.story.STAGES[index] : null;
       const fn = st && st.kind === kind && FUL[index] ? FUL[index] : null;
+      const late = (index | 0) >= NST();                  // 七日之后各卷的话语
       if (kind === 'refrain') FUL_KIND.refrain();
       else if (fn) fn();
+      else if (late && FUL_LATE[kind]) FUL_LATE[kind]();
       else if (FUL_KIND[kind]) FUL_KIND[kind]();
-      else if (kind !== 'rest') FUL_KIND.cmd();
+      else if (kind !== 'rest') (late ? FUL_LATE.cmd : FUL_KIND.cmd)();
     }),
     // 经文浮现：极轻的一点微光
     bell: api('bell', () => {
