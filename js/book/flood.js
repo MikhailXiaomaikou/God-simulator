@@ -154,7 +154,10 @@
   // ════════════════════════════════════════════════════════════
   //  亚拉腊山：大小两峰，其间一片宽阔的鞍部（方舟停在那里）
   // ════════════════════════════════════════════════════════════
-  const MT = { emb: 0, ok: false, w: 0, h: 0, n: 0, step: 3, H: null, SL: null, wl: 0, Hm: 0, xc: 0, xg: 0, xl: 0, Wg: 0, Wl: 0, sep: 0, sM: 0.8, gul: [] };
+  const MT = { emb: 0, ok: false, w: 0, h: 0, n: 0, step: 3, H: null, SL: null, wl: 0, Hm: 0, xc: 0, xg: 0, xl: 0, Wg: 0, Wl: 0, sep: 0, sM: 0.8, gul: [],
+    xa: 0, xb: 0, Hmax: 0 };
+  // 山的画先画在离屏画布上（光照不变时不重画），再以柔和的山脚合到水面上
+  const MC = { art: null, comp: null, key: '', ckey: '', X0: 0, Y0: 0, cw: 0, ch: 0, sc: 1 };
   // 平滑的取大：两者之一为零时不加偏置（否则山外的海面上会凭空多出一层薄台）
   function smax(a, b, k) {
     const kk = Math.min(k, a, b);
@@ -168,16 +171,14 @@
     MT.w = w; MT.h = h;
     if (!(w > 4 && h > 4)) { MT.ok = false; return; }
     MT.wl = 0.87 * h;
-    const Hm = MT.Hm = Math.min(0.5 * h, 0.75 * w);
+    // 山在中景，退后一些：不占满画面正中，给虹与远处的海留出天地（竖屏更窄，峰也更矮）
+    const Hm = MT.Hm = Math.min(0.4 * h, (w < h ? 0.46 : 0.72) * w);
     const sep = MT.sep = Math.min(1.5 * Hm, 0.5 * w);
     const xg = MT.xg = 0.87 * w, xl = MT.xl = xg - sep, xc = MT.xc = xl + sep * 0.5;
     const Wm = 1.02 * sep, Wg = MT.Wg = Math.max(0.55 * sep, 0.42 * Hm), Wl = MT.Wl = Math.max(0.46 * sep, 0.36 * Hm);
     const step = MT.step = Math.max(2, w / 360);
     const n = MT.n = Math.ceil(w / step) + 2;
-    if (!MT.H || MT.H.length !== n) { MT.H = new Float32Array(n); MT.SL = new Float32Array(n); MT.X = new Float32Array(n); }
-    // 山脚可向水线以下延伸多少（只在近岸有地之处——升起之后藏在近岸之后；海湾里不延伸）
-    const wl2 = W.waterlineY(2);
-    for (let i = 0; i < n; i++) MT.X[i] = sstep(wl2 - 0.01 * h, wl2 - 0.06 * h, W.ridgeBaseY(2, Math.min(w, i * step)));
+    if (!MT.H || MT.H.length !== n) { MT.H = new Float32Array(n); MT.SL = new Float32Array(n); }
     const k = 0.07 * Hm;
     const ng = Math.pow(0.97, 1.6), nl = Math.pow(0.96, 1.45);
     for (let i = 0; i < n; i++) {
@@ -193,8 +194,15 @@
       const rough = sstep(0.14 * sep, 0.3 * sep, Math.abs(x - xc));
       hh += hh * (0.03 + 0.06 * rough) * U.fbm1(x / (0.05 * Hm) + 5.3, 3) * (0.25 + 0.75 * rough);
       MT.H[i] = Math.max(0, hh);
-      MT.SL[i] = 0.77 * Hm + 0.04 * Hm * U.noise1(x / (0.035 * Hm) + 9.1) - 0.08 * Hm * Math.abs(U.noise1(x / (0.016 * Hm) + 3.3));
+      MT.SL[i] = 0.8 * Hm + 0.04 * Hm * U.noise1(x / (0.035 * Hm) + 9.1) - 0.08 * Hm * Math.abs(U.noise1(x / (0.016 * Hm) + 3.3));
     }
+    // 山露出水面的横向范围与最高处（离屏画布的大小）
+    let ia = -1, ib = -1, hmax = 0;
+    for (let i = 0; i < n; i++) if (MT.H[i] > 0.5) { if (ia < 0) ia = i; ib = i; hmax = Math.max(hmax, MT.H[i]); }
+    MT.xa = ia < 0 ? 0 : Math.max(0, ia * step - 6);
+    MT.xb = ib < 0 ? 0 : Math.min(w, ib * step + 6);
+    MT.Hmax = hmax;
+    MC.key = ''; MC.ckey = '';
     // 方舟在山上的大小：两峰之间放得下
     MT.sM = clamp((0.5 * sep) / arkLen(), 0.42, 0.82);
     MT.emb = 0.014 * arkLen() * MT.sM;             // 龙骨稍稍陷进山里
@@ -234,116 +242,169 @@
   const mtSink = () => (1 - c01(W.lv.ararat)) * (MT.Hm + 0.02 * W.h);
   function surfY(x) { return MT.wl - mtH(x) + mtSink(); }
 
-  function drawMountain(ctx) {
-    const e = W.lv.ararat;
-    if (e <= 0.001 || !MT.ok) return;
+  // 山的画（屏幕坐标，dy = 0；画在离屏画布上）：远一层的石色，自下而上蒙着水汽；背光面柔和地暗下，雪顶的下缘渐淡
+  function paintMountain(g) {
     const wl = MT.wl, Hm = MT.Hm, n = MT.n, st = MT.step, H = MT.H;
-    const dy = mtSink();
-    const dp = 0.3;
-    const day = W.daylight;
-    const clipB = wl + W.layerRise(2) * 0.014 * W.h;        // 近岸升起之后，山脚藏在它后面
-    ctx.save();
-    ctx.beginPath(); ctx.rect(-10, -10, W.w + 20, clipB + 10); ctx.clip();
-    ctx.translate(0, dy);
-    // 剪影（山脚只在山身之下向下延伸，好藏进近岸之后）
-    const ext = 0.014 * W.h, hk = 0.06 * Hm;          // 一丝向下的延伸：免得近岸与山脚之间露出一线水
-    ctx.beginPath();
-    ctx.moveTo(0, wl - H[0]);
-    for (let i = 1; i < n; i++) ctx.lineTo(i * st, wl - H[i]);
-    for (let i = n - 1; i >= 0; i--) ctx.lineTo(i * st, wl + ext * sstep(0, hk, H[i]) * MT.X[i]);
-    ctx.closePath();
-    const gf = ctx.createLinearGradient(0, wl - Hm, 0, wl);
-    gf.addColorStop(0, W.shadeCSS([134, 128, 130], 0.42));
-    gf.addColorStop(0.55, W.shadeCSS(ROCK, dp));
-    gf.addColorStop(1, W.shadeCSS(mix([98, 84, 72], [74, 100, 58], 0.75 * c01(W.lv.grass)), 0.16));
-    ctx.fillStyle = gf;
-    ctx.fill();
-    ctx.save();
-    ctx.clip();
-    // 雪顶（大亚拉腊）
-    ctx.beginPath();
+    const dp = 0.55, day = W.daylight, hz = W.haze, sto = c01(W.lv.storm);
+    g.beginPath();
+    g.moveTo(0, wl + 3);
+    for (let i = 0; i < n; i++) g.lineTo(i * st, wl - H[i]);
+    g.lineTo((n - 1) * st, wl + 3);
+    g.closePath();
+    const gf = g.createLinearGradient(0, wl - Hm, 0, wl);
+    gf.addColorStop(0, W.shadeCSS([140, 134, 138], dp * 0.85));
+    gf.addColorStop(0.5, W.shadeCSS(ROCK, dp));
+    gf.addColorStop(1, W.shadeCSS(mix([98, 88, 78], [80, 104, 66], 0.7 * c01(W.lv.grass)), dp * 0.7));
+    g.fillStyle = gf;
+    g.fill();
+    g.save();
+    g.clip();
+    // 雪顶（大亚拉腊）：自峰顶向下渐淡，不留一道硬边
+    g.beginPath();
     let open = false, i0 = 0;
     const closeSnow = (i1) => {
-      for (let j = i1; j >= i0; j--) ctx.lineTo(j * st, wl - MT.SL[j]);
-      ctx.closePath();
+      for (let j = i1; j >= i0; j--) g.lineTo(j * st, wl - MT.SL[j]);
+      g.closePath();
     };
     for (let i = 0; i < n; i++) {
       const on = H[i] > MT.SL[i];
-      if (on && !open) { open = true; i0 = i; ctx.moveTo(i * st, wl - MT.SL[i]); ctx.lineTo(i * st, wl - H[i] - 2); }
-      else if (on) ctx.lineTo(i * st, wl - H[i] - 2);
+      if (on && !open) { open = true; i0 = i; g.moveTo(i * st, wl - MT.SL[i]); g.lineTo(i * st, wl - H[i] - 2); }
+      else if (on) g.lineTo(i * st, wl - H[i] - 2);
       else if (open) { open = false; closeSnow(i - 1); }
     }
     if (open) closeSnow(n - 1);
-    ctx.fillStyle = W.shadeCSS(SNOW, dp * 0.8, 1, 0.04);
-    ctx.fill();
-    // 背光的一面：以峰顶为界，一明一暗
+    const snow = W.shade(SNOW, dp * 0.7, 0.04);
+    const gsn = g.createLinearGradient(0, wl - MT.Hmax, 0, wl - 0.72 * Hm);
+    gsn.addColorStop(0, rgba(snow, 0.9));
+    gsn.addColorStop(0.55, rgba(snow, 0.62));
+    gsn.addColorStop(1, rgba(snow, 0.06));
+    g.fillStyle = gsn;
+    g.fill();
+    // 背光的一面：自峰下柔和地暗下，再向山外渐淡
     const sunLeft = W.sun.x < MT.xg;
-    const shA = 0.22 + 0.12 * day;
+    const shA = (0.2 + 0.12 * day) * (1 - 0.4 * sto);
     const shadeFace = (cx, top, ww) => {
       const s = sunLeft ? 1 : -1;
-      ctx.beginPath();
-      ctx.moveTo(cx, wl - top - 4);
-      ctx.lineTo(cx + s * 0.14 * ww, wl - top * 0.55);
-      ctx.lineTo(cx + s * 0.06 * ww, wl + 4);
-      ctx.lineTo(cx + s * ww, wl + 4);
-      ctx.lineTo(cx + s * ww, wl - top - 8);
-      ctx.closePath();
-      // 背光面自山脊向外渐淡，不留一道直边
-      const gs = ctx.createLinearGradient(cx, 0, cx + s * ww, 0);
-      gs.addColorStop(0, U.rgba(14, 16, 30, shA));
-      gs.addColorStop(0.55, U.rgba(14, 16, 30, shA * 0.75));
-      gs.addColorStop(1, U.rgba(14, 16, 30, 0));
-      ctx.fillStyle = gs;
-      ctx.fill();
+      const x0 = cx - s * 0.05 * ww, x1 = cx + s * ww;
+      const gs = g.createLinearGradient(x0, 0, x1, 0);
+      gs.addColorStop(0, U.rgba(18, 22, 38, 0));
+      gs.addColorStop(0.16, U.rgba(18, 22, 38, shA));
+      gs.addColorStop(0.55, U.rgba(18, 22, 38, shA * 0.7));
+      gs.addColorStop(1, U.rgba(18, 22, 38, 0));
+      g.fillStyle = gs;
+      g.fillRect(Math.min(x0, x1), wl - top - 10, Math.abs(x1 - x0), top + 14);
     };
     shadeFace(MT.xg, mtH(MT.xg), MT.Wg);
     shadeFace(MT.xl, mtH(MT.xl), MT.Wl);
     // 山沟
     if (MT.gul.length) {
-      ctx.beginPath();
-      for (const g of MT.gul) {
-        ctx.moveTo(g[0], wl - g[1]);
-        for (let k = 2; k < g.length; k += 2) ctx.lineTo(g[k], wl - g[k + 1]);
+      g.beginPath();
+      for (const q of MT.gul) {
+        g.moveTo(q[0], wl - q[1]);
+        for (let k = 2; k < q.length; k += 2) g.lineTo(q[k], wl - q[k + 1]);
       }
-      ctx.strokeStyle = U.rgba(20, 20, 34, 0.18 + 0.1 * day);
-      ctx.lineWidth = Math.max(1, 1.4 * uu());
-      ctx.lineJoin = 'round';
-      ctx.stroke();
+      g.strokeStyle = U.rgba(24, 26, 40, 0.1 + 0.06 * day);
+      g.lineWidth = Math.max(1, 1.2 * uu());
+      g.lineJoin = 'round';
+      g.stroke();
     }
-    // 山脚的水汽
-    const gm = ctx.createLinearGradient(0, wl - 0.35 * Hm, 0, wl);
-    const hz = W.haze;
-    gm.addColorStop(0, rgba(hz, 0));
-    gm.addColorStop(1, rgba(hz, 0.42));
-    ctx.fillStyle = gm;
-    ctx.fillRect(-2, wl - 0.35 * Hm, W.w + 4, 0.35 * Hm + 0.12 * W.h);
-    ctx.restore();
-    // 迎光的一道边
+    // 暴风雨下，山也暗
+    if (sto > 0.01) { g.fillStyle = U.rgba(10, 12, 20, 0.3 * sto); g.fillRect(-2, wl - MT.Hmax - 10, W.w + 4, MT.Hmax + 14); }
+    // 水汽：自下而上，山与远处的天、海相融
+    const gm = g.createLinearGradient(0, wl - MT.Hmax, 0, wl);
+    gm.addColorStop(0, rgba(hz, 0.12));
+    gm.addColorStop(0.55, rgba(hz, 0.28));
+    gm.addColorStop(1, rgba(hz, 0.55));
+    g.fillStyle = gm;
+    g.fillRect(-2, wl - MT.Hmax - 10, W.w + 4, MT.Hmax + 14);
+    g.restore();
+    // 迎光的一道边（只沿山脊）
+    g.beginPath();
+    let on = false;
+    for (let i = 0; i < n; i++) {
+      if (H[i] < 1) { on = false; continue; }
+      const y = wl - H[i];
+      if (on) g.lineTo(i * st, y); else { g.moveTo(i * st, y); on = true; }
+    }
+    g.strokeStyle = W.shadeCSS(W.dusk > 0.3 ? [255, 190, 130] : RIMC, dp * 0.6, (0.14 + 0.3 * day) * (1 - 0.6 * sto), 0.4);
+    g.lineWidth = 1.1;
+    g.stroke();
+  }
+  function mtKey() {
+    const q = v => Math.round(v * 40), hz = W.haze, am = W.ambient || hz;
+    return MT.w + ',' + MT.h + ',' + MC.sc + ',' + q(W.daylight) + ',' + q(W.dusk) + ',' + q(c01(W.lv.storm)) + ',' + q(c01(W.lv.grass)) + ',' +
+      (W.sun.x < MT.xg ? 1 : 0) + ',' + (hz[0] >> 2) + ',' + (hz[1] >> 2) + ',' + (hz[2] >> 2) + ',' + (am[0] >> 2) + ',' + (am[1] >> 2) + ',' + (am[2] >> 2);
+  }
+  // 合成：山按此刻的沉浮移下，在水线之上的一小段里渐渐隐入水中（没有一道直的剪边）
+  function mtComp(dy) {
+    const sc = MC.sc = Math.min(2, W.dpr || 1);
+    const X0 = Math.floor(MT.xa), Y0 = Math.floor(MT.wl - MT.Hmax - 10);
+    const cw = Math.max(1, Math.ceil(MT.xb) - X0), ch = Math.max(1, Math.ceil(MT.wl + 2) - Y0);
+    const pw = Math.ceil(cw * sc), ph = Math.ceil(ch * sc);
+    try {
+      if (!MC.art) { MC.art = document.createElement('canvas'); MC.comp = document.createElement('canvas'); }
+    } catch (e) { return null; }
+    const A = MC.art, C = MC.comp;
+    if (A.width !== pw || A.height !== ph) { A.width = C.width = pw; A.height = C.height = ph; MC.key = ''; }
+    MC.X0 = X0; MC.Y0 = Y0; MC.cw = cw; MC.ch = ch;
+    const key = mtKey();
+    if (key !== MC.key) {
+      MC.key = key; MC.ckey = '';
+      const g = A.getContext('2d');
+      g.setTransform(1, 0, 0, 1, 0, 0);
+      g.clearRect(0, 0, pw, ph);
+      g.setTransform(sc, 0, 0, sc, -X0 * sc, -Y0 * sc);
+      paintMountain(g);
+    }
+    const dk = Math.round(dy * sc);
+    if (MC.ckey !== dk) {
+      MC.ckey = dk;
+      const g = C.getContext('2d');
+      g.setTransform(1, 0, 0, 1, 0, 0);
+      g.globalCompositeOperation = 'source-over';
+      g.clearRect(0, 0, pw, ph);
+      g.drawImage(A, 0, dk);
+      g.setTransform(sc, 0, 0, sc, -X0 * sc, -Y0 * sc);
+      const foot = 0.035 * W.h, wl = MT.wl;
+      const gd = g.createLinearGradient(0, wl - foot, 0, wl);
+      gd.addColorStop(0, 'rgba(0,0,0,0)');
+      gd.addColorStop(0.6, 'rgba(0,0,0,0.55)');
+      gd.addColorStop(1, 'rgba(0,0,0,1)');
+      g.globalCompositeOperation = 'destination-out';
+      g.fillStyle = gd;
+      g.fillRect(X0 - 2, wl - foot, cw + 4, foot + 0.5);
+      g.fillStyle = '#000';
+      g.fillRect(X0 - 2, wl, cw + 4, ch);
+      g.globalCompositeOperation = 'source-over';
+    }
+    return MC;
+  }
+
+  function drawMountain(ctx) {
+    const e = W.lv.ararat;
+    if (e <= 0.001 || !MT.ok || MT.xb <= MT.xa) return;
+    const wl = MT.wl, n = MT.n, st = MT.step, H = MT.H;
+    const dy = mtSink();
+    const C = mtComp(dy);
+    if (C) ctx.drawImage(C.comp, C.X0, C.Y0, C.cw, C.ch);
+    // 水线：山与水相接处，水里一道淡淡的倒影与一道白沫
+    const span = mtSpan(dy);
+    if (!span) return;
+    const ga = ctx.createLinearGradient(0, wl, 0, wl + 0.025 * W.h);
+    ga.addColorStop(0, rgba(W.shade(ROCK, 0.6), 0.22));
+    ga.addColorStop(1, rgba(W.shade(ROCK, 0.6), 0));
+    ctx.fillStyle = ga;
+    ctx.fillRect(span[0], wl, span[1] - span[0], 0.025 * W.h);
     ctx.beginPath();
-    for (let i = 0; i < n; i++) { const y = wl - H[i]; if (i) ctx.lineTo(i * st, y); else ctx.moveTo(0, y); }
-    ctx.strokeStyle = W.shadeCSS(W.dusk > 0.3 ? [255, 190, 130] : RIMC, dp * 0.5, (0.18 + 0.4 * day) * (1 - 0.6 * W.lv.storm), 0.4);
-    ctx.lineWidth = 1.2;
-    ctx.stroke();
-    ctx.restore();
-    // 水线：山与水相接处，水里一道暗影与一道白沫
-    {
-      const ga = ctx.createLinearGradient(0, wl, 0, wl + 0.03 * W.h);
-      ga.addColorStop(0, U.rgba(6, 12, 20, 0.35));
-      ga.addColorStop(1, U.rgba(6, 12, 20, 0));
-      ctx.fillStyle = ga;
-      const span = mtSpan(dy);
-      if (span) ctx.fillRect(span[0], wl, span[1] - span[0], 0.03 * W.h);
-      ctx.beginPath();
-      let on = false;
-      for (let i = 0; i < n; i++) {
-        const em = H[i] > dy + 0.5;
-        const x = i * st, y = wl - 0.5 + Math.sin(x * 0.05 + S.clock * 2) * 0.8;
-        if (em && !on) { ctx.moveTo(x, y); on = true; } else if (em) ctx.lineTo(x, y); else on = false;
-      }
-      ctx.strokeStyle = W.shadeCSS(FOAM, 0.25, 0.45 + 0.2 * W.lv.flSea);
-      ctx.lineWidth = 1.6 * uu();
-      ctx.stroke();
+    let on = false;
+    for (let i = 0; i < n; i++) {
+      const em = H[i] > dy + 0.5;
+      const x = i * st, y = wl - 0.5 + Math.sin(x * 0.05 + S.clock * 2) * 0.8;
+      if (em && !on) { ctx.moveTo(x, y); on = true; } else if (em) ctx.lineTo(x, y); else on = false;
     }
+    ctx.strokeStyle = W.shadeCSS(FOAM, 0.3, 0.3 + 0.2 * W.lv.flSea);
+    ctx.lineWidth = 1.3 * uu();
+    ctx.stroke();
   }
 
   // ════════════════════════════════════════════════════════════
@@ -1040,10 +1101,12 @@
   // ════════════════════════════════════════════════════════════
   //  天：暴风雨、雨、闪电、云开处的光、虹
   // ════════════════════════════════════════════════════════════
-  let CLOUD = null, CLOUD2 = null;
-  function makeClouds(seed, n, light) {
+  let CLOUD = null, CLOUD2 = null, CLOUD_P = null, CLOUD2_P = null;
+  // ch：贴图的高（竖屏用更高的一张，免得拉伸成一个个圆球）
+  function makeClouds(seed, n, light, ch) {
     try {
-      const cw = 512, ch = 170;
+      const cw = 512;
+      ch = ch || 170;
       const c = document.createElement('canvas'); c.width = cw; c.height = ch;
       const g = c.getContext('2d');
       const r = U.mulberry32(seed);
@@ -1052,14 +1115,21 @@
         const rad = (0.05 + 0.11 * r()) * cw * (0.6 + 0.7 * (y / ch));
         const lit = r() < 0.5;
         const v = lit ? light + 40 * r() : 18 + 22 * r();
-        const a = lit ? 0.22 + 0.2 * r() : 0.35 + 0.3 * r();
+        const a = lit ? 0.22 + 0.2 * r() : 0.3 + 0.26 * r();
         const oy = lit ? -rad * 0.28 : 0;
+        const sy = ch > 200 ? 0.4 : 0.5;
+        // 每一团以压扁的圆画：渐变恰在椭圆的边上淡到零（不留一圈硬边）
         for (const ox of [-cw, 0, cw]) {
-          const gr = g.createRadialGradient(x + ox, y + oy, 0, x + ox, y + oy, rad);
+          g.save();
+          g.translate(x + ox, y + oy);
+          g.scale(1, sy);
+          const gr = g.createRadialGradient(0, 0, 0, 0, 0, rad);
           gr.addColorStop(0, U.rgba(v, v + 3, v + 9, a));
+          gr.addColorStop(0.45, U.rgba(v, v + 3, v + 9, a * 0.6));
           gr.addColorStop(1, U.rgba(v, v + 3, v + 9, 0));
           g.fillStyle = gr;
-          g.beginPath(); g.ellipse(x + ox, y + oy, rad, rad * 0.5, 0, 0, TAU); g.fill();
+          g.beginPath(); g.arc(0, 0, rad, 0, TAU); g.fill();
+          g.restore();
         }
       }
       // 上下两端渐隐，免得贴图的边成一道直线
@@ -1095,29 +1165,58 @@
     g.addColorStop(1, rgba(mid, 0.78 * s));
     ctx.fillStyle = g;
     ctx.fillRect(-20, -20, W.w + 40, hz + 21);
-    if (!CLOUD) CLOUD = makeClouds(4242, 110, 150);
-    if (!CLOUD2) CLOUD2 = makeClouds(917, 70, 120);
+    // 日与月隐在乌云之后：其处的天再暗一层（天幕上的日轮、月轮与光晕都被遮住）
+    for (const b of [W.sun, W.moon]) {
+      if (!b || b.y > hz + 0.02 * W.h) continue;
+      const R = 0.34 * M();
+      const gv = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, R);
+      gv.addColorStop(0, rgba(top, 0.92 * s));
+      gv.addColorStop(0.35, rgba(top, 0.7 * s));
+      gv.addColorStop(1, rgba(top, 0));
+      ctx.fillStyle = gv;
+      ctx.fillRect(b.x - R, b.y - R, 2 * R, 2 * R);
+    }
+    const port = W.w < W.h * 0.9;
+    if (port) {
+      if (!CLOUD_P) CLOUD_P = makeClouds(4242, 260, 150, 420);
+      if (!CLOUD2_P) CLOUD2_P = makeClouds(917, 170, 120, 420);
+    } else {
+      if (!CLOUD) CLOUD = makeClouds(4242, 110, 150);
+      if (!CLOUD2) CLOUD2 = makeClouds(917, 70, 120);
+    }
+    const C1 = port ? CLOUD_P : CLOUD, C2 = port ? CLOUD2_P : CLOUD2;
     const speed = (10 + 55 * W.lv.flWind + 18 * s) * uu();
     const off1 = ((S.clock * speed) % W.w + W.w) % W.w, off2 = ((S.clock * speed * 0.55) % W.w + W.w) % W.w;
     const ca = s * (0.45 + 0.55 * day) + 0.15 * s;
-    if (CLOUD2) {
+    if (C2) {
       ctx.globalAlpha = clamp(ca * 0.8, 0, 1);
-      ctx.drawImage(CLOUD2, -off2, hz * 0.18, W.w, hz * 0.85);
-      ctx.drawImage(CLOUD2, W.w - off2, hz * 0.18, W.w, hz * 0.85);
+      ctx.drawImage(C2, -off2, hz * 0.18, W.w, hz * 0.85);
+      ctx.drawImage(C2, W.w - off2, hz * 0.18, W.w, hz * 0.85);
     }
-    if (CLOUD) {
+    if (C1) {
       ctx.globalAlpha = clamp(ca, 0, 1);
-      ctx.drawImage(CLOUD, -off1, -hz * 0.05, W.w, hz * 0.8);
-      ctx.drawImage(CLOUD, W.w - off1, -hz * 0.05, W.w, hz * 0.8);
+      ctx.drawImage(C1, -off1, -hz * 0.05, W.w, hz * 0.8);
+      ctx.drawImage(C1, W.w - off1, -hz * 0.05, W.w, hz * 0.8);
     }
     ctx.globalAlpha = 1;
     if (W.night > 0.02) { ctx.fillStyle = U.rgba(2, 3, 7, 0.6 * W.night * s); ctx.fillRect(-20, -20, W.w + 40, hz + 21); }
     // 海也暗下来
     const g2 = ctx.createLinearGradient(0, hz, 0, W.h);
     g2.addColorStop(0, rgba(U.mixRGB([8, 12, 18], [70, 78, 90], day), 0.75 * s));
-    g2.addColorStop(1, rgba([6, 10, 16], 0.5 * s));
+    g2.addColorStop(1, rgba([6, 10, 16], 0.6 * s));
     ctx.fillStyle = g2;
     ctx.fillRect(-20, hz, W.w + 40, W.h - hz + 20);
+    // 日、月在海上的一道光也被乌云遮去
+    for (const b of [W.sun, W.moon]) {
+      if (!b || b.y > hz) continue;
+      const gw = 0.16 * W.w;
+      const gg = ctx.createLinearGradient(b.x - gw, 0, b.x + gw, 0);
+      gg.addColorStop(0, 'rgba(6,10,16,0)');
+      gg.addColorStop(0.5, rgba([6, 10, 16], 0.55 * s));
+      gg.addColorStop(1, 'rgba(6,10,16,0)');
+      ctx.fillStyle = gg;
+      ctx.fillRect(b.x - gw, hz, 2 * gw, W.h - hz + 20);
+    }
     // 天上的窗户敞开：一道道雨幕
     const r = W.lv.rain;
     if (r > 0.02) {
@@ -1203,11 +1302,12 @@
     ctx.restore();
   }
   // 虹：横过整个天空；自左脚向右脚铺开；外面一道淡淡的副虹，其间略暗（亚历山大暗带）
+  // 虹在日的对面：日西斜在右（9:13 时辰 0.69），虹的圆心便在左边的天——日不落在虹里
+  // 竖屏：半径不超过画宽的六成，整道弧都在画中
   function bowGeom() {
-    const hz = W.horizonY;
-    const apex = W.h * (W.w < W.h ? 0.16 : 0.1);
-    const cy = hz + 0.1 * W.h, cx = W.w * 0.52;
-    return { cx, cy, R: cy - apex };
+    const hz = W.horizonY, cy = hz + 0.1 * W.h;
+    if (W.w < W.h) return { cx: W.w * 0.42, cy, R: Math.min(cy - 0.16 * W.h, 0.58 * W.w) };
+    return { cx: W.w * 0.36, cy, R: cy - 0.1 * W.h };
   }
   function drawRainbow(ctx) {
     const a = W.lv.rainbow;
@@ -2481,8 +2581,8 @@
       init() {
         safe('flood.sprites', buildSprites); glowSprite(); warmSprite();
         // 云、烟的贴图先备好：暴雨来时不必临时生成
-        if (!CLOUD) CLOUD = makeClouds(4242, 110, 150);
-        if (!CLOUD2) CLOUD2 = makeClouds(917, 70, 120);
+        if (W.w < W.h * 0.9) { if (!CLOUD_P) CLOUD_P = makeClouds(4242, 260, 150, 420); if (!CLOUD2_P) CLOUD2_P = makeClouds(917, 170, 120, 420); }
+        else { if (!CLOUD) CLOUD = makeClouds(4242, 110, 150); if (!CLOUD2) CLOUD2 = makeClouds(917, 70, 120); }
         if (!PUFF) PUFF = puffSprite(false);
         if (!PUFF_W) PUFF_W = puffSprite(true);
       },
