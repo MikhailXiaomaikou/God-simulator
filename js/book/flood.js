@@ -1035,7 +1035,13 @@
   function drawSkyTints(ctx) {
     const hz = W.horizonY;
     const h = W.lv.flHaze, g = W.lv.flGrief;
-    if (h > 0.01) { ctx.fillStyle = U.rgba(120, 52, 28, 0.16 * h); ctx.fillRect(-20, -20, W.w + 40, hz + 20); }
+    if (h > 0.01) {
+      const gs = ctx.createLinearGradient(0, 0, 0, hz);
+      gs.addColorStop(0, U.rgba(70, 40, 34, 0.18 * h));
+      gs.addColorStop(1, U.rgba(150, 70, 36, 0.34 * h));
+      ctx.fillStyle = gs;
+      ctx.fillRect(-20, -20, W.w + 40, hz + 20);
+    }
     if (g > 0.01) { ctx.fillStyle = U.rgba(60, 68, 88, 0.26 * g); ctx.fillRect(-20, -20, W.w + 40, W.h + 40); }
   }
   function drawStormSky(ctx) {
@@ -1297,11 +1303,13 @@
   function drawOverlays(ctx) {
     const h = W.lv.flHaze, g = W.lv.flGrief, s = W.lv.storm;
     if (h > 0.01) {
-      const gr = ctx.createLinearGradient(0, W.h * 0.2, 0, W.h);
-      gr.addColorStop(0, U.rgba(60, 26, 16, 0));
-      gr.addColorStop(1, U.rgba(66, 26, 14, 0.3 * h));
+      // 地上满了强暴：烟霾自地面升起，一切蒙上红褐
+      const gr = ctx.createLinearGradient(0, W.h * 0.1, 0, W.h);
+      gr.addColorStop(0, U.rgba(60, 26, 16, 0.06 * h));
+      gr.addColorStop(0.55, U.rgba(70, 30, 18, 0.2 * h));
+      gr.addColorStop(1, U.rgba(58, 22, 12, 0.46 * h));
       ctx.fillStyle = gr;
-      ctx.fillRect(-20, W.h * 0.2, W.w + 40, W.h * 0.8 + 20);
+      ctx.fillRect(-20, W.h * 0.1 - 1, W.w + 40, W.h * 0.9 + 21);
     }
     if (g > 0.01) { ctx.fillStyle = U.rgba(16, 24, 42, 0.22 * g); ctx.fillRect(-20, -20, W.w + 40, W.h + 40); }
     if (s > 0.01) { ctx.fillStyle = U.rgba(6, 8, 14, 0.3 * s); ctx.fillRect(-20, -20, W.w + 40, W.h + 40); }
@@ -1352,7 +1360,7 @@
       return c;
     } catch (e) { return null; }
   }
-  const PLUMES = [0.8, 0.9, 0.97];
+  const PLUMES = [0.78, 0.88, 0.96, 0.555];
   function drawPlumes(ctx) {
     const h = W.lv.flHaze;
     if (h < 0.02) return;
@@ -1361,12 +1369,14 @@
     if (!sp) return;
     const u = uu();
     for (let p = 0; p < PLUMES.length; p++) {
-      const bx = PLUMES[p] * W.w, by = gY(bx) - 6 * u;
-      const Hp = W.h * (0.3 + 0.08 * p);
+      const far = p === 3;
+      const bx = PLUMES[p] * W.w, by = (far ? gY(bx, 1) : gY(bx)) - (far ? 2 : 6) * u;
+      const Hp = W.h * (far ? 0.26 : 0.3 + 0.08 * p);
+      const ku = far ? 0.55 : 1;
       if (wsp) {
         ctx.globalCompositeOperation = 'lighter';
         ctx.globalAlpha = clamp(h * (0.35 + 0.2 * Math.sin(S.clock * 9 + p * 3) + 0.4 * W.night), 0, 1);
-        const fr = (16 + 6 * Math.sin(S.clock * 7 + p)) * u;
+        const fr = (16 + 6 * Math.sin(S.clock * 7 + p)) * u * ku;
         ctx.drawImage(wsp, bx - fr, by - fr * 0.8, fr * 2, fr * 1.4);
         ctx.globalCompositeOperation = 'source-over';
       }
@@ -1374,8 +1384,8 @@
         const a = (S.clock * 0.06 + i / 12 + p * 0.13) % 1;
         const y = by - a * Hp;
         const x = bx + a * Hp * (0.25 + 0.35 * W.wind) + Math.sin(a * 6 + i + p) * 6 * u;
-        const r = (5 + 42 * a) * u;
-        ctx.globalAlpha = clamp(h * 0.5 * Math.pow(Math.sin(Math.PI * a), 0.7), 0, 1);
+        const r = (5 + 46 * a) * u * ku;
+        ctx.globalAlpha = clamp(h * 0.62 * Math.pow(Math.sin(Math.PI * a), 0.7), 0, 1);
         ctx.drawImage(sp, x - r, y - r, r * 2, r * 2);
       }
     }
@@ -1686,6 +1696,15 @@
       S.buildSfx -= k;
       if (S.buildSfx <= 0) { S.buildSfx = rnd(0.8, 1.6); sfx('build', null, { soft: true }); }
     }
+    // 强暴之地：火星自烟柱底下升起
+    if (W.lv.flHaze > 0.5) {
+      S.emberAcc = (S.emberAcc || 0) + k * 6 * W.lv.flHaze;
+      while (S.emberAcc > 1) {
+        S.emberAcc -= 1;
+        const bx = PLUMES[Math.floor(Math.random() * 3)] * W.w + rnd(-8, 8) * uu();
+        safe('flood.ember', () => fx().add({ x: bx, y: gY(bx) - 8 * uu(), vx: rnd(-10, 14), vy: -rnd(30, 70) * uu(), max: rnd(1.2, 2.6), size: rnd(0.7, 1.5), c: [255, 150, 70], drag: 0.5, a: 0.8, pass: 'near', twinkle: true }));
+      }
+    }
     // 忧伤：几滴冷的微光缓缓落下
     if (W.lv.flGrief > 0.25 && W.lt.flGrief > 0.5) {
       S.griefAcc += k * 5;
@@ -1941,7 +1960,7 @@
               lv('arkBuild', 1, b);
               lv('flGrace', 0.3, b);
               lv('flGrief', 0.45, b);
-              lv('flHaze', 0.6, b);
+              lv('flHaze', 0.45, b);
               cast().glow('noah', 0.55);
               W.passDay(24, inst(b));
               for (const id of EXTRAS) cast().walk(id, 1.12, { speed: 0.05 });
@@ -1957,6 +1976,12 @@
             }],
             [6, b => { cast().pose('shem', 'raise'); cast().pose('ham', 'raise'); cast().pose('japheth', 'raise'); }],
             [8, b => { for (const id of EXTRAS) cast().remove(id); }],
+            [10, b => {
+              // 夜里：地上的走兽散去（它们将一对一对地来到方舟）
+              allPops(0, W.w * 0.8, W.h * 0.8, true);
+              W.setPop('bird', 24, W.w * 0.6, W.h * 0.3, true);
+              GS.book.resync();
+            }],
             [11, b => {
               const hf = arkHalf();
               cast().walk('shem', x - hf * 0.4, { pose: 'raise', speed: 0.04 });
@@ -1995,6 +2020,7 @@
               lv('arkBuild', 1, b); lv('arkPitch', 1, b);
               lv('arkDoor', 1, b); lv('arkRamp', 1, b);
               lv('flGrace', 0, b);
+              lv('flGrief', 0.3, b); lv('flHaze', 0.35, b);
               time(0.5, 10, b);
               const f = footFrac();
               cast().add('noah', { v: 0.12 });

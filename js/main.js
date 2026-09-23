@@ -160,17 +160,17 @@
 
   // 七日的终幕：「安息」
   function actOneFinale() {
-    setTimeout(() => { GS.ui.finale(true, { title: '安息', sub: '天地万物都造齐了', foot: '7 日 · 27 句话 · 0 个 bug' }); safe('audio.finale', () => GS.audio.finale()); }, 13000 / W.fast);
-    setTimeout(() => GS.ui.finale(false), 24000 / W.fast);
+    GS.book.after(13, () => { GS.ui.finale(true, { title: '安息', sub: '天地万物都造齐了', foot: '7 日 · 27 句话 · 0 个 bug' }); safe('audio.finale', () => GS.audio.finale()); });
+    GS.book.after(24, () => GS.ui.finale(false));
   }
 
-  // 落幕，布置下一卷，卷名浮现，启幕
+  // 落幕，布置下一卷，卷名浮现，启幕（按世界时间计，慢设备上也与情节同步）
   function scheduleAct(next, delay) {
     S.transition = true;
-    setTimeout(() => {
+    const after = GS.book.after;
+    after(delay, () => {
       W.set('curtain', 1);
-      safe('audio.visibility', () => GS.audio.visibility && GS.audio.visibility(true));
-      setTimeout(() => {
+      after(2.4, () => {
         GS.book.flush();
         GS.ui.clearNarration();
         safe('fx.clear', () => GS.fx.clearTransient());
@@ -178,15 +178,15 @@
         GS.ui.actCard(next, true);
         refreshHUD();
         save();
-        setTimeout(() => W.set('curtain', 0), 3200 / W.fast);
-        setTimeout(() => {
+        after(3.2, () => W.set('curtain', 0));
+        after(6.2, () => {
           GS.ui.actCard(next, false);
           S.transition = false;
           if (next.intro) GS.ui.narrate(next.intro, { delay: 0.6 });
-          else setTimeout(() => GS.ui.hint('按住 · 言说', 4), 1500 / W.fast);
-        }, 6200 / W.fast);
-      }, 2400 / W.fast);
-    }, delay * 1000 / W.fast);
+          else after(1.5, () => GS.ui.hint('按住 · 言说', 4));
+        });
+      });
+    });
   }
 
   // 进入一卷：瞬间布置它的世界，再让万物按新的目标多退少补
@@ -215,9 +215,10 @@
     safe('audio.rest', () => GS.audio.rest());
     refreshHUD();
     const spoken = STAGES.filter(s => s.utter).length;
-    setTimeout(() => { GS.ui.finale(true, { title: '创世记', sub: '全书五十章 · 终', foot: spoken + ' 句话 · 0 个 bug　—　God is the first vibecoder.' }); safe('audio.finale', () => GS.audio.finale()); }, 15500 / W.fast);
-    setTimeout(() => GS.ui.finale(false), 28000 / W.fast);
-    setTimeout(() => GS.ui.hint('灵经过之处，万物显出其名；按住，观看它被造时的话', 7), 31000 / W.fast);
+    const outro = (ACTS[ACTS.length - 1] && ACTS[ACTS.length - 1].outro) || 16;
+    GS.book.after(outro, () => { GS.ui.finale(true, { title: '创世记', sub: '全书五十章 · 终', foot: spoken + ' 句话 · 0 个 bug　—　God is the first vibecoder.' }); safe('audio.finale', () => GS.audio.finale()); });
+    GS.book.after(outro + 13, () => GS.ui.finale(false));
+    GS.book.after(outro + 16, () => GS.ui.hint('灵经过之处，万物显出其名；按住，观看它被造时的话', 7));
   }
 
   // 黎明：一日圆满——日数由晨光（前三日）或星光（后三日）写在地平线上

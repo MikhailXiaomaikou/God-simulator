@@ -1036,7 +1036,7 @@
     if (!N) return;
     const q = W.quality || 1, t = W.t;
     // 1) 夜里的荧光尾迹：按"段龄"分批，越旧越淡，平滑地消散
-    if (C.bio > 0.02 && !GS.__noTrail) {
+    if (C.bio > 0.02) {
       ctx.globalCompositeOperation = 'lighter';
       ctx.lineCap = 'round';
       ctx.lineWidth = Math.max(0.8, W.unit * SB * 1.15);
@@ -1145,7 +1145,7 @@
       ctx.globalCompositeOperation = 'source-over';
     }
     // 4) 夜里（有了生命之光）：每条鱼是一粒微微明灭的青光
-    if (C.bio > 0.02 && GLOW && !GS.__noGlow) {
+    if (C.bio > 0.02 && GLOW) {
       ctx.globalCompositeOperation = 'lighter';
       for (let i = 0; i < N; i++) {
         const f = FISH[i];
@@ -1212,7 +1212,7 @@
     if (fa > 0.01) { ctx.globalAlpha = fa; ctx.drawImage(WT.fin, -WT.CX, -WT.CY); }
     // 夜里：生命之光在它周身隐隐发亮
     // （夜海近乎全黑，普通叠加与"相加"看来无异，而前者便宜得多）
-    if (C.bio > 0.03 && !GS.__noWB) {
+    if (C.bio > 0.03) {
       ctx.globalAlpha = c01(C.bio * 0.26 * vis * (0.7 + 0.3 * Math.sin(W.t * 0.9 + w.L)));
       ctx.drawImage(WT.bio, -WT.CX, -WT.CY);
     }

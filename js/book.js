@@ -82,9 +82,14 @@
     safe('beat', () => item.fn({ instant: !!instant }));
     W.replaying = prev;
   }
+  // 引擎自己的定时（落幕、卷首……）：同样按世界时间，但不随下一句话被"补完"
+  const timers = [];
+  function after(sec, fn) { timers.push({ at: W.t + Math.max(0, sec) / (W.fast || 1), fn }); timers.sort((a, b) => a.at - b.at); }
   function tick() {
     let guard = 50;
     while (pending.length && pending[0].at <= W.t && guard--) run(pending[0], false);
+    guard = 20;
+    while (timers.length && timers[0].at <= W.t && guard--) { const t = timers.shift(); safe('timer', t.fn); }
   }
   // 把尚未发生的情节立即补完（按原先的先后）
   function flush() { let guard = 500; while (pending.length && guard--) run(pending[0], true); }
@@ -140,5 +145,5 @@
   // 本卷是否正在进行（布景只在自己的卷里画）
   const current = id => ACTS[W.act] && ACTS[W.act].id === id;
 
-  GS.book = { ACTS, act, actOf, timeline, flush, busy, resync, current, CN_NUM, scenes };
+  GS.book = { ACTS, act, actOf, timeline, flush, busy, after, resync, current, CN_NUM, scenes };
 })(window.GS);
