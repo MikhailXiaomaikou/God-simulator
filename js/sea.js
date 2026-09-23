@@ -1241,12 +1241,12 @@
   function exposure(w, a) {
     if (w.st === 'surf') {
       const ac = lerp(0.66, -0.62, w.roll);
-      return (0.95 * bump((a - ac) / 0.36) + 0.28 * bump((a + 0.02) / 0.42)) * w.surf;
+      return (0.95 * bump((a - ac) / 0.31) + 0.14 * bump((a + 0.02) / 0.3)) * w.surf;
     }
     if (w.st === 'dive' && w.T < 2.9) {
       const p = w.T / w.dur;
       const ac = lerp(0.12, -0.4, c01(p / 0.62));
-      return bump((a - ac) / 0.42) * (0.8 + 1.25 * w.arch) * w.surf;
+      return bump((a - ac) / 0.44) * (0.8 + 1.0 * w.arch) * w.surf;
     }
     return 0;
   }
@@ -1258,12 +1258,15 @@
     const s = whaleScale(w), D = depthAt(w.y), fz = fzOf(D);
     const c = Math.cos(w.hd), sn = Math.sin(w.hd), L = w.L;
     const arch = w.st === 'dive' ? w.arch : 0;
-    let k0 = -1, k1 = -1;
+    let k0 = -1, k1 = -1, eMax = 0;
     for (let k = 0; k < BN; k++) {
       const a = lerp(0.5, -0.48, k / (BN - 1));
-      const e = Math.min(0.17, topH(a) + 0.045 * arch) * L * exposure(w, a) * s;
+      // 平滑地饱和（软上限），拱得再高也是一道圆润的弧，不成尖顶
+      const raw = (topH(a) + 0.04 * arch) * exposure(w, a);
+      const e = 0.16 * (1 - Math.exp(-raw / 0.16)) * L * s;
       const X = w.x + s * (a * L * c), Y = w.y + s * fz * (a * L * sn);
       WBX[k] = X; WBY[k] = Y; WTY[k] = Y - e;
+      if (e > eMax) eMax = e;
       if (e > 0.35) { if (k0 < 0) k0 = k; k1 = k; }
     }
     const col = W.shade(WHALE, (1 - D) * 0.3);
@@ -1280,22 +1283,27 @@
       ctx.closePath();
       ctx.fillStyle = css(col, 0.96 * vis);
       ctx.fill();
-      // 湿亮的脊背映着天光：一道描光，外加一层更淡更宽的
-      ctx.beginPath();
-      ctx.moveTo((WBX[a0] + WBX[a0 + 1]) / 2, (WTY[a0] + WTY[a0 + 1]) / 2);
-      for (let k = a0 + 1; k < a1; k++) ctx.quadraticCurveTo(WBX[k], WTY[k], (WBX[k] + WBX[k + 1]) / 2, (WTY[k] + WTY[k + 1]) / 2);
-      ctx.strokeStyle = css(C.rim, C.rimA * 0.22 * vis);
-      ctx.lineWidth = Math.max(1.4, s * 3);
-      ctx.stroke();
-      ctx.strokeStyle = css(C.rim, C.rimA * 0.75 * vis);
-      ctx.lineWidth = Math.max(0.7, s * 1.1);
-      ctx.stroke();
-      // 水线：露出处一道白，前端推起的浪与后端的漩，是柔白的水沫
-      if (k1 - k0 >= 3) {
+      // 湿亮的脊背映着天光：只在拱起的脊上一道描光（两端入水处不描，免得像勾了边的船）
+      let r0 = -1, r1 = -1;
+      for (let k = k0; k <= k1; k++) if (WBY[k] - WTY[k] > eMax * 0.45) { if (r0 < 0) r0 = k; r1 = k; }
+      if (r0 >= 0 && r1 > r0) {
         ctx.beginPath();
-        ctx.moveTo(WBX[k0 + 1], WBY[k0 + 1] + sink * 0.6);
-        for (let k = k0 + 2; k < k1; k++) ctx.lineTo(WBX[k], WBY[k] + sink * 0.6);
-        ctx.strokeStyle = css(C.foam, 0.16 * vis * dayK);
+        ctx.moveTo(WBX[r0], WTY[r0]);
+        for (let k = r0 + 1; k < r1; k++) ctx.quadraticCurveTo(WBX[k], WTY[k], (WBX[k] + WBX[k + 1]) / 2, (WTY[k] + WTY[k + 1]) / 2);
+        ctx.lineTo(WBX[r1], WTY[r1]);
+        ctx.strokeStyle = css(C.rim, C.rimA * 0.12 * vis);
+        ctx.lineWidth = Math.max(1.4, s * 3);
+        ctx.stroke();
+        ctx.strokeStyle = css(C.rim, C.rimA * 0.5 * vis);
+        ctx.lineWidth = Math.max(0.7, s * 1.0);
+        ctx.stroke();
+      }
+      // 水线：露出处一道白，前端推起的浪与后端的漩，是柔白的水沫
+      if (r1 - r0 >= 2) {
+        ctx.beginPath();
+        ctx.moveTo(WBX[r0], WBY[r0] + sink * 0.6);
+        for (let k = r0 + 1; k <= r1; k++) ctx.lineTo(WBX[k], WBY[k] + sink * 0.6);
+        ctx.strokeStyle = css(C.foam, 0.1 * vis * dayK * (1 - 0.6 * W.dusk));
         ctx.lineWidth = Math.max(0.7, s * 1.4);
         ctx.stroke();
       }
@@ -1343,8 +1351,8 @@
     ctx.closePath();
     ctx.fillStyle = css(col, 0.97 * vis);
     ctx.fill();
-    ctx.strokeStyle = css(C.rim, C.rimA * 0.55 * vis);
-    ctx.lineWidth = Math.max(0.6, s * 0.9);
+    ctx.strokeStyle = css(C.rim, C.rimA * 0.35 * vis);
+    ctx.lineWidth = Math.max(0.6, s * 0.8);
     ctx.stroke();
     // 远去时看见尾鳍浅色的腹面（座头鲸各自不同的花纹）
     const pale = Math.max(0, -sn) * 0.9;

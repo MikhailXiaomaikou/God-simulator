@@ -155,7 +155,13 @@
   //  亚拉腊山：大小两峰，其间一片宽阔的鞍部（方舟停在那里）
   // ════════════════════════════════════════════════════════════
   const MT = { emb: 0, ok: false, w: 0, h: 0, n: 0, step: 3, H: null, SL: null, wl: 0, Hm: 0, xc: 0, xg: 0, xl: 0, Wg: 0, Wl: 0, sep: 0, sM: 0.8, gul: [] };
-  function smax(a, b, k) { const h = c01(0.5 + 0.5 * (a - b) / k); return b + (a - b) * h + k * h * (1 - h); }
+  // 平滑的取大：两者之一为零时不加偏置（否则山外的海面上会凭空多出一层薄台）
+  function smax(a, b, k) {
+    const kk = Math.min(k, a, b);
+    if (kk < 1e-3) return Math.max(a, b);
+    const h = c01(0.5 + 0.5 * (a - b) / kk);
+    return b + (a - b) * h + kk * h * (1 - h);
+  }
   function arkLen() { return Math.max(40, Math.min(360 * uu() * narrow(), 0.44 * W.w)); }
   function layoutMountain() {
     const w = W.w, h = W.h;
@@ -1071,8 +1077,9 @@
     const h = W.lv.flHaze, g = W.lv.flGrief;
     if (h > 0.01) {
       const gs = ctx.createLinearGradient(0, 0, 0, hz);
-      gs.addColorStop(0, U.rgba(70, 40, 34, 0.18 * h));
-      gs.addColorStop(1, U.rgba(150, 70, 36, 0.34 * h));
+      gs.addColorStop(0, U.rgba(60, 36, 32, 0.26 * h));
+      gs.addColorStop(0.7, U.rgba(120, 58, 34, 0.3 * h));
+      gs.addColorStop(1, U.rgba(170, 78, 36, 0.5 * h));
       ctx.fillStyle = gs;
       ctx.fillRect(-20, -20, W.w + 40, hz + 20);
     }
@@ -1639,7 +1646,7 @@
   }
 
   // ── 乌鸦与鸽子 ──────────────────────────────────────────────
-  function winPt(out) { const A = arkNow(); return arkPt(A, WINX - 0.05, -0.236, out || [0, 0]); }
+  function winPt(out) { const A = arkNow(); return arkPt(A, WINX - 0.035, -0.238, out || [0, 0]); }
   const FP = [];
   function flightPos(f, u, out) {
     // 以 Catmull-Rom 穿过各点；'win' 为窗口（随方舟而动）
@@ -1667,7 +1674,7 @@
   function drawFlights(ctx) {
     if (!S.flights.length) return;
     const A = arkNow();
-    const s0 = 1.5 * uu() * narrow() * (A.vis ? A.s : 0.8);
+    const s0 = 2 * uu() * narrow() * (A.vis ? A.s : 0.8);
     for (const f of S.flights) {
       const u = (S.clock - f.t0) / f.dur;
       if (u < 0 || u >= 1) continue;
@@ -1999,7 +2006,7 @@
               S.arkX = x;
               setArk({ a: 'ground', x, s: 1 }, 0, b);
               lv('arkBuild', 1, b);
-              lv('flGrace', 0.3, b);
+              lv('flGrace', 0, b);
               lv('flGrief', 0.45, b);
               lv('flHaze', 0.45, b);
               cast().glow('noah', 0.55);
@@ -2111,7 +2118,7 @@
             }]);
             beats.push([tb + 2.75, b => { cast().remove(id); }]);
           });
-          beats.push([16, b => { lv('flLamp', 1, b); for (const id of order) { attach(id, null); cast().remove(id); } }]);
+          beats.push([17, b => { lv('flLamp', 1, b); for (const id of order) { attach(id, null); cast().remove(id); } }]);
           TL(c, beats);
         },
       },
@@ -2272,7 +2279,7 @@
               time(0.745, 8, b);
               lv('ararat', 0.78, b);
               driveLand(0.46, 0.03, b);
-              addFlight('dove', ['win', [0.4, 0.22], [0.1, 0.28], [-0.1, 0.34], [0.12, 0.4], [0.42, 0.3], 'win'], 9.5, b, { leafAt: 0.48 });
+              addFlight('dove', ['win', [0.4, 0.22], [0.1, 0.28], [-0.1, 0.34], [0.12, 0.4], [0.42, 0.3], 'win'], 9.5, b, { leafAt: 0.62 });
             }],
             [28.2, b => {
               if (!inst(b)) { const w = winPt(); fx().sparkle(w[0], w[1], 26, [170, 240, 150], 10 * uu(), 'air'); }
@@ -2469,7 +2476,14 @@
       },
     ],
     scene: {
-      init() { safe('flood.sprites', buildSprites); glowSprite(); warmSprite(); },
+      init() {
+        safe('flood.sprites', buildSprites); glowSprite(); warmSprite();
+        // 云、烟的贴图先备好：暴雨来时不必临时生成
+        if (!CLOUD) CLOUD = makeClouds(4242, 110, 150);
+        if (!CLOUD2) CLOUD2 = makeClouds(917, 70, 120);
+        if (!PUFF) PUFF = puffSprite(false);
+        if (!PUFF_W) PUFF_W = puffSprite(true);
+      },
       resize() { layoutMountain(); },
       update,
       drawUnder,

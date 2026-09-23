@@ -187,18 +187,26 @@
   }
 
   // ── 包络 ────────────────────────────────────────────────
+  // 指数衰减的尾巴在停下前 25ms 接一段线性归零（接点取指数曲线在该处的精确值，不跳变）——
+  // 声部停下时恰为 0，低音也不会"咔"一声
+  function tail(p, t0, peak, tc, end) {
+    const tf = Math.max(t0, end - 0.025);
+    p.setValueAtTime(peak * Math.exp(-(tf - t0) / tc), tf);
+    p.linearRampToValueAtTime(0, end);
+    return end + 0.02;
+  }
   function perc(p, t, a, peak, d) {                     // a 秒升起，d 秒指数衰减
     p.setValueAtTime(0, t);
     p.linearRampToValueAtTime(peak, t + a);
     p.setTargetAtTime(0, t + a, d / 5);
-    return t + a + d + 0.05;
+    return tail(p, t + a, peak, d / 5, t + a + d);
   }
   function swell(p, t, a, peak, s, r) {                 // 缓起 · 持续 · 缓收
     p.setValueAtTime(0, t);
     p.linearRampToValueAtTime(peak, t + a);
     if (s > 0) p.setValueAtTime(peak, t + a + s);
     p.setTargetAtTime(0, t + a + s, r / 4);
-    return t + a + s + r + 0.05;
+    return tail(p, t + a + s, peak, r / 4, t + a + s + r);
   }
   function envelope(g, t, o) {
     return o.d ? perc(g.gain, t, o.a || 0.006, o.g, o.d) : swell(g.gain, t, o.a == null ? 0.4 : o.a, o.g, o.s || 0, o.r || 2);
@@ -521,7 +529,7 @@
       // 泛音层（2、3、4、6、8 次）：同样走音、同样被调准。第 n 泛音的拍频是 n×0.5Hz——
       // 混沌在高处滚得更快；手机与笔记本的小喇叭也由它听见这声底鸣
       const oc = v.o(PW.over, ch0), ot = v.o(PW.over, 55), goc = v.g(1), got = v.g(0.8);
-      const olp = v.f('lowpass', 520, 0.5), og = v.g(0.2);
+      const olp = v.f('lowpass', 520, 0.5), og = v.g(0.3);
       oc.connect(goc); ot.connect(got); goc.connect(olp); got.connect(olp); olp.connect(og); og.connect(am);
       v.c.chaos = ctl(chaos.frequency, ch0); v.c.ochaos = ctl(oc.frequency, ch0);
       v.c.sub = ctl(sub.frequency, stageSub(st)); v.c.lp = ctl(lp.frequency, 170); v.c.olp = ctl(olp.frequency, 520);
@@ -570,11 +578,13 @@
       am.connect(out);
     }, divine);
     // 安息的日落：一缕完整的「甚好」和弦
+    // 重心在中高声部（金色的那一半），低音只作根基——海与风会盖住低处
     beds.sunset = new Bed((v, out) => {
-      const lp = v.f('lowpass', 1600, 0.5);
+      const lp = v.f('lowpass', 1800, 0.5);
+      const G = [0.22, 0.2, 0.34, 0.34, 0.34, 0.3, 0.32, 0.3, 0.26, 0.24];
       [F.A1, F.E2, F.A2, F.Cs3, F.E3, F.B3, F.Cs4, F.E4, F.Fs4, F.A4].forEach((f, i) => {
         const o = v.o(i < 5 ? 'sine' : 'triangle', f); o.detune.value = rnd(-3, 3);
-        const og = v.g(i < 5 ? 0.5 : 0.22), pn = v.p(((i % 2) ? 1 : -1) * (0.1 + 0.06 * i));
+        const og = v.g(G[i]), pn = v.p(((i % 2) ? 1 : -1) * (0.1 + 0.06 * i));
         o.connect(og); og.connect(pn); pn.connect(lp);
       });
       const am = v.g(1);
@@ -1018,7 +1028,7 @@
       const cr = crackler(h, 900, 3400, 1.4, 0.15);
       return c => {
         r(c); to(a0.gain, 0.12 * c * k, 0.1); to(g.gain, 0.66 * Math.pow(c, 1.5) * k, 0.1); to(bp.frequency, 140 + 90 * c, 0.2);
-        cr(2 + 26 * c * c * k, 0.16 * c * k);
+        cr(3 + 22 * c * c * k, 0.34 * c * k);
       };
     },
     names3(h) { return HOLD.grind(h, 0.55); },
@@ -1395,8 +1405,8 @@
 
   // ── 声床的电平（混音在此校准）────────────────────────────
   const LV = {
-    drone: 0.028, light: 0.035, air: 0.037, earth: 0.02, human: 0.032, sunset: 0.012,
-    water: 0.13, stir: 0.04, wind: 0.5, leaves: 0.2, cricket: 0.03,
+    drone: 0.028, light: 0.035, air: 0.037, earth: 0.02, human: 0.032, sunset: 0.024,
+    water: 0.13, stir: 0.04, wind: 0.5, leaves: 0.42, cricket: 0.03,
     pluck: 0.03, star: 0.03, bird: 0.025, whale: 0.035, bubble: 0.03, graze: 0.02, herd: 0.05, theme: 0.02,
   };
 
@@ -1597,7 +1607,7 @@
     _dbg: () => ({ ctx: AC, out: N && N.out, sum: N && N.sum, live, errs: errs.slice(), hold: hold ? hold.hk : null,
       beds: Object.keys(beds).filter(k => beds[k].x), breathN, LV, divine: divNow,
       drone: beds.drone && beds.drone.x ? [beds.drone.x.c.chaos.v, beds.drone.x.c.sub.v] : null }),
-    _t: { note, burst, grains, tollBell, bells, chord, whaleSong, birdPhrase },     // 测试用：直接调用配方
+    _t: { note, burst, grains, tollBell, bells, chord, whaleSong, birdPhrase, gull, cow, sheep, dove },     // 测试用：直接调用配方
   };
 
   // 他处发出的声音事件

@@ -892,7 +892,7 @@
   function drawField(ctx, p) {
     const g = p.grow * p.a;
     if (g < 0.01) return;
-    if (!p.model) { const r = U.mulberry32(p.seed + 5), tuft = []; for (let i = 0; i < 200; i++) tuft.push([r(), r(), r()]); p.model = { tuft }; }
+    if (!p.model) { const r = U.mulberry32(p.seed + 5), tuft = []; for (let i = 0; i < 150; i++) tuft.push([r(), r(), r()]); p.model = { tuft }; }
     const s = LS(2), cx = p.x * W.w, top = gY(2, p.x) + 5 * s, bot = top + (W.h - top) * 0.6;
     const hwT = 0.045 * W.w * p.size, hwB = 0.075 * W.w * p.size;
     ctx.globalAlpha = g * 0.36;
@@ -901,7 +901,7 @@
     ctx.moveTo(cx - hwT, top); ctx.quadraticCurveTo(cx, top - 2 * s, cx + hwT, top);
     ctx.lineTo(cx + hwB, bot); ctx.quadraticCurveTo(cx, bot + 8 * s, cx - hwB, bot);
     ctx.closePath(); ctx.fill();
-    const tuft = p.model.tuft, ROWS = 12, dry = p.dry, gold = p.gold * (1 - dry);
+    const tuft = p.model.tuft, ROWS = 12, dry = p.dry, gold = p.gold * (1 - dry), stepQ = (W.quality || 1) < 0.75 ? 2 : 1;
     const hgt = p.grow * (0.45 + 0.55 * Math.max(gold, 0.5)) * (1 - 0.55 * dry);
     const sway = W.wind * 2.2 * s * (1 - 0.6 * dry);
     const lit = 0.04 + 0.14 * gold;
@@ -912,7 +912,7 @@
       ctx.lineWidth = Math.max(0.6, 0.85 * s);
       ctx.globalAlpha = g * 0.95;
       ctx.beginPath();
-      for (let i = pass; i < tuft.length; i += 2) {
+      for (let i = pass; i < tuft.length; i += 2 * stepQ) {
         const q = tuft[i];
         if (dry > 0.3 && q[2] < dry * 0.6) continue;
         const f = (Math.floor(q[0] * ROWS) + 0.5) / ROWS, u = q[1] * 2 - 1;
@@ -928,13 +928,13 @@
       ctx.fillStyle = css([246, 214, 130], 2, 1, 0.12);
       ctx.globalAlpha = g * smoothstep(0.15, 0.8, gold);
       ctx.beginPath();
-      for (let i = 0; i < tuft.length; i += 2) {
+      for (let i = 0; i < tuft.length; i += 2 * stepQ) {
         const q = tuft[i], f = (Math.floor(q[0] * ROWS) + 0.5) / ROWS, u = q[1] * 2 - 1;
         if (Math.abs(u) > 0.88 && q[2] < 0.6) continue;
         const y = lerp(top, bot, Math.pow(f, 1.3)) + (q[2] - 0.5) * 2 * s, x = cx + u * lerp(hwT, hwB, f);
         const th = lerp(4, 12, f) * s * hgt * (0.7 + 0.5 * q[2]);
         const sw = sway * (0.3 + f) + Math.sin(W.t * 1.5 + q[2] * 9 + f * 3) * 0.6 * s, r = lerp(0.7, 1.4, f) * s;
-        ctx.moveTo(x + sw + r * 0.6, y - th - r); ctx.ellipse(x + sw, y - th - r, r * 0.6, r * 1.5, 0.2, 0, TAU);
+        ctx.rect(x + sw - r * 0.6, y - th - r * 2.4, r * 1.2, r * 2.8);
       }
       ctx.fill();
     }
@@ -1127,7 +1127,8 @@
     ctx.strokeStyle = U.rgba(bl[0], bl[1], bl[2], 0.55 * k);
     ctx.lineWidth = Math.max(0.5, 0.8 * s);
     ctx.beginPath();
-    for (let i = 0; i < 70; i++) {
+    const nT = (W.quality || 1) < 0.75 ? 24 : 44;
+    for (let i = 0; i < nT; i++) {
       const xf = lerp(a, b, rt(i * 3 + 400)), v = rt(i * 3 + 401) * 0.8, y = fieldY(xf, v), h = (2 + 3 * rt(i * 3 + 402)) * s * (0.6 + v);
       const sw = W.wind * 1.2 * s + Math.sin(W.t * 1.6 + i) * 0.5 * s;
       ctx.moveTo(xf * W.w, y); ctx.lineTo(xf * W.w + sw, y - h);
@@ -1200,7 +1201,8 @@
     ctx.strokeStyle = css(rc, 2);
     ctx.lineWidth = Math.max(0.5, 0.8 * s);
     ctx.beginPath();
-    for (let i = 0; i < 64; i++) {
+    const nR = (W.quality || 1) < 0.75 ? 32 : 64;
+    for (let i = 0; i < nR; i++) {
       const t = 0.08 + 0.9 * rt(i * 3 + 900), side = i % 2 ? 1 : -1, p = nilePt(t), w = nileW(t, wk) * 0.62 + 2 * s;
       const bx = p[0] + p[2] * w * side, by = p[1] + p[3] * w * side;
       const h = (3 + 6 * rt(i * 3 + 901)) * s * (0.4 + 1.1 * t) * (1 - 0.5 * fam);
@@ -1431,9 +1433,9 @@
 
   // ── 梦的画：葡萄树与杯（40:9–11）；三筐白饼与飞鸟（40:16–17）──
   function drawVine(ctx, e) {
-    const t = e.t, u = SU(), s = LS(2);
+    const t = e.t, u = SU(), s = LS(2) * 1.55;
     const pr = getP('prison');
-    const bx = ((pr ? pr.x : X.prison) - 0.045) * W.w, by = gY(2, pr ? pr.x : X.prison) - 30 * s;
+    const bx = ((pr ? pr.x : X.prison) - 0.05) * W.w, by = gY(2, pr ? pr.x : X.prison) - 26 * s;
     const A = smoothstep(0, 1.5, t) * (1 - smoothstep(e.dur - 2.5, e.dur, t));
     if (A < 0.01) return;
     SP || sprites();
@@ -1477,9 +1479,9 @@
     ctx.globalAlpha = 1;
   }
   function drawBaskets(ctx, e) {
-    const t = e.t, s = LS(2);
+    const t = e.t, s = LS(2) * 1.45;
     const pr = getP('prison');
-    const bx = ((pr ? pr.x : X.prison) + 0.045) * W.w, by = gY(2, pr ? pr.x : X.prison) - 34 * s;
+    const bx = ((pr ? pr.x : X.prison) + 0.05) * W.w, by = gY(2, pr ? pr.x : X.prison) - 30 * s;
     const A = smoothstep(0, 1.5, t) * (1 - smoothstep(e.dur - 3, e.dur, t));
     if (A < 0.01) return;
     SP || sprites();
@@ -2006,8 +2008,8 @@
     W.setPop('fish', 100, W.w * 0.15, W.h * 0.8, true);
     W.setPop('whale', 2, W.w * 0.12, W.h * 0.78, true);
     W.setPop('bird', 30, W.w * 0.6, W.h * 0.3, true);
-    W.setPop('cattle', 4, lx, ly, true);
-    W.setPop('beast', 2, lx, ly, true);
+    W.setPop('cattle', 3, lx, ly, true);
+    W.setPop('beast', 1, lx, ly, true);
     W.setPop('creeper', 20, lx, ly, true);
     W.setPop('human', 0, lx, ly, true);
     resetScene();
