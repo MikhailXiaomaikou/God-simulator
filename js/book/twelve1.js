@@ -1184,7 +1184,7 @@
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
   }
-  const SWN = 1100;
+  const SWN = 820;
   function swarmCenter() {
     const sx = L('taSwarmX');
     return [lerp(1.25, -0.1, sx) * W.w, lerp(0.66, 0.64, sx) * W.h, sx];
@@ -2133,13 +2133,14 @@
           ctx.beginPath(); ctx.moveTo(x - 1.5 * s, y); ctx.lineTo(x - dir * 1 * s, y - 7 * s * fl); ctx.lineTo(x + 2 * s, y); ctx.closePath(); ctx.fill();
         } else if (e.type === 'whirl') {
           // 所收的是暴风：旋风卷起尘土
-          const x = lerp(0.98, 0.66, q) * W.w, gy = gYb(x);
-          ctx.fillStyle = 'rgba(150,126,96,0.55)';
-          for (let i = 0; i < 70; i++) {
-            const h = (i / 70), ang = e.t * 7 + i * 1.3, r = (4 + h * 26) * n;
-            const px = x + Math.cos(ang) * r + h * 10 * n, py = gy - h * 70 * n;
-            ctx.globalAlpha = env * 0.7 * (1 - h * 0.5);
-            ctx.fillRect(px, py, 2, 2);
+          const x = lerp(0.98, 0.6, q) * W.w, gy = gYb(x);
+          glow(ctx, 's', x, gy - 50 * n, 40 * n, 0.35 * env, 70 * n);
+          ctx.fillStyle = 'rgba(140,116,88,0.7)';
+          for (let i = 0; i < 140; i++) {
+            const h = (i / 140), ang = e.t * 8 + i * 1.3, r = (5 + h * 44) * n;
+            const px = x + Math.cos(ang) * r + h * 16 * n * Math.sin(e.t * 2), py = gy - h * 130 * n + Math.sin(ang) * 4 * n;
+            ctx.globalAlpha = env * 0.75 * (1 - h * 0.45);
+            ctx.fillRect(px, py, 2.4, 2.4);
           }
         } else if (e.type === 'rise') {
           // 我必救赎他们脱离阴间：一片光自地里升起
@@ -2250,6 +2251,13 @@
         S.dripAcc -= 1;
         const x = rnd(0.53, 0.97) * W.w, y = gYb(x, 1) - rnd(0, 6);
         f.add({ x, y, vx: 0, vy: rnd(8, 20), max: rnd(1.2, 2.2), size: rnd(0.8, 1.4), c: Math.random() < 0.5 ? [214, 130, 230] : [255, 214, 150], drag: 0, a: 0.8, pass: 'mid', twinkle: true });
+      }
+    }
+    // 大风卷起地上的尘土（所种的是风，所收的是暴风）
+    if (L('gale') > 0.4 && L('taIsrael') > 0.5 && L('taShipA') < 0.5 && Math.random() < 0.8 * L('gale')) {
+      for (let i = 0; i < 2; i++) {
+        const x = rnd(0.45, 1.05) * W.w;
+        f.add({ x, y: gYb(Math.min(x, W.w)) - rnd(0, 50) * n, vx: -rnd(220, 420) * n, vy: rnd(-25, 8) * n, max: rnd(0.8, 1.6), size: rnd(1, 2), c: [176, 152, 118], drag: 0.2, a: 0.55, pass: 'near' });
       }
     }
     // 风浪打在船头，溅起水花
