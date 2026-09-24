@@ -1845,19 +1845,64 @@
       if (W.seaBand(sy) !== pass) return;
       const G = fishGeom(), T0 = G.Lb * 0.21;
       if (sp < 0.01) {
-        // 三日三夜：鱼在水下，腹中一点祷告的光
+        // 三日三夜：鱼在水下，腹中一点祷告的光——光从腹中照出鱼的形状（看得出约拿在大鱼腹中）
         const P = swimPos(G, L('taFishPath'));
         const x = P.x, y = P.y + Math.sin(S.clock * 0.8) * 3;
+        const d = L('taDeep'), pulse = 0.75 + 0.25 * Math.sin(S.clock * 1.6);
+        const Lh = G.Lb * 0.47, Tt = G.Lb * 0.58, Th = T0 * 0.42, sw = Math.sin(S.clock * 1.3) * Th * 0.25;
+        const body = () => {
+          ctx.beginPath();
+          ctx.moveTo(Lh, 0);
+          ctx.bezierCurveTo(Lh, -Th * 1.2, Lh * 0.35, -Th * 1.25, -Lh * 0.1, -Th * 1.02);
+          ctx.quadraticCurveTo(-Lh * 0.6, -Th * 0.62, -Lh * 0.92, -Th * 0.16 + sw * 0.5);
+          ctx.lineTo(-Lh * 0.92, Th * 0.16 + sw * 0.5);
+          ctx.quadraticCurveTo(-Lh * 0.6, Th * 0.62, -Lh * 0.1, Th * 0.92);
+          ctx.bezierCurveTo(Lh * 0.35, Th * 1.1, Lh, Th * 0.9, Lh, 0);
+          ctx.closePath();
+        };
+        const tail = () => {
+          ctx.beginPath();
+          ctx.moveTo(-Lh * 0.88, sw * 0.5);
+          ctx.quadraticCurveTo(-Tt * 0.98, -Th * 0.5 + sw, -Tt * 1.06, -Th * 1.25 + sw);
+          ctx.quadraticCurveTo(-Tt * 0.96, sw, -Tt * 1.06, Th * 1.25 + sw);
+          ctx.quadraticCurveTo(-Tt * 0.98, Th * 0.5 + sw, -Lh * 0.88, sw * 0.5);
+          ctx.closePath();
+        };
         ctx.save(); ctx.translate(x, y); ctx.rotate(Math.atan2(P.dy, P.dx) * (P.dx < 0 ? 1 : 0.4));
-        ctx.globalAlpha = 0.3;
-        ctx.fillStyle = 'rgb(14,30,46)';
-        ctx.beginPath(); ctx.ellipse(0, 0, G.Lb * 0.45, T0 * 0.35, 0, 0, TAU); ctx.fill();
-        ctx.beginPath(); ctx.moveTo(-G.Lb * 0.43, 0); ctx.lineTo(-G.Lb * 0.56, -T0 * 0.4); ctx.lineTo(-G.Lb * 0.56, T0 * 0.4); ctx.closePath(); ctx.fill();
-        ctx.restore();
-        const d = L('taDeep');
+        if (P.dx < 0) ctx.scale(1, -1);          // 向左游时背仍朝上
+        ctx.globalAlpha = 0.58;
+        ctx.fillStyle = 'rgb(22,46,66)';
+        tail(); ctx.fill();
+        body(); ctx.fill();
+        // 腹色稍浅
+        ctx.save(); body(); ctx.clip();
+        const bg = ctx.createLinearGradient(0, -Th, 0, Th);
+        bg.addColorStop(0, 'rgba(46,80,100,0)'); bg.addColorStop(0.45, 'rgba(46,80,100,0.15)'); bg.addColorStop(1, 'rgba(58,94,112,0.6)');
+        ctx.globalAlpha = 1; ctx.fillStyle = bg;
+        ctx.fillRect(-Lh * 1.2, -Th * 1.4, Lh * 2.4, Th * 2.8);
+        // 腹中的光照满鱼身
         if (d > 0.01) {
           ctx.globalCompositeOperation = 'lighter';
-          const pulse = 0.75 + 0.25 * Math.sin(S.clock * 1.6);
+          glow(ctx, 'g', Lh * 0.1, Th * 0.1, Lh * 1.05, 0.34 * d * pulse, Th * 1.6);
+          ctx.globalCompositeOperation = 'source-over';
+        }
+        ctx.restore();
+        // 轮廓：背上一道冷的月光，腹下一道暖的祷告之光
+        const lw = Math.max(1, Th * 0.07);
+        ctx.lineWidth = lw; ctx.lineCap = 'round';
+        ctx.globalAlpha = 0.4 + 0.2 * W.night;
+        ctx.strokeStyle = 'rgb(150,196,222)';
+        ctx.beginPath(); ctx.moveTo(Lh, 0); ctx.bezierCurveTo(Lh, -Th * 1.2, Lh * 0.35, -Th * 1.25, -Lh * 0.1, -Th * 1.02); ctx.quadraticCurveTo(-Lh * 0.6, -Th * 0.62, -Lh * 0.92, -Th * 0.16 + sw * 0.5); ctx.stroke();
+        tail(); ctx.globalAlpha *= 0.7; ctx.stroke();
+        ctx.globalAlpha = Math.min(1, 0.18 + 0.5 * d * pulse);
+        ctx.strokeStyle = 'rgb(255,214,150)';
+        ctx.beginPath(); ctx.moveTo(-Lh * 0.7, Th * 0.5); ctx.quadraticCurveTo(-Lh * 0.1, Th * 1.02, Lh * 0.35, Th * 0.98); ctx.bezierCurveTo(Lh * 0.8, Th * 0.9, Lh, Th * 0.5, Lh, 0); ctx.stroke();
+        // 眼
+        ctx.globalAlpha = 0.7; ctx.fillStyle = 'rgb(200,224,240)';
+        ctx.beginPath(); ctx.arc(Lh * 0.78, -Th * 0.28, Math.max(1, Th * 0.1), 0, TAU); ctx.fill();
+        ctx.restore();
+        if (d > 0.01) {
+          ctx.globalCompositeOperation = 'lighter';
           glow(ctx, 'g', x + G.Lb * 0.05, y, T0 * 1.3, 0.55 * d * pulse);
           glow(ctx, 'w', x + G.Lb * 0.05, y, T0 * 0.35, 0.7 * d * pulse);
           ctx.globalCompositeOperation = 'source-over';

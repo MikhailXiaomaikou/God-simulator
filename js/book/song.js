@@ -1268,6 +1268,32 @@
     }
     ctx.globalAlpha = 1;
   }
+  // 夜里地上的一层月光：地不致全黑，树、屋、人的剪影在其上看得出来（自脊线往下渐淡，脊上一线月光；风暴时弱些）
+  function drawNightFloor(ctx, l) {
+    const n = clamp((W.night - 0.12) * 1.5, 0, 1) * (1 - 0.55 * clamp(W.lv.storm || 0, 0, 1)) * (0.4 + 0.6 * clamp(W.lv.moon == null ? 1 : W.lv.moon, 0, 1));
+    if (n < 0.02) return;
+    const N = port() ? 48 : 80, wl = Math.min(W.h + 2, W.waterlineY(l)), pts = [];
+    let top = Infinity;
+    for (let i = 0; i <= N; i++) { const x = (i / N) * W.w, y = Math.min(gY(l, i / N), wl); pts.push([x, y]); if (y < top) top = y; }
+    if (!(wl - top > 2)) return;
+    const a = (l === 2 ? 0.21 : 0.15) * n;
+    const gr = ctx.createLinearGradient(0, top, 0, wl);
+    gr.addColorStop(0, U.rgba(150, 170, 216, a)); gr.addColorStop(0.3, U.rgba(120, 138, 184, a * 0.62)); gr.addColorStop(1, U.rgba(84, 98, 136, a * 0.28));
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = gr;
+    ctx.beginPath(); ctx.moveTo(0, wl);
+    for (const q of pts) ctx.lineTo(q[0], q[1]);
+    ctx.lineTo(W.w, wl); ctx.closePath(); ctx.fill();
+    // 脊上一线月光
+    ctx.strokeStyle = U.rgba(196, 212, 244, 0.3 * n); ctx.lineWidth = Math.max(1, 1.6 * LS(l)); ctx.lineJoin = 'round';
+    ctx.beginPath();
+    let on = false;
+    for (const q of pts) { if (q[1] >= wl - 1) { on = false; continue; } if (on) ctx.lineTo(q[0], q[1]); else { ctx.moveTo(q[0], q[1]); on = true; } }
+    ctx.stroke();
+    ctx.restore();
+  }
   // 她的家：平顶的小屋，门在左，门旁一扇格子窗（窗棂）
   function houseGeom() {
     const s = LS(2), xf = LX(F.house), x = xf * W.w, y = gY(2, xf) + 1.5 * s;
@@ -2166,6 +2192,7 @@
       if (pass === 'sky') { drawRays(ctx); drawRange(ctx); drawGz(ctx, 3); drawPT(ctx, 'sky'); return; }
       if (pass === 'seaNear') { drawWaves(ctx); return; }
       if (pass === 'mid') {
+        drawNightFloor(ctx, 1);
         drawSmoke(ctx); drawCleftRock(ctx);
         const s = LS(1), top = Math.min(gY(1, 0.6), gY(1, 0.75), gY(1, 0.9)) - 60 * s;
         if (calm()) drawCached(ctx, 'mid', 'mt' + q40(lv('sgLeaf')) + ',' + q40(lv('sgBlos')), [Math.floor(W.w * 0.53), Math.floor(top), Math.ceil(W.w * 0.98), Math.ceil(W.waterlineY(1) + 4)], g => drawMidTrees(g));
@@ -2173,6 +2200,7 @@
         return;
       }
       if (pass === 'near') {
+        drawNightFloor(ctx, 2);
         drawBoulder(ctx);
         const tk = lv('sgTents');
         if (tk > 0.01) { drawTent(ctx, F.tent1, 40, tk); drawTent(ctx, F.tent2, 34, tk); }
@@ -2289,8 +2317,10 @@
     if (SP && (lv('sgWin') > 0.02 || (lv('sgLamp') > 0.02 && nk > 0.1) || lv('sgDoor') > 0.02)) {
       const G = houseGeom(), door = lv('sgDoor');
       ctx.globalCompositeOperation = 'lighter';
-      glowAt(ctx, SP.lamp, G.win[0], G.win[1], 20 * G.s, Math.max(lv('sgWin') * 0.7, lv('sgLamp') * nk * 0.6));
-      glowAt(ctx, SP.warm, G.dx, G.y - 6 * G.s, 30 * G.s, door * (0.25 + 0.5 * nk));
+      const wa = Math.max(lv('sgWin') * (0.7 + 0.3 * nk), lv('sgLamp') * nk * 0.6);
+      glowAt(ctx, SP.lamp, G.win[0], G.win[1], (20 + 14 * nk) * G.s, wa);
+      glowAt(ctx, SP.warm, G.win[0], G.win[1] + 6 * G.s, 44 * G.s, wa * 0.3 * nk, 0.8);
+      glowAt(ctx, SP.warm, G.dx, G.y - 6 * G.s, (30 + 16 * nk) * G.s, door * (0.3 + 0.55 * nk));
       if (door > 0.2 && has('bride')) {
         const f = fig('bride');
         if (f && f._vis && Math.abs(f._x - G.dx) < 70 * G.s) {
@@ -2301,6 +2331,18 @@
       }
       ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
     }
+    // 夜里：书拉密女身上一层不灭的柔光（看得见是她）
+    if (SP && nk > 0.15 && has('bride')) {
+      const f = fig('bride');
+      if (f && f._vis && isFinite(f._x)) {
+        const h = f._h || 30 * LS(2), a = nk * Math.min(1, f.alpha == null ? 1 : f.alpha);
+        ctx.globalCompositeOperation = 'lighter';
+        glowAt(ctx, SP.warm, f._x, f._y - h * 0.5, h * 1.25, a * 0.34, 1.1);
+        glowAt(ctx, SP.pale, f._x, f._y - h * 0.62, h * 0.5, a * 0.3);
+        glowAt(ctx, SP.lamp, f._x, f._y, h * 1.1, a * 0.3, 0.35);
+        ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+      }
+    }
     // 夜里拿火把的人：脚下一片暖的光
     if (SP && nk > 0.15) {
       const c = C();
@@ -2308,8 +2350,8 @@
       const pool = p => {
         if (!p || p.prop !== 'torch' || !p._vis || p.isAnimal) return;
         const s = W.layerScale(p.layer == null ? 2 : p.layer) * 1.3, a = nk * Math.min(1, p.alpha == null ? 1 : p.alpha);
-        glowAt(ctx, SP.lamp, p._x, p._y - 1 * s, 24 * s, a * 0.5, 0.38);
-        glowAt(ctx, SP.warm, p._x, p._y - 16 * s, 16 * s, a * 0.22, 1.3);
+        glowAt(ctx, SP.lamp, p._x, p._y - 1 * s, 34 * s, a * 0.6, 0.38);
+        glowAt(ctx, SP.warm, p._x, p._y - 16 * s, 24 * s, a * 0.32, 1.3);
       };
       if (c.people) for (const p of c.people.values()) pool(p);
       if (c.crowds) for (const g of c.crowds.values()) for (const m of g.members) pool(m);
@@ -2671,12 +2713,14 @@
           [0, b => {
             W.goTo(0.015, 7, b.instant); W.set('sgFrag', 0, b.instant); W.set('gale', 0, b.instant);
             W.set('sgGate', 1, b.instant);
-            gzPose('stand'); glow('bride', 0.8);
+            gzPose('stand'); glow('bride', 0.8); hold('bride', 'torch');
             walk('bride', LX(0.785), { speed: 0.05, pose: 'stand' });
           }],
           [5.6, b => { W.set('sgLamp', 1, b.instant); W.set('sgGate', 0, b.instant); rm('bride'); }],
           [6, b => { gzGo(b, [Nr(0.535, 0.12), Nr(0.6), Nr(0.748)], { face: 1 }); }],
           [8.4, b => {
+            // 敲门：屋里的灯挑亮，窗棂与门缝都亮起来
+            W.set('sgWin', 1, b.instant);
             if (!b.instant) FXL.push({ type: 'dew', t0: W.t, dur: 4 });
             sfx(b, 'gate', { soft: true });
             if (!b.instant && fx()) { const G = houseGeom(); fx().ring(G.dx, G.y - 6 * G.s, [255, 236, 200], M() * 0.05, 1.2, 1); }
@@ -2690,7 +2734,7 @@
           }],
           [13, () => { walk('bride', LX(0.64), { speed: 0.028, pose: 'raise' }); }],
           [18.6, b => {
-            W.set('sgDoor', 0.2, b.instant); W.set('sgLeb', 1, b.instant);
+            W.set('sgDoor', 0.2, b.instant); W.set('sgLeb', 1, b.instant); W.set('sgWin', 0, b.instant);
             // 夜里出城的众女子：几个人拿着火把，脚下有光，看得见
             crowd('daughters', { n: 5, x0: LX(0.92), x1: LX(0.95), label: '耶路撒冷的众女子' }, (m, i, n) => { woman(DAUGHTER)(m, i, n); if (i % 2 === 0) { m.prop = 'torch'; m.propDefault = false; } m.glow = 0.3; });
             cwalk('daughters', LX(0.68), LX(0.76), { speed: 0.03, pose: 'stand' });

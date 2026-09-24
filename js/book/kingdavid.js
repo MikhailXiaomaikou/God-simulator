@@ -47,7 +47,7 @@
     dkTable: ['exp', 0.6],     // 王的席（9:7）
     dkRabbah: ['exp', 0.4],    // 亚扪人的京城拉巴（11:1）
     dkCourt: ['exp', 0.7],     // 远处院中的灯（11:2）
-    dkCounsel: ['exp', 0.6],   // 亚希多弗的计谋（17:1–4）
+    dkCounsel: ['exp', 1.4],   // 亚希多弗的计谋（17:1–4）
     dkUnravel: ['lin', 0.3],   // 耶和华定意破坏（17:14）
     dkMaha: ['exp', 0.5],      // 玛哈念的城门（18:24）
     dkForest: ['exp', 0.5],    // 以法莲树林（18:6）
@@ -81,6 +81,7 @@
     uriah: [116, 96, 78], bath: [174, 128, 132], poor: [206, 196, 172], rich: [150, 92, 118],
     tekoa: [76, 68, 68], absalom: [216, 172, 102], shimei: [126, 110, 88], runner: [150, 124, 90], cushite: [98, 78, 66],
     rizpah: [104, 92, 78], gad: [104, 112, 134], araunah: [166, 140, 104],
+    ahith: [92, 78, 98], hushai: [120, 136, 156],
   };
   const GOLD = [236, 194, 96];
   const LEV = ['lv0', 'lv1', 'lv2', 'lv3'];
@@ -102,7 +103,7 @@
   const SU = () => Math.max(0.3, W.unit) * 1.75;                           // 布景的尺度（与人相称）
   const LS = l => W.layerScale(l) * (MOB() ? 1.15 : 1);
   const DEP = l => (W.LAYERS[l] ? W.LAYERS[l].depth : 0);
-  const PH = () => 34 * W.layerScale(2) * (MOB() ? 1.4 : 1) * 1.3;       // 近地上一个人的身高（像素）
+  const PH = () => 34 * W.layerScale(2) * (MOB() ? 1.55 : 1) * 1.3;       // 近地上一个人的身高（像素）
   const gY = (l, xf) => {
     const x = xf * W.w, L = GS.land;
     let y = L && L.groundY ? L.groundY(l, x) : W.ridgeY(l, x);
@@ -1058,36 +1059,62 @@
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
   }
-  // 亚希多弗的计谋：城上一团柔软的暗云，几缕细线缠在其中；耶和华定意破坏——金光把它解开、散尽（17:14）
+  // 亚希多弗的计谋（17:1–14）：城门口亚希多弗头上一团打了结的暗绳，旁边写着它的名；
+  // 耶和华定意破坏——绳结一下子断开，化作金线向上散开，归于无有
+  const KNOT_N = 96;
+  function knotPt(t, cx, cy, R) {
+    return [cx + R * (0.9 * Math.sin(2 * t) + 0.32 * Math.sin(5 * t + 0.4)), cy + R * 0.5 * (Math.cos(3 * t) + 0.35 * Math.cos(7 * t))];
+  }
   function drawCounsel(ctx) {
-    const k = W.lv.dkCounsel, u = W.lv.dkUnravel;
+    const k = W.lv.dkCounsel, u = clamp(W.lv.dkUnravel, 0, 1);
     if (k < 0.01 || !sprites()) return;
-    const cx = W.w * (MOB() ? 0.8 : 0.86), cy = W.h * (MOB() ? 0.52 : 0.45), R = M() * 0.06;
-    const keep = k * (1 - u);                                   // 解开之后，云与线都归于无
-    // 暗云：几团柔光叠成（随解开而散开、变淡）
-    for (let i = 0; i < 7; i++) {
-      const a = rt(i + 1600) * TAU + W.t * 0.05 * (i % 2 ? 1 : -1), d = R * (0.25 + 0.45 * rt(i + 1610)) * (1 + u * 1.6);
-      glowSp(ctx, SP.dark, cx + Math.cos(a) * d * 1.3, cy + Math.sin(a) * d * 0.6 - u * R * 0.6, R * (1.2 + 0.6 * rt(i + 1620)), keep * 0.34);
-    }
-    // 几缕细线：两端渐隐；解开时变成金色，向上舒展，然后消失
-    ctx.lineCap = 'round';
-    ctx.lineWidth = Math.max(0.6, (1.1 - 0.5 * u) * SU());
-    const col = U.mixRGB([40, 30, 46], [255, 222, 150], Math.min(1, u * 1.4));
-    const N = 22;
-    for (let j = 0; j < 4; j++) {
-      let px = 0, py = 0;
-      for (let i = 0; i <= N; i++) {
-        const t = i / N, a = t * TAU * 1.2 + j * 1.6 + W.t * 0.22 * (j % 2 ? 1 : -1);
-        const r = R * (0.35 + 0.35 * Math.sin(a * (2 + (j % 2)) + j + W.t * 0.3)) * (1 + u * 2.2);
-        const x = cx + Math.cos(a) * r * 1.3, y = cy + Math.sin(a * 1.3) * r * 0.6 - u * R * (0.4 + j * 0.25);
-        if (i) {
-          const al = keep * 0.55 * Math.sin(Math.PI * t) * (u > 0.02 ? 1 - u : 1);
-          if (al > 0.01) { ctx.strokeStyle = U.rgba(col[0], col[1], col[2], al); ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(x, y); ctx.stroke(); }
-        }
-        px = x; py = y;
+    const p = figPt('ahithophel', 1), s = PH();
+    const cx = p ? p[0] : W.w * 0.78, cy = p ? p[1] - s * 1.05 : W.h * 0.55, R = s * (MOB() ? 0.8 : 0.78);
+    const keep = k * (1 - u);
+    ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+    // 身后一层淡淡的暗（白日里不成一团黑影）
+    glowSp(ctx, SP.dark, cx, cy, R * 1.9, keep * 0.22);
+    ctx.globalAlpha = 1;
+    // 绳：解开时从断处向两头退去，向上舒展，由暗转金
+    const gap = u * Math.PI * 0.98, col = U.mixRGB([84, 38, 50], [255, 214, 130], Math.min(1, u * 2.2));
+    const lw = Math.max(2.4, s * 0.09) * (1 - 0.4 * u), fade = u > 0.02 ? Math.pow(1 - u, 0.6) : 1;
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    for (const pass of [2, 0, 1]) {
+      ctx.beginPath();
+      let first = true;
+      for (let i = 0; i <= KNOT_N; i++) {
+        const t = gap + (TAU - 2 * gap) * i / KNOT_N;
+        if (TAU - 2 * gap <= 0.01) break;
+        let [x, y] = knotPt(t, cx, cy, R);
+        const d = Math.min(t, TAU - t) / Math.PI;            // 离断处多远（0 断处 … 1 最远）
+        x = cx + (x - cx) * (1 + u * 1.2) + Math.sin(t * 3 + W.t * 0.8) * u * R * 0.2;
+        y -= u * R * (0.6 + 1.4 * (1 - d)) ;
+        if (first) { ctx.moveTo(x, y); first = false; } else ctx.lineTo(x, y);
       }
+      // 2：绳外一圈淡的边（在海与城墙前都分得出）；0：绳；1：绳上的一道亮
+      if (pass === 2) { ctx.strokeStyle = U.rgba(246, 236, 214, 0.5 * k * (1 - u)); ctx.lineWidth = lw * 2.3; }
+      else if (pass === 0) { ctx.strokeStyle = U.rgba(col[0], col[1], col[2], 0.95 * fade * k); ctx.lineWidth = lw; }
+      else { ctx.strokeStyle = U.rgba(255, 246, 226, (u > 0.02 ? 0.7 * fade : 0.22) * k); ctx.lineWidth = lw * 0.35; }
+      ctx.stroke();
     }
-    if (u > 0.01) add2(ctx, () => glowSp(ctx, SP.gold, cx, cy - u * R, R * 2.4, u * (1 - u) * 1.6 * k));
+    // 断开的一刹那：金光
+    if (u > 0.005) {
+      const f = Math.sin(Math.PI * Math.min(1, u * 1.6));
+      add2(ctx, () => { glowSp(ctx, SP.gold, cx, cy - u * R * 0.8, R * (2 + u * 1.5), f * 0.85 * k); glowSp(ctx, SP.white, cx, cy - u * R * 0.5, R * 0.6, f * 0.5 * k); });
+    }
+    // 名：亚希多弗的计谋
+    const la = keep * clamp(k * 1.6 - 0.4, 0, 1);
+    if (la > 0.02) {
+      const fs = Math.round(clamp(M() * 0.02, 13, 17));
+      ctx.save();
+      ctx.globalAlpha = la;
+      ctx.font = fs + 'px "GS Kai", "KaiTi", "STKaiti", "Songti SC", serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+      ctx.shadowColor = 'rgba(0,0,0,0.85)'; ctx.shadowBlur = 6;
+      ctx.fillStyle = 'rgb(250,240,222)';
+      ctx.fillText('亚希多弗的计谋', clamp(cx, fs * 4, W.w - fs * 4), cy - R * 0.72);
+      ctx.restore();
+    }
     ctx.globalAlpha = 1;
   }
   // 数点百姓：遍地亮起的小光（24:2–9）；瘟疫的影子走过之处，光就灭了（24:15）
@@ -1412,12 +1439,29 @@
           });
           break;
         }
-        case 'three': {         // 三样灾：三点光，两点熄灭（24:12–14）
+        case 'three': {         // 三样灾：三点光，各有其名（24:13 一样一样地说出）；瘟疫的影子起来时，没有选的两样暗下去（24:14–15）
           const F = houseFrame(), cols = [SP.warm, SP.cold, SP.pale];
+          const mob = MOB(), dx = mob ? W.w * 0.26 : F.u * 2.7, cx = mob ? W.w * 0.58 : W.w * 0.8, y = F.cy - F.u * 0.6;
+          const fs = Math.round(clamp(M() * 0.021, 13, 18)), dim = e.dim == null ? 3.2 : e.dim;
           for (let i = 0; i < 3; i++) {
-            const x = F.cx + (i - 1) * F.u * 1.6, y = F.cy - F.u * 0.6, keep = i === 2;
-            const a = clamp(e.t * 1.2 - i * 0.4, 0, 1) * (keep ? clamp((e.dur - e.t) / 1.5, 0, 1) : clamp(1 - (e.t - 3.2) * 0.9, 0, 1));
+            const x = cx + (i - 1) * dx, keep = i === 2;
+            const out = keep ? clamp((e.dur - e.t) / 1.5, 0, 1) : clamp(1 - (e.t - dim) * 0.6, 0, 1);
+            const a = clamp(e.t * 1.2 - i * 0.4, 0, 1) * out * (keep && e.t > dim ? 1.25 : 1);
             add2(ctx, () => { glowSp(ctx, cols[i], x, y, F.u * 0.9, a * 0.7); glowSp(ctx, SP.white, x, y, F.u * 0.25, a * 0.8); });
+            // 名：七年饥荒 · 三个月逃跑 · 三日瘟疫
+            if (e.names && e.lab != null) {
+              const la = clamp((e.t - e.lab - i * (e.step || 1.8)) / 1.1, 0, 1) * out;
+              if (la > 0.01) {
+                ctx.save();
+                ctx.globalAlpha = la;
+                ctx.font = fs + 'px "GS Kai", "KaiTi", "STKaiti", "Songti SC", serif';
+                ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+                ctx.shadowColor = 'rgba(0,0,0,0.85)'; ctx.shadowBlur = 6;
+                ctx.fillStyle = keep && e.t > dim ? 'rgb(236,232,255)' : 'rgb(250,242,224)';
+                ctx.fillText(e.names[i], x, y + F.u * 0.75);
+                ctx.restore();
+              }
+            }
           }
           break;
         }
@@ -1512,8 +1556,8 @@
     { text: '扫罗的儿子约拿单有一个儿子名叫米非波设，是瘸腿的……<br>他乳母抱着他逃跑；……孩子掉在地上，腿就瘸了。', ref: '撒母耳记下 4:4', hold: 6.7 },
   ];
   const V2 = [
+    { text: '以色列众支派来到希伯仑见大卫，说：「我们原是你的骨肉。……<br>耶和华也曾应许你说：『你必牧养我的民以色列，作以色列的君。』」', ref: '撒母耳记下 5:1–2', hold: 7 },
     { text: '于是以色列的长老都来到希伯仑见大卫王，大卫在希伯仑耶和华面前与他们立约，<br>他们就膏大卫作以色列的王。', ref: '撒母耳记下 5:3', hold: 6.7 },
-    { text: '大卫登基的时候年三十岁，在位四十年。', ref: '撒母耳记下 5:4', hold: 4.2 },
     { text: '大卫和跟随他的人到了耶路撒冷，要攻打住那地方的耶布斯人……<br>然而大卫攻取锡安的保障，就是大卫的城。', ref: '撒母耳记下 5:6–7', hold: 6.5 },
     { text: '泰尔王希兰将香柏木运到大卫那里，又差遣使者和木匠、石匠给大卫建造宫殿。<br>大卫就知道耶和华坚立他作以色列王……', ref: '撒母耳记下 5:11–12', hold: 6.7 },
   ];
@@ -1526,7 +1570,7 @@
   const V4 = [
     { text: '那时，王对先知拿单说：「看哪，我住在香柏木的宫中，神的约柜反在幔子里。」', ref: '撒母耳记下 7:2', hold: 6 },
     { text: '当夜，耶和华的话临到拿单说：……<br>「我从羊圈中将你召来，叫你不再跟从羊群，立你作我民以色列的君。」', ref: '撒母耳记下 7:4–8', hold: 6.7 },
-    { text: '「……我必使你的后裔接续你的位；我也必坚定他的国。<br>他必为我的名建造殿宇；我必坚定他的国位，直到永远。」', ref: '撒母耳记下 7:12–13', hold: 7.2 },
+    { text: '「……我必使你的后裔接续你的位；我也必坚定他的国。……<br>你的家和你的国必在我面前永远坚立。你的国位也必坚定，直到永远。」', ref: '撒母耳记下 7:12–16', hold: 7.2 },
     { text: '于是大卫王进去，坐在耶和华面前，说：<br>「主耶和华啊，我是谁？我的家算什么？你竟使我到这地步呢？」', ref: '撒母耳记下 7:18', hold: 6.2 },
   ];
   const V5 = [
@@ -1579,9 +1623,9 @@
   ];
   const V13 = [
     { text: '大卫就吩咐跟随他的元帅约押说：「你去走遍以色列众支派，从但直到别是巴，数点百姓……」', ref: '撒母耳记下 24:2', hold: 6.3 },
-    { text: '大卫数点百姓以后，就心中自责，祷告耶和华说：「我行这事大有罪了……」', ref: '撒母耳记下 24:10', hold: 6 },
-    { text: '大卫对迦得说：「我甚为难！我愿落在耶和华的手里，因为他有丰盛的怜悯。我不愿落在人的手里。」', ref: '撒母耳记下 24:14', hold: 6.7 },
-    { text: '于是，耶和华降瘟疫与以色列人，自早晨到所定的时候；从但直到别是巴，民间死了七万人。', ref: '撒母耳记下 24:15', hold: 6.7 },
+    { text: '大卫数点百姓以后，就心中自责……耶和华的话临到先知迦得……说：<br>「你去告诉大卫，说耶和华如此说：『我有三样灾，随你选择一样，我好降与你。』」', ref: '撒母耳记下 24:10–12', hold: 7 },
+    { text: '于是迦得来见大卫，对他说：「你愿意国中有七年的饥荒呢？<br>是在你敌人面前逃跑，被追赶三个月呢？是在你国中有三日的瘟疫呢？……」', ref: '撒母耳记下 24:13', hold: 7 },
+    { text: '大卫对迦得说：「我甚为难！我愿落在耶和华的手里……」<br>于是，耶和华降瘟疫与以色列人……从但直到别是巴，民间死了七万人。', ref: '撒母耳记下 24:14–15', hold: 7 },
   ];
   const V14 = [
     { text: '天使向耶路撒冷伸手要灭城的时候，耶和华后悔，就不降这灾了，<br>吩咐灭民的天使说：「够了！住手吧！」', ref: '撒母耳记下 24:16', hold: 6.6 },
@@ -1704,14 +1748,16 @@
             walk('david', X.hebron + 0.004, { speed: 0.02 }); face('david', 1);
             avoid([0.55, 0.82]);
           }],
+          // 耶和华也曾应许你：你必牧养我的民以色列（5:2）
+          [4.6, () => { face('david', 1); glow('david', 0.7); }],
           // 膏大卫作以色列的王（5:3）
-          [4.5, b => {
+          [L[1] + 0.4, b => {
             pose('david', 'kneel');
             crowdPose('elders', 'raise');
             fxAdd(b, { type: 'oil', id: 'david', dur: 3.4 });
             sfx(b, 'harp');
           }],
-          [L[1], b => {
+          [L[1] + 4.4, b => {
             pose('david', 'stand'); glow('david', 0.8);
             crowdPose('elders', 'bow'); crowdPose('judah', 'bow'); crowdPose('house', 'bow');
             if (!b.instant) { fx().ring(W.w * X.hebron, figPt('david', 0.6)[1], [255, 226, 160], PH() * 3.6, 2.4, 1.4); W.flash = Math.max(W.flash || 0, 0.12); }
@@ -2120,15 +2166,27 @@
           [L[1] + 2.4, () => { pose('abishai', 'point'); face('abishai', -1); }],
           [L[1] + 3.6, b => { pose('david', 'raise', { weep: false }); if (!b.instant) { const p = figPt('shimei', 0.9); fx().dust(p[0] + 22 * SU(), p[1] + 6, 12, [200, 180, 150], 10 * SU(), 'air'); } }],
           [L[1] + 5.6, () => { pose('david', 'weep', { weep: true }); pose('abishai', 'stand'); pose('shimei', 'point'); }],
-          // 城上一团暗的计谋，被金光解开（17:1–14）
-          [L[2], b => { W.set('dkCounsel', 1, b.instant); rm('shimei'); sfx(b, 'wind', { soft: true }); }],
-          [L[2] + 3.6, b => { W.set('dkUnravel', 1, b.instant); sfx(b, 'harp'); }],
+          // 耶路撒冷的城门口：押沙龙与亚希多弗、户筛商议（17:1–14）
+          [L[2] - 1.4, b => {
+            add('ahithophel', { label: '亚希多弗', sex: 'm', age: 'elder', x: X.gate - 0.012, v: 0.3, facing: 1, robe: ROBE.ahith, glow: 0.15, prop: 'staff', from: fromOf(b) });
+            add('absalom', { label: '押沙龙', sex: 'm', x: X.gate + 0.016, v: 0.22, facing: -1, robe: ROBE.absalom, glow: 0.3, hair: 'long', from: fromOf(b) });
+            add('hushai', { label: '户筛', sex: 'm', age: 'elder', x: X.gate + 0.046, v: 0.32, facing: -1, robe: ROBE.hushai, glow: 0.3, prop: 'staff', from: fromOf(b) });
+          }],
+          // 亚希多弗的计谋：他头上一团打了结的暗绳
+          [L[2], b => { W.set('dkCounsel', 1, b.instant); rm('shimei'); pose('ahithophel', 'point'); sfx(b, 'wind', { soft: true }); }],
+          [L[2] + 2.4, () => { pose('ahithophel', 'stand'); pose('hushai', 'point'); face('absalom', 1); }],
+          // 「户筛的计谋比亚希多弗的计谋更好！」——耶和华定意破坏：绳结断开，化作金线散尽
+          [L[2] + 3.6, b => { W.set('dkUnravel', 1, b.instant); glow('hushai', 0.55); sfx(b, 'harp'); }],
+          [L[2] + 5, () => { pose('hushai', 'stand'); pose('absalom', 'raise'); pose('ahithophel', 'bow'); }],
+          // 亚希多弗见不依从他的计谋，就……归回本城（17:23）
+          [L[2] + 6.4, () => { pose('ahithophel', 'stand'); walk('ahithophel', 1.06, { speed: 0.03 }); }],
           // 夜里过约旦河；到了天亮（17:22）
           // 夜里（乌云遮了日头，遍地一层暗，亚比筛手中的火把）；解开的计谋已经散尽
           [L[3] - 0.8, b => { W.set('gloom', 0.55, b.instant); W.set('storm', 0.5, b.instant); }],
           [L[3], b => {
             offPath('shimei');
             W.set('dkCounsel', 0, true); W.set('dkUnravel', 0, true);
+            rm('absalom'); rm('hushai'); rm('ahithophel');
             walk('david', 0.6, { speed: 0.02 }); pose('david', 'stand', { weep: false });
             walk('abishai', 0.618, { speed: 0.02 });
             hold('abishai', 'torch');
@@ -2341,29 +2399,38 @@
           // 大卫心中自责（24:10）
           [L[1] + 1, () => { face('david', 1); pose('david', 'kneel'); }],
           [L[1] + 2.6, () => pose('david', 'pray')],
-          // 先见迦得；三样灾（24:11–14）
-          [L[2] - 1, b => {
+          // 耶和华的话临到先见迦得：我有三样灾，随你选择一样（24:11–12）
+          [L[1] + 2.2, b => {
             add('gad', { label: '迦得', sex: 'm', age: 'elder', x: 0.62, v: 0.25, facing: 1, robe: ROBE.gad, glow: 0.4, prop: 'staff', from: fromOf(b) });
             walk('gad', X.atGate - 0.028, { speed: 0.025 });
           }],
-          [L[2] + 1, b => { fxAdd(b, { type: 'three', dur: 6 }); sfx(b, 'stars', { soft: true }); pose('david', 'kneel'); }],
+          // 三点光在天上；迦得一样一样地说出（24:13），名字随之显出；瘟疫的影子起来时，另两样暗下去
+          [L[1] + 4.6, b => {
+            const t0 = L[1] + 4.6;
+            fxAdd(b, { type: 'three', dur: L[3] + 5 - t0, names: ['七年饥荒', '三个月逃跑', '三日瘟疫'], lab: L[2] + 0.6 - t0, step: 1.9, dim: L[3] + 2.6 - t0 });
+            sfx(b, 'stars', { soft: true });
+          }],
+          [L[2] + 1, () => { face('david', -1); pose('david', 'kneel'); }],
           [L[2] + 4, () => pose('david', 'pray')],
+          // 我愿落在耶和华的手里（24:14）
+          [L[3] + 0.6, () => { pose('david', 'raise'); }],
           // 耶和华降瘟疫：影子自西向东走过全地（24:15）；天使向耶路撒冷伸手（24:16）
-          [L[3], b => {
+          [L[3] + 2.6, b => {
             W.set('dkPlague', 1, b.instant); W.set('dkVeil', 1, b.instant);
             W.set('gloom', 0.3, b.instant);
             pose('araunah', 'bow');
+            pose('david', 'kneel');
             sfx(b, 'wind');
           }],
-          [L[3] + 3, b => {
+          [L[3] + 4.6, b => {
             // 天使在禾场的上空，向东边的耶路撒冷伸手（远离城楼与旗）
             add('angel', { label: '耶和华的使者', sex: 'm', x: X.floor + 0.02, v: 0, facing: 1, angel: true, glow: 1, scale: 1.3, from: b.instant ? 'none' : 'light', pose: 'point' });
             fly('angel', X.floor + 0.02, MOB() ? 0.47 : 0.4, { dur: 2.4, pose: 'point' });
             face('angel', 1);
             sfx(b, 'angel');
           }],
-          [L[3] + 4.4, () => { pose('david', 'kneel'); pose('gad', 'kneel'); }],
-          [L[3] + 5.8, () => { pose('david', 'pray'); pose('gad', 'pray'); }],
+          [L[3] + 3.2, () => { pose('gad', 'kneel'); }],
+          [L[3] + 6.2, () => { pose('david', 'pray'); pose('gad', 'pray'); }],
         ]);
       },
     },
@@ -2463,7 +2530,7 @@
     },
     drawUnder(ctx, pass) {
       if (!isCur()) return;
-      if (pass === 'sky') { drawStarHouse(ctx); drawCounsel(ctx); drawFX(ctx, 'sky'); return; }
+      if (pass === 'sky') { drawStarHouse(ctx); drawFX(ctx, 'sky'); return; }
       const l = LAYER_OF_PASS[pass];
       if (l === 0) { drawVeil(ctx, 0); drawTally(ctx, 0); drawFX(ctx, 'far'); return; }
       if (l === 1) { drawRabbah(ctx); drawVeil(ctx, 1); drawTally(ctx, 1); drawFX(ctx, 'mid'); return; }
@@ -2496,6 +2563,7 @@
         drawBeam(ctx);
         drawAngelHalo(ctx);
         drawDew(ctx);
+        drawCounsel(ctx);
         drawFX(ctx, 'air');
       }
     },
@@ -2560,6 +2628,8 @@
       '押沙龙': { text: '以色列全地之中，无人像押沙龙那样俊美，得人的称赞，从脚底到头顶毫无瑕疵。', ref: '撒母耳记下 14:25' },
       '约押': { text: '洗鲁雅的儿子约押作元帅。', ref: '撒母耳记下 8:16' },
       '亚比筛': { text: '洗鲁雅的儿子、约押的兄弟亚比筛是这三个勇士的首领；他举枪杀了三百人，就在三个勇士里得了名。', ref: '撒母耳记下 23:18' },
+      '亚希多弗': { text: '那时亚希多弗所出的主意好像人问神的话一样；他昔日给大卫，今日给押沙龙所出的主意，都是这样。', ref: '撒母耳记下 16:23' },
+      '户筛': { text: '押沙龙和以色列众人说：「亚基人户筛的计谋比亚希多弗的计谋更好！」', ref: '撒母耳记下 17:14' },
       '示每': { text: '于是大卫和跟随他的人往前行走。示每在大卫对面山坡，一面行走一面咒骂，又拿石头砍他，拿土扬他。', ref: '撒母耳记下 16:13' },
       '橄榄树': { text: '大卫蒙头赤脚上橄榄山，一面上一面哭。', ref: '撒母耳记下 15:30' },
       '橡树': { text: '押沙龙骑着骡子，从大橡树密枝底下经过，他的头发被树枝绕住，就悬挂起来。', ref: '撒母耳记下 18:9' },

@@ -1526,11 +1526,13 @@
     ctx.quadraticCurveTo(x + w * 0.9, y - h * 0.45, x + w, y);
     ctx.closePath();
   }
-  // front：画在人之前（近于人的火焰，半透明——人从火中行过）
+  // 火焰都画在人之后：人走到哪里，火就向两旁分开、低伏下去，留出一条路（43:2 火焰也不着在你身上）；
+  // front（画在人之前）只画经过的人周身一层清凉的白光
   function drawFire(ctx, front) {
     const k = W.lv.isFire;
     if (k < 0.01) return;
     SP || sprites();
+    if (front) { drawShield(ctx, k); return; }
     const s = LS(2), ps = passers();
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
     if (!front) {
@@ -1545,25 +1547,48 @@
     for (let pass = 0; pass < 3; pass++) {
       ctx.beginPath();
       for (const f of FLAMES) {
-        if (front ? f.v < 0.5 : f.v >= 0.5) continue;
         const p = firePt(f.v), sc = s * (0.75 + 0.6 * f.v), bw = FIRE.w(f.v) * s;
         const x = p[0] + f.off * bw * 2, y = p[1] + (hsh(f.ph) - 0.5) * 4 * s;
         const fl = 0.66 + 0.22 * Math.sin(CLK * f.sp + f.ph) + 0.12 * Math.sin(CLK * f.sp * 1.7 + f.ph * 2);
         let away = 0;
+        let lane = 0;
         for (const q of ps) {
-          if (Math.abs(q.v - f.v) > 0.18) continue;
-          const dx = x - q.x * W.w, R = 34 * sc;
-          if (Math.abs(dx) < R) away += Math.sign(dx || 1) * (1 - Math.abs(dx) / R);
+          const dv = Math.abs(q.v - f.v);
+          if (dv > 0.3) continue;
+          const dx = x - q.x * W.w, R = 46 * sc, near = 1 - Math.abs(dx) / R;
+          if (near > 0) { const wv = 1 - dv / 0.3; away += Math.sign(dx || 1) * near * wv; lane = Math.max(lane, near * wv); }
         }
         away = clamp(away, -1, 1);
         // 火焰向两旁弯开、低伏下去，让人从中行过
-        const lean = 0.14 * Math.sin(CLK * 1.4 + f.ph) + 0.06 * Math.sin(CLK * 4.3 + f.ph * 3) + 0.4 * away;
-        const h = [46, 31, 16][pass] * sc * f.h * fl * k * (1 - 0.45 * Math.abs(away)), w = [5.2, 3.4, 1.7][pass] * sc * f.w * (0.8 + 0.4 * f.h);
+        const lean = 0.14 * Math.sin(CLK * 1.4 + f.ph) + 0.06 * Math.sin(CLK * 4.3 + f.ph * 3) + 0.5 * away;
+        const h = [46, 31, 16][pass] * sc * f.h * fl * k * (1 - 0.92 * clamp(lane * 1.4, 0, 1)), w = [5.2, 3.4, 1.7][pass] * sc * f.w * (0.8 + 0.4 * f.h);
+        if (h < 1) continue;
         tongue(ctx, x + lean * [0, 1.2, 2.4][pass] * s, y - pass * 0.8 * s, h, w, lean);
       }
       ctx.fillStyle = COL[pass];
-      ctx.globalAlpha = (front ? 0.5 : 0.85) * k;
+      ctx.globalAlpha = 0.85 * k;
       ctx.fill();
+    }
+    ctx.restore();
+  }
+  // 火中行过的人：周身一层清凉的白光与一圈光环（火焰不着在他们身上）
+  function drawShield(ctx, k) {
+    const ms = members('folk');
+    if (!ms.length) return;
+    const s = LS(2);
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    for (const m of ms) {
+      if (!m._vis || !isFinite(m._x)) continue;
+      const v = (m.v || 0) * 0.8, bw = (FIRE.w(v) * 2.2 + 26) * s;
+      const near = clamp(1.25 - Math.abs(m.nx - FIRE.x(v)) * W.w / bw, 0, 1);
+      if (near < 0.02) continue;
+      const h = m._h > 2 ? m._h : 30 * s, a = k * near * (m.alpha == null ? 1 : m.alpha) * (W.w < 600 ? 0.55 : 1);   // 窄屏上人挨得近，光叠得亮，淡些
+      const cx = m._x, cy = m._y - h * 0.5;
+      ctx.globalAlpha = 0.2 * a;
+      ctx.drawImage(SP.cool, cx - h * 0.62, cy - h * 0.72, h * 1.24, h * 1.44);
+      ctx.globalAlpha = 0.34 * a;
+      ctx.strokeStyle = 'rgb(214,230,255)'; ctx.lineWidth = Math.max(0.7, 0.9 * s);
+      ctx.beginPath(); ctx.ellipse(cx, cy, h * 0.36, h * 0.6, 0, 0, TAU); ctx.stroke();
     }
     ctx.restore();
   }
@@ -1900,11 +1925,12 @@
     const u = SU(), al = f.alpha == null ? 1 : f.alpha, k = W.lv.isBurden;
     ctx.save();
     if (k > 0.01) {
-      const w = 96 * u;
-      ctx.globalAlpha = 0.56 * k * al;
-      ctx.drawImage(SP.shade, p[0] - w / 2, -10, w, p[1] + 22);
-      ctx.globalAlpha = 0.4 * k * al;
-      ctx.drawImage(SP.shade, p[0] - w * 0.3, -10, w * 0.6, p[1] + 16);
+      // 暗只压在他身上方约三个人高（上端淡到无），不再从天顶直落下来
+      const w = 96 * u, fh = f._h > 2 ? f._h : 34 * LS(2), H = fh * 3.2;
+      ctx.globalAlpha = 0.5 * k * al;
+      ctx.drawImage(SP.shade, p[0] - w / 2, p[1] - H, w, H + 22);
+      ctx.globalAlpha = 0.36 * k * al;
+      ctx.drawImage(SP.shade, p[0] - w * 0.3, p[1] - H * 0.7, w * 0.6, H * 0.7 + 16);
     }
     ctx.globalCompositeOperation = 'lighter';
     const r = 72 * u, gl = (0.42 + 0.3 * (f.glow || 0)) * (1 - 0.3 * k) * al;
@@ -1914,16 +1940,30 @@
     ctx.drawImage(SP.white, p[0] - r * 0.5, p[1] - r * 0.1, r, r * 0.26);
     ctx.restore();
   }
+  // 众人的罪孽归在他身上（53:6）：自人和羊那里飘来的暗点，聚成低低的一团暗云压在他身上；
+  // 他身上留一层淡淡的光边，躺下了也看得见
   function drawBurden(ctx) {
     const k = W.lv.isBurden;
     if (k < 0.01) return;
     SP || sprites();
-    const p = figPt('servant', 0);
-    if (!p) return;
-    const w = 56 * SU();
+    const p = figPt('servant', 0), f = fig('servant');
+    if (!p || !f) return;
+    const u = SU(), fh = f._h > 2 ? f._h : 34 * LS(2), al = f.alpha == null ? 1 : f.alpha;
+    const low = f.pose === 'lie' || f.pose === 'kneel' || f.pose === 'bow';
+    const cy = p[1] - fh * (low ? 0.55 : 0.95), R = fh * 1.25;
     ctx.save();
-    ctx.globalAlpha = 0.22 * k;
-    ctx.drawImage(SP.shade, p[0] - w / 2, -10, w, p[1] + 6);
+    for (let i = 0; i < 6; i++) {
+      const ph = i * 1.7 + 0.4, dx = Math.sin(CLK * 0.35 + ph) * R * 0.28 + (i - 2.5) * R * 0.3, dy = Math.cos(CLK * 0.27 + ph * 1.3) * R * 0.1 - (i % 2) * R * 0.18;
+      const r = R * (0.62 + 0.18 * Math.sin(ph * 2.1));
+      ctx.globalAlpha = 0.34 * k * al;
+      ctx.drawImage(SP.dark, p[0] + dx - r, cy + dy - r * 0.6, r * 2, r * 1.2);
+    }
+    ctx.globalCompositeOperation = 'lighter';
+    const b = p[1] - fh * (low ? 0.12 : 0.5);
+    ctx.globalAlpha = 0.32 * k * al;
+    ctx.drawImage(SP.cool, p[0] - fh * 0.75, b - fh * (low ? 0.3 : 0.62), fh * 1.5, fh * (low ? 0.6 : 1.24));
+    ctx.globalAlpha = 0.22 * k * al;
+    ctx.drawImage(SP.white, p[0] - fh * 0.4, b - fh * (low ? 0.16 : 0.4), fh * 0.8, fh * (low ? 0.32 : 0.8));
     ctx.restore();
   }
   function drawHillGlow(ctx, layer) {
@@ -2043,7 +2083,7 @@
           const ee = t * t * (3 - 2 * t);
           const mx = (m.x + p1[0]) / 2, my = Math.min(m.y, p1[1]) - 40 * u + m.arc * 60 * u;
           const x = (1 - ee) * (1 - ee) * m.x + 2 * (1 - ee) * ee * mx + ee * ee * p1[0], y = (1 - ee) * (1 - ee) * m.y + 2 * (1 - ee) * ee * my + ee * ee * p1[1];
-          const r = 1.6 * u * (1 - 0.4 * ee);
+          const r = 2.6 * u * (1 - 0.35 * ee);
           ctx.moveTo(x + r, y); ctx.arc(x, y, r, 0, TAU);
         }
         ctx.fill();
@@ -2313,7 +2353,7 @@
     { text: '他被藐视，被人厌弃；多受痛苦，常经忧患。', ref: '以赛亚书 53:3', hold: 5 },
     { text: '哪知他为我们的过犯受害，<br>为我们的罪孽压伤。<br>因他受的刑罚，我们得平安；<br>因他受的鞭伤，我们得医治。', ref: '以赛亚书 53:5', hold: 8 },
     { text: '我们都如羊走迷；各人偏行己路；<br>耶和华使我们众人的罪孽都归在他身上。', ref: '以赛亚书 53:6', hold: 6.5 },
-    { text: '他必看见自己劳苦的功效，便心满意足。', ref: '以赛亚书 53:11', hold: 5 },
+    { text: '我的仆人行事必有智慧，<br>必被高举上升，且成为至高。', ref: '以赛亚书 52:13', hold: 5.5 },
   ];
   const V12 = [
     { text: '雨雪从天而降，并不返回，却滋润地土，<br>使地上发芽结实，<br>使撒种的有种，使要吃的有粮。', ref: '以赛亚书 55:10', hold: 7.5 },
@@ -2811,7 +2851,7 @@
             motes(b, ['flock'], 4.5); sfx(b, 'bleat');
           }],
           [L[2] + 2.5, b => { W.set('isBurden', 1, b.instant); pose('servant', 'lie'); }],
-          // 53:11 他必看见自己劳苦的功效，便心满意足
+          // 52:13 我的仆人……必被高举上升，且成为至高
           [L[3], b => {
             W.set('isBurden', 0, b.instant);
             pose('servant', 'stand'); glow('servant', 1);

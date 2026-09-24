@@ -1246,6 +1246,51 @@
     const ek = ss(0, 1, k);
     for (const st of CELL) if (st.back === back) cellStone(ctx, st, ph, base, ek, col, rim, ra);
   }
+  // 黑暗之中，凿过的石头仍有一道冷的星光镶边（在遍地的黑暗之上画——看得出他被石头围住）
+  const CELL_RIM = [178, 198, 240];
+  function drawCellRim(ctx, ph) {
+    const k = W.lv.lmCell, gl = W.lv.gloom;
+    if (k < 0.01 || gl < 0.03) return;
+    const ek = ss(0, 1, k), a = clamp(1.1 * gl, 0, 0.6) * ek;
+    if (a < 0.01) return;
+    const g = gY(2, X.cell);
+    ctx.save();
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.lineWidth = Math.max(1, 1.1 * SU());
+    for (const c of CELL) {
+      const base = c.back ? g + 0.03 * ph : fieldY(X.cell, 0.13);
+      const x = X.cell * W.w + c.dx * ph, w = c.w * ph, h = c.h * 1.25 * ph * ek;
+      if (h < 0.5) continue;
+      ctx.save();
+      ctx.translate(x, base);
+      ctx.rotate(c.tilt || 0);
+      // 顶边与迎光的左边：上亮下淡
+      const gr = ctx.createLinearGradient(0, -h, 0, 0);
+      gr.addColorStop(0, rgba(CELL_RIM, a)); gr.addColorStop(0.55, rgba(CELL_RIM, a * 0.35)); gr.addColorStop(1, rgba(CELL_RIM, 0));
+      ctx.strokeStyle = gr;
+      ctx.beginPath();
+      ctx.moveTo(-w / 2, -0.1 * h);
+      ctx.lineTo(-w / 2, -h + 0.06 * ph);
+      ctx.lineTo(-w / 2 + 0.07 * ph, -h);
+      ctx.lineTo(w / 2 - 0.05 * ph, -h + 0.02 * ph);
+      ctx.lineTo(w / 2, -h + 0.08 * ph);
+      ctx.stroke();
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+  // 深牢里的人：身后一片冷的微光，好叫他的剪影看得出（画在人之前的'near'层，人挡住它）
+  function drawSoulBack(ctx) {
+    const gl = W.lv.gloom, k = W.lv.lmCell;
+    if (gl < 0.03 || k < 0.01) return;
+    SP || sprites();
+    const p = figPt('jer', 0.55);
+    if (!p) return;
+    const pp = PH(2);
+    ctx.globalCompositeOperation = 'lighter';
+    glowSp(ctx, SP.pale, p[0], p[1], 1.25 * pp, clamp(1.6 * gl, 0, 0.9) * ss(0, 1, k));
+    ctx.globalCompositeOperation = 'source-over';
+  }
 
   // ════════════════════════════════════════════════════════════
   //  天上与空中的光
@@ -1468,6 +1513,7 @@
     drawRoad(ctx);
     drawDew(ctx, ph);
     drawCell(ctx, PH(2), true);
+    drawSoulBack(ctx);
     drawSmoke(ctx, ph, G);
     drawPlume(ctx, ph, G);
     drawFire(ctx, ph, G);
@@ -1490,6 +1536,7 @@
       if (!cur() || pass !== 'air') return;
       const ph = CPH(), G = temGeo(ph);
       drawCell(ctx, PH(2), false);
+      drawCellRim(ctx, PH(2));
       drawSouls(ctx, PH(2));
       drawBeams(ctx, ph, G);
       drawLine(ctx, ph);
@@ -1757,7 +1804,7 @@
         T(c, [
           [0, b => {
             W.goTo(0.135, 20, b.instant);
-            W.set('gloom', 0.75, b.instant);
+            W.set('gloom', 0.52, b.instant);     // 黑暗，却仍看得出废墟与深牢的轮廓
             W.set('moon', 0.15, b.instant);      // 月也隐去：他使我行在黑暗中
             W.set('lmEmber', 0.45, b.instant);
             pose('jer', 'stand');

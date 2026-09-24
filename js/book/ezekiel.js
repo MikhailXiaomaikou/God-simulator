@@ -1089,53 +1089,60 @@
   }
   // 额上的记号：穿细麻衣的人走过，叹息哀哭的人额上显出一点光
   // （记号是希伯来字母「他乌」——一个十字形的光；穿细麻衣的人身后留下一道墨光）
-  const MARKED = [3, 4, 6];
+  // 叹息哀哭的人站在近处的地上（看得清），穿细麻衣的人从他们中间走过，一个一个画上记号；记号在这句话里一直亮着
+  const SIGH = [[0.655, 0.14, 1], [0.705, 0.3, -1, 'elder'], [0.752, 0.1, 1], [0.8, 0.26, -1], [0.852, 0.12, 1, 'elder']];
+  const LIN = { x0: 0.615, x1: 0.9, v: 0.2 };
   function drawMarks(ctx) {
     const k = lv('ekMark');
-    if (k < 0.001 || cityA() < 0.05) return;
-    const ms = members('jer');
-    if (!ms.length) return;
+    if (k < 0.001) return;
+    const g = crowdObj('sigh'), ms = g ? g.members : [];
     SP || sprites();
-    const A = cityA(), lx = lerp(X.gateE, 0.975, k), u = SU();
+    const lx = lerp(LIN.x0, LIN.x1, k), u = SU(), m0 = M();
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
     // 穿细麻衣的人：一道窄光在他身上；他走过的路留下淡淡的墨光
     const f = fig('linen');
     if (f) {
-      const fa = (f.alpha == null ? 1 : f.alpha) * A;
-      const cu = CU(), N = 24, x0 = X.gateE, x1 = Math.max(x0, f.nx);
+      const fa = f.alpha == null ? 1 : f.alpha;
+      const N = 24, x0 = LIN.x0, x1 = Math.max(x0, f.nx), lu = LS(2);
       ctx.strokeStyle = 'rgb(255,226,160)'; ctx.lineCap = 'round';
-      for (const [lw, al] of [[5 * cu, 0.12], [1.6 * cu, 0.45]]) {
+      for (const [lw, al] of [[6 * lu, 0.12], [2 * lu, 0.45]]) {
         ctx.lineWidth = Math.max(1, lw); ctx.globalAlpha = fa * al;
         ctx.beginPath();
-        for (let i = 0; i <= N; i++) { const xf = lerp(x0, x1, i / N), y = gY(1, xf) + 3 * cu; if (i) ctx.lineTo(xf * W.w, y); else ctx.moveTo(xf * W.w, y); }
+        for (let i = 0; i <= N; i++) { const xf = lerp(x0, x1, i / N), gy = gY(2, xf), y = gy + LIN.v * fieldH(2, gy) * 0.8 + 2 * lu; if (i) ctx.lineTo(xf * W.w, y); else ctx.moveTo(xf * W.w, y); }
         ctx.stroke();
       }
-      const p = figPt('linen', 0.5);
-      if (p) {
-        const bw = 22 * u, g = gY(1, f.nx);
-        ctx.globalAlpha = fa * 0.3; ctx.drawImage(SP.beam, p[0] - bw / 2, -10, bw, g + 10);
-        const r = 26 * u; ctx.globalAlpha = fa * 0.4; ctx.drawImage(SP.gold, p[0] - r, p[1] - r, 2 * r, 2 * r);
+      const p = figPt('linen', 0.5), ft = figPt('linen', 0);
+      if (p && ft) {
+        const bw = 30 * u;
+        ctx.globalAlpha = fa * 0.22; ctx.drawImage(SP.beam, p[0] - bw / 2, -10, bw, ft[1] + 10);
+        const r = 34 * u; ctx.globalAlpha = fa * 0.4; ctx.drawImage(SP.gold, p[0] - r, p[1] - r, 2 * r, 2 * r);
       }
     }
-    for (const i of MARKED) {
-      const m = ms[i];
-      if (!m || m.nx > lx + 0.004) continue;
-      const p = memberPt(m, 0.9), r = Math.max(6, 16 * u * W.layerScale(1));
+    ms.forEach((m, i) => {
+      if (m.nx > lx + 0.004) return;
+      const ma = m.alpha == null ? 1 : m.alpha;
+      if (ma < 0.02) return;
+      const hd = memberPt(m, 1);
+      const L = Math.max(5, 0.012 * m0), r = L * 2.6;
+      const x = hd[0], y = hd[1] - L * 1.5;
       const tw = 0.85 + 0.15 * Math.sin(CLK * 2 + i);
       // 刚画上时：一圈光向外散开（由记号的进度推算，恢复时不放）
       const age = (lx - m.nx) / 0.05;
       if (k < 1 && age >= 0 && age < 1) {
-        ctx.strokeStyle = 'rgb(255,230,170)'; ctx.lineWidth = Math.max(1, 2 * (1 - age));
-        ctx.globalAlpha = 0.8 * (1 - age) * A;
-        ctx.beginPath(); ctx.arc(p[0], p[1], r * (0.6 + 2.2 * age), 0, TAU); ctx.stroke();
+        ctx.strokeStyle = 'rgb(255,230,170)'; ctx.lineWidth = Math.max(1, 2.4 * (1 - age));
+        ctx.globalAlpha = 0.85 * (1 - age) * ma;
+        ctx.beginPath(); ctx.arc(x, y, r * (0.5 + 2 * age), 0, TAU); ctx.stroke();
       }
-      ctx.globalAlpha = 0.9 * tw * A;
-      ctx.drawImage(SP.gold, p[0] - r, p[1] - r, r * 2, r * 2);
+      ctx.globalAlpha = 0.85 * tw * ma;
+      ctx.drawImage(SP.gold, x - r, y - r, r * 2, r * 2);
+      // 额上一点光，连到头上的记号
+      const fh = memberPt(m, 0.9);
+      ctx.drawImage(SP.gold, fh[0] - L * 0.9, fh[1] - L * 0.9, L * 1.8, L * 1.8);
       ctx.fillStyle = 'rgb(255,248,222)';
-      const L = Math.max(3, r * 0.42), w = 2;
-      ctx.globalAlpha = tw * A;
-      ctx.fillRect(p[0] - L, p[1] - w / 2, 2 * L, w); ctx.fillRect(p[0] - w / 2, p[1] - L, w, 2 * L);
-    }
+      const w = Math.max(1.5, L * 0.3);
+      ctx.globalAlpha = tw * ma;
+      ctx.fillRect(x - L, y - w / 2, 2 * L, w); ctx.fillRect(x - w / 2, y - L, w, 2 * L);
+    });
     ctx.restore();
   }
 
@@ -2611,7 +2618,7 @@
   function clearScene(b) {
     W.set('ekHide', 1, b.instant);
     W.set('ekZig', 0, b.instant);
-    for (const g of ['exiles', 'folk', 'jer', 'flock', 'fishers']) uncrowd(g);
+    for (const g of ['exiles', 'folk', 'jer', 'sigh', 'flock', 'fishers']) uncrowd(g);
     for (const id of ['fugitive', 'shepherd', 'lost1', 'lost2', 'linen']) rm(id);
     W.set('ekStone', 0, b.instant); W.set('ekHeart', 0, b.instant);
   }
@@ -2735,13 +2742,17 @@
             sfx(b, 'wind', { soft: true });
           }],
           [3.2, () => face('ezekiel', 1)],
-          [L[1] - 0.3, b => add('linen', { label: '穿细麻衣的人', sex: 'm', age: 'adult', layer: 1, x: X.gateE + 0.004, facing: 1, angel: true, robe: ROBE.linen, glow: 1, from: b.instant ? 'none' : 'light', prop: null })],
-          [L[1] + 1, b => { walk('linen', 0.975, { speed: 0.022 }); W.set('ekMark', 1, b.instant); }],
+          // 叹息哀哭的人（在近处的地上）；穿细麻衣的人从他们中间走过，画记号在额上
+          [L[1] - 1.2, b => {
+            placeCrowd('sigh', { layer: 2, label: '叹息哀哭的人', from: b.instant ? 'none' : 'fade', pose: 'weep', robes: MUTED }, SIGH);
+          }],
+          [L[1] - 0.3, b => add('linen', { label: '穿细麻衣的人', sex: 'm', age: 'adult', layer: 2, x: LIN.x0, v: LIN.v, facing: 1, angel: true, robe: ROBE.linen, glow: 1, from: b.instant ? 'none' : 'light', prop: null })],
+          [L[1] + 1, b => { walk('linen', LIN.x1, { speed: (LIN.x1 - LIN.x0) * 0.12 }); W.set('ekMark', 1, b.instant); }],
           [L[1] + 5, () => crowdPose('jer', 'bow')],
           [L[2] - 0.5, b => { W.set('ekGloryP', 2, b.instant); sfx(b, 'wings'); }],
           [L[2] + 5.5, b => { rm('linen'); crowdPose('jer', 'stand'); }],
           [L[3] - 0.5, b => { W.set('ekGloryP', 3, b.instant); W.set('ekDim', 1, b.instant); sfx(b, 'wind', { soft: true }); }],
-          [L[3] + 3.6, b => { fly('ezekiel', X.ezek, null, { dur: 2.5 }); glow('ezekiel', 0.4); }],
+          [L[3] + 3.6, b => { fly('ezekiel', X.ezek, null, { dur: 2.5 }); glow('ezekiel', 0.4); uncrowd('sigh'); }],
         ]);
       },
     },

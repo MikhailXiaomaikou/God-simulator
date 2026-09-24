@@ -2343,8 +2343,8 @@
     for (const id of ['jr:jer', 'jr:rachel', 'jr:potter']) { const f = fig(id); if (f && f._vis) pts.push([f._x, f._y - f._h * (f.pose === 'sit' || f.pose === 'seat' || f.pose === 'kneel' ? 0.36 : 0.62), f._h, f.alpha || 1]); }
     for (let i = 0; i < pts.length; i++) {
       const q = pts[i], pulse = 0.85 + 0.15 * Math.sin(W.t * 2.2 + i * 1.7);
-      glowSp(ctx, SP.gold, q[0], q[1], q[2] * 0.4 * pulse, k * 0.55 * q[3]);
-      glowSp(ctx, SP.white, q[0], q[1], q[2] * 0.08, k * 0.55 * q[3]);
+      glowSp(ctx, SP.gold, q[0], q[1], q[2] * 0.46 * pulse, k * 0.68 * q[3]);
+      glowSp(ctx, SP.white, q[0], q[1], q[2] * 0.1, k * 0.65 * q[3]);
     }
     norm(ctx);
   }
@@ -3131,11 +3131,26 @@
             }],
             [t13[1] + 2.6, b => {
               crowdPoseSoft('jr:return', 'gaze');
+              // 写在他们心上：每个归回的人胸前，金光写成一个「心」字（驻留约四秒，随后留下胸中的暖光）
+              if (!b.instant && fx() && fx().name) {
+                const narrow = W.w < 600, sz = narrow ? 13 : Math.max(16, Math.min(22, M() * 0.026));
+                const who = [];
+                members('jr:return').forEach((m, i) => { if (!narrow || i % 2 === 0) who.push([m.tx != null ? m.tx : m.nx, m.v || 0]); });
+                members('jr:poor').forEach(m => who.push([m.tx != null ? m.tx : m.nx, m.v || 0, 0.36]));
+                const j = fig('jr:jer'); if (j) who.push([j.tx != null ? j.tx : j.nx, j.v || 0]);
+                who.forEach((q, i) => {
+                  const x = q[0] * W.w, y = fieldY(q[0], q[1]) - PH(2) * (q[2] || 0.62) - sz * 0.15;
+                  safe('jr.heart', () => fx().name('心', x, y, sz, [255, 246, 222], () => [x + (Math.random() - 0.5) * 40, y - 20 - Math.random() * 70, [255, 240, 206]], { hold: 4, delay: i * 0.08 }));
+                });
+              }
+              sfx(b, 'chime');
+            }],
+            // 字隐去之后，胸中留下不灭的暖光
+            [t13[1] + 6.4, b => {
               W.set('jrHeart', 1, b.instant);
               crowdGlow('jr:return', 0.55);
               crowdGlow('jr:poor', 0.55);
               glowP('jr:jer', 0.8);
-              sfx(b, 'chime');
             }],
             [t13[2], b => { returnPoses(); crowdPose('jr:poor', 'kneel'); pose('jr:jer', 'raise'); sfx(b, 'harp'); }],
           ]);

@@ -36,6 +36,7 @@
   W.defineLevel('msWith', 'exp', 0.5);      // 我必与你同在（3:12）
   W.defineLevel('msVisit', 'exp', 0.35);    // 耶和华眷顾他们（4:31）
   W.defineLevel('msAway', 'exp', 0.3);      // 摩西在米甸与何烈山时：埃及退到远处的暮霭里（2:15 — 4:20）
+  W.defineLevel('msSpot', 'exp', 0.5);      // 荆棘前：火光只照着岩台上的摩西与荆棘，四围暗下去（3:2 — 4:17）
 
   // ── 地上的位置（画面宽度的比例）─────────────────────────────
   const X = {
@@ -62,7 +63,12 @@
 
   // ── 本卷的状态（只在 setup / apply / 情节里改动，重演时一样）───────
   let S = fresh();
-  function fresh() { return { mount: {} }; }
+  function fresh() { return { mount: {}, near: 0 }; }
+  // 在荆棘前，摩西在近地纵深里靠前一些（画得更大；他站在山面上，脚下仍随山面）：看着时慢慢变大，重演时立刻到位
+  function nearTo(b, v) {
+    S.near = v;
+    if (b.instant) { const f = fig('moses'); if (f) f.v = v; }
+  }
 
   // ════════════════════════════════════════════════════════════
   //  小工具
@@ -204,7 +210,7 @@
     [-0.24, 0.278], [-0.14, 0.3], [-0.08, 0.44], [-0.02, 0.6], [0.04, 0.73], [0.1, 0.84], [0.16, 0.93], [0.23, 0.985], [0.3, 1.0], [0.37, 0.975],
     [0.44, 0.93], [0.51, 0.9], [0.59, 0.8], [0.68, 0.64], [0.77, 0.46], [0.86, 0.27], [0.93, 0.11], [1, 0]];
   // 荆棘、摩西初站、近前的位置（山上的 u）；俯伏时身子向前伸出约一身之长，故近前处离荆棘留出一身有余
-  const BU = -0.17, STAND_U = -0.76, NEAR_U = -0.55;
+  const BU = -0.17, STAND_U = -0.76, NEAR_U = -0.6;
   const TERR0 = -0.82, TERR1 = -0.14;               // 岩台的两端
   const SANDAL_U = -0.77, SERP_U = -0.52;            // 脱下的鞋、杖变作蛇之处（都在岩台的平地上）
   const HB_N = 240;
@@ -1163,6 +1169,26 @@
     ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = 'source-over';
   }
+  // 荆棘前（3:2 — 4:17）：火光只照着岩台——荆棘与摩西；其余的地、埃及与天都暗下去，眼目自然落在岩台上
+  function drawSpot(ctx) {
+    const k = W.lv.msSpot;
+    if (k < 0.01) return;
+    const p = getP('bush'), mo = figPt('moses', 0.4);
+    const bx = p ? p.x * W.w : HU(BU) * W.w, by = surfY(bx / W.w) - 20 * LS(2);
+    const cx = mo ? (bx + mo[0]) / 2 : bx - 30 * LS(2), cy = mo ? Math.min(by, mo[1]) : by;
+    const R0 = Math.max(70 * LS(2), (mo ? Math.abs(bx - mo[0]) / 2 : 0) + 46 * LS(2)), R1 = Math.hypot(W.w, W.h) * 0.62;
+    const g = ctx.createRadialGradient(cx, cy, R0, cx, cy, Math.max(R0 + 1, R1));
+    g.addColorStop(0, 'rgba(6,4,8,0)');
+    g.addColorStop(0.25, U.rgba(6, 4, 8, 0.4 * k));
+    g.addColorStop(1, U.rgba(6, 4, 8, 0.58 * k));
+    ctx.fillStyle = g; ctx.fillRect(-20, -20, W.w + 40, W.h + 40);
+    // 岩台上一片暖光
+    SP || sprites();
+    ctx.globalCompositeOperation = 'lighter';
+    glowSp(ctx, SP.warm, cx, cy + 10 * LS(2), R0 * 2.1, k * (0.1 + 0.14 * nightK()));
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 1;
+  }
   // 火光照在人身上（画在人之后，柔和）
   function drawBushLight(ctx) {
     const p = getP('bush');
@@ -1864,6 +1890,8 @@
         if (p.dying && p.a < 0.01) { P.delete(id); sortedN = -1; }
       }
       for (let i = FXL.length - 1; i >= 0; i--) { FXL[i].t += f; if (FXL[i].t >= FXL[i].dur) FXL.splice(i, 1); }
+      const mo = fig('moses');
+      if (mo && (mo.v || 0) !== S.near) mo.v = approachLin(mo.v || 0, S.near, 0.35 * f);
     },
     drawUnder(ctx, pass) {
       if (!isCur()) return;
@@ -1883,6 +1911,7 @@
       }
       if (pass === 'air') {
         drawAway(ctx);
+        drawSpot(ctx);
         drawBushLight(ctx);
         drawCry(ctx);
         drawVisit(ctx);
@@ -1955,7 +1984,7 @@
     prop('well', 'well', { x: X.well, label: '井' });
     prop('tentJ', 'tent', { x: X.tent, label: '叶忒罗的帐棚' });
     prop('tentJ2', 'tent', { x: X.tent2, size: 0.8, label: '帐棚' });
-    prop('bush', 'bush', { x: HU(BU), label: '荆棘' });
+    prop('bush', 'bush', { x: HU(BU), size: 1.2, label: '荆棘' });
   }
   const HUTS = () => X.huts.map((x, i) => 'hut' + i);
   const DAUS = ['dau1', 'dau2', 'dau3', 'dau4', 'dau5', 'dau6'];
@@ -1968,7 +1997,7 @@
   function setup() {
     const lv = { deep: 1, light: 1, gather: 1, dayNight: 1, vault: 1, clouds: 0.25, land: 1, grass: 0.3, herbs: 0.24, trees: 0, lights: 1, moon: 1, stars: 1, life: 1,
       good: 0, given: 1, sabbath: 0.15, bare: 0.55, bloom: 0.25,
-      msEgypt: 1, msNile: 1, msDark: 0, msHoreb: 0, msHoly: 0, msCry: 0, msPromise: 0, msWith: 0, msVisit: 0, msAway: 0 };
+      msEgypt: 1, msNile: 1, msDark: 0, msHoreb: 0, msHoly: 0, msCry: 0, msPromise: 0, msWith: 0, msVisit: 0, msAway: 0, msSpot: 0 };
     for (const k in lv) if (!W.hasLevel || W.hasLevel(k)) W.set(k, lv[k], true);
     origins();
     W.freeClock = false;
@@ -2003,10 +2032,10 @@
     { text: '约瑟和他的弟兄，并那一代的人，都死了。<br>以色列人生养众多，并且繁茂，极其强盛，满了那地。', ref: '出埃及记 1:6–7', hold: 7.5 },
   ];
   const V1 = [
+    { text: '耶和华对亚伯兰说：「你要的确知道，你的后裔必寄居别人的地，又服事那地的人；<br>那地的人要苦待他们四百年。」', ref: '创世记 15:13', hold: 7 },
     { text: '有不认识约瑟的新王起来，治理埃及，对他的百姓说：<br>「看哪，这以色列民比我们还多，又比我们强盛。」', ref: '出埃及记 1:8–9', hold: 6.5 },
     { text: '于是埃及人派督工的辖制他们，加重担苦害他们。<br>他们为法老建造两座积货城，就是比东和兰塞。', ref: '出埃及记 1:11', hold: 6.5 },
     { text: '只是越发苦害他们，他们越发多起来，越发蔓延……', ref: '出埃及记 1:12', hold: 5 },
-    { text: '埃及人严严地使以色列人做工，使他们因做苦工觉得命苦；<br>无论是和泥，是做砖，是做田间各样的工，在一切的工上都严严地待他们。', ref: '出埃及记 1:13–14', hold: 7.5 },
   ];
   const V2 = [
     { text: '有希伯来的两个收生婆，一名施弗拉，一名普阿；埃及王对她们说：<br>「……若是男孩，就把他杀了；若是女孩，就留她存活。」', ref: '出埃及记 1:15–16', hold: 7 },
@@ -2071,26 +2100,32 @@
     { text: '以色列人听见耶和华眷顾他们，鉴察他们的困苦，就低头下拜。', ref: '出埃及记 4:31', hold: 5.5 },
   ];
 
-  // 话语：神在一、二章里没有开口——第一句是神在雅各下埃及时亲口的应许（创世记 46:3「我必使你在那里成为大族」，在这里应验）；
+  // 话语：神在一、二章里没有开口——第一句是神早先对亚伯兰亲口说的（创世记 15:13「你的后裔必寄居别人的地，又服事那地的人」，在这里应验；
+  // 旁白先念这一节，好叫人知道这话是谁说的、如今怎样应验了）；
   // 其余是经上明说神所行的事（神厚待收生婆、神听见他们的哀声），或别处经上一句神的作为、与这段经文相应：
   // 诗篇 18:16「把我从大水中拉上来」应 2:10「因我把他从水里拉出来」；诗篇 146:9「耶和华保护寄居的」应 2:22 革舜之名。
   // 从何烈山起，是神自己的话。
   const STAGES = [
-    // ── 1 · 我必使你在那里成为大族（1:8–14）─────────────────────
+    // ── 1 · 你的后裔必寄居别人的地，又服事那地的人（创世记 15:13 → 出埃及记 1:8–12）─────
     {
-      kind: 'promise', utter: '我必使你在那里成为大族', cmd: 'while (苦害) { 以色列.count++ }  # 越发多起来，越发蔓延', ref: '创世记 46:3',
+      kind: 'promise', utter: '你的后裔必寄居别人的地，又服事那地的人', cmd: 'while (苦害) { 以色列.count++ }  # 越发多起来，越发蔓延', ref: '创世记 15:13',
       verse: V1,
       apply(c) {
         const L = starts(V1);
         T(c, [
+          // 「你的后裔必寄居别人的地」：一道淡光落在歌珊，寄居在那里的以色列人
           [0, b => {
             W.goTo(0.4, 5, b.instant);
-            add('pharaoh', { label: '法老', sex: 'm', age: 'adult', x: X.pharaoh, facing: 1, robe: ROBE.pharaoh, accent: GOLD, glow: 0.18, from: fromOf(b) });
             avoid([0.52, 0.8], [0.8, 1]);
+            beam(b, 0.724, { dur: 6, w: 90, r: 0.12 });
+            sfx(b, 'harp', { soft: true });
           }],
-          [2.5, () => pose('pharaoh', 'point')],
-          [6, () => pose('pharaoh', 'stand')],
-          [L[1], b => {
+          [L[1] - 0.5, b => {
+            add('pharaoh', { label: '法老', sex: 'm', age: 'adult', x: X.pharaoh, facing: 1, robe: ROBE.pharaoh, accent: GOLD, glow: 0.18, from: fromOf(b) });
+          }],
+          [L[1] + 2, () => pose('pharaoh', 'point')],
+          [L[1] + 5.5, () => pose('pharaoh', 'stand')],
+          [L[2], b => {
             add('task1', { label: '督工的', sex: 'm', age: 'adult', x: X.pharaoh + 0.012, facing: 1, robe: ROBE.task, accent: [70, 60, 50], glow: 0.05, prop: 'staff', from: fromOf(b) });
             add('task2', { label: '督工的', sex: 'm', age: 'adult', x: X.pharaoh + 0.02, facing: 1, robe: ROBE.task, accent: [70, 60, 50], glow: 0.05, prop: 'staff', from: fromOf(b) });
             walk('task1', 0.614, { speed: 0.03 }); walk('task2', 0.678, { speed: 0.03 });
@@ -2099,15 +2134,14 @@
             prop('pithom', null, { build: 1, work: 1 }); prop('raamses', null, { build: 1, work: 1 });
             sfx(b, 'build');
           }],
-          [L[1] + 3, () => { face('task2', -1); pose('task1', 'point'); }],
-          [L[1] + 5.5, () => pose('task1', 'stand')],
-          [L[2], b => {
+          [L[2] + 3, () => { face('task2', -1); pose('task1', 'point'); crowdPose('israel', 'bow'); pose('task2', 'point'); }],
+          [L[2] + 5.5, () => { pose('task1', 'stand'); pose('task2', 'stand'); crowdPose('israel', 'carry'); }],
+          [L[3], b => {
             crowd('israel2', { n: 7, x0: 0.692, x1: 0.76, label: '以色列人', from: fromOf(b) });
             if (!b.instant) for (let i = 0; i < 5; i++) { const xf = lerp(0.7, 0.76, i / 4); fx().sparkle(xf * W.w, gY(2, xf) - 14 * LS(2), 10, [255, 232, 190], 8, 'near'); }
             sfx(b, 'crowd', { soft: true });
           }],
-          [L[3], b => { crowdPose('israel', 'bow'); pose('task2', 'point'); sfx(b, 'build'); }],
-          [L[3] + 3.5, () => { crowdPose('israel', 'carry'); crowdPose('israel2', 'carry'); pose('task2', 'stand'); }],
+          [L[3] + 3, b => { crowdPose('israel2', 'carry'); sfx(b, 'build'); }],
         ]);
       },
     },
@@ -2353,12 +2387,14 @@
         T(c, [
           [0, b => {
             W.goTo(0.765, 7, b.instant); onMount('moses'); walk('moses', HU(STAND_U), { speed: 0.008 }); face('moses', 1); avoid([0.52, 0.76], [0.76, 1]);
+            nearTo(b, 0.75);
             // 天黑了：埃及的人都坐下歇息（远处，在暮霭里）
             crowdPose('israel', 'sit'); crowdPose('israel2', 'sit'); crowdMill('israel', false); crowdMill('israel2', false);
           }],
           [1, b => spark(b, 2.2)],
           [3, b => {
             prop('bush', null, { fire: 1 });
+            W.set('msSpot', 1, b.instant);
             if (!b.instant) { flare(b); W.flash = Math.max(W.flash || 0, 0.25); }
             sfx(b, 'fire');
           }],
@@ -2395,7 +2431,7 @@
           [0, b => { W.goTo(0.84, 8, b.instant); walk('moses', HU(NEAR_U - 0.03), { speed: 0.006 }); }],
           [2.5, b => {
             pose('moses', 'kneel');
-            prop('sandals', 'sandals', { x: HU(SANDAL_U), label: '鞋' });
+            prop('sandals', 'sandals', { x: HU(SANDAL_U), size: 1.5, label: '鞋' });
             W.set('msHoly', 1, b.instant);
             spot(b, HU(SANDAL_U), 3 * LS(2), [255, 232, 180], { dur: 2.6 });
             if (!b.instant) { const p = getP('bush'); if (p) fx().ring(p.x * W.w, surfY(p.x), [255, 230, 170], M() * 0.14, 2.4, 1.6); }
@@ -2463,7 +2499,7 @@
           [L[1], b => {
             pose('moses', 'stand');
             hold('moses', null);
-            prop('serpent', 'serpent', { x: HU(SERP_U), morph: 1, label: '杖' });
+            prop('serpent', 'serpent', { x: HU(SERP_U), morph: 1, size: 1.6, label: '杖' });
             spot(b, HU(SERP_U), 5 * LS(2), [236, 244, 210], { ring: true });
             if (!b.instant) fx().dust(HU(SERP_U) * W.w, surfY(HU(SERP_U)), 14, [200, 160, 130], 6 * SU());
             sfx(b, 'wind', { soft: true });
@@ -2492,6 +2528,8 @@
             pose('moses', 'stand');
             prop('bush', null, { fire: 0.3 });
             W.set('msHoly', 0.3, b.instant);
+            W.set('msSpot', 0, b.instant);
+            nearTo(b, 0);
             unprop('sandals');
             walk('moses', HU(-0.97), { speed: 0.012 });
             pose('jethro', 'stand');

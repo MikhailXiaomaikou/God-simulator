@@ -55,6 +55,7 @@
     chMat: ['lin', 0.14],      // 建殿的材料
     chPlan: ['lin', 0.1],      // 样式：金线一笔一笔写出
     chPlanA: ['exp', 0.5],     // 样式的亮度
+    chPlanSky: ['exp', 0.7],   // 样式在哪里：1 = 在殿山之上的空中（小，像一卷发光的图），0 = 落在殿基上（原大）
     chBuild: ['lin', 0.075],   // 殿的建造
     chAltar: ['exp', 0.5],     // 铜坛
     chSea: ['exp', 0.5],       // 铜海
@@ -1425,32 +1426,80 @@
     for (const p of P) for (let i = 1; i < p.length; i++) L += Math.hypot(p[i][0] - p[i - 1][0], p[i][1] - p[i - 1][1]);
     return { P, L };
   }
+  // 样式的位置：在空中（k = 1）时缩小，悬在殿山之上的天空里；k = 0 时原大，落在殿基上
+  function planTf(P) {
+    let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+    for (const p of P) for (const q of p) { if (q[0] < x0) x0 = q[0]; if (q[0] > x1) x1 = q[0]; if (q[1] < y0) y0 = q[1]; if (q[1] > y1) y1 = q[1]; }
+    const k = clamp(lv('chPlanSky'), 0, 1), bw = Math.max(1, x1 - x0), bh = Math.max(1, y1 - y0);
+    const sc = Math.min(0.6, (tall() ? 0.72 : 0.4) * W.w / bw, 0.3 * W.h / bh);
+    const t = temple(), hz = W.horizonY || W.h * 0.6;
+    const bot = Math.min(hz - 0.03 * W.h, t.top - t.hP - 0.02 * W.h), top = Math.max(tall() ? 0.3 * W.h : 0.1 * W.h, bot - sc * bh);
+    const cx = clamp((x0 + x1) / 2, 0.5 * W.w + sc * bw / 2, 0.97 * W.w - sc * bw / 2), cy = top + sc * bh / 2;
+    const bcx = (x0 + x1) / 2, bcy = (y0 + y1) / 2;
+    const f = (x, y) => [lerp(x, cx + (x - bcx) * sc, k), lerp(y, cy + (y - bcy) * sc, k)];
+    return { f, k, cx, cy, w: sc * bw, h: sc * bh, bw, bh, bcx, bcy, box: [x0, y0, x1, y1] };
+  }
   function drawPlan(ctx) {
     const a = lv('chPlanA'), prog = lv('chPlan');
     if (a < 0.01 || prog < 0.005) return;
-    const { P, L } = planPaths(), un = Math.max(0.6, W.unit);
+    const { P, L } = planPaths(), un = Math.max(0.6, W.unit), T = planTf(P), f = T.f, k = T.k;
+    const pulse = 0.9 + 0.1 * Math.sin(W.t * 2.2);
+    // 空中的样式：一卷发光的图，先展开，金线再一笔一笔写在上面
+    // 卷跟着样式一同落下（落下时渐大、渐淡）
+    const zw = lerp(T.bw, T.w, k), zh = lerp(T.bh, T.h, k), zc = f(T.bcx, T.bcy);
+    const u = clamp(prog * 7, 0, 1), sw = (zw * 1.2 + 16 * un) * u, sh = zh * 1.14 + 16 * un;
+    const rx0 = zc[0] - sw / 2, ry0 = zc[1] - sh / 2;
+    if (k > 0.02) {
+      sprites();
+      ctx.globalCompositeOperation = 'lighter';
+      glowAt(ctx, SP.gold, zc[0], zc[1], Math.max(sw, sh) * 1.6, 0.22 * a * k);
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.globalAlpha = clamp(a * k * k, 0, 1);
+      ctx.fillStyle = 'rgba(250, 238, 206, 0.6)';
+      ctx.fillRect(rx0, ry0, sw, sh);
+      ctx.strokeStyle = 'rgba(214, 170, 92, 0.55)'; ctx.lineWidth = Math.max(1, un);
+      ctx.strokeRect(rx0 + 3 * un, ry0 + 3 * un, Math.max(0, sw - 6 * un), sh - 6 * un);
+      // 两端的轴
+      ctx.fillStyle = 'rgb(176, 128, 66)';
+      const rw = 5 * un;
+      ctx.fillRect(rx0 - rw, ry0 - 4 * un, rw, sh + 8 * un);
+      ctx.fillRect(rx0 + sw, ry0 - 4 * un, rw, sh + 8 * un);
+      ctx.globalAlpha = 1;
+    }
     let left = prog * L;
-    ctx.globalCompositeOperation = 'lighter';
     ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-    const pulse = 0.85 + 0.15 * Math.sin(W.t * 2.2);
     const tip = [0, 0];
-    for (const [wd, al] of [[6, 0.12], [1.6, 0.7]]) {
-      ctx.strokeStyle = U.rgba(255, 222, 150, al * a * pulse);
+    const strokeAll = (rgb, wd, al) => {
+      if (al < 0.004) return;
+      ctx.strokeStyle = U.rgba(rgb[0], rgb[1], rgb[2], Math.min(1, al));
       ctx.lineWidth = wd * un;
       ctx.beginPath();
       let rem = left;
       for (const p of P) {
         if (rem <= 0) break;
-        ctx.moveTo(p[0][0], p[0][1]);
+        let q = f(p[0][0], p[0][1]);
+        ctx.moveTo(q[0], q[1]);
         for (let i = 1; i < p.length && rem > 0; i++) {
           const d = Math.hypot(p[i][0] - p[i - 1][0], p[i][1] - p[i - 1][1]);
-          if (d <= rem) { ctx.lineTo(p[i][0], p[i][1]); rem -= d; tip[0] = p[i][0]; tip[1] = p[i][1]; }
-          else { const f = rem / d, x = lerp(p[i - 1][0], p[i][0], f), y = lerp(p[i - 1][1], p[i][1], f); ctx.lineTo(x, y); tip[0] = x; tip[1] = y; rem = 0; }
+          if (d <= rem) { q = f(p[i][0], p[i][1]); rem -= d; }
+          else { const g = rem / d; q = f(lerp(p[i - 1][0], p[i][0], g), lerp(p[i - 1][1], p[i][1], g)); rem = 0; }
+          ctx.lineTo(q[0], q[1]); tip[0] = q[0]; tip[1] = q[1];
         }
       }
       ctx.stroke();
-    }
+    };
+    ctx.save();
+    if (k > 0.5 && u < 1) { ctx.beginPath(); ctx.rect(rx0, ry0, sw, sh); ctx.clip(); }
+    // 图上的线（在空中）：深一些的金，写在发光的卷上
+    strokeAll([176, 118, 40], 1.6, 0.9 * a * k);
+    // 光的线（落到殿基上时）：柔和的暖金与一层淡淡的光晕
+    ctx.globalCompositeOperation = 'lighter';
+    const g = a * (1 - 0.75 * k) * pulse;
+    strokeAll([255, 220, 150], 8, 0.07 * g);
+    strokeAll([255, 220, 150], 1.5, 0.5 * g);
+    ctx.restore();
     // 笔尖的光
+    ctx.globalCompositeOperation = 'lighter';
     if (prog < 0.999) { sprites(); glowAt(ctx, SP.gold, tip[0], tip[1], 30 * un, 0.9 * a); }
     ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = 'source-over';
@@ -2401,10 +2450,15 @@
     for (const n of S.names) {
       const age = W.t - n.t0;
       if (age < 0 || age > 6) continue;
-      const a = clamp(age / 0.8, 0, 1) * (1 - sm(4, 6, age));
-      if (a < 0.01) continue;
       const p = n.id ? fig(n.id) : null;
-      const hx = p && p._vis ? p._x : n.xf * W.w, hy = p && p._vis ? p._y - p._h : gY(n.l, n.xf) - PH(n.l);
+      // 那人已被挪去（或正在隐去）：名也在半秒内隐去，不留在空处
+      if (n.id && n.gone == null && (!p || p.dying)) n.gone = W.t;
+      const out = n.gone == null ? 1 : 1 - clamp((W.t - n.gone) / 0.5, 0, 1);
+      const a = clamp(age / 0.8, 0, 1) * (1 - sm(4, 6, age)) * out;
+      if (a < 0.01) continue;
+      const live = p && p._vis && !p.dying;
+      if (live) { n.lx = p._x; n.ly = p._y - p._h; }
+      const hx = live ? p._x : n.lx != null ? n.lx : n.xf * W.w, hy = live ? p._y - p._h : n.ly != null ? n.ly : gY(n.l, n.xf) - PH(n.l);
       const x = hx, y = hy - PH(n.l) * 0.9 - age * 3 * W.unit;
       const sp = textSprite(n.s, px, [255, 232, 186]);
       ctx.globalAlpha = a;
@@ -2480,7 +2534,12 @@
   }
   const beamOn = (b, id, o) => { const p = fig(id); if (p) beam(b, p.nx, p.layer == null ? 2 : p.layer, o); };
   function ring(b, x, y, r, rgb) { if (!b.instant) safe('ch.ring', () => fx().ring(x, y, rgb || [255, 232, 186], M() * (r || 0.3), 2.2, 1.6)); }
-  function nameAbove(b, s, xf, l, id) { if (!b.instant) S.names.push({ s, xf, l: l == null ? 2 : l, t0: W.t, id: id || null }); }
+  function nameAbove(b, s, xf, l, id) {
+    if (b.instant) return;
+    // 新王的名出来时，同一处（或同一人）先前的名在半秒内隐去，不叠在一起
+    for (const n of S.names) if (n.gone == null && ((id && n.id === id) || Math.abs(n.xf - xf) < 0.06)) n.gone = W.t;
+    S.names.push({ s, xf, l: l == null ? 2 : l, t0: W.t, id: id || null });
+  }
   function fireFall(b, xf) {
     if (b.instant) return;
     S.fireT0 = W.t; S.fireX = xf;
@@ -2965,7 +3024,8 @@
               sfx(b, 'harp');
             }],
             [2.5, b => {
-              // 殿的样式：金线在空中一笔一笔写出
+              // 殿的样式：金线在殿山之上的空中一笔一笔写出（小小的一卷发光的图）
+              W.set('chPlanSky', 1, true);
               W.set('chPlan', 0, true);
               W.set('chPlan', 1, b.instant);
               W.set('chPlanA', 1, b.instant);
@@ -2980,6 +3040,12 @@
               W.set('chMat', 1, b.instant);
               flash(b, { type: 'rise', dur: 5, x0: isrSpan()[0], x1: isrSpan()[1] });
               sfx(b, 'crowd', { soft: true });
+            }],
+            [13, b => {
+              // 写成了：样式缓缓落到殿基上，淡下去，像地上的一个应许
+              W.set('chPlan', 1, true);
+              W.set('chPlanSky', 0, b.instant);
+              W.set('chPlanA', 0.3, b.instant);
             }],
             [17, () => { cpose('ch:isr', 'bow'); }],
             [19.5, b => {
@@ -3145,7 +3211,7 @@
       {
         kind: 'promise', utter: '这称为我名下的子民，若是自卑、祷告', cmd: 'if (自卑 && 祷告 && 寻求我面 && 转离恶行) { 垂听(); 赦免(); 医治(地); }', ref: '历代志下 7:14', hold: 3.6,
         verse: [
-          { text: '「……若是自卑、祷告，寻求我的面……<br>我必从天上垂听，赦免他们的罪，医治他们的地。」', ref: '历代志下 7:14', hold: 6.5 },
+          { text: '「这称为我名下的子民，若是自卑、祷告，寻求我的面……<br>我必从天上垂听，赦免他们的罪，医治他们的地。」', ref: '历代志下 7:14', hold: 7 },
           { text: '……耶和华的殿全然完毕。……<br>示巴女王听见所罗门的名声，就来到耶路撒冷……', ref: '历代志下 8:16—9:1', hold: 5.5 },
           { text: '……以色列众人都回自己家里去了。……<br>凡立定心意寻求耶和华以色列神的……', ref: '历代志下 10:16—11:16', hold: 5.5 },
           { text: '耶和华见他们自卑，耶和华的话就临到示玛雅说：<br>「他们既自卑，我必不灭绝他们……」', ref: '历代志下 12:7', hold: 6 },
@@ -3232,7 +3298,7 @@
           { text: '犹大人……就呼求耶和华……<br>「耶和华啊，惟有你能帮助软弱的，胜过强盛的……」', ref: '历代志下 13:14—14:11', hold: 6 },
           { text: '……你们若寻求他，就必寻见……<br>耶和华的眼目遍察全地，要显大能帮助向他心存诚实的人。', ref: '历代志下 15:2—16:9', hold: 6.5 },
           { text: '他高兴遵行耶和华的道……<br>约沙法一呼喊，耶和华就帮助他……引导民归向耶和华……', ref: '历代志下 17:6—19:4', hold: 6 },
-          { text: '……走在军前赞美耶和华……<br>众人方唱歌赞美的时候，耶和华就派伏兵……', ref: '历代志下 20:21–22', hold: 5 },
+          { text: '耶和华对你们如此说：『……胜败不在乎你们，乃在乎神。』……<br>众人方唱歌赞美的时候，耶和华就派伏兵……', ref: '历代志下 20:15–22', hold: 6 },
         ],
         apply(c) {
           T(c, [
@@ -3379,7 +3445,7 @@
         kind: 'act', utter: '耶和华垂听希西家的祷告，就饶恕百姓', cmd: 'git revert 亚哈斯 && open 殿门 && resume 歌', ref: '历代志下 30:20', hold: 3.6,
         verse: [
           { text: '亚哈斯……封锁耶和华殿的门……<br>……元年正月，开了耶和华殿的门，重新修理。', ref: '历代志下 28:24—29:3', hold: 5.5 },
-          { text: '……燔祭一献，就唱赞美耶和华的歌……在耶路撒冷大有喜乐……<br>他们的祷告达到天上的圣所。', ref: '历代志下 29:27—30:27', hold: 6.5 },
+          { text: '……燔祭一献，就唱赞美耶和华的歌……<br>耶和华垂听希西家的祷告，就饶恕百姓。……他们的祷告达到天上的圣所。', ref: '历代志下 29:27—30:27', hold: 7 },
           { text: '……积成堆垒。……<br>耶和华就差遣一个使者进入亚述王营中……', ref: '历代志下 31:6—32:21', hold: 5 },
           { text: '他在急难的时候，就恳求耶和华他的神……<br>玛拿西这才知道惟独耶和华是神。', ref: '历代志下 33:12–13', hold: 5.5 },
         ],
@@ -3652,7 +3718,10 @@
         }
         if (lv('chLamp') > 0.3 && S.lamp !== 'none') put('大卫的灯', lampPos.x, lampPos.y - 12, Math.hypot(x - lampPos.x, y - lampPos.y));
         if (lv('chMat') > 0.3 && lv('chBuild') < 0.3 && x > t.x0 && x < t.x1 && y > t.top - hn && y < t.base) put('建殿的材料', x, t.top - hn, r * 0.6);
-        if (lv('chPlanA') > 0.5 && lv('chPlan') > 0.5 && x > t.x0 - STP * t.tu && x < t.x1 && y > t.top - t.hP && y < t.top) put('殿的样式', t.x0 + 0.5 * t.tu, t.top - t.hP - 10, r * 0.8);
+        if (lv('chPlanA') > 0.3 && lv('chPlan') > 0.5) {
+          const PT = planTf(planPaths().P), a0 = PT.f(PT.box[0], PT.box[1]), a1 = PT.f(PT.box[2], PT.box[3]);
+          if (x > a0[0] && x < a1[0] && y > a0[1] && y < a1[1]) put('殿的样式', (a0[0] + a1[0]) / 2, a0[1] - 10, r * 0.8);
+        }
         if (lv('chGibeon') > 0.5) { const gx = X('gil') * W.w, gg = gY(1, X('gil')); put('基遍的会幕', gx, gg - hm * 1.5, Math.hypot(x - gx, y - gg)); }
         if (lv('chAngel') > 0.5) { const g = angelGeom(); put('耶和华的使者', g.x, g.y - g.h * 0.55, Math.hypot(x - g.x, y - g.y) * 0.6); }
         if (lv('chHeaps') > 0.5) { const hx = t.x0 + 0.56 * t.tu; put('堆垒', hx, gY(2, hx / W.w) - hn, Math.hypot(x - hx, y - gY(2, hx / W.w)) * 0.8); }

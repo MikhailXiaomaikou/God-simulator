@@ -1350,12 +1350,27 @@
     ctx.fill();
     if (k > 0.05) {
       ctx.globalCompositeOperation = 'lighter';
-      ctx.strokeStyle = rgba([240, 250, 255], 0.5 * k * dayA());
-      ctx.lineWidth = Math.max(0.5, 0.8 * s);
+      // 治好的水：清亮，水面上一道道闪光；刚治好时（k 正在升起）一圈清光向外漾开
+      ctx.strokeStyle = rgba([240, 250, 255], 0.75 * k * dayA());
+      ctx.lineWidth = Math.max(0.6, 1 * s);
       ctx.beginPath();
-      for (let i = 0; i < 4; i++) { const ph = U.fract(W.t * 0.2 + i / 4), px = x + (ph * 2 - 1) * rx * 0.7, py = y + (rt(p.seed + 20 + i) - 0.5) * ry; ctx.moveTo(px - 2.5 * s, py); ctx.lineTo(px + 2.5 * s, py); }
+      for (let i = 0; i < 7; i++) { const ph = U.fract(W.t * 0.2 + i / 7), px = x + (ph * 2 - 1) * rx * 0.72, py = y + (rt(p.seed + 20 + i) - 0.5) * ry * 1.2; ctx.moveTo(px - 2.8 * s, py); ctx.lineTo(px + 2.8 * s, py); }
       ctx.stroke();
-      if (SP) glowSp(ctx, SP.water, x, y, rx * 1.1, 0.18 * k * p.a);
+      if (SP) {
+        glowSp(ctx, SP.water, x, y, rx * 1.6, 0.3 * k * p.a);
+        const rise = k * (1 - k) * 4;       // 0 → 1 → 0，治好的那一刻最亮
+        if (rise > 0.02) {
+          glowSp(ctx, SP.white, x, y - ry * 0.3, rx * 2.2, 0.35 * rise * p.a);
+          ctx.strokeStyle = rgba([236, 250, 255], 0.6 * rise * p.a);
+          ctx.lineWidth = Math.max(0.8, 1.2 * s);
+          for (let j = 0; j < 2; j++) {
+            const f = U.fract(W.t * 0.6 + j * 0.5), rr = 1 + f * 1.4;
+            ctx.globalAlpha = p.a * rise * (1 - f);
+            ctx.beginPath(); ctx.ellipse(x, y, rx * rr, ry * rr, 0, 0, TAU); ctx.stroke();
+          }
+          ctx.globalAlpha = p.a;
+        }
+      }
       ctx.globalCompositeOperation = 'source-over';
     }
     ctx.globalAlpha = 1;
@@ -1396,7 +1411,7 @@
     const D = ditchModel(), s = LS(2), n = D.L.length;
     const soil = mix3([150, 126, 90], [128, 110, 80], 0.3);
     const cBank = css(mix3(soil, [214, 190, 146], 0.35), 2, 0.75), cLip = css(mul(soil, 0.6), 2), cBed = css(mul(soil, 0.78), 2);
-    const skyFar = W.shade([168, 202, 218], 0.1, 0.16), skyNear = W.shade([84, 132, 162], 0, 0.1), crimson = W.shade([156, 44, 36], 0, 0.12);
+    const skyFar = W.shade([188, 218, 232], 0.1, 0.22), skyNear = W.shade([104, 156, 190], 0, 0.16), crimson = W.shade([196, 30, 26], 0, 0.14);
     const lit = litX();
     ctx.lineCap = 'round'; ctx.lineJoin = 'round';
     for (const q of D.L) {
@@ -1415,34 +1430,48 @@
       const fw = clamp(fl * 1.4 - q.order * 0.04, 0, 1);
       if (fw <= 0) continue;
       const tv = clamp((q.v - 0.14) / 0.62, 0, 1);
-      const wc = mix3(mix3(skyFar, skyNear, tv), crimson, 0.9 * red);
-      ctx.strokeStyle = rgba(wc, 0.92); ctx.lineWidth = w * 0.7;
-      ctx.beginPath(); strokePart(ctx, q.rev, fw, w * 0.08); ctx.stroke();
-      // 水面迎天的一道亮边
+      const wc = mix3(mix3(skyFar, skyNear, tv), crimson, Math.min(1, 1.05 * red));
+      ctx.strokeStyle = rgba(wc, 0.96); ctx.lineWidth = w * 0.84;
+      ctx.beginPath(); strokePart(ctx, q.rev, fw, w * 0.06); ctx.stroke();
+      // 红如血：水面再铺一层深红，漫出沟沿
+      if (red > 0.02) {
+        ctx.strokeStyle = rgba(W.shade([150, 22, 18], 0, 0.1), 0.4 * red);
+        ctx.lineWidth = w * 1.05;
+        ctx.beginPath(); strokePart(ctx, q.rev, fw, w * 0.06); ctx.stroke();
+      }
+      // 水面迎天的一道亮边（朝阳里闪着光）
       ctx.globalCompositeOperation = 'lighter';
-      ctx.strokeStyle = rgba(red > 0.3 ? [255, 190, 110] : [220, 236, 250], (0.12 + 0.18 * W.daylight) * (1 - 0.3 * tv) * (1 - 0.45 * red));
-      ctx.lineWidth = Math.max(0.6, w * 0.16);
+      ctx.strokeStyle = rgba(red > 0.3 ? [255, 120, 90] : [236, 246, 255], (0.2 + 0.3 * W.daylight + 0.25 * W.dusk) * (1 - 0.3 * tv) * (1 - 0.55 * red));
+      ctx.lineWidth = Math.max(0.7, w * 0.22);
       ctx.beginPath(); strokePart(ctx, q.rev, fw, -w * 0.14); ctx.stroke();
+      // 水从以东（右）涌来：涨水的前头一团亮光
+      if (fw > 0.01 && fw < 0.99 && SP) {
+        const n = q.rev.length - 1, e = fw * n, j = Math.min(n - 1, Math.floor(e)), r = e - j;
+        const hx = lerp(q.rev[j][0], q.rev[j + 1][0], r), hy = lerp(q.rev[j][1], q.rev[j + 1][1], r);
+        glowSp(ctx, SP.white, hx, hy, w * 3, 0.55 * (0.4 + 0.6 * W.daylight));
+      }
       ctx.globalCompositeOperation = 'source-over';
     }
     if (fl < 0.3 || !SP) return;
     // 向着日头那一边，水面上几点闪光
     ctx.globalCompositeOperation = 'lighter';
     ctx.lineCap = 'round';
-    const gc = red > 0.3 ? [255, 200, 160] : [255, 250, 236];
-    for (let g = 0; g < 14; g++) {
+    const gc = red > 0.3 ? [255, 190, 150] : [255, 250, 236];
+    // 满了水的谷：一层映着朝阳的水光
+    glowSp(ctx, red > 0.3 ? SP.red : SP.water, 0.84 * W.w, fieldY(0.84, 0.45), W.w * 0.17, (0.12 + 0.1 * W.dusk) * clamp((fl - 0.3) * 2, 0, 1) * (1 - 0.6 * red));
+    for (let g = 0; g < 24; g++) {
       const q = D.L[g % 5], f = rt(g + 1400), pt = q.pts[Math.round(f * (q.pts.length - 1))];
       const toSun = (lit < W.w * 0.82) ? f < 0.55 : f > 0.45;
       if (!toSun) continue;
       const tw = Math.pow(Math.max(0, Math.sin(W.t * (1.6 + rt(g + 1410)) + g * 1.7)), 3);
-      const a = tw * clamp((fl - 0.3) * 2, 0, 1) * (0.25 + 0.5 * W.daylight);
+      const a = tw * clamp((fl - 0.3) * 2, 0, 1) * (0.4 + 0.5 * W.daylight + 0.3 * W.dusk);
       if (a < 0.02) continue;
       const len = (2 + 4 * rt(g + 1420)) * s * (0.6 + q.v);
       ctx.strokeStyle = rgba(gc, a);
       ctx.lineWidth = Math.max(0.6, 0.9 * s);
       ctx.beginPath(); ctx.moveTo(pt[0] - len, pt[1]); ctx.lineTo(pt[0] + len, pt[1]); ctx.stroke();
     }
-    if (red > 0.02) glowSp(ctx, SP.red, 0.83 * W.w, fieldY(0.83, 0.5), W.w * 0.14, 0.1 * red);
+    if (red > 0.02) glowSp(ctx, SP.red, 0.83 * W.w, fieldY(0.83, 0.5), W.w * 0.18, 0.3 * red);
     ctx.globalCompositeOperation = 'source-over';
   }
   // ── 麦田（书念：收割的人）────────────────────────────────────
@@ -2614,7 +2643,7 @@
   ];
   const V5 = [
     { text: '于是，以色列王和犹大王，并以东王，都一同去绕行七日的路程；<br>军队和所带的牲畜没有水喝。', ref: R_('3:9'), hold: 6.5 },
-    { text: '弹琴的时候，耶和华的灵就降在以利沙身上。<br>他便说：「耶和华如此说：『你们要在这谷中满处挖沟……』」', ref: R_('3:15–16'), hold: 7 },
+    { text: '弹琴的时候，耶和华的灵就降在以利沙身上。他便说：<br>「耶和华如此说：『你们要在这谷中满处挖沟；因为耶和华如此说：<br>你们虽不见风，不见雨，这谷必满了水……』」', ref: R_('3:15–17'), hold: 8 },
     { text: '次日早晨，约在献祭的时候，有水从以东而来，遍地就满了水。', ref: R_('3:20'), hold: 6 },
     { text: '次日早晨，日光照在水上，摩押人起来，看见对面水红如血', ref: R_('3:22'), hold: 5.5 },
   ];
@@ -2856,7 +2885,8 @@
         const v = X.partV;
         T(c, [
           [0, b => {
-            W.goTo(0.772, 6, b.instant);
+            // 旋风的那一夜过去了：天亮起来，以利沙拾起外衣、打水、水源被治好，都在日光里
+            W.goTo(0.3, 4, b.instant);
             W.set('esGlory', 0, b.instant); W.set('gale', 0, b.instant); W.set('clouds', 0.45, b.instant);
             pose('elisha', 'stand');
             walk('elisha', X.mantle + 0.012, { speed: 0.03, pose: 'bow' });
@@ -2879,7 +2909,7 @@
           }],
           [7, () => { pose('elisha', 'stand'); walk('elisha', 0.69, { speed: 0.03 }); }],
           [L[1], b => {
-            crowdProp('sons', 'torch');
+            crowdProp('sons', null);
             crowdWalk('sons', 0.715, 0.8, { speed: 0.025 });
             crowdFace('sons', -1);
           }],
@@ -2887,20 +2917,25 @@
           [L[1] + 3.2, b => { crowdPose('sons', 'fall'); sfx(b, 'crowd', { soft: true }); }],
           [L[1] + 6.2, () => { crowdPose('sons', 'stand'); }],
           [L[2], b => {
-            W.goTo(0.28, 7, b.instant);
+            W.goTo(0.37, 7, b.instant);
             crowdProp('sons', null);
-            prop('spring', 'spring', { x: X.spring, v: X.springV, label: '水源' });
+            prop('spring', 'spring', { x: X.spring, v: X.springV, size: 1.35, label: '水源' });
             walk('elisha', X.spring - 0.022, { speed: 0.025 });
             propOf('elisha', 'jar');
           }],
           [L[2] + 3.8, b => { pose('elisha', 'kneel'); face('elisha', 1); }],
           [L[2] + 4.8, b => {
-            // 将盐倒在水中
+            // 将盐倒在水中：水源一圈一圈地清亮起来
             const x = X.spring * W.w, y = fieldY(X.spring, X.springV);
-            sparkAt(b, x, y - 4, 26, [255, 255, 250], 8);
+            sparkAt(b, x, y - 4, 40, [255, 255, 250], 12);
             W.set('esSpring', 1, b.instant);
-            ringAt(b, x, y, [200, 240, 255], PH(2) * 1.2, 1.6);
+            ringAt(b, x, y, [200, 240, 255], PH(2) * 1.6, 1.8);
             sfx(b, 'splash', { soft: true }); sfx(b, 'harp');
+          }],
+          [L[2] + 6, b => {
+            const x = X.spring * W.w, y = fieldY(X.spring, X.springV);
+            ringAt(b, x, y, [230, 250, 255], PH(2) * 2.4, 2.2);
+            sparkAt(b, x, y - 6, 30, [236, 250, 255], 18);
           }],
           [L[3], b => {
             // 于是那水治好了：水边、城边的地绿了，花开了
@@ -2943,7 +2978,7 @@
           }],
           [L[1], b => {
             S.harp = true;
-            W.goTo(0.765, 9, b.instant);
+            W.goTo(0.76, 4, b.instant);
             sfx(b, 'harp');
           }],
           [L[1] + 1.8, b => {
@@ -2959,14 +2994,15 @@
             W.set('esDitch', 1, b.instant);
             sfx(b, 'build', { soft: true });
           }],
+          // 他们挖沟直到夜里；夜很快过去——次日早晨（3:20 的经文出现时，天已亮）
+          [L[1] + 5.6, b => { W.goTo(0.262, 3.4, b.instant); }],
           [L[2] - 1.2, b => {
             S.harp = false;
             W.set('esSpirit', 0.15, b.instant);
             crowdPose('army', 'sit'); pose('elisha', 'stand'); pose('harpist', 'sit');
-            W.goTo(0.255, 6, b.instant);
           }],
-          [L[2] + 2.6, b => {
-            // 有水从以东而来，遍地就满了水
+          [L[2] + 1.4, b => {
+            // 约在献祭的时候，有水从以东而来，遍地就满了水：沟里涨起一片映着朝阳的水
             W.set('esFill', 1, b.instant);
             sfx(b, 'splash', { size: 3 }); sfx(b, 'wind', { soft: true });
           }],
@@ -2976,7 +3012,7 @@
           }],
           [L[3], b => {
             // 日光照在水上，水红如血
-            W.goTo(0.305, 5, b.instant);
+            W.goTo(0.3, 5, b.instant);
             W.set('esRed', 1, b.instant);
             W.set('esSpirit', 0, b.instant); S.spirit = null;
             // 对面中丘上，一群摩押人起来观看（手里的枪在朝阳里闪光）
@@ -3160,13 +3196,16 @@
             uncrowd('reapers'); rm('husband'); rm('shun'); rm('son'); attach('elisha', null);
             W.set('esWarm', 0, b.instant); W.set('esGrief', 0, b.instant);
             W.goTo(0.58, 6, b.instant);
-            prop('ehouse', 'house', { x: X.house + 0.01, v: 0.02, open: 1, label: '以利沙的家' });
-            walk('elisha', 0.845, { speed: 0.02 });
-            add('gehazi', { label: '基哈西', sex: 'm', age: 'adult', x: 0.826, v: 0.14, facing: 1, robe: ROBE.gehazi, glow: 0.15, from: fromOf(b) });
-            // 乃缦的车马
+            // 乃缦的车马停在门前：马头朝着房子，与房子隔开一段（马不踏在墙上）
             prop('nchar', 'chariot', { x: 1.12, v: 0.2, flip: -1, style: 'naaman', size: 1.05, label: '乃缦的车马' });
-            prop('nchar', null, { tx: Math.min(0.9, 1 - 40 * chariotK(getP('nchar')) / W.w), spd: 0.028 });
+            const ck = chariotK(getP('nchar')), ctx0 = Math.min(0.9, 1 - 40 * ck / W.w);
+            prop('nchar', null, { tx: ctx0, spd: 0.028 });
             getP('nchar').rail = true;
+            // 房子的右墙在马头之左，至少隔开画面宽的 0.03
+            const hx = Math.min(X.house + 0.01, ctx0 - (17 * ck + 33 * LS(2)) / W.w - 0.03);
+            prop('ehouse', 'house', { x: hx, v: 0.02, open: 1, label: '以利沙的家' });
+            walk('elisha', hx + 0.014, { speed: 0.02 });
+            add('gehazi', { label: '基哈西', sex: 'm', age: 'adult', x: hx - 0.034, v: 0.14, facing: 1, robe: ROBE.gehazi, glow: 0.15, from: fromOf(b) });
             add('naaman', { label: '乃缦', sex: 'm', age: 'adult', x: 1.12, v: 0.2, facing: -1, robe: ROBE.naaman, accent: GOLD, glow: 0.25, from: 'none' });
             attach('naaman', chariotFloor('nchar'));
             S.leper = true;
@@ -3175,7 +3214,7 @@
             avoid([0.42, 1]);
           }],
           [L[1] - 1, b => { rm('elisha'); face('gehazi', 1); }],
-          [L[1] + 0.8, () => { walk('gehazi', 0.9, { speed: 0.03, pose: 'point' }); }],
+          [L[1] + 0.8, () => { walk('gehazi', 0.88, { speed: 0.03, pose: 'point' }); }],
           [L[1] + 2.6, b => {
             attach('naaman', null);
             const f = fig('naaman');
@@ -3183,13 +3222,19 @@
             place('naaman', 0.9);
             walk('naaman', riverAtV(vv), { speed: 0.062 });
           }],
-          [L[1] + 5, () => { walk('gehazi', 0.83, { speed: 0.03 }); }],
+          [L[1] + 5, () => { const h = getP('ehouse'); walk('gehazi', (h ? h.x : X.house) + 0.044, { speed: 0.03 }); }],
           [L[2] - 0.2, () => { S.wade = 'naaman'; face('naaman', -1); }],
           ...Array.from({ length: 7 }, (_, i) => [L[2] + 0.4 + i * 1.02, b => {
             pose('naaman', 'kneel');
             S.dips = i + 1;
             const p = figPt('naaman', 0);
             if (p) { ringAt(b, p[0], p[1], [220, 240, 255], PH(2) * 0.9, 1); sparkAt(b, p[0], p[1] - 4, 8, [230, 244, 255], 6); }
+            if (i === 6) {
+              // 第七回：河上一道光落在他身上，水面一圈金光漾开
+              S.beam = 'naaman'; W.set('esBeam', 0.9, b.instant);
+              if (p) { ringAt(b, p[0], p[1], [255, 236, 190], PH(2) * 2.6, 2.2); sparkAt(b, p[0], p[1] - 6, 30, [255, 244, 214], 14); }
+              flash(b, 0.18);
+            }
             sfx(b, 'splash', { size: 1.2, soft: i < 6 });
           }]),
           ...Array.from({ length: 7 }, (_, i) => [L[2] + 0.9 + i * 1.02, () => { pose('naaman', 'stand'); }]),
@@ -3203,10 +3248,13 @@
           }],
           [L[3], b => {
             S.wade = null;
-            walk('naaman', 0.815, { speed: 0.03 });
-            addElisha(b, { x: 0.842, v: 0.08, facing: -1 });
+            W.set('esBeam', 0, b.instant);
+            const h = getP('ehouse'), hx = h ? h.x : X.house;
+            walk('naaman', hx - 0.03, { speed: 0.03 });
+            addElisha(b, { x: hx + 0.014, v: 0.08, facing: -1 });
             crowdWalk('retinue', 0.86, 0.95, { speed: 0.025 });
           }],
+          [L[3] + 2.5, () => { S.beam = null; }],
           [L[3] + 5, () => { pose('naaman', 'bow'); face('naaman', 1); }],
         ]);
       },
@@ -3472,7 +3520,7 @@
             // 他们吹角，说：耶户作王了！
             crowdPose('captains', 'raise'); crowdFace('captains', -1);
             const p = figPt('jehu', 1);
-            if (p) nameHere(b, '耶户', p[0], p[1] - PH(2) * 0.7, [255, 226, 160], { size: 0.05, hold: 3.8, step: 5, dot: 1.8 });
+            if (p) nameHere(b, '耶户', p[0], p[1] - PH(2) * 0.7, [255, 226, 160], { size: W.w < W.h * 0.9 ? 0.07 : 0.05, hold: 3.8, step: 5, dot: 1.8 });
             sfx(b, 'crowd'); sfx(b, 'angel', { soft: true });
           }],
           [L[3], b => {
@@ -3637,8 +3685,13 @@
             W.set('esGrace', 1, b.instant);
             pose('dead', 'raise');
             if (!b.instant && fx()) {
-              const size = 0.034 * M(), y = W.h * 0.2;
-              [['亚伯拉罕', 0.6], ['以撒', 0.76], ['雅各', 0.88]].forEach(([n, xf], i) => nameHere(b, n, xf * W.w, y + i * size * 0.4, [255, 230, 176], { size: 0.032, hold: 4, delay: i * 0.6, src: () => [xf * W.w + rand(-40, 40), W.h * 0.7 + rand(-20, 20)] }));
+              // 亚伯拉罕、以撒、雅各：从复活之人所在的坟墓那里升起，聚在地平线之上、坟墓的上方（人眼平视之处），字要读得清
+              const tall = W.w < W.h * 0.9, sz = tall ? 0.07 : 0.05, px = sz * M(), hz = W.horizonY;
+              const tx = X.tomb * W.w, ty = fieldY(X.tomb, 0.02) - PH(2) * 0.4;
+              const rows = tall
+                ? [['亚伯拉罕', 0.62, hz - px * 2.7], ['以撒', 0.46, hz - px * 0.9], ['雅各', 0.8, hz - px * 0.9]]
+                : [['亚伯拉罕', 0.62, hz - px * 0.8], ['以撒', 0.785, hz - px * 1.4], ['雅各', 0.905, hz - px * 0.8]];
+              rows.forEach(([n, xf, y], i) => nameHere(b, n, xf * W.w, y, [255, 230, 176], { size: sz, hold: 4, delay: i * 0.6, src: () => [tx + rand(-30, 30) * SU(), ty + rand(-16, 10) * SU()] }));
             }
             sfx(b, 'stars', { soft: true });
           }],

@@ -30,6 +30,7 @@
   W.defineLevel('jbShadow', 'exp', 0.45);   // 示剑的黑暗（34）
   W.defineLevel('jbSeir', 'exp', 0.3);      // 西珥山——以东（32:3；36:8）
   W.defineLevel('jbHosts', 'exp', 0.5);     // 玛哈念：神的军兵（32:1–2）
+  W.defineLevel('jbSpot', 'exp', 0.6);      // 雅博渡口：夜里只照着角力的两人，营里的灯暗下去（32:24）
 
   // ── 地上的位置（画面宽度的比例）─────────────────────────────
   // 经文显在左边的海上，故一切要紧的事都在 x ≥ 0.5 的地上发生
@@ -73,7 +74,13 @@
 
   // ── 本卷的状态（只在 setup / apply / 情节里改动，重演时一样）───────
   let S = fresh();
-  function fresh() { return { twins: 0, stars: [], wrestle: 0 }; }
+  function fresh() { return { twins: 0, stars: [], wrestle: 0, near: 0 }; }
+  // 角力的两人在近地纵深里靠前一些（画面更低、更大）：看着时慢慢移近，重演时立刻到位
+  const NEAR = ['jacob', 'man'];
+  function nearTo(b, v) {
+    S.near = v;
+    if (b.instant) for (const id of NEAR) { const f = fig(id); if (f) f.v = v; }
+  }
 
   // ════════════════════════════════════════════════════════════
   //  小工具
@@ -1336,6 +1343,20 @@
     ctx.globalAlpha = 1;
   }
 
+  // 雅博渡口：夜里只照着角力的两人——其余的地（过了河的营、羊群）暗下去
+  function drawSpot(ctx) {
+    const k = W.lv.jbSpot;
+    if (k < 0.01) return;
+    const a = figPt('jacob', 0.45), b = figPt('man', 0.45) || a;
+    const x = a ? (a[0] + b[0]) / 2 : X.peniel * W.w, y = a ? (a[1] + b[1]) / 2 : gY(2, X.peniel) - 20 * SU();
+    const R0 = 60 * SU(), R1 = Math.hypot(W.w, W.h) * 0.55;
+    const g = ctx.createRadialGradient(x, y, R0, x, y, R1);
+    g.addColorStop(0, 'rgba(3,4,10,0)');
+    g.addColorStop(0.2, U.rgba(3, 4, 10, 0.5 * k));
+    g.addColorStop(0.45, U.rgba(3, 4, 10, 0.62 * k));
+    g.addColorStop(1, U.rgba(3, 4, 10, 0.68 * k));
+    ctx.fillStyle = g; ctx.fillRect(-20, -20, W.w + 40, W.h + 40);
+  }
   // 雅博渡口：黑夜里角力的两人，四围一层淡淡的光与扬起的尘
   function drawWrestle(ctx) {
     if (!S.wrestle) return;
@@ -1344,13 +1365,15 @@
     SP || sprites();
     const u = SU(), x = (a[0] + b[0]) / 2, y = (a[1] + b[1]) / 2, k = 0.35 + 0.65 * nightK();
     ctx.globalCompositeOperation = 'lighter';
-    const g = 120 * u * (1 + 0.06 * Math.sin(W.t * 1.3));
-    ctx.globalAlpha = 0.32 * k;
-    ctx.drawImage(SP.pale, x - g / 2, y - g / 2, g, g);
-    ctx.globalAlpha = 0.18 * k;
+    const g = 180 * u * (1 + 0.06 * Math.sin(W.t * 1.3)), fa = figPt('jacob', 0), fb = figPt('man', 0), gy = Math.max(fa[1], fb[1]);
+    ctx.globalAlpha = 0.24 * k;
+    ctx.drawImage(SP.pale, x - g / 2, y - g * 0.62, g, g);
+    ctx.globalAlpha = 0.2 * k;
     ctx.drawImage(SP.pale, x - g, y - g * 0.3, g * 2, g * 0.6);
+    // 脚下的一片光：两人的身形在光上显出来
+    ctx.globalAlpha = 0.42 * k;
+    ctx.drawImage(SP.pale, x - g * 0.8, gy - g * 0.1, g * 1.6, g * 0.2);
     ctx.fillStyle = 'rgb(214,206,190)';
-    const gy = gY(2, x / W.w);
     for (let i = 0; i < 14; i++) {
       const ph = U.fract(W.t * (0.35 + rt(i * 3) * 0.4) + rt(i * 3 + 1));
       const dx = (rt(i * 3 + 2) - 0.5) * 40 * u + Math.sin(W.t * 2 + i) * 4 * u;
@@ -1465,6 +1488,7 @@
         if (p.dying && p.a < 0.01) { P.delete(id); sortedN = -1; }
       }
       for (let i = FXL.length - 1; i >= 0; i--) { FXL[i].t += f; if (FXL[i].t >= FXL[i].dur) FXL.splice(i, 1); }
+      for (const id of NEAR) { const q = fig(id); if (q && !q.isAnimal && q.v !== S.near) q.v = approachLin(q.v || 0, S.near, 0.3 * f); }
     },
     drawUnder(ctx, pass) {
       if (!isCur()) return;
@@ -1490,6 +1514,7 @@
       if (pass === 'air') {
         drawDew(ctx);
         drawTwins(ctx);
+        drawSpot(ctx);
         drawWrestle(ctx);
         drawFX(ctx, 'air');
         // 示剑的黑暗（34 章）
@@ -2415,12 +2440,16 @@
             flocks(0.4, 0.5, { speed: 0.055 });
             crowdWalk('sv', 0.42, 0.48, { speed: 0.055 });
           }],
-          [3.5, b => {
-            add('man', { label: '那人', sex: 'm', age: 'adult', x: X.peniel + 0.055, facing: -1, robe: ROBE.man, glow: 0.9, from: b.instant ? 'none' : 'fade' });
+          // 那人来了：营里的灯暗下去，只有渡口这里有光；两人靠前一些，好看得清
+          [1, b => {
+            add('man', { label: '那人', sex: 'm', age: 'adult', x: X.peniel + 0.05, facing: -1, robe: ROBE.man, glow: 0.9, v: S.near, from: b.instant ? 'none' : 'fade' });
             face('jacob', 1);
+            glow('jacob', 0.6);
+            W.set('jbSpot', 1, b.instant);
+            nearTo(b, 0.5);
           }],
-          [5, () => {
-            const gap = (34 * W.layerScale(2) * (W.w < 600 ? 1.4 : 1) * 1.3 * 0.3) / Math.max(1, W.w);
+          [2.2, () => {
+            const gap = (34 * W.layerScale(2) * (W.w < 600 ? 1.4 : 1) * 1.3 * 0.3 * (1 + 0.35 * 0.5)) / Math.max(1, W.w);
             if (C().place) C().place('jacob', X.peniel - gap / 2);
             face('jacob', 1);
             pose('jacob', 'wrestle');
@@ -2463,7 +2492,7 @@
             }
             sfx(b, 'harp');
           }],
-          [1.5, () => pose('jacob', 'kneel')],
+          [1.5, b => { pose('jacob', 'kneel'); W.set('jbSpot', 0, b.instant); }],
           [3.5, b => { pose('man', 'raise'); beamOn(b, 'jacob', { dur: 6, k: 0.8 }); }],
           [L[1] - 1, b => {
             if (!b.instant) { const p = figPt('man', 0.5); if (p) fx().sparkle(p[0], p[1], 40, [255, 240, 214], 14, 'top'); }
@@ -2471,7 +2500,7 @@
             S.wrestle = 0;
           }],
           [L[1] + 0.5, () => pose('jacob', 'stand')],
-          [L[2] - 1, () => { hold('jacob', 'staff'); walk('jacob', X.peniel - 0.07, { speed: 0.01 }); glow('jacob', 0.45); }],
+          [L[2] - 1, b => { hold('jacob', 'staff'); walk('jacob', X.peniel - 0.07, { speed: 0.01 }); glow('jacob', 0.45); nearTo(b, 0); }],
         ]);
       },
     },

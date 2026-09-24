@@ -50,8 +50,8 @@
     bed: 0.762, spear: 0.779, jar: 0.746, abner: 0.797, hill: 0.936,
     // 洗革拉（27；30）
     ziklag: 0.872,
-    // 基利波（28；31）与雅比的垂丝柳树
-    gil: 0.84, tamJ: 0.622, mound: 0.604,
+    // 基利波（28；31）与雅比的垂丝柳树；隐多珥交鬼的妇人的家（28:7–25）
+    gil: 0.745, endor: 0.648, tamJ: 0.622, mound: 0.604,
   };
   const ROBE = {
     david: [150, 118, 80], royal: [92, 86, 152], jonathanT: [178, 160, 128], saul: [134, 58, 70], samuel: [212, 204, 186], jesse: [150, 130, 98],
@@ -73,6 +73,7 @@
       shield: { who: 'bearer', x: 0 }, gspear: 'goliath',
       horn: 0, pour: 0, harp: 0, play: 0, sling: 0, stones: 0, armor: 0, corner: 0, bundle: 0,
       swordD: 0, swords: 0, timbrel: 0, crown: 1, caveDeep: 0, bow: 1, gaze: 0,
+      rim: false,                 // 基利波的夜：扫罗父子身上的月光（28；31）
     };
   }
   // 画出来的量（缓动，不属于状态）
@@ -103,8 +104,9 @@
   const litX = () => (W.night > 0.55 && W.lv.moon > 0.3 ? W.moon.x : W.core.x);
   const approachLin = (cur, tg, step) => (cur < tg ? Math.min(tg, cur + step) : Math.max(tg, cur - step));
   const appr = (cur, tg, rate, dt) => cur + (tg - cur) * (1 - Math.exp(-rate * dt));
-  // 手机竖屏：地上的位置向中间收一点，免得右边的人与物被画面的边切掉（画面外的出入口不动）
-  const XF = x => (W.w < 600 && x <= 1 ? 0.47 + (x - 0.47) * 0.9 : x);
+  // 手机竖屏：地上的位置向中间收（0.44–1 → 0.44–0.89），免得右边的人与物（扫罗的精兵、基利波）被画面的边切掉
+  // （画面外的出入口不动）
+  const XF = x => (W.w < 600 && x <= 1 ? 0.44 + (x - 0.44) * 0.8 : x);
 
   // 人物（皆经人物模块）
   const C = () => cast();
@@ -232,7 +234,7 @@
     const l = f.layer == null ? 2 : f.layer, x = f.nx * W.w, g = gY(l, f.nx);
     const fh = l === 2 ? Math.max(0, W.h - g) : Math.max(0, W.waterlineY(l) - g);
     const y = f.v ? g + f.v * fh * 0.8 : g;
-    const h = 34 * W.layerScale(l) * (AGEH[f.age] || 1) * (f.scale || 1) * (W.w < 600 ? 1.4 : 1) * ([1.1, 1.2, 1.3][l] || 1) * (1 + 0.35 * (f.v || 0));
+    const h = 34 * W.layerScale(l) * (AGEH[f.age] || 1) * (f.scale || 1) * (W.w < 600 ? 1.55 : 1) * ([1.1, 1.2, 1.3][l] || 1) * (1 + 0.35 * (f.v || 0));
     return [x, y, h];
   }
   // → { x, y（脚）, h, d（朝向 −1..1）, a（显出）, pose, head:[x,y], hand:[x,y], chest:[x,y] }
@@ -581,6 +583,18 @@
       glowAt(ctx, SP.warm, wx, wy + 3.5 * s, 18 * s, p.a * lamp * 0.45);
       ctx.globalCompositeOperation = 'source-over';
     }
+    // 屋里点着灯（隐多珥，28:8 夜里）：门里透出暖光，照亮门前的地与人
+    if (p.lit > 0.01) {
+      SP || sprites();
+      const fl = 0.9 + 0.1 * Math.sin(W.t * 7.3) * Math.sin(W.t * 3.1);
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.globalAlpha = p.a * p.lit * 0.85 * fl;
+      ctx.fillStyle = 'rgb(255,186,104)';
+      ctx.fillRect(x - 3.5 * s, g - 11 * s, 7 * s, 11 * s + 1);
+      glowAt(ctx, SP.warm, x, g - 6 * s, 30 * s, p.a * p.lit * (0.35 + 0.4 * nightK()) * fl);
+      glowAt(ctx, SP.gold, x, g - 5 * s, 9 * s, p.a * p.lit * 0.6 * fl);
+      ctx.globalCompositeOperation = 'source-over';
+    }
     ctx.globalAlpha = p.a * 0.5;
     ctx.fillStyle = css([236, 222, 196], l, 0.6 * (0.25 + 0.75 * W.daylight), 0.25);
     ctx.fillRect(lx > 0 ? x + w / 2 - 1.2 * s : x - w / 2, g - h - 2 * s, 1.2 * s, h);
@@ -696,7 +710,7 @@
   // 座面的高与人物模块里「坐在座上」的髋同高（髋高 0.27 身高；扫罗的身量 1.08）
   function drawSeat(ctx, p) {
     const l = p.layer, s = LS(l) * p.size, x = p.x * W.w, g = gY(l, p.x), y = g + 2 * s;
-    const hs = 34 * W.layerScale(l) * 1.08 * (W.w < 600 ? 1.4 : 1) * 1.3, top = g - 0.235 * hs, hw = 0.2 * hs;
+    const hs = 34 * W.layerScale(l) * 1.08 * (W.w < 600 ? 1.55 : 1) * 1.3, top = g - 0.235 * hs, hw = 0.2 * hs;
     ctx.globalAlpha = p.a;
     ctx.fillStyle = css([124, 112, 98], l);
     ctx.beginPath();
@@ -1543,6 +1557,23 @@
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
   }
+  // 基利波的夜：扫罗父子身上留一层淡淡的月光，免得在黑暗里只剩剪影
+  const RIM = ['saul', 'jonathan', 'abinadab', 'malchishua', 'armsman'];
+  function drawRim(ctx) {
+    if (!S.rim) return;
+    const k = nightK();
+    if (k < 0.05) return;
+    SP || sprites();
+    ctx.globalCompositeOperation = 'lighter';
+    for (const id of RIM) {
+      const q = A(id);
+      if (!q || q.a < 0.05) continue;
+      const up = UPR[q.pose] ? 1 : 0.45;
+      glowAt(ctx, SP.pale, q.chest[0], lerp(q.y, q.chest[1], up), q.h * (0.55 + 0.25 * up), q.a * k * 0.3);
+    }
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 1;
+  }
   // 天的寂静（28:6）
   function drawSilence(ctx) {
     const k = W.lv.dvSilence;
@@ -1898,6 +1929,7 @@
         drawBundle(ctx);
         drawVeil(ctx);
         drawSleep(ctx);
+        drawRim(ctx);
         drawTorches(ctx);
         drawFX(ctx);
       }
@@ -1940,7 +1972,7 @@
       const hearts = Object.keys(S.heart).filter(k => S.heart[k] > 0.01).map(k => k + ':' + Math.round(S.heart[k] * 10)).sort();
       const st = {};
       for (const k of EKEYS) st[k] = Math.round(S[k] * 100) / 100;
-      return { props, hearts, st, spear: S.spear.who + '@' + Math.round(S.spear.x * 100), jar: S.jar.who + '@' + Math.round(S.jar.x * 100), shield: S.shield.who, gspear: S.gspear, bow: S.bow };
+      return { props, hearts, st, spear: S.spear.who + '@' + Math.round(S.spear.x * 100), jar: S.jar.who + '@' + Math.round(S.jar.x * 100), shield: S.shield.who, gspear: S.gspear, bow: S.bow, rim: !!S.rim };
     },
   };
 
@@ -2012,10 +2044,11 @@
   ];
   // ── 17:3–37 以拉谷 ─────────────────────────────────────────
   const V4 = [
-    { text: '非利士人站在这边山上，以色列人站在那边山上，当中有谷。<br>从非利士营中出来一个讨战的人，名叫歌利亚，是迦特人，身高六肘零一虎口；', ref: R('17:3–4'), hold: 7.5 },
-    { text: '那非利士人又说：「我今日向以色列人的军队骂阵。你们叫一个人出来，与我战斗。」<br>扫罗和以色列众人听见非利士人的这些话，就惊惶，极其害怕。', ref: R('17:10–11'), hold: 7.5 },
-    { text: '大卫对扫罗说：「人都不必因那非利士人胆怯。你的仆人要去与那非利士人战斗。」', ref: R('17:32'), hold: 5.5 },
-    { text: '大卫又说：「耶和华救我脱离狮子和熊的爪，也必救我脱离这非利士人的手。」<br>扫罗对大卫说：「你可以去吧！耶和华必与你同在。」', ref: R('17:37'), hold: 7.5 },
+    { text: '非利士人站在这边山上，以色列人站在那边山上，当中有谷。<br>从非利士营中出来一个讨战的人，名叫歌利亚，是迦特人，身高六肘零一虎口；', ref: R('17:3–4'), hold: 7 },
+    { text: '那非利士人又说：「我今日向以色列人的军队骂阵。你们叫一个人出来，与我战斗。」<br>扫罗和以色列众人听见非利士人的这些话，就惊惶，极其害怕。', ref: R('17:10–11'), hold: 7 },
+    { text: '大卫又说：「耶和华救我脱离狮子和熊的爪，也必救我脱离这非利士人的手。」<br>扫罗对大卫说：「你可以去吧！耶和华必与你同在。」', ref: R('17:37'), hold: 7 },
+    // 不是用刀用枪（17:47）：扫罗的战衣、铜盔、铠甲，大卫都摘脱了
+    { text: '扫罗就把自己的战衣给大卫穿上，将铜盔给他戴上……<br>就对扫罗说：「我穿戴这些不能走，因为素来没有穿惯。」于是摘脱了。', ref: R('17:38–39'), hold: 6.6 },
   ];
   // ── 17:40–51 机弦与石子 ────────────────────────────────────
   const V5 = [
@@ -2245,12 +2278,13 @@
             walk('david', 0.878, { speed: 0.05 });
           }],
           [L[2] + 0.2, () => { face('david', 1); pose('saul', 'stand'); face('saul', -1); cpose('isr', 'stand'); }],
-          // 扫罗的战衣与铜盔
-          [L[2] + 2.2, () => { S.armor = 1; hold('david', null); }],
-          [L[2] + 5.0, () => { S.armor = 0; }],
           // 耶和华必与你同在
-          [L[3] + 0.3, b => { beamOn(b, 'david', { dur: 5, w: 56 }); pose('saul', 'raise'); }],
-          [L[3] + 3.2, () => { pose('saul', 'stand'); hold('david', 'staff'); face('david', -1); walk('david', X.brook - 0.004, { speed: 0.05, pose: 'kneel' }); }],
+          [L[2] + 3.4, b => { beamOn(b, 'david', { dur: 5, w: 56 }); pose('saul', 'raise'); }],
+          // 扫罗的战衣与铜盔：穿上，又摘脱了（不是用刀用枪）
+          [L[3] + 0.3, () => { pose('saul', 'stand'); }],
+          [L[3] + 0.8, () => { S.armor = 1; hold('david', null); }],
+          [L[3] + 4.2, () => { S.armor = 0; }],
+          [L[3] + 5.2, () => { hold('david', 'staff'); face('david', -1); walk('david', X.brook - 0.004, { speed: 0.05, pose: 'kneel' }); }],
         ]);
       },
     },
@@ -2660,34 +2694,47 @@
             W.set('bare', 0.3);
             rm('david'); rm('abigail'); rm('abishai'); crm('men'); crm('fam'); crm('spoil');
             unprop('ziklag');
-            avoid([0.7, 0.99]);
+            avoid([0.6, 0.9]);
           }],
+          // 基利波的营在画面当中（0.7–0.84），营火照着扫罗父子；左边是隐多珥那妇人的家，屋里点着灯
           [2.6, () => {
-            add('saul', { label: '扫罗', sex: 'm', age: 'adult', x: X.gil, facing: -1, robe: ROBE.saul, glow: 0.3, scale: 1.08, prop: null, beard: true, pose: 'stand', v: 0.1 });
-            S.spear = { who: 'saul', x: 0 }; S.crown = 1;
-            add('jonathan', { label: '约拿单', sex: 'm', age: 'adult', x: 0.868, facing: -1, robe: ROBE.jonathanT, glow: 0.3, prop: null, v: 0.14 });
-            add('abinadab', { label: '亚比拿达', sex: 'm', age: 'adult', x: 0.888, facing: -1, robe: ROBE.son1, glow: 0.2, prop: null, v: 0.06 });
-            add('malchishua', { label: '麦基舒亚', sex: 'm', age: 'adult', x: 0.906, facing: -1, robe: ROBE.son2, glow: 0.2, prop: null, v: 0.18 });
-            add('armsman', { label: '拿兵器的人', sex: 'm', age: 'adult', x: 0.82, facing: -1, robe: ROBE.armsman, glow: 0.15, prop: null, v: 0.22 });
-            crowd('isr', { n: 8, x0: 0.76, x1: 0.94, layer: 2, label: '以色列人', robe: ROBE.israel, facing: -1, glow: 0.06 }, 'm');
-            prop('pitG1', 'pit', { x: 0.785, fire: 0.7, label: '营火' });
-            prop('pitG2', 'pit', { x: 0.945, fire: 0.6 });
+            add('saul', { label: '扫罗', sex: 'm', age: 'adult', x: X.gil, facing: -1, robe: ROBE.saul, glow: 0.4, scale: 1.08, prop: null, beard: true, pose: 'stand', v: 0.1 });
+            S.spear = { who: 'saul', x: 0 }; S.crown = 1; S.rim = true;
+            add('jonathan', { label: '约拿单', sex: 'm', age: 'adult', x: 0.772, facing: -1, robe: ROBE.jonathanT, glow: 0.38, prop: null, v: 0.14 });
+            add('abinadab', { label: '亚比拿达', sex: 'm', age: 'adult', x: 0.792, facing: -1, robe: ROBE.son1, glow: 0.3, prop: null, v: 0.06 });
+            add('malchishua', { label: '麦基舒亚', sex: 'm', age: 'adult', x: 0.81, facing: -1, robe: ROBE.son2, glow: 0.3, prop: null, v: 0.2 });
+            add('armsman', { label: '拿兵器的人', sex: 'm', age: 'adult', x: 0.726, facing: -1, robe: ROBE.armsman, glow: 0.25, prop: null, v: 0.22 });
+            crowd('isr', { n: 7, x0: 0.83, x1: 0.93, layer: 2, label: '以色列人', robe: ROBE.israel, facing: -1, glow: 0.06 }, 'm');
+            prop('pitG1', 'pit', { x: 0.758, fire: 0.8, label: '营火' });
+            prop('pitG2', 'pit', { x: 0.87, fire: 0.6 });
+            prop('endor', 'house', { x: X.endor, size: 0.9, label: '隐多珥', lit: 1 });
             W.set('dvShunem', 1);
           }],
-          [4.4, () => { walk('saul', 0.8, { speed: 0.03, pose: 'pray' }); }],
+          [3.4, () => { walk('saul', X.gil - 0.004, { speed: 0.03, pose: 'pray' }); }],
           // 耶和华却不藉梦，或乌陵，或先知回答他：天沉默，暗下来（不改动天上的星的程度）
-          [6.2, b => { W.set('dvSilence', 1); if (!b.instant) { const q = A('saul'); if (q) orb(b, [q.head[0] / W.w, q.head[1] / W.h], [q.head[0] / W.w + 0.02, 0.3], { dur: 4, c: 'pale', size: 0.8, fade: 0.3 }); } }],
-          // 耶和华已经离开你……国权赐与别人
-          [L[1] + 0.4, b => { beamOn(b, 'saul', { dur: 6, w: 50, cold: true }); sfx(b, 'thunder', { soft: true, far: true }); }],
-          [L[1] + 1.8, () => { pose('saul', 'fall'); }],
-          [L[1] + 3.6, b => { S.crown = 0.25; if (!b.instant) { const q = A('saul'); if (q) orb(b, [q.chest[0] / W.w, q.chest[1] / W.h], [1.04, 0.5], { dur: 5, c: 'gold', size: 1.2, arc: 0.06 }); } sfx(b, 'chime', { soft: true }); }],
-          // 夜的末了：天只渐渐发白（停在破晓之前，不再回到白昼或黑夜）
-          [L[2] - 2.4, b => { W.goTo(0.235, 9, b.instant); }],
-          [L[2] - 0.6, () => { pose('saul', 'stand'); }],
-          // 扫罗和他三个儿子……都一同死亡
+          [5.6, b => { W.set('dvSilence', 1); if (!b.instant) { const q = A('saul'); if (q) orb(b, [q.head[0] / W.w, q.head[1] / W.h], [q.head[0] / W.w + 0.02, 0.3], { dur: 4, c: 'pale', size: 0.8, fade: 0.3 }); } }],
+          // 扫罗夜里去见隐多珥的妇人（28:8）
+          [L[1] - 2.2, () => { pose('saul', 'stand'); walk('saul', X.endor + 0.034, { speed: 0.032 }); }],
+          // 有一个老人上来，身穿长衣（28:14）：撒母耳，淡白的光的形状，立在灯光的门前
+          [L[1] - 0.4, b => {
+            add('samuelG', { label: '撒母耳', sex: 'm', age: 'elder', x: X.endor + 0.014, facing: 1, robe: [226, 230, 246], angel: true, glow: 1, beard: true, prop: null, from: b.instant ? 'none' : 'light', v: 0.16 });
+            face('saul', -1);
+            sfx(b, 'angel', { soft: true, low: true });
+          }],
+          [L[1] + 0.6, b => { pose('saul', 'bow'); beamOn(b, 'samuelG', { dur: 7, w: 44, cold: true }); }],
+          // 耶和华已经离开你……国权赐与别人：扫罗仆倒，冠冕的光往东去（给大卫）
+          [L[1] + 3.4, b => { pose('samuelG', 'point'); sfx(b, 'thunder', { soft: true, far: true }); }],
+          [L[1] + 4.4, b => { pose('saul', 'fall'); S.crown = 0.25; if (!b.instant) { const q = A('saul'); if (q) orb(b, [q.chest[0] / W.w, q.chest[1] / W.h], [1.04, 0.5], { dur: 5, c: 'gold', size: 1.2, arc: 0.06 }); } sfx(b, 'chime', { soft: true }); }],
+          [L[1] + 6.6, () => { rm('samuelG'); }],
+          // 夜的末了：天只渐渐发白（停在破晓之前，不再回到白昼或黑夜）；扫罗回到营里
+          [L[2] - 2.4, b => { W.goTo(0.235, 9, b.instant); pose('saul', 'stand'); }],
+          [L[2] - 1.6, () => { walk('saul', X.gil, { speed: 0.045 }); prop('endor', null, { lit: 0 }); }],
+          // 扫罗和他三个儿子……都一同死亡：一道柔光照在基利波山上，看得见他们一个一个倒下
           [L[2] + 0.2, b => {
             W.set('dvShunem', 0); prop('pitG1', null, { fire: 0, ember: 0.4 }); prop('pitG2', null, { fire: 0, ember: 0.4 });
+            unprop('endor');
             cwalk('isr', 1.05, 1.24, { run: true, speed: 0.07 }); sfx(b, 'crowd', { far: true });
+            beam(b, XF(0.77), 2, { w: 170, dur: 8.5, k: 0.75 });
           }],
           [L[2] + 1.2, b => { lamentFall(b, 'jonathan'); }],
           [L[2] + 1.9, b => { lamentFall(b, 'abinadab'); }],
@@ -2696,9 +2743,9 @@
           [L[2] + 3.6, b => { lamentFall(b, 'saul'); S.crown = 0; }],
           [L[2] + 4.3, b => { lamentFall(b, 'armsman'); sfx(b, 'weep', { soft: true }); }],
           // 倒下的人渐渐隐去，只留下升起的小光；黑暗落在地上
-          [L[2] + 5.8, () => {
+          [L[2] + 6.4, () => {
             for (const id of FALLEN) rm(id);
-            S.spear = { who: null, x: 0 }; unprop('pitG1'); unprop('pitG2');
+            S.spear = { who: null, x: 0 }; S.rim = false; unprop('pitG1'); unprop('pitG2');
             W.set('dvSilence', 0.5); W.set('gloom', 0.45);
           }],
           // 雅比的勇士走了一夜（火把），把骸骨葬在垂丝柳树下，就禁食七日
@@ -2761,6 +2808,7 @@
       '垂丝柳树': { text: '扫罗在基比亚的拉玛，坐在垂丝柳树下，手里拿着枪，众臣仆侍立在左右。', ref: '撒母耳记上 22:6' },
       '雅比的垂丝柳树': { text: '将他们骸骨葬在雅比的垂丝柳树下，就禁食七日。', ref: '撒母耳记上 31:13' },
       '雅比的勇士': { text: '基列‧雅比的居民听见非利士人向扫罗所行的事，', ref: '撒母耳记上 31:11' },
+      '隐多珥': { text: '扫罗吩咐臣仆说：「当为我找一个交鬼的妇人，我好去问她。」臣仆说：「在隐‧多珥有一个交鬼的妇人。」', ref: '撒母耳记上 28:7' },
       '雅比的坟': { text: '这样，扫罗和他三个儿子，与拿他兵器的人，以及跟随他的人，都一同死亡。', ref: '撒母耳记上 31:6' },
       '伯利恒': { text: '撒母耳就照耶和华的话去行。到了伯利恒，那城里的长老都战战兢兢地出来迎接他……', ref: '撒母耳记上 16:4' },
     },

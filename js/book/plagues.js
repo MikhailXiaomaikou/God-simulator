@@ -260,6 +260,16 @@
     vt.addColorStop(0, 'rgba(0,0,0,0.1)'); vt.addColorStop(0.75, 'rgba(0,0,0,0.85)'); vt.addColorStop(1, 'rgba(0,0,0,0)');
     g.fillStyle = vt; g.fillRect(0, 0, 64, 256);
     SP.beam = b;
+    // 分别之光的光幕：左右两边柔和地淡去（近乎高斯），上端渐渐没入空中，下端落在地上
+    const cb = cnv(48, 256), cg = cb.getContext('2d');
+    const ch = cg.createLinearGradient(0, 0, 48, 0);
+    [[0, 0], [0.18, 0.06], [0.34, 0.3], [0.5, 1], [0.66, 0.3], [0.82, 0.06], [1, 0]].forEach(q => ch.addColorStop(q[0], 'rgba(255,244,214,' + q[1] + ')'));
+    cg.fillStyle = ch; cg.fillRect(0, 0, 48, 256);
+    cg.globalCompositeOperation = 'destination-in';
+    const cv = cg.createLinearGradient(0, 0, 0, 256);
+    [[0, 0], [0.22, 0.12], [0.5, 0.55], [0.8, 1], [1, 0.85]].forEach(q => cv.addColorStop(q[0], 'rgba(0,0,0,' + q[1] + ')'));
+    cg.fillStyle = cv; cg.fillRect(0, 0, 48, 256);
+    SP.col = cb;
     // 蝗虫的云：无数短短的暗色小划（一只只振翅的蝗虫），聚成一团（预绘，高分辨率，缩放后仍是虫而不是噪点）
     const lc = cnv(1024, 512), lg = lc.getContext('2d'), r = U.mulberry32(9917);
     const NB = 6, buckets = [];
@@ -1113,8 +1123,53 @@
     }
     ctx.stroke();
   }
+  // 叫水都变作血（7:19–21）：血自河口涌进近处的水里，沿着埃及的岸漫开；水面的闪光也是红的
+  function drawBloodSea(ctx) {
+    const bl = W.lv.plBlood;
+    if (bl < 0.02) return;
+    SP || sprites();
+    const k = smoothstep(0, 1, bl), s = LS(2), wl = W.waterlineY(1);
+    ctx.save();
+    ctx.beginPath(); ctx.rect(-20, wl, W.w + 40, W.h - wl + 20); ctx.clip();          // 不越过中间的洲
+    const m = nilePt(0), col = [128, 16, 26];
+    // 河口：一大片暗红，向左右沿岸漫开
+    const rx = (0.1 + 0.2 * k) * W.w, ry = Math.max(12 * s, (m[1] - wl) * 0.96);          // 上端到中洲的水线处正好淡尽（没有横边）
+    const g = ctx.createRadialGradient(0, 0, 0, 0, 0, 1);
+    g.addColorStop(0, U.rgba(col[0], col[1], col[2], 0.72)); g.addColorStop(0.55, U.rgba(col[0], col[1], col[2], 0.45)); g.addColorStop(1, U.rgba(col[0], col[1], col[2], 0));
+    ctx.save();
+    ctx.translate(m[0], m[1]); ctx.scale(rx, ry);
+    ctx.globalAlpha = k;
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, 1, 0, TAU); ctx.fill();
+    ctx.restore();
+    // 埃及西岸外的一带水（近地的轮廓线以左、画面之内的部分）
+    const blob = (x, y, r, a) => {
+      const gr = ctx.createRadialGradient(x, y, 0, x, y, r);
+      gr.addColorStop(0, U.rgba(col[0], col[1], col[2], a)); gr.addColorStop(0.6, U.rgba(col[0], col[1], col[2], a * 0.5)); gr.addColorStop(1, U.rgba(col[0], col[1], col[2], 0));
+      ctx.fillStyle = gr; ctx.fillRect(x - r, y - r, r * 2, r * 2);
+    };
+    ctx.globalAlpha = 1;
+    const reach = smoothstep(0.15, 1, bl);
+    for (let i = 0; i < 9; i++) {
+      const xf = X.nileT - 0.02 - i * 0.022 * (0.4 + 0.6 * reach), gy = gY(2, xf);
+      if (!(gy < W.h + 60 * s)) continue;
+      const y = Math.min(gy, W.h) + 6 * s, r = Math.min((46 + 10 * i) * s * (0.5 + 0.5 * reach), (y - wl) * 0.95);
+      if (r < 4) continue;
+      blob(xf * W.w - r * 0.35, y, r, 0.5 * k * (1 - i / 12));
+    }
+    // 红的闪光
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.fillStyle = 'rgb(255,120,110)';
+    for (let i = 0; i < 26; i++) {
+      const a = rt(i * 3 + 3300), x = m[0] + (a - 0.55) * rx * 1.6, y = m[1] + (rt(i * 3 + 3301) - 0.3) * ry * 1.4;
+      const tw = Math.max(0, Math.sin(W.t * (1.3 + rt(i * 3 + 3302)) + i * 2.1));
+      ctx.globalAlpha = 0.35 * k * tw * tw * dayA();
+      ctx.fillRect(x - 2.4 * s, y - 0.4 * s, 4.8 * s, 0.9 * s);
+    }
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  }
   // 埃及遍地都有了血（7:21）：地上几处积水也是暗红的
-  const POOLS = [[0.536, 0.62, 1.1], [0.556, 0.26, 0.8], [0.636, 0.86, 1.3], [0.668, 0.45, 0.9], [0.742, 0.9, 1.2], [0.735, 0.35, 0.8], [0.538, 0.92, 1.4]];
+  const POOLS = [[0.536, 0.62, 1.5], [0.556, 0.26, 1.1], [0.636, 0.86, 1.8], [0.668, 0.45, 1.3], [0.742, 0.9, 1.6], [0.735, 0.35, 1.1], [0.538, 0.92, 1.9], [0.6, 0.7, 1.4], [0.705, 0.66, 1.3]];
   function drawPools(ctx) {
     const bl = W.lv.plBlood;
     if (bl < 0.02) return;
@@ -1389,24 +1444,23 @@
     const k = W.lv.plWall;
     if (k < 0.01) return;
     SP || sprites();
-    const s = LS(2), x = X.wall * W.w, g = gY(2, X.wall), H = Math.min(W.h * 0.42, 220 * s + W.h * 0.12);
+    const s = LS(2), x = X.wall * W.w, g = gY(2, X.wall);
+    const top = Math.min(g - 40 * s, W.horizonY - 0.15 * (g - W.horizonY) - 0.05 * W.h), H = g - top;      // 光幕在地平线之上不远处便没入空中
     ctx.globalCompositeOperation = 'lighter';
     const br = 0.85 + 0.15 * Math.sin(W.t * 1.3);
-    const bw = Math.max(24, Math.min(60, 48 * s));
-    ctx.globalAlpha = k * 0.45 * br;
-    ctx.drawImage(SP.beam, x - bw / 2, g - H, bw, H + (W.h - g) * 0.9);
-    // 地上一道细细的光：分界之处
-    const gl = ctx.createLinearGradient(0, g, 0, W.h);
-    gl.addColorStop(0, 'rgba(255,238,196,0.9)'); gl.addColorStop(1, 'rgba(255,238,196,0.25)');
-    ctx.globalAlpha = k * 0.6 * br;
-    ctx.fillStyle = gl;
-    ctx.fillRect(x - Math.max(0.7, 0.8 * s), g, Math.max(1.4, 1.6 * s), W.h - g);
+    const bw = Math.max(34, Math.min(84, 66 * s));
+    ctx.globalAlpha = k * 0.5 * br;
+    ctx.drawImage(SP.col, x - bw / 2, top, bw, H + (W.h - g) * 0.9);
+    // 地上一道光：分界之处（两边柔和）
+    const lw = Math.max(8, 10 * s);
+    ctx.globalAlpha = k * 0.42 * br;
+    ctx.drawImage(SP.col, 0, 150, 48, 106, x - lw / 2, g, lw, W.h - g);
     // 沿光幕升起的微光
     ctx.fillStyle = 'rgb(255,236,190)';
     for (let i = 0; i < 26; i++) {
       const ph = U.fract(W.t * (0.12 + 0.1 * rt(i + 1600)) + rt(i + 1601));
-      const px = x + (rt(i + 1602) - 0.5) * 9 * s + Math.sin(W.t * 1.7 + i) * 2 * s, py = lerp(W.h - 4, g - H * 0.9, ph);
-      ctx.globalAlpha = k * 0.7 * Math.sin(ph * Math.PI);
+      const px = x + (rt(i + 1602) - 0.5) * 9 * s + Math.sin(W.t * 1.7 + i) * 2 * s, py = lerp(W.h - 4, g - H * 0.8, ph);
+      ctx.globalAlpha = k * 0.7 * Math.sin(ph * Math.PI) * (1 - 0.6 * ph);
       ctx.fillRect(px - 0.9, py - 0.9, 1.8, 1.8);
     }
     // 歌珊地上的暖色
@@ -1443,15 +1497,32 @@
   }
 
   // ── 雹与火搀杂（9:23–24）：埃及的地压暗，白雹斜落，火贴着地奔走；惟独歌珊地上有一道阳光 ──
+  // 埃及的地压暗：左浓右淡，到歌珊地前柔和地淡去；上端在地平线处也柔和地淡入（预绘成一张小图，再拉开贴上，没有直边）
+  const SDIM = { c: null, key: '' };
+  function stormDimTex(f) {
+    const key = X.wall + ':' + f.toFixed(3);
+    if (SDIM.c && SDIM.key === key) return SDIM.c;
+    const w = 256, h = 128, c = SDIM.c || cnv(w, h), g = c.getContext('2d');
+    g.clearRect(0, 0, w, h);
+    const col = [8, 10, 18];
+    const hz = g.createLinearGradient(0, 0, w, 0);
+    [[0, 0.56], [X.wall - 0.09, 0.5], [X.wall - 0.03, 0.34], [X.wall + 0.02, 0.12], [X.wall + 0.08, 0], [1, 0]].forEach(q => hz.addColorStop(clamp(q[0], 0, 1), U.rgba(col[0], col[1], col[2], q[1])));
+    g.fillStyle = hz; g.fillRect(0, 0, w, h);
+    g.globalCompositeOperation = 'destination-in';
+    const vt = g.createLinearGradient(0, 0, 0, h);
+    vt.addColorStop(0, 'rgba(0,0,0,0)'); vt.addColorStop(clamp(f, 0.01, 0.9), 'rgba(0,0,0,1)'); vt.addColorStop(1, 'rgba(0,0,0,1)');
+    g.fillStyle = vt; g.fillRect(0, 0, w, h);
+    g.globalCompositeOperation = 'source-over';
+    SDIM.c = c; SDIM.key = key;
+    return c;
+  }
   function drawStormDim(ctx) {
     const k = W.lv.plHail;
     if (k < 0.01) return;
-    const g = ctx.createLinearGradient(0, 0, W.w, 0);
-    const c = [8, 10, 18];
-    g.addColorStop(0, U.rgba(c[0], c[1], c[2], 0.56 * k)); g.addColorStop(clamp(X.wall - 0.04, 0, 1), U.rgba(c[0], c[1], c[2], 0.5 * k));
-    g.addColorStop(clamp(X.wall + 0.03, 0, 1), U.rgba(c[0], c[1], c[2], 0)); g.addColorStop(1, U.rgba(c[0], c[1], c[2], 0));
-    ctx.fillStyle = g;
-    ctx.fillRect(-20, W.horizonY - 2, W.w + 40, W.h - W.horizonY + 22);
+    const y0 = W.horizonY - 0.06 * W.h, H = W.h + 20 - y0, f = Math.round((0.08 * W.h / H) * 40) / 40;
+    ctx.globalAlpha = k;
+    ctx.drawImage(stormDimTex(f), 0, 0, 256, 128, 0, y0, W.w, H);
+    ctx.globalAlpha = 1;
   }
   const HUD_Y = 58;
   const FIRES = [];
@@ -1540,8 +1611,13 @@
     SP || sprites();
     const [x, y] = SHINE_AT();
     ctx.globalCompositeOperation = 'lighter';
-    glowSp(ctx, SP.gold, x, y, M() * 0.34, k * 0.5);
-    glowSp(ctx, SP.white, x, y, M() * 0.13, k * 0.45);
+    // 云开一隙：椭圆、边缘柔和
+    const rx = M() * 0.36, ry = M() * 0.2;
+    ctx.globalAlpha = k * 0.5;
+    ctx.drawImage(SP.gold, x - rx, y - ry, rx * 2, ry * 2);
+    ctx.globalAlpha = k * 0.3;
+    ctx.drawImage(SP.gold, x - rx * 1.6, y - ry * 1.3, rx * 3.2, ry * 2.6);
+    glowSp(ctx, SP.white, x, y, M() * 0.12, k * 0.45);
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
   }
@@ -1552,8 +1628,13 @@
     const [sx, sy] = SHINE_AT(), s = LS(2), x = 0.91 * W.w, g = gY(2, 0.91), bw = Math.max(0.2 * W.w, 110 * s);
     ctx.globalCompositeOperation = 'lighter';
     const br = 0.9 + 0.1 * Math.sin(W.t * 0.7);
-    ctx.globalAlpha = k * 0.36 * br;
-    ctx.drawImage(SP.beam, sx - bw / 2, sy - 0.04 * W.h, bw, g + 30 * s - sy + 0.04 * W.h);
+    // 一束柔和的光：自云隙渐渐放宽，落到歌珊地上（几层柔边的光叠成一个锥形，没有直边）
+    const y0 = sy + 0.02 * W.h, y1 = g + 30 * s, NL = 6;
+    for (let i = 0; i < NL; i++) {
+      const t = i / (NL - 1), yt = lerp(y0, y1, t * 0.55), w = bw * lerp(0.45, 1.25, t);
+      ctx.globalAlpha = k * 0.075 * br;
+      ctx.drawImage(SP.col, lerp(sx, x, t) - w / 2, yt, w, y1 - yt);
+    }
     glowSp(ctx, SP.gold, x, g - 6 * s, bw * 0.7, k * 0.25);
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
@@ -2114,8 +2195,11 @@
       if (pass === 'top') drawDark(ctx);
     },
     draw(ctx, pass) {
+      if (!isCur()) return;
+      // 河口与埃及岸边的水也变作血（在海面之后、近地之前画：近地盖住岸上的部分）
+      if (pass === 'seaNear') { drawBloodSea(ctx); return; }
       // 青蛙与蛇：在走兽之后、人之前画
-      if (!isCur() || pass !== 'near') return;
+      if (pass !== 'near') return;
       drawFrogs(ctx);
       for (const e of FXL) if (e.type === 'serpents') drawSerpents(ctx, e);
     },
@@ -2271,7 +2355,7 @@
     { text: '法老心里刚硬，不肯听从摩西、亚伦，正如耶和华所说的。', ref: '出埃及记 7:13', hold: 5 },
   ];
   const V4 = [
-    { text: '「明日早晨，他出来往水边去，你要往河边迎接他，手里要拿着那变过蛇的杖。」', ref: '出埃及记 7:15', hold: 5.5 },
+    { text: '耶和华晓谕摩西说：「你对亚伦说：『把你的杖伸在埃及所有的水以上，<br>就是在他们的江、河、池、塘以上，叫水都变作血。……』」', ref: '出埃及记 7:19', hold: 7 },
     { text: '摩西、亚伦就照耶和华所吩咐的行。亚伦在法老和臣仆眼前举杖击打河里的水，<br>河里的水都变作血了。', ref: '出埃及记 7:20', hold: 7 },
     { text: '河里的鱼死了，河也腥臭了，埃及人就不能吃这河里的水；埃及遍地都有了血。', ref: '出埃及记 7:21', hold: 6.5 },
     { text: '埃及人都在河的两边挖地，要得水喝，因为他们不能喝这河里的水。', ref: '出埃及记 7:24', hold: 5.5 },
@@ -2283,10 +2367,10 @@
     { text: '行法术的就对法老说：「这是神的手段。」<br>法老心里刚硬，不肯听摩西、亚伦，正如耶和华所说的。', ref: '出埃及记 8:19', hold: 6 },
   ];
   const V6 = [
+    { text: '「当那日，我必分别我百姓所住的歌珊地，使那里没有成群的苍蝇，<br>好叫你知道我是天下的耶和华。」', ref: '出埃及记 8:22', hold: 6.5 },
     { text: '耶和华就这样行。苍蝇成了大群，进入法老的宫殿，和他臣仆的房屋；<br>埃及遍地就因这成群的苍蝇败坏了。', ref: '出埃及记 8:24', hold: 7 },
     { text: '法老召了摩西、亚伦来，说：「你们去，在这地祭祀你们的神吧！」', ref: '出埃及记 8:25', hold: 5.5 },
     { text: '耶和华就照摩西的话行，叫成群的苍蝇离开法老和他的臣仆并他的百姓，一个也没有留下。', ref: '出埃及记 8:31', hold: 6.5 },
-    { text: '这一次法老又硬着心，不容百姓去。', ref: '出埃及记 8:32', hold: 5 },
   ];
   const V7 = [
     { text: '第二天，耶和华就行这事。埃及的牲畜几乎都死了，<br>只是以色列人的牲畜，一个都没有死。', ref: '出埃及记 9:6', hold: 6.5 },
@@ -2316,7 +2400,7 @@
     { text: '「你们吩咐以色列全会众说：本月初十日，各人要按着父家取羊羔，一家一只。」', ref: '出埃及记 12:3', hold: 6 },
     { text: '「各家要取点血，涂在吃羊羔的房屋左右的门框上和门楣上。<br>当夜要吃羊羔的肉；用火烤了，与无酵饼和苦菜同吃。」', ref: '出埃及记 12:7–8', hold: 7.5 },
     { text: '「你们吃羊羔当腰间束带，脚上穿鞋，手中拿杖，赶紧地吃；这是耶和华的逾越节。」', ref: '出埃及记 12:11', hold: 6.5 },
-    { text: '耶和华怎样吩咐摩西、亚伦，以色列人就怎样行。', ref: '出埃及记 12:28', hold: 5 },
+    { text: '「这血要在你们所住的房屋上作记号；我一见这血，就越过你们去。<br>我击杀埃及地头生的时候，灾殃必不临到你们身上灭你们。」', ref: '出埃及记 12:13', hold: 7 },
   ];
   const V12 = [
     { text: '摩西说：「耶和华这样说：『约到半夜，我必出去巡行埃及遍地。』」', ref: '出埃及记 11:4', hold: 5 },
@@ -2331,7 +2415,7 @@
     { text: '这夜是耶和华的夜；因耶和华领他们出了埃及地，所以当向耶和华谨守，<br>是以色列众人世世代代该谨守的。', ref: '出埃及记 12:42', hold: 7 },
   ];
   const V14 = [
-    { text: '摩西对百姓说：「你们要记念从埃及为奴之家出来的这日，<br>因为耶和华用大能的手将你们从这地方领出来……」', ref: '出埃及记 13:3', hold: 6 },
+    { text: '耶和华晓谕摩西说：「以色列中凡头生的，无论是人是牲畜，都是我的，<br>要分别为圣归我。」', ref: '出埃及记 13:1–2', hold: 6 },
     { text: '「当那日，你要告诉你的儿子说：『这是因耶和华在我出埃及的时候为我所行的事。』」', ref: '出埃及记 13:8', hold: 6 },
     { text: '「日后，你的儿子问你说：『这是什么意思？』你就说：<br>『耶和华用大能的手将我们从埃及为奴之家领出来。』」', ref: '出埃及记 13:14', hold: 6.5 },
     { text: '「这要在你手上作记号，在你额上作经文，因为耶和华用大能的手将我们从埃及领出来。」', ref: '出埃及记 13:16', hold: 6.5 },
@@ -2557,14 +2641,15 @@
             walk('moses', X.mosesP, { speed: 0.03 }); walk('aaron', X.aaronP, { speed: 0.03 });
             sfx(b, 'harp', { soft: true });
           }],
-          [1.2, b => { W.set('plFly', 1, b.instant); sfx(b, 'wings'); }],
-          [4, b => { sfx(b, 'wings', { soft: true }); poseAll(EGY, 'weep'); }],
-          [L[1], () => pose('pharaoh', 'point')],
-          [L[1] + 3.5, () => pose('pharaoh', 'seat')],
-          [L[2] - 2.5, () => walk('moses', 0.61, { speed: 0.035, pose: 'pray' })],
-          [L[2], b => { W.set('plFly', 0, b.instant); sfx(b, 'wind', { soft: true }); }],
-          [L[2] + 3, () => poseAll(EGY, 'stand')],
-          [L[3], () => pose('moses', 'stand')],
+          // 苍蝇成了大群（8:24）——却不越过歌珊地前的那道光
+          [L[1] - 0.4, b => { W.set('plFly', 1, b.instant); sfx(b, 'wings'); }],
+          [L[1] + 2.4, b => { sfx(b, 'wings', { soft: true }); poseAll(EGY, 'weep'); }],
+          [L[2], () => pose('pharaoh', 'point')],
+          [L[2] + 3.5, () => pose('pharaoh', 'seat')],
+          [L[3] - 2.5, () => walk('moses', 0.61, { speed: 0.035, pose: 'pray' })],
+          [L[3], b => { W.set('plFly', 0, b.instant); sfx(b, 'wind', { soft: true }); }],
+          [L[3] + 3, () => poseAll(EGY, 'stand')],
+          [L[3] + 5, () => pose('moses', 'stand')],
         ]);
       },
     },

@@ -59,7 +59,7 @@
     ezWeep: ['exp', 0.5],      // 哭号的声音（银色的环）
     ezMix: ['exp', 0.35],      // 不能分辨欢呼的声音和哭号的声音（3:13）
     ezFar: ['exp', 0.3],       // 声音听到远处
-    ezWeeds: ['lin', 0.08],    // 这殿仍然荒凉：根基上长了草（4:24）
+    ezWeeds: ['lin', 0.12],    // 这殿仍然荒凉：根基上长了草（4:24）
     ezHouses: ['lin', 0.12],   // 各住在自己的城里；天花板的房屋
     ezScaf: ['exp', 0.5],      // 脚手架
     ezBuild: ['lin', 0.07],    // 殿墙：三层大石头，一层新木头（6:4）
@@ -419,12 +419,27 @@
   }
   // 巴比伦：归回之后退到远处（淡入大气），以斯拉起程的时候又近一些
   function drawBabylon(ctx) {
-    const far = lv('ezBabFar'), fq = Math.round(far * 16) / 16, A = 1 - 0.7 * far, pa = A * (1 - sm(0.35, 0.85, far));
+    // 退到远处：先染上雾色（近一些时仍是实的城），再整个隐去——不在耶路撒冷的岛上留一个半透明的影子
+    const far = lv('ezBabFar'), fq = Math.round(far * 16) / 16, A = 1 - sm(0.3, 0.95, far), pa = A * (1 - sm(0.35, 0.85, far));
+    if (A < 0.02) return;
     const x0 = X('bab0'), x1 = X('bab1'), gx = X('gate'), zx = X('zig'), hm = PH(1), nk = nightK();
     if (pa > 0.01) { ctx.globalAlpha = pa; drawPalm(ctx, 1, x0 - 0.004, 0.9, -1); drawPalm(ctx, 1, x1 + 0.012, 1.0, 1); ctx.globalAlpha = 1; }
     const sk = [W.w, W.h, W.dpr, tall() ? 'p' : 'l'].join('|');
     cached(ctx, BK.bab, sk, lightKey(fq), babBox, (g, bx, by, bw, bh, baked) => {
       drawBabylonBody(g);
+      // 城脚不伸到岛的地面以下（不落进海里）
+      if (baked) {
+        const cut = 0.16 * hm + 2 * Math.max(0.5, W.unit), n = Math.max(8, Math.ceil(bw / 6));
+        g.globalCompositeOperation = 'destination-in';
+        g.fillStyle = '#000';
+        g.beginPath();
+        g.moveTo(bx - 1, by - 1);
+        g.lineTo(bx + bw + 1, by - 1);
+        for (let i = n; i >= 0; i--) { const x = bx + bw * i / n; g.lineTo(x, gY(1, x / W.w) + cut); }
+        g.closePath();
+        g.fill();
+        g.globalCompositeOperation = 'source-over';
+      }
       if (fq > 0.01 && baked) {
         const hz = W.haze || [178, 204, 228];
         g.globalCompositeOperation = 'source-atop';
@@ -1559,11 +1574,18 @@
   //  声音的环（签名之景）：欢呼是金的，哭号是银的；末了合为一色，听到远处
   // ════════════════════════════════════════════════════════════
   // 欢呼：暖而浓的金，粗，环上有火星；哭号：冷的蓝，细，断续如泪滴。3:13 之后两样渐渐合为一色（不能分辨）
-  const JOY = [255, 196, 90], WEEP = [150, 190, 255], PEARL = [252, 246, 234];
+  const JOY = [255, 196, 90], WEEP = [96, 214, 255], PEARL = [252, 246, 234];
+  const JOY_D = [226, 150, 36], WEEP_D = [40, 150, 226];     // 白日里画在天上的实线（与天色分得开）
   function ringSrc() {
     const cr = courtR();
     const xf = (cr[0] + cr[1]) / 2 + 0.02;
     return [xf * W.w, vY(xf, 0.1) - PH(2) * 0.9];
+  }
+  // 哭号的环从老年人那里起（与欢呼的环错开）；到末了（不能分辨）两处的环渐渐合到一处
+  function weepSrc() {
+    const [cx, cy] = ringSrc(), p = crowdPt('elders'), mk = clamp(lv('ezMix'), 0, 1);
+    const wx = p ? p.x : cx + 0.06 * W.w, wy = p ? p.top + PH(2) * 0.25 : cy;
+    return [lerp(wx, cx, mk), lerp(wy, cy, mk)];
   }
   function ringCol(k, mixK) {
     const base = k % 2 ? WEEP : JOY;
@@ -1574,31 +1596,47 @@
     const pr = lv('ezPraise'), wp = lv('ezWeep'), jy = lv('ezJoy') * 0.5;
     if (pr + wp + jy < 0.01) return;
     SP || sprites();
-    const [cx, cy] = ringSrc(), mk = clamp(lv('ezMix'), 0, 1), far = lv('ezFar');
+    const S0 = ringSrc(), S1 = weepSrc(), mk = clamp(lv('ezMix'), 0, 1), far = lv('ezFar');
     const big = Math.max(pr, wp);
     const Rmax = Math.hypot(W.w, W.h) * lerp(0.36, 0.5 + 0.62 * far, clamp(big * 1.5, 0, 1)), N = 6, un = Math.max(0.5, W.unit);
-    const vis = 0.55 + 0.45 * (1 - W.daylight) + 0.35 * W.dusk;
+    const vis = Math.min(1.25, 0.85 + 0.25 * (1 - W.daylight) + 0.3 * W.dusk), day = clamp(W.daylight * (1 - W.night), 0, 1);
     const yk = clamp(W.h / Math.max(1, W.w) * 0.7, 0.56, 1.25);
     ctx.save();
-    ctx.globalCompositeOperation = 'lighter';
     ctx.lineCap = 'round';
     for (let k = 0; k < N; k++) {
+      ctx.globalAlpha = 1;
       const ph = U.fract(W.t * 0.13 + k / N);
       const isW = k % 2 === 1;
       const amp = isW ? wp : Math.max(pr, jy);
       if (amp < 0.01) continue;
       const a = amp * Math.pow(1 - ph, 1.2) * Math.min(1, ph * 6) * vis;
       if (a < 0.01) continue;
+      const [cx, cy] = isW ? S1 : S0;
       const r = 24 * un + ph * Rmax, ry = r * yk, c = ringCol(k, mk);
-      const wk = lerp(isW ? 1.05 : 2.5, 1.5, mk);
-      if (isW) ctx.setLineDash([6 * un, 5 * un * (1 - mk) + 0.01]); else ctx.setLineDash([]);
+      const wk = lerp(isW ? 1.5 : 2.2, 1.5, mk);
+      // 哭号：断续如泪滴的虚线；欢呼：连贯的粗线
+      if (isW) ctx.setLineDash([7 * un, 6 * un * (1 - mk) + 0.01]); else ctx.setLineDash([]);
       const fadeTop = cy - ry * 0.35;
-      for (const q of [[8, 0.12], [1.8, 0.55]]) {
-        const al = Math.min(1, a * q[1] * (isW ? 1.6 : 1));
+      const grad = al => {
         const gr = ctx.createLinearGradient(0, cy, 0, fadeTop);
         gr.addColorStop(0, U.rgba(c[0], c[1], c[2], 0));
-        gr.addColorStop(1, U.rgba(c[0], c[1], c[2], al));
+        gr.addColorStop(1, U.rgba(c[0], c[1], c[2], Math.min(1, al)));
+        return gr;
+      };
+      // 白日里：先画一道实的、深一些的线（天色亮时，光的线看不出来）
+      if (day > 0.05) {
+        const d = mix(isW ? WEEP_D : JOY_D, [236, 226, 206], mk);
+        const gr = ctx.createLinearGradient(0, cy, 0, fadeTop);
+        gr.addColorStop(0, U.rgba(d[0], d[1], d[2], 0));
+        gr.addColorStop(1, U.rgba(d[0], d[1], d[2], Math.min(1, a * 0.6 * day)));
+        ctx.globalCompositeOperation = 'source-over';
         ctx.strokeStyle = gr;
+        ctx.lineWidth = Math.max(0.8, 1.6 * un * wk * (1 - ph * 0.45));
+        ctx.beginPath(); ctx.ellipse(cx, cy, r, ry, 0, Math.PI, TAU); ctx.stroke();
+      }
+      ctx.globalCompositeOperation = 'lighter';
+      for (const q of [[9, 0.16], [2, 0.8]]) {
+        ctx.strokeStyle = grad(a * q[1] * (isW ? 1.25 : 1));
         ctx.lineWidth = Math.max(0.6, q[0] * un * wk * (1 - ph * 0.45) * (q[0] > 4 ? 0.7 : 1));
         ctx.beginPath();
         ctx.ellipse(cx, cy, r, ry, 0, Math.PI, TAU);
@@ -1611,7 +1649,7 @@
           const th = Math.PI + Math.PI * (i + 0.5 + 0.3 * Math.sin(W.t * 0.7 + i * 2.1 + k)) / n;
           const px = cx + Math.cos(th) * r, py = cy + Math.sin(th) * ry;
           const f = clamp((cy - py) / (ry * 0.35), 0, 1);
-          glowAt(ctx, spr, px, py, (3.2 + 1.6 * hsh(i + k * 7)) * un, a * 0.9 * f * (0.6 + 0.4 * Math.sin(W.t * 5 + i * 1.7)));
+          glowAt(ctx, spr, px, py, (3.6 + 1.8 * hsh(i + k * 7)) * un, a * 0.95 * f * (0.6 + 0.4 * Math.sin(W.t * 5 + i * 1.7)));
         }
       }
     }
@@ -1622,7 +1660,7 @@
   function drawRipples(ctx) {
     const pr = lv('ezPraise'), wp = lv('ezWeep'), jy = lv('ezJoy');
     if (pr + wp + jy < 0.01) return;
-    const [cx, cy0] = ringSrc(), cy = cy0 + PH(2) * 0.95, mk = clamp(lv('ezMix'), 0, 1), far = lv('ezFar');
+    const S0 = ringSrc(), S1 = weepSrc(), mk = clamp(lv('ezMix'), 0, 1), far = lv('ezFar');
     const Rmax = W.w * (0.36 + 0.5 * far), N = 6, un = Math.max(0.5, W.unit);
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
@@ -1631,8 +1669,9 @@
       const isW = k % 2 === 1;
       const amp = isW ? wp : Math.max(pr, jy * 0.6);
       if (amp < 0.01) continue;
-      const a = amp * Math.pow(1 - ph, 2) * Math.min(1, ph * 6) * 0.3;
+      const a = amp * Math.pow(1 - ph, 2) * Math.min(1, ph * 6) * 0.45;
       if (a < 0.01) continue;
+      const cx = (isW ? S1 : S0)[0], cy = (isW ? S1[1] + PH(2) * 0.7 : S0[1] + PH(2) * 0.95);
       const r = 12 * un + ph * Rmax, c = ringCol(k, mk);
       if (isW) ctx.setLineDash([5 * un, 4 * un * (1 - mk) + 0.01]); else ctx.setLineDash([]);
       ctx.strokeStyle = U.rgba(c[0], c[1], c[2], a * (isW ? 1.3 : 1));
@@ -1659,7 +1698,7 @@
     for (const m of cmembers('elders')) {
       if (m.alpha < 0.2 || m.pose !== 'weep' || m.dying || !isFinite(m.nx)) continue;
       const v = m.v || 0, g0 = gY(2, m.nx), h = PH(2) * 0.96 * (m.scale || 1) * (1 + 0.35 * v), y = g0 + v * fieldH(2, g0) * 0.8;
-      glowAt(ctx, mk > 0.6 ? SP.pearl : SP.silver, m.nx * W.w, y - h * 0.6, h * 0.75, wp * m.alpha * 0.55 * (0.85 + 0.15 * Math.sin(W.t * 1.3 + (m.ord || 0))));
+      glowAt(ctx, mk > 0.6 ? SP.pearl : SP.silver, m.nx * W.w, y - h * 0.6, h * 1.1, wp * m.alpha * 0.85 * (0.85 + 0.15 * Math.sin(W.t * 1.3 + (m.ord || 0))));
     }
     ctx.restore();
   }
@@ -2398,7 +2437,8 @@
       apply(c) {
         T(c, [
           [0, b => {
-            W.set('ezPlay', 1, b.instant); W.set('ezPraise', 1, b.instant); W.goTo(0.755, 13, b.instant);
+            // 夕照（还不到黄昏）：人与金环、蓝环都看得清；3:13 时才入黄昏
+            W.set('ezPlay', 1, b.instant); W.set('ezPraise', 1, b.instant); W.goTo(0.7, 10, b.instant);
             cpose('priests', 'raise'); cpose('levites', 'raise');
             sfx(b, 'angel'); sfx(b, 'crowd');
           }],
@@ -2406,9 +2446,10 @@
           [2.2, () => { exAll(g => cpose(g, 'raise')); pose('zerub', 'raise'); pose('jeshua', 'raise'); pose('shesh', 'raise'); }],
           [5.4, b => { const g = X('glyph'); glyphs(b, '永发慈爱', [255, 232, 176], { hold: 3.2, y: g[1] + (tall() ? 0.08 : 0.1) }); }],
           [6.6, b => { W.set('ezStone', 1.4, b.instant); sparkleOn(b, 'zerub', 20); sfx(b, 'crowd', { soft: true }); }],
-          [9.8, b => { cpose('elders', 'weep'); cglow('elders', 0.4); W.set('ezWeep', 1, b.instant); sfx(b, 'weep'); }],
+          [9.8, b => { cpose('elders', 'weep'); cglow('elders', 0.7); W.set('ezWeep', 1, b.instant); sfx(b, 'weep'); }],
           [12.5, b => { cpose('ex2', 'weep'); sfx(b, 'weep', { soft: true }); }],
           [15.2, b => { cpose('ex2', 'raise'); sfx(b, 'crowd'); }],
+          [18.3, b => { W.goTo(0.755, 9, b.instant); }],
           [19.1, b => { W.set('ezMix', 1, b.instant); W.set('ezFar', 1, b.instant); sfx(b, 'crowd', { far: true }); sfx(b, 'angel', { soft: true }); }],
           [24.5, b => { W.set('ezPlay', 0.7, b.instant); }],
         ]);
@@ -2421,6 +2462,7 @@
       verse: [
         { text: '那地的民，就在犹大人建造的时候，<br>使他们的手发软，扰乱他们……', ref: '以斯拉记 4:4', hold: 6.5 },
         { text: '于是，在耶路撒冷神殿的工程就停止了，直停到波斯王大流士第二年。', ref: '以斯拉记 4:24', hold: 6.5 },
+        { text: '那时耶和华的话临到先知哈该说：<br>「这殿仍然荒凉，你们自己还住天花板的房屋吗？」', ref: '哈该书 1:3–4', hold: 6.5 },
       ],
       apply(c) {
         T(c, [
@@ -2446,13 +2488,17 @@
           [8.6, b => { letter(b, 'site', 'gate', { seal: 'rgb(60,40,36)', dur: 3 }); }],
           [11, b => { letter(b, 'gate', 'site', { seal: 'rgb(170,40,36)', dur: 3 }); }],
           [14.2, b => {
+            // 工程停止：众人散去；黄昏过去，一夜——年复一年（到早晨，哈该的话已在眼前）
             W.set('ezStone', 0, b.instant);
+            W.goTo(0.37, 7, b.instant);
             cwalk('priests', 0.96, 1.06, { speed: 0.03 }); cwalk('levites', 0.96, 1.06, { speed: 0.03 });
             cwalk('foes', 1.02, 1.1, { speed: 0.03 });
             sfx(b, 'seal', { soft: true });
           }],
           [15.6, b => {
-            W.goTo(0.96, 5, b.instant); W.set('ezHouses', 1, b.instant); W.set('clouds', 0.66, b.instant);
+            // 人都去盖自己的房屋（夜里窗里有灯）；根基上长了草
+            W.set('ezHouses', 1, b.instant); W.set('clouds', 0.66, b.instant);
+            W.set('ezWeeds', 1, b.instant); W.set('ezFire', 0.45, b.instant); W.set('bare', 0.3, b.instant);
             exAll(g => cwalk(g, 0.9, 1.06, { speed: 0.03 })); cwalk('elders', 0.9, 1.06, { speed: 0.025 });
             walk('shesh', 1.05, { speed: 0.03 });
           }],
@@ -2460,8 +2506,7 @@
             crm('priests'); crm('levites'); crm('foes');
             for (const id of ['camel1', 'camel2', 'donkey1', 'donkey2']) rm(id);
           }],
-          [20.4, b => {
-            W.goTo(0.37, 6, b.instant); W.set('ezWeeds', 1, b.instant); W.set('ezFire', 0.45, b.instant); W.set('bare', 0.3, b.instant);
+          [19.6, b => {
             exAll(g => crm(g)); crm('elders'); rm('shesh');
             pose('zerub', 'sit'); pose('jeshua', 'sit'); glow('zerub', 0.2); glow('jeshua', 0.2);
           }],

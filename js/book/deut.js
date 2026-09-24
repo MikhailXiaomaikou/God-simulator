@@ -1409,24 +1409,81 @@
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
   }
+  // 摩西所祝福的十二支派（33 章的次序；西缅不在其中，约瑟分为以法莲、玛拿西，33:17）
+  const TRIBE_NAMES = ['流便', '犹大', '利未', '便雅悯', '以法莲', '玛拿西', '西布伦', '以萨迦', '迦得', '但', '拿弗他利', '亚设'];
   function tribePos(i, k) {
-    const p = port(), n = 12, t = i / (n - 1);
-    const xf = p ? lerp(0.6, 0.97, t) : lerp(0.64, 0.985, t);
-    const ty = W.h * ((p ? 0.3 : 0.2) + 0.06 * Math.sin(t * Math.PI + 0.3) * -1 + 0.04 * (i % 2));
+    const p = port(), n = 12;
+    let xf, ty;
+    if (p) {
+      // 竖屏：两行，每行六颗，在经文之下、地平线之上，好容得下各支派的名
+      const j = i % 6, row = i < 6 ? 0 : 1;
+      xf = lerp(0.5, 0.94, j / 5);
+      ty = W.h * (0.31 + 0.1 * row + 0.022 * (j % 2));
+    } else {
+      const t = i / (n - 1);
+      xf = lerp(0.64, 0.985, t);
+      ty = W.h * (0.2 + 0.06 * Math.sin(t * Math.PI + 0.3) * -1 + 0.04 * (i % 2));
+    }
     const [tx0] = TENTS[i % TENTS.length];
     const x0 = tx0 * W.w, y0 = gY(2, tx0) - 20 * LS(2);
     const e = U.easeInOut ? U.easeInOut(clamp(k, 0, 1)) : k;
-    return [lerp(x0, xf * W.w, e), lerp(y0, ty, e)];
+    return [lerp(x0, xf * W.w, e), lerp(y0, ty, e), x0, y0];
   }
+  // 支派的名（楷书小字，金色，带一圈暗晕，白昼里也读得清）
+  const TFONT = '"GS Kai", "Kaiti SC", "STKaiti", "KaiTi", "Songti SC", "Noto Serif CJK SC", serif';
+  const TXT = new Map();
+  function textSprite(str, px) {
+    const dpr = Math.min(2, W.dpr || 1), key = str + '|' + px + '|' + dpr;
+    let sp = TXT.get(key);
+    if (sp) return sp;
+    if (TXT.size > 60) TXT.clear();
+    const c = document.createElement('canvas'), g = c.getContext('2d');
+    const font = Math.round(px * dpr) + 'px ' + TFONT;
+    g.font = font;
+    c.width = Math.max(4, Math.ceil(g.measureText(str).width) + Math.ceil(14 * dpr)); c.height = Math.ceil(px * 2 * dpr);
+    g.font = font; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.shadowColor = 'rgba(20, 14, 8, 0.9)'; g.shadowBlur = 6 * dpr;
+    g.lineJoin = 'round'; g.strokeStyle = 'rgba(28, 20, 12, 0.6)'; g.lineWidth = 2.6 * dpr;
+    g.strokeText(str, c.width / 2, c.height / 2);
+    g.shadowColor = 'rgba(255, 214, 140, 0.55)'; g.shadowBlur = 6 * dpr;
+    g.fillStyle = 'rgb(255, 228, 164)';
+    g.fillText(str, c.width / 2, c.height / 2);
+    sp = { c, w: c.width / dpr, h: c.height / dpr };
+    TXT.set(key, sp);
+    return sp;
+  }
+  try {
+    if (document.fonts && document.fonts.load) {
+      document.fonts.load('16px "GS Kai"', TRIBE_NAMES.join('')).then(() => TXT.clear()).catch(() => {});
+      if (document.fonts.ready) document.fonts.ready.then(() => TXT.clear()).catch(() => {});
+    }
+  } catch (e) { /* 老浏览器：用系统字 */ }
   function drawTribes(ctx) {
     const k = W.lv.dtTribes;
     if (k < 0.01) return;
     SP || sprites();
     if (!SP) return;
     const u = Math.max(0.7, W.unit);
+    const P = [];
+    for (let i = 0; i < 12; i++) P.push(tribePos(i, k));
+    // 自各支派的帐棚升起：一缕细细的光线连着星与营（看得出这十二颗是营中的十二支派）
+    const th = smoothstep(0.3, 0.9, k);
+    if (th > 0.01) {
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.strokeStyle = 'rgb(255,226,160)';
+      ctx.lineWidth = Math.max(0.6, 0.8 * u);
+      for (let i = 0; i < 12; i++) {
+        const [x, y, x0, y0] = P[i];
+        const gr = ctx.createLinearGradient(x, y, x0, y0);
+        gr.addColorStop(0, 'rgba(255,226,160,' + (0.34 * th).toFixed(3) + ')');
+        gr.addColorStop(1, 'rgba(255,226,160,0)');
+        ctx.strokeStyle = gr;
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x0, y0); ctx.stroke();
+      }
+    }
     ctx.globalCompositeOperation = 'lighter';
     for (let i = 0; i < 12; i++) {
-      const [x, y] = tribePos(i, k);
+      const [x, y] = P[i];
       const a = Math.min(1, k * 1.4) * (0.75 + 0.25 * Math.sin(W.t * 1.3 + i * 1.7));
       ctx.globalAlpha = a * 0.55;
       const g = 26 * u;
@@ -1436,6 +1493,17 @@
       ctx.beginPath(); ctx.arc(x, y, 1.8 * u, 0, TAU); ctx.fill();
       ctx.globalAlpha = a * 0.4;
       ctx.fillRect(x - 7 * u, y - 0.5, 14 * u, 1); ctx.fillRect(x - 0.5, y - 7 * u, 1, 14 * u);
+    }
+    // 名：星到了天上才显出
+    const na = smoothstep(0.75, 1, k);
+    if (na > 0.01) {
+      ctx.globalCompositeOperation = 'source-over';
+      const px = port() ? 11 : 13;
+      for (let i = 0; i < 12; i++) {
+        const [x, y] = P[i], sp = textSprite(TRIBE_NAMES[i], px);
+        ctx.globalAlpha = na * 0.95;
+        ctx.drawImage(sp.c, x - sp.w / 2, y + 9 * u - sp.h / 2 + px * 0.5, sp.w, sp.h);
+      }
     }
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
@@ -1545,6 +1613,17 @@
   function footOf(f) { const l = f.layer == null ? 2 : f.layer, g = gY(l, f.nx); return l === 2 && f.v ? g + f.v * Math.max(0, W.h - g) * 0.8 : g; }
   // 金光沿着洲的山脊扫过（1:8、8:7）；col 可换成青绿（雨后）
   function sweep(b, x0, x1, l, dur, col) { flash(b, { type: 'sweep', x0, x1, l: l == null ? 1 : l, dur: dur || 4.5, col: col || [255, 232, 176] }); }
+  // 这一句的要紧字：自某处（人手、包袱）的光尘在画面右半的天上聚成几个字（转瞬的光，重演时不放）
+  function phrase(b, str, cxf, from, o) {
+    if (b.instant || !GS.fx || !GS.fx.nameStr) return;
+    o = o || {};
+    const n = Array.from(str).length, sz = port() ? Math.min(30, W.w * 0.075) : Math.min(38, W.w * 0.03);
+    const half = (n - 1) * sz * 1.08 / 2 + sz * 0.6;
+    const cx = clamp(cxf * W.w, W.w * 0.52 + half, W.w - half - 8);
+    const cy = o.y != null ? o.y : W.horizonY - (port() ? 0.14 : 0.17) * W.h;
+    const col = o.col || [255, 228, 160];
+    GS.fx.nameStr(str, cx, cy, sz, col, () => [from[0] + (Math.random() - 0.5) * 30, from[1] + (Math.random() - 0.5) * 20, col], { hold: o.hold || 4 });
+  }
 
   // 鹰（32:11）：飞来，在巢上搧展两翅，雏鹰跌下，鹰俯冲接取，背在两翼之上，盘旋上升
   function eagleAt(t) {
@@ -1958,7 +2037,7 @@
       ],
       apply(c) {
         T(c, [
-          [0.3, b => { W.goTo(0.4, 12, b.instant); allPose('stand'); allFace(-1); pose('moses', 'raise'); sfx(b, 'harp'); }],
+          [0.3, b => { W.goTo(0.4, 12, b.instant); allPose('stand'); allFace(-1); pose('moses', 'raise'); sfx(b, 'harp'); beamOn(b, 'moses', { dur: 6, w: 64, r: 0.16 }); }],
           [3.2, () => { pose('moses', 'stand'); }],
           [8.4, b => {
             // 众人回到各自的帐棚，在家里教训儿女
@@ -1977,6 +2056,8 @@
             }
             sfx(b, 'chime');
           }],
+          // 门框上写的是什么：「耶和华我们神是独一的主」（6:4）——在营上的天空聚成字
+          [17.4, b => { const f = fig('moses'); phrase(b, '独一的主', (TENTS[2][0] + TENTS[3][0]) / 2 + 0.03, [(f ? f.nx : X.moses) * W.w, gY(2, X.moses) - 44 * LS(2)], { hold: 4.2 }); }],
           [23.6, b => { pose('moses', 'stand'); if (!b.instant && GS.fx) GS.fx.sparkle(0.82 * W.w, gY(2, 0.82) - 30 * LS(2), 40, [255, 230, 170], 60 * LS(2), 'air'); }],
         ]);
       },
@@ -2052,15 +2133,22 @@
             vTo(b, 'giver', 0.34);
             walk('giver', X.stranger - 0.022, { speed: 0.03 });
             face('joshua', 1);
+            beamAt(b, X.crowd1 - 0.01, gY(2, X.crowd1) + 0.34 * Math.max(0, W.h - gY(2, X.crowd1)) * 0.8, { dur: 4.5, w: 60, r: 0.12 });
           }],
           [14.5, b => {
             // 松开手：包袱交到寡妇手里
             hold('giver', null); hold('widow', 'bundle');
             pose('widow', 'stand'); pose('orphan', 'stand'); pose('stranger', 'stand');
             beamAt(b, (X.stranger + X.widow) / 2 - 0.01, footOf(fig('widow') || { nx: X.widow, v: 0.3 }), { dur: 5, w: 110, r: 0.18 });
-            if (!b.instant && GS.fx) GS.fx.sparkle((X.stranger - 0.01) * W.w, gY(2, X.stranger) - 10 * LS(2), 26, [255, 232, 176], 30 * LS(2), 'air');
+            if (!b.instant && GS.fx) {
+              GS.fx.sparkle((X.stranger - 0.01) * W.w, gY(2, X.stranger) - 10 * LS(2), 26, [255, 232, 176], 30 * LS(2), 'air');
+              const wf = fig('widow'), wy = wf ? footOf(wf) : gY(2, X.widow);
+              GS.fx.ring(X.widow * W.w, wy - 16 * LS(2), [255, 232, 176], M() * 0.07, 1.8, 1.8);
+            }
             sfx(b, 'harp', { soft: true });
           }],
+          // 「总要向……弟兄松开手」（15:11 那一句）：包袱上的光尘在他们头上聚成字
+          [15.4, b => { const wf = fig('widow'); phrase(b, '松开手', (X.stranger + X.widow) / 2, [(wf ? wf.nx : X.widow) * W.w, (wf ? footOf(wf) : gY(2, X.widow)) - 20 * LS(2)], { hold: 4 }); }],
           [16.5, b => {
             // 领进众人中间（在人群之前）
             const L = X.lead;
@@ -2087,7 +2175,9 @@
         T(c, [
           [0.3, b => { W.goTo(0.39, 10, b.instant); W.set('dtRoads', 0.3, b.instant); rm('giver'); face('moses', 1); allFace(1); sfx(b, 'chime'); }],
           // 「在他们弟兄中间」：一道光落在众人中间
-          [7.4, b => { beamAt(b, mid(), gY(2, mid()), { dur: 6.5, w: 90, r: 0.3 }); allFace(mid()); sfx(b, 'angel', { soft: true }); }],
+          [7.4, b => { beamAt(b, mid(), gY(2, mid()), { dur: 7, w: 90, r: 0.3 }); allFace(mid()); face('moses', 1); pose('moses', 'point'); sfx(b, 'angel', { soft: true }); }],
+          [8.4, b => { phrase(b, '一位先知', mid(), [mid() * W.w, gY(2, mid()) - 30 * LS(2)], { hold: 4.2 }); }],
+          [14.4, () => { pose('moses', 'stand'); }],
           [15.6, b => { W.set('dtRoads', 1, b.instant); sweep(b, X.cities[0] - 0.02, X.cities[2] + 0.03, 1, 6); allFace(1); sfx(b, 'build', { soft: true, far: true }); }],
           [16.8, b => { if (!b.instant && GS.fx) { const p = cityPt(0); GS.fx.ring(p[0], p[1] - 6 * LS(1), [255, 226, 170], M() * 0.12, 2.2, 1.6); } }],
           [18, b => { if (!b.instant && GS.fx) { const p = cityPt(1); GS.fx.ring(p[0], p[1] - 6 * LS(1), [255, 226, 170], M() * 0.12, 2.2, 1.6); } }],
@@ -2112,30 +2202,44 @@
       apply(c) {
         T(c, [
           [0.3, b => { W.goTo(0.44, 10, b.instant); walk('stray', X.stray, { speed: 0.028 }); face('shepherd', 1); sfx(b, 'bleat', { soft: true }); }],
-          [5.2, b => {
+          [3.2, b => {
             add('finder', { label: '以色列人', sex: 'm', age: 'adult', x: X.crowd0 + 0.01, facing: -1, robe: ROBE.finder, glow: 0.2, v: 0.44, from: b.instant ? 'none' : 'fade' });
-            walk('finder', X.stray + 0.018, { speed: 0.05 });
+            walk('finder', X.stray + 0.018, { speed: Math.max(0.05, (X.crowd0 + 0.01 - X.stray - 0.018) / 3.8) });   // 约七秒时找到（横竖屏一样）
             sfx(b, 'bleat', { soft: true });
           }],
-          [12.6, b => {
-            // 牵回来：走到羊群靠营的一边（空地上，在羊群之前）
+          [7.6, b => {
+            // 牵回来：走到羊群靠营的一边（空地上，在羊群之前）（22:1 那一句正显出）
             face('finder', 1);
             follow('stray', 'finder', 0.02);
-            walk('finder', X.meetF, { speed: 0.03 });
+            walk('finder', X.meetF, { speed: Math.max(0.03, (X.meetF - X.stray - 0.018) / 3.8) });
             vTo(b, 'finder', 0.56);
+            const f = fig('finder'); if (f) beamAt(b, f.nx, footOf(f), { dur: 4, w: 56, r: 0.1 });
           }],
-          [14.4, b => { walk('shepherd', X.meetS, { speed: 0.018 }); vTo(b, 'shepherd', 0.56); }],
-          [17, () => { face('shepherd', -1); }],
-          [19.5, b => {
+          [8.6, b => { walk('shepherd', X.meetS, { speed: 0.018 }); vTo(b, 'shepherd', 0.56); }],
+          [10.5, () => { face('shepherd', -1); }],
+          [12, b => {
             follow('stray', null);
             walk('stray', X.flock1 - 0.01, { speed: 0.02, pose: 'graze' });
             face('shepherd', -1); face('finder', 1);
             pose('shepherd', 'bow');
-            beamAt(b, (X.meetF + X.meetS) / 2, gY(2, X.meetS) + 0.56 * Math.max(0, W.h - gY(2, X.meetS)) * 0.8, { dur: 5, w: 80, r: 0.16 });
+            const fy = gY(2, X.meetS) + 0.56 * Math.max(0, W.h - gY(2, X.meetS)) * 0.8;
+            beamAt(b, (X.meetF + X.meetS) / 2, fy, { dur: 5, w: 80, r: 0.16 });
+            if (!b.instant && GS.fx) {
+              // 交回的那只羊：一圈光
+              GS.fx.ring((X.meetF + X.meetS) / 2 * W.w, fy - 8 * LS(2), [255, 240, 200], M() * 0.06, 1.8, 1.8);
+              GS.fx.sparkle((X.meetF + X.meetS) / 2 * W.w, fy - 10 * LS(2), 22, [255, 240, 206], 16 * LS(2), 'air');
+            }
             sfx(b, 'bleat', { soft: true });
           }],
-          [22.5, () => { pose('shepherd', 'stand'); embraceSoft('shepherd', 'finder'); }],
-          [26, b => {
+          [14.5, () => { pose('shepherd', 'stand'); embraceSoft('shepherd', 'finder'); }],
+          // 咒诅变为祝福（23:5）：金光扫过河那边的地
+          [15.4, b => { sweep(b, 1.02, 0.55, 1, 5); sfx(b, 'harp', { soft: true }); }],
+          // 忘下的一捆，要留给寄居的与孤儿寡妇（24:19）：光落在松开手时见过的那三个人身上
+          [23, b => {
+            const ws = ['stranger', 'widow', 'orphan'].map(fig).filter(Boolean);
+            if (ws.length) { const xs = ws.reduce((a, f) => a + f.nx, 0) / ws.length; beamAt(b, xs, footOf(ws[1] || ws[0]), { dur: 5.5, w: 90, r: 0.14 }); }
+          }],
+          [19, b => {
             pose('finder', 'stand'); pose('shepherd', 'stand');
             walk('finder', X.crowd0 + 0.02, { speed: 0.03 }); vTo(b, 'finder', 0.05);
             walk('shepherd', X.shepherd, { speed: 0.02 }); vTo(b, 'shepherd', 0.42);

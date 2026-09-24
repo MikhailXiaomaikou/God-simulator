@@ -68,6 +68,7 @@
     etHidden: ['exp', 0.3],     // 隐藏的光（「从别处」）
     etBanner: ['exp', 0.6],     // 王宫的旗
     etHLamp: ['exp', 0.6],      // 哈曼家里的灯（5:10–14：他与细利斯在灯前）
+    etUpright: ['exp', 0.8],    // 惟独末底改站着（3:2）：他身上一层安静的光
   };
   for (const k in LVL) W.defineLevel(k, LVL[k][0], LVL[k][1]);
 
@@ -1884,6 +1885,7 @@
     // 金光落在王后身上
     aura(ctx, 'esther', SP && SP.gold, 40, W.lv.etGold * 0.3 * (1 - 0.7 * W.lv.etScepter) + W.lv.etCrownE * 0.08);
     aura(ctx, 'mordecai', SP && SP.gold, 38, W.lv.etCrownM * 0.3);
+    aura(ctx, 'mordecai', SP && SP.pale, 52, W.lv.etUpright * 0.5);
     drawStream(ctx);
     drawScepter(ctx);
     crown(ctx, 'king', 1, 'king');
@@ -2087,7 +2089,8 @@
       if (W.lv.etBanquet > 0.5) consider('筵席', P_.table * W.w, FY(P_.table) - 10 * pk);
       if (W.lv.etProv > 0.5) { const p = provModel().pts[80]; if (p) { const q = provXY(p); consider('一百二十七省', q[0], q[1]); } }
       // 签轮的名字标在轮下（不压在轮中间的「普珥」上）
-      if (W.lv.etLots > 0.3) { const g = ringGeom(); consider(W.lv.etPur > 0.5 ? '普珥日' : '普珥', g.cx, g.cy + g.r * 1.35); }
+      // 轮被日月遮隐时（lotsVeil），名也不标，免得一个名字悬在空中
+      { const g = ringGeom(); if (W.lv.etLots * lotsVeil(g.cx, g.cy, g.r) > 0.3) consider(W.lv.etPur > 0.5 ? '普珥日' : '普珥', g.cx, g.cy + g.r * 1.35); }
       return best;
     },
   };
@@ -2376,13 +2379,17 @@
         const t0 = walkT(P_.court0, hx, 0.03), tA = t0 + 4.2 + walkT(hx, hG, 0.03);
         // 朝门的臣仆站在门外的宽阔处（末底改就在他们中间），都向着门洞里的哈曼俯伏；只有末底改站着
         const nS = port() ? 3 : 4;
-        const sx = slots(hG + 0.02, P_.st1, nS, P_.seat, port() ? 0.018 : 0.016);
+        const sx = slots(hG + 0.02, P_.st1, nS, null, 0);
+        // 末底改走到朝门之前（门的左前方，离看的人近些），好让人一眼看见那个站着的人
+        const mX = P_.gate - (port() ? 0.03 : 0.022), mV = 0.3;
         T(c, [
           [0, b => {
             W.goTo(0.52, 8, b.instant);
             add('haman', hamanLook({ x: P_.court0 + 0.004, facing: 1, glow: 0.25 }));
             walk('haman', hx, { speed: 0.03 });
+            add('mordecai', { v: mV }); walk('mordecai', mX, { speed: 0.03, pose: 'sit' });
           }],
+          [walkT(P_.seat, mX, 0.03) + 0.3, () => { face('mordecai', 1); }],
           [t0 + 0.4, b => { pose('haman', 'bow'); face('haman', 1); sfx(b, 'harp', { soft: true }); }],
           [t0 + 2.2, b => {
             pose('haman', 'raise'); glow('haman', 0.6);
@@ -2392,11 +2399,20 @@
           }],
           [t0 + 4.2, () => { pose('haman', 'stand'); walk('haman', hG, { speed: 0.03 }); }],
           // 哈曼将到：末底改起来站着，面向他
-          [tA - 1.6, () => { pose('mordecai', 'stand'); face('mordecai', -1); glow('mordecai', 0.75); }],
-          [tA + 0.3, b => { face('haman', 1); cface('servants', hG); cpose('servants', 'bow'); sfx(b, 'crowd', { soft: true }); }],
-          [tA + 2.4, b => { face('haman', 1); W.set('etHWrath', 1, b.instant); sfx(b, 'fire', { low: true }); }],
+          [tA - 1.6, () => { pose('mordecai', 'stand'); face('mordecai', 1); glow('mordecai', 0.75); }],
+          [tA + 0.3, b => {
+            face('haman', 1); cface('servants', hG); cpose('servants', 'bow'); sfx(b, 'crowd', { soft: true });
+            // 众人都俯伏，惟独末底改站着：他身上一层安静的光，一圈柔和的环
+            W.set('etUpright', 1, b.instant); ringOn(b, 'mordecai', [226, 232, 255], 0.09, 0.5);
+          }],
+          [tA + 2.4, b => {
+            // 哈曼转过身来，看见末底改不跪不拜，就怒气填胸（3:5）
+            face('haman', -1); W.set('etHWrath', 1, b.instant); sfx(b, 'fire', { low: true });
+            ringOn(b, 'haman', [230, 90, 70], 0.1, 0.45); ringOn(b, 'mordecai', [226, 232, 255], 0.07, 0.5);
+          }],
           [Math.max(22, tA + 6.5), b => { W.set('etShadow', 0.45, b.instant); W.set('etHWrath', 0.4, b.instant); walk('haman', hx, { speed: 0.035 }); cpose('servants', 'stand'); }],
-          [Math.max(26, tA + 9.5), () => { pose('mordecai', 'sit'); glow('mordecai', 0.45); face('haman', 1); }],
+          [Math.max(24, tA + 8), b => { W.set('etUpright', 0, b.instant); add('mordecai', { v: 0 }); walk('mordecai', P_.seat, { speed: 0.03, pose: 'sit' }); }],
+          [Math.max(24, tA + 8) + walkT(mX, P_.seat, 0.03) + 0.3, () => { glow('mordecai', 0.45); face('mordecai', -1); face('haman', 1); }],
         ]);
       },
     },

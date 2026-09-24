@@ -402,24 +402,51 @@
     const dy = mtSink();
     const C = mtComp(dy);
     if (C) ctx.drawImage(C.comp, C.X0, C.Y0, C.cw, C.ch);
-    // 水线：山与水相接处，水里一道淡淡的倒影与一道白沫
+    // 水线：山与水相接处，水里一道淡淡的倒影与一道白沫——
+    // 只画在露出水面的那几段山脚下（没在水里的鞍部不画）；倒影的长短随山在那里露出多高，
+    // 每一段的两端都渐渐收拢、淡去（不是一整块硬边的长方形），白沫微微起伏
     const span = mtSpan(dy);
     if (!span) return;
-    const ga = ctx.createLinearGradient(0, wl, 0, wl + 0.025 * W.h);
-    ga.addColorStop(0, rgba(W.shade(ROCK, 0.6), 0.22));
-    ga.addColorStop(1, rgba(W.shade(ROCK, 0.6), 0));
-    ctx.fillStyle = ga;
-    ctx.fillRect(span[0], wl, span[1] - span[0], 0.025 * W.h);
-    ctx.beginPath();
-    let on = false;
-    for (let i = 0; i < n; i++) {
-      const em = H[i] > dy + 0.5;
-      const x = i * st, y = wl - 0.5 + Math.sin(x * 0.05 + S.clock * 2) * 0.8;
-      if (em && !on) { ctx.moveTo(x, y); on = true; } else if (em) ctx.lineTo(x, y); else on = false;
-    }
-    ctx.strokeStyle = W.shadeCSS(FOAM, 0.3, 0.3 + 0.2 * W.lv.flSea);
+    const rh = 0.025 * W.h, hRef = Math.max(4, 0.1 * MT.Hm);
+    const rock = W.shade(ROCK, 0.6), foamC = W.shade(FOAM, 0.3), fa = 0.3 + 0.2 * W.lv.flSea, wv = 0.8 * uu();
+    const ga = ctx.createLinearGradient(0, wl, 0, wl + rh);
+    ga.addColorStop(0, rgba(rock, 0.22));
+    ga.addColorStop(1, rgba(rock, 0));
     ctx.lineWidth = 1.3 * uu();
-    ctx.stroke();
+    ctx.lineCap = 'round';
+    let i = 0;
+    while (i < n) {
+      if (H[i] - dy <= 1) { i++; continue; }
+      let j = i;
+      while (j + 1 < n && H[j + 1] - dy > 1) j++;
+      if (j - i >= 1) {
+        const xa = i * st - st * 0.5, xb = j * st + st * 0.5, wd = xb - xa;
+        const fade = Math.max(6, Math.min(0.25 * wd, 0.05 * W.w));
+        ctx.beginPath();
+        ctx.moveTo(xa, wl);
+        for (let q = i; q <= j; q++) {
+          const x = q * st, e = sstep(0, 1, (x - xa) / fade) * sstep(0, 1, (xb - x) / fade);
+          ctx.lineTo(x, wl + rh * (0.2 + 0.8 * c01((H[q] - dy) / hRef)) * e);
+        }
+        ctx.lineTo(xb, wl);
+        ctx.closePath();
+        ctx.fillStyle = ga;
+        ctx.fill();
+        const f0 = Math.min(0.45, fade / wd);
+        const gf = ctx.createLinearGradient(xa, 0, xb, 0);
+        gf.addColorStop(0, rgba(foamC, 0)); gf.addColorStop(f0, rgba(foamC, fa));
+        gf.addColorStop(1 - f0, rgba(foamC, fa)); gf.addColorStop(1, rgba(foamC, 0));
+        ctx.beginPath();
+        for (let q = i; q <= j; q++) {
+          const x = q * st, y = wl - 0.5 + (Math.sin(x * 0.05 + S.clock * 2) + 0.6 * Math.sin(x * 0.17 - S.clock * 1.3)) * wv;
+          if (q === i) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.strokeStyle = gf;
+        ctx.stroke();
+      }
+      i = j + 1;
+    }
+    ctx.lineCap = 'butt';
   }
 
   // ════════════════════════════════════════════════════════════
@@ -479,8 +506,15 @@
   }
   function rampFoot(A, out) {
     out = out || [0, 0];
+    if (A.mount) {
+      // 停在山上：跳板自门槛斜斜地放到船身前的山坡上（看得见的一块板，不是贴着船底的一条线）
+      const s0 = arkPt(A, DX + DW * 0.5, SILL, out);
+      const x = s0[0] + 0.2 * A.L, y0 = s0[1];
+      out[0] = x; out[1] = Math.max(y0 + 0.075 * A.L, surfY(x) + 0.012 * A.L);
+      return out;
+    }
     const p = arkPt(A, DX + DW * 0.5 + 0.24, 0, out);
-    p[1] = A.mount ? Math.max(A.y - 0.01 * A.L, surfY(p[0]) + 0.004 * A.L) : gY(p[0]);
+    p[1] = gY(p[0]);
     return p;
   }
   // 方舟换位（漂起、漂去、停在山上）
@@ -712,18 +746,36 @@
     }
     ctx.restore();
 
-    // ── 跳板 ──
+    // ── 跳板：一块有厚度、带横档的木板 ──
     const ra = W.lv.arkRamp;
     if (ra > 0.01 && b > 0.99) {
       const s1 = arkPt(A, DX + DW * 0.5, SILL, T1), f = rampFoot(A, T2);
       const ex = lerp(s1[0], f[0], ra), ey = lerp(s1[1], f[1], ra);
-      ctx.lineCap = 'butt';
-      ctx.strokeStyle = W.shadeCSS(mix(WOOD, PITCH, pitch * 0.6), dp);
-      ctx.lineWidth = Math.max(2, 0.016 * L);
-      ctx.beginPath(); ctx.moveTo(s1[0], s1[1] + 0.006 * L); ctx.lineTo(ex, ey - 0.004 * L); ctx.stroke();
+      const th = Math.max(2.5, (A.mount ? 0.03 : 0.018) * L);
+      const len = Math.hypot(ex - s1[0], ey - s1[1]) || 1, ux = (ex - s1[0]) / len, uy = (ey - s1[1]) / len;
+      const nx = uy, ny = -ux;                                   // 板面朝上的一侧
+      const x0 = s1[0], y0 = s1[1] + 0.004 * L;
+      ctx.fillStyle = W.shadeCSS(mix(WOOD, PITCH, pitch * 0.6), dp);
+      ctx.beginPath();
+      ctx.moveTo(x0, y0); ctx.lineTo(ex, ey); ctx.lineTo(ex - nx * th, ey - ny * th); ctx.lineTo(x0 - nx * th, y0 - ny * th);
+      ctx.closePath(); ctx.fill();
+      // 板下的影
+      ctx.strokeStyle = W.shadeCSS(PITCH, dp, 0.55);
+      ctx.lineWidth = Math.max(1, 0.25 * th);
+      ctx.beginPath(); ctx.moveTo(x0, y0 + 0.3 * th); ctx.lineTo(ex, ey + 0.3 * th); ctx.stroke();
+      // 横档
+      ctx.strokeStyle = W.shadeCSS(RIB, dp);
+      ctx.lineWidth = Math.max(1, 0.28 * th);
+      const nC = Math.max(2, Math.floor(len / Math.max(5, 2.6 * th)));
+      ctx.beginPath();
+      for (let i = 1; i < nC; i++) {
+        const t = i / nC, cx = x0 + (ex - x0) * t, cy = y0 + (ey - y0) * t;
+        ctx.moveTo(cx - nx * th * 1.05, cy - ny * th * 1.05); ctx.lineTo(cx - nx * th * 0.55, cy - ny * th * 0.55);
+      }
+      ctx.stroke();
+      // 迎光的上沿
       ctx.strokeStyle = cRim; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(s1[0], s1[1] - 0.001 * L); ctx.lineTo(ex, ey - 0.011 * L); ctx.stroke();
-      ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(x0 - nx * th, y0 - ny * th); ctx.lineTo(ex - nx * th, ey - ny * th); ctx.stroke();
     }
     // ── 吃水线：一道起伏的水沫 ──
     if (A.float) {
@@ -1033,11 +1085,18 @@
   const EXIT_SEQ = ['sheep', 'ox', 'horse', 'camel', 'deer', 'goat', 'lion', 'elephant', 'bear', 'giraffe', 'rabbit', 'ostrich'];
   function makeExit() {
     const list = [];
-    EXIT_SEQ.forEach((k, i) => { for (let m = 0; m < 2; m++) list.push({ kind: k, male: m === 0, delay: i * 1.05 + m * 0.3, far: m === 1 }); });
+    EXIT_SEQ.forEach((k, i) => { for (let m = 0; m < 2; m++) list.push({ kind: k, male: m === 0, delay: i * 0.85 + m * 0.3, far: m === 1 }); });
     return list;
   }
   const exitEndX = () => clamp(MT.xc - 0.12 * W.w, W.w * 0.44, W.w * 0.7);
   const EP = { n: 0, x: new Float32Array(6), y: new Float32Array(6), d: new Float32Array(6), total: 1 };
+  // 山路：门 → 门槛 → 跳板 → 跳板脚下 → 斜斜向右下到拐弯处 → 再斜斜向左下，走到近岸的地上（门的正下方）
+  function trailPts(A, f) {
+    const L = A.L;
+    const x5 = clamp(f[0] - 0.2 * L, 4, W.w - 4), y5 = gY(x5);
+    const x4 = clamp(f[0] + 0.45 * L, 4, W.w - 4), y4 = lerp(f[1], y5, 0.45);
+    return [x4, y4, x5, y5];
+  }
   function exitPath() {
     const A = arkNow();
     if (!A.vis) return null;
@@ -1047,15 +1106,32 @@
     EP.x[1] = sill[0]; EP.y[1] = sill[1];
     const f = rampFoot(A, T2);
     EP.x[2] = f[0]; EP.y[2] = f[1];
-    const xe = exitEndX(), ye = gY(xe);
-    EP.x[3] = lerp(f[0], xe, 0.3) + 0.03 * W.w; EP.y[3] = lerp(f[1], ye, 0.42);
-    EP.x[4] = lerp(f[0], xe, 0.7) - 0.01 * W.w; EP.y[4] = lerp(f[1], ye, 0.78);
-    EP.x[5] = xe; EP.y[5] = ye;
+    const tp = trailPts(A, f);
+    EP.x[3] = lerp(f[0], tp[0], 0.5); EP.y[3] = lerp(f[1], tp[1], 0.5);
+    EP.x[4] = tp[0]; EP.y[4] = tp[1];
+    EP.x[5] = tp[2]; EP.y[5] = tp[3];
     EP.n = 6; EP.d[0] = 0;
     for (let i = 1; i < 6; i++) EP.d[i] = EP.d[i - 1] + Math.hypot(EP.x[i] - EP.x[i - 1], EP.y[i] - EP.y[i - 1]);
     EP.total = Math.max(1, EP.d[5]);
     EP.s0 = A.s;
     return EP;
+  }
+  // 山坡上那条被踩出来的路（跳板放下之后）：一道淡淡的土色
+  function drawTrail(ctx, A) {
+    const ra = W.lv.arkRamp;
+    if (ra < 0.05 || !A.mount || W.lv.arkBuild < 0.99) return;
+    const f = rampFoot(A, T2), tp = trailPts(A, f);
+    const a = sstep(0.3, 1, ra) * (0.55 + 0.25 * W.daylight);
+    ctx.save();
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.beginPath(); ctx.moveTo(f[0], f[1]); ctx.lineTo(tp[0], tp[1]); ctx.lineTo(tp[2], tp[3] + 2);
+    ctx.strokeStyle = W.shadeCSS([150, 132, 106], 0.3, 0.35 * a);
+    ctx.lineWidth = Math.max(3, 0.03 * A.L);
+    ctx.stroke();
+    ctx.strokeStyle = W.shadeCSS([196, 178, 146], 0.3, 0.4 * a);
+    ctx.lineWidth = Math.max(1, 0.01 * A.L);
+    ctx.stroke();
+    ctx.restore();
   }
   function exitAt(u, out) {
     const d = c01(u) * EP.total;
@@ -1071,7 +1147,7 @@
   function drawExit(ctx) {
     const E = S.exit;
     if (!E || !exitPath()) return;
-    const v = 34 * uu() * narrow();
+    const v = 44 * uu() * narrow();
     for (let pass = 0; pass < 2; pass++) {
       for (const w of E.list) {
         if (w.far !== (pass === 0)) continue;
@@ -1927,7 +2003,7 @@
     if (pass === 'seaNear') {
       drawMountain(ctx);
       const A = arkNow();
-      if (A.vis && A.mount) drawArk(ctx, A);
+      if (A.vis && A.mount) { drawTrail(ctx, A); drawArk(ctx, A); }
     } else if (pass === 'near') {
       const A = arkNow();
       if (A.vis && !A.mount) drawArk(ctx, A);
@@ -2453,7 +2529,7 @@
         ],
         apply(c) {
           spiritRing(c, [220, 250, 200]);
-          const walkDur = 7.5;
+          const walkDur = 8.5;
           const beats = [
             [0, b => {
               S.flights = inst(b) ? [] : S.flights;
@@ -2482,7 +2558,7 @@
             }],
             [13, b => { S.exit = inst(b) ? null : { t0: S.clock, list: makeExit() }; sfx('bleat', b, { soft: true }); }],
             [17, b => { const xe = exitEndX(); allPops(1, xe, W.ridgeBaseY(2, xe), inst(b)); }],
-            [30, b => { S.exit = null; }],
+            [31.5, b => { S.exit = null; }],
           ];
           FAM.forEach((f, i) => {
             const t0 = 5 + i * 1.2;
@@ -2498,7 +2574,8 @@
             beats.push([t0 + 1.5, b => { cast().face(f.id, -1); }]);
             beats.push([t0 + walkDur + 0.15, b => {
               attach(f.id, null);
-              const xe = exitEndX() / W.w;
+              const A = arkNow();
+              const xe = (A.vis && A.mount ? trailPts(A, rampFoot(A, T2))[2] : exitEndX()) / W.w;
               cast().place(f.id, xe, 2);
               cast().walk(f.id, S.altarX + ALTAR_SPOT[f.id], { pose: 'stand', speed: 0.035 });
             }]);
@@ -2598,7 +2675,7 @@
             [0, b => {
               lv('rainbow', 0, b); lv('clouds', 0.5, b); lv('storm', 0, b); lv('rain', 0, b); lv('flFire', 0, b); lv('flGold', 0, b);
               lv('flVine', 1, b);
-              avoid([[0.38, 0.6], [0.83, 0.95]]);
+              avoid([[0.38, 0.93]]);             // 子孙、葡萄园、挪亚一家与帐棚：走兽都让开（只留帐棚以西的一小片地）
               S.tentT0 = inst(b) ? -1e9 : S.clock;
               for (const f of FAM) cast().pose(f.id, 'stand');
               cast().walk('noah', 0.7, { pose: 'kneel', speed: 0.035 });
@@ -2606,6 +2683,12 @@
               cast().crowd('fl:kin', { n: 7, x0: 0.4, x1: 0.58, layer: 2, label: '挪亚的子孙', from: inst(b) ? 'none' : 'fade' });
             }],
             [6, b => { W.passDay(10, inst(b)); }],
+            [10.5, () => {
+              // 夜里：走兽已分散在全地，近岸只留下几只（在让开的一片之外）；否则大兽无处可让，挤在葡萄园与一家人跟前
+              const x = W.w * 0.97, y = W.ridgeBaseY(2, x);
+              W.setPop('cattle', 3, x, y, true); W.setPop('beast', 2, x, y, true);
+              GS.book.resync();
+            }],
             [15, b => { cast().walk('noah', 0.875, { pose: 'sit', speed: 0.03 }); cast().walk('noahW', 0.855, { pose: 'stand', speed: 0.03 }); }],
             [17, b => { time(0.72, 7, b); }],
             [20, b => { cast().pose('noah', 'lie'); for (const id of ['shem', 'ham', 'japheth']) cast().face(id, 0.875); }],

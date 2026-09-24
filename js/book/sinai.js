@@ -1911,6 +1911,57 @@
   //  每帧：天象的节拍（闪电、角声、震动）与点缀的粒子（皆不入状态）
   // ════════════════════════════════════════════════════════════
   let boltT = 1, hornT = 2, shakeT = 1, streamAcc = 0, eagleAcc = 0, eagleDone = -1, buildT = 1, goldAcc = 0, lastBound = 0, emberAcc = 0, calfAcc = 0;
+  // 山顶飞起的火星（纯点缀，不入状态）：小圆的光点
+  const EMB = [];
+  function updEmbers(dt) {
+    const su = SU();
+    for (let i = EMB.length - 1; i >= 0; i--) {
+      const e = EMB[i];
+      e.life += dt;
+      if (e.life >= e.max) { EMB.splice(i, 1); continue; }
+      if (e.home) {
+        if (e.ox == null) { e.ox = e.x; e.oy = e.y; }
+        const q = U.easeInOut(clamp(e.life / (e.max * 0.7), 0, 1));
+        const mx = (e.ox + e.tx) / 2 + (e.ty - e.oy) * e.arc, my = (e.oy + e.ty) / 2 - (e.tx - e.ox) * e.arc;
+        e.x = lerp(lerp(e.ox, mx, q), lerp(mx, e.tx, q), q); e.y = lerp(lerp(e.oy, my, q), lerp(my, e.ty, q), q);
+        continue;
+      }
+      const k = Math.exp(-0.6 * dt);
+      e.vx *= k; e.vy = e.vy * k - 8 * su * dt;
+      e.x += e.vx * dt; e.y += e.vy * dt;
+    }
+  }
+  function drawEmbers(ctx) {
+    if (!EMB.length) return;
+    // 火势：山顶的火小下去，火星随之淡去；白日的晴天里只剩一点点（夜里、密云与幽暗里才亮）
+    const fire = smoothstep(0.3, 0.75, W.lv.snFire);
+    const dark = clamp(Math.max(nightK(), W.lv.storm * 0.95, W.lv.gloom * 1.6), 0, 1);
+    const K = fire * (0.22 + 0.78 * dark);
+    const sp = glowSpr('ember', [255, 176, 96], 0.3);
+    ctx.globalCompositeOperation = 'lighter';
+    const spH = glowSpr('streamMote', [255, 228, 170], 0.3);
+    for (const e of EMB) {
+      const q = e.life / e.max;
+      if (e.home) {
+        const a = Math.min(1, e.life * 3) * (q > 0.7 ? 1 - (q - 0.7) / 0.3 : 1) * (0.55 + 0.45 * dark);
+        if (a < 0.01) continue;
+        glowAt(ctx, spH, e.x, e.y, e.r * 3.4, a * 0.5);
+        ctx.globalAlpha = Math.min(1, a * 0.9);
+        ctx.fillStyle = 'rgb(255,236,190)';
+        ctx.beginPath(); ctx.arc(e.x, e.y, e.r, 0, TAU); ctx.fill();
+        continue;
+      }
+      const tw = 0.65 + 0.35 * Math.sin(W.t * 17 + e.ph);
+      const a = K * (1 - q) * (1 - q) * tw;
+      if (a < 0.01) continue;
+      glowAt(ctx, sp, e.x, e.y, e.r * 3.2, a * 0.55);
+      ctx.globalAlpha = Math.min(1, a);
+      ctx.fillStyle = 'rgb(255,' + e.g + ',110)';
+      ctx.beginPath(); ctx.arc(e.x, e.y, e.r * (1 - 0.4 * q), 0, TAU); ctx.fill();
+    }
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 1;
+  }
   function update(dt) {
     if (!cur()) return;
     if (W.replaying) return;
@@ -1960,19 +2011,25 @@
         streamAcc += dt * 16;
         while (streamAcc >= 1) {
           streamAcc -= 1;
-          safe('sinai.stream', () => fx().add({ x: m.sx + rand(-10, 10), y: m.sy - m.H * 0.02, tx: p._x + rand(-4, 4), ty: p._y - p._h * 0.8, home: true, arc: rand(-0.25, 0.1), max: rand(2.6, 3.6), size: rand(1, 2), c: [255, 228, 170], pass: 'air' }));
+          // 典章的字流：小圆的金光点（本卷自己画），沿弧线流到摩西
+          if (EMB.length >= 150) EMB.shift();
+          EMB.push({ home: true, x: m.sx + rand(-10, 10), y: m.sy - m.H * 0.02, tx: p._x + rand(-4, 4), ty: p._y - p._h * 0.8, arc: rand(-0.25, 0.1),
+            life: 0, max: rand(2.6, 3.6), r: rand(0.8, 1.4) * SU(), ph: rand(0, TAU) });
         }
       }
     }
-    // 山顶的火：火星一串一串往上飞，随风向西
+    // 山顶的火：火星一串一串往上飞，随风向西（本卷自己画成小圆的光点，不是方的像素；
+    // 白日里淡，火小下去便随着淡去，不留在白天的天上）
     const fk = W.lv.snFire;
+    updEmbers(dt);
     if (fk > 0.4 && !W.reduced) {
       emberAcc += dt * 16 * fk;
       const su = SU();
       while (emberAcc >= 1) {
         emberAcc -= 1;
-        safe('sinai.ember', () => fx().add({ x: m.sx + rand(-1, 1) * m.HW * 0.07, y: m.sy - m.H * rand(0, 0.06), vx: (rand(-40, 14) - 40 * W.lv.gale) * su, vy: -rand(50, 130) * su,
-          grav: -8 * su, drag: 0.6, max: rand(1.3, 2.8), size: rand(0.8, 1.9), c: [255, Math.round(rand(140, 200)), 90], pass: 'air', twinkle: true }));
+        if (EMB.length >= 150) EMB.shift();
+        EMB.push({ x: m.sx + rand(-1, 1) * m.HW * 0.07, y: m.sy - m.H * rand(0, 0.06), vx: (rand(-30, 12) - 30 * W.lv.gale) * su, vy: -rand(45, 110) * su,
+          life: 0, max: rand(1.1, 2.1), r: rand(0.9, 1.7) * su, g: Math.round(rand(150, 210)), ph: rand(0, TAU) });
       }
     }
     // 金牛犊上升起的假的金光点
@@ -2619,6 +2676,7 @@
           drawColumn(ctx);
         } else if (pass === 'air') {
           drawAirFire(ctx);
+          drawEmbers(ctx);
           drawBolts(ctx);
           if (S.tabs === 'moses') drawHeld(ctx, 'moses', 0);
           drawShine(ctx);
@@ -2629,8 +2687,8 @@
           drawEagle(ctx);
         }
       },
-      reset() { WAVES.length = 0; BOLTS.length = 0; },
-      restore() { WAVES.length = 0; BOLTS.length = 0; layout(); lastBound = Math.floor(W.lv.snBound * lay().bound.length); eagleDone = S.eagleT0; },
+      reset() { WAVES.length = 0; BOLTS.length = 0; EMB.length = 0; },
+      restore() { WAVES.length = 0; BOLTS.length = 0; EMB.length = 0; layout(); lastBound = Math.floor(W.lv.snBound * lay().bound.length); eagleDone = S.eagleT0; },
       sig() {
         return { tabs: S.tabs, tabN: S.tabN, tabsNew: S.tabsNew, pat: S.patN, lamp: S.lampLit, inc: S.incense, calf: S.calf, shards: S.shards, mPos: S.mPos };
       },

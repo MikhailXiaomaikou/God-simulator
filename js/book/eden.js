@@ -34,7 +34,8 @@
 
   // 人的颜色：起初赤身露体并不羞耻（带着光）；眼睛明亮之后；皮子作的衣服
   const SKIN = { m: [182, 146, 118], f: [194, 156, 134] };
-  const SHAME = { m: [118, 104, 80], f: [128, 110, 88] };
+  // 眼睛明亮之后：无花果树的叶子编做的裙子（叶绿，比园中的草浅些、黄些，远看也认得出）
+  const SHAME = { m: [112, 136, 64], f: [122, 144, 70] };
   const HIDE = { m: [124, 88, 58], f: [138, 98, 66] };
 
   // 本卷的局部状态（只在 setup / apply / 情节里设定）
@@ -1577,7 +1578,10 @@
               if (!inst(b)) { const p = personXY('eve'); if (p) fruitMote(p[0], p[1] - personH('eve') * 0.55, 'adam'); }
             }],
             [9.6, b => {
-              cast().pose('adam', 'bow'); cast().pose('eve', 'bow');
+              // 才知道自己是赤身露体：二人彼此转过身去，蹲伏下来（不再相对）；身上是无花果叶编的裙子
+              const L = layout();
+              walk('adam', L.mA - 0.014, 0.02, 'kneel');
+              cast().face('eve', 1); cast().pose('eve', 'kneel');
               robe('adam', SHAME.m); robe('eve', SHAME.f); cast().glow('adam', 0.2); cast().glow('eve', 0.2);
               lv('edenSnakeSh', 0.25, b);
             }],
@@ -1606,11 +1610,10 @@
       {
         kind: 'ask', utter: '你在哪里？', cmd: 'find 园中 -name 亚当', ref: '3:9–13', hold: 2.8,
         verse: [
-          { text: '耶和华神呼唤那人，对他说：「你在哪里？」', ref: '创世记 3:9', hold: 5.5 },
-          { text: '他说：「我在园中听见你的声音，我就害怕；<br>因为我赤身露体，我便藏了。」', ref: '创世记 3:10', hold: 6.5 },
-          { text: '耶和华说：「谁告诉你赤身露体呢？<br>莫非你吃了我吩咐你不可吃的那树上的果子吗？」', ref: '创世记 3:11', hold: 7.5 },
+          { text: '耶和华神呼唤那人，对他说：「你在哪里？」<br>他说：「我在园中听见你的声音，我就害怕；因为我赤身露体，我便藏了。」', ref: '创世记 3:9–10', hold: 8.5 },
+          { text: '耶和华说：「谁告诉你赤身露体呢？<br>莫非你吃了我吩咐你不可吃的那树上的果子吗？」', ref: '创世记 3:11', hold: 7 },
           { text: '那人说：「你所赐给我、与我同居的女人，<br>她把那树上的果子给我，我就吃了。」', ref: '创世记 3:12', hold: 6.5 },
-          { text: '耶和华神对女人说：「你作的是什么事呢？」<br>女人说：「那蛇引诱我，我就吃了。」', ref: '创世记 3:13', hold: 7 },
+          { text: '耶和华神对女人说：「你作的是什么事呢？」<br>女人说：「那蛇引诱我，我就吃了。」', ref: '创世记 3:13', hold: 6.5 },
         ],
         apply(c) {
           T(c, [
@@ -1618,12 +1621,15 @@
               const L = layout(); avoid([L.tl - 0.04, L.hide + 0.08]);
               if (!inst(b)) { fx().ring(W.spirit.x, W.spirit.y, [255, 246, 226], M() * 0.9, 3.4, 1.4); sfx('wind', b, { soft: true }); }
             }],
-            [3, () => walk('adam', layout().hide - 0.062, 0.018, 'bow')],
-            [4.2, () => walk('eve', layout().hide - 0.036, 0.016, 'bow')],
-            [21, () => { cast().face('adam', 'eve'); cast().pose('adam', 'point', { stop: true }); }],
-            [25.5, () => cast().pose('adam', 'bow', { stop: true })],
-            [28, () => { cast().face('eve', layout().tk); cast().pose('eve', 'point', { stop: true }); }],
-            [32, () => cast().pose('eve', 'bow', { stop: true })],
+            // 二人从藏身的树木中出来，走到园子当中（两棵树之间的空地上），低着头；
+            // 彼此隔开些（相对低头时像一道石拱），也不贴着树干；藏身的灌木在前景，出来才看得见
+            [3, () => walk('adam', layout().mA - 0.004, 0.02, 'bow')],
+            [4.2, () => walk('eve', layout().mE + 0.006, 0.02, 'bow')],
+            // 3:12 那人推给女人；3:13 女人推给蛇——说完便各自跪下，都朝着园子当中
+            [18.6, () => { cast().face('adam', 'eve'); cast().pose('adam', 'point', { stop: true }); }],
+            [23, () => { cast().face('adam', -1); cast().pose('adam', 'kneel', { stop: true }); }],
+            [26.6, () => { cast().face('eve', layout().tk); cast().pose('eve', 'point', { stop: true }); }],
+            [30.6, () => cast().pose('eve', 'kneel', { stop: true })],
           ]);
         },
       },

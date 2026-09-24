@@ -15,7 +15,7 @@
  * 献祭，立千夫长、百夫长……（18）。远处，神的山渐渐显出——下一卷的西奈。
  *
  * 画面的方位：左 = 红海（东；日出于左）；远处海平线上是对岸的旷野；右 = 近地（以色列的营）、
- * 中丘与远山。一切位置都以画面宽度的比例记下；一切情节都可瞬间重演（恢复存档 / 提前言说）。
+ * 中丘与远山。海中的路在画面正中：路口在近岸的岸边，直通到海平线（横屏时经文在左边的海面上，不压在路上）。一切位置都以画面宽度的比例记下；一切情节都可瞬间重演（恢复存档 / 提前言说）。
  * ───────────────────────────────────────────────────────────── */
 (function (GS) {
   'use strict';
@@ -216,22 +216,27 @@
   }
 
   // ════════════════════════════════════════════════════════════
-  //  海中的路：一点透视（消失点在左边的海平线上，对岸就在那里）
-  //  深度 s：1 = 画面底（最近），0 = 海平线；横向 l：0 左墙脚 … 1 右墙脚
+  //  海中的路：一点透视（消失点在海平线上，对岸就在那里）
+  //  路在画面正中：路口就在近岸的岸边（营的前面），一直通到海平线——
+  //  横屏时经文在左边的海面上，分开的海、干地上的人与车都在经文与火柱之间，不在经文底下。
+  //  深度 s：1 = 路口（近岸的岸线），0 = 海平线；横向 l：0 左墙脚 … 1 右墙脚
   // ════════════════════════════════════════════════════════════
+  const MOUTH = 0.535, MOUTH_HW = 0.1, VANISH = 0.505;
   let G = null, Gkey = '';
   function corr() {
     const key = W.w + 'x' + W.h + 'x' + W.horizonY;
     if (G && Gkey === key) return G;
     Gkey = key;
-    const hz = W.horizonY, yb = W.h * 1.005;
-    // 近岸在画面底边的海岸线
+    const hz = W.horizonY, yb0 = W.h * 1.005;
+    // 近岸在画面底边的海岸线（风纹只在这以左的海面上）
     let xs = W.w * 0.33;
-    for (let i = 0; i <= 240; i++) { const x = (0.18 + 0.3 * i / 240) * W.w; if (W.ridgeBaseY(2, x) <= yb) { xs = x; break; } }
-    const xr = xs - 0.006 * W.w, xl = xr - 0.25 * W.w, vx = 0.175 * W.w;
-    // 横屏时经文在左下方：墙再高一些，让墙顶的白浪与透光的一带落在经文第一行之上，而不是穿过经文
-    const land = W.w > W.h && !PHN();
-    G = { hz, yb, xs, xr, xl, vx, wh: (land ? 1.3 : 1.1) * (yb - hz), mound: 0.07 * W.w, grad: {} };
+    for (let i = 0; i <= 240; i++) { const x = (0.18 + 0.3 * i / 240) * W.w; if (W.ridgeBaseY(2, x) <= yb0) { xs = x; break; } }
+    // 路口：近岸在路口处的岸线（再低两个像素，路口没入岸下）
+    const yb = Math.min(W.h * 0.97, Math.max(hz + 0.12 * W.h, gY(2, MOUTH) + 2));
+    // 竖屏的手机上画面窄：路口宽一些，墙矮一些（不成两根尖柱）
+    const pt = PORT(), hwm = (pt ? 0.17 : MOUTH_HW) * W.w;
+    const xl = MOUTH * W.w - hwm, xr = MOUTH * W.w + hwm, vx = VANISH * W.w;
+    G = { hz, yb, xs, xr, xl, vx, wh: (pt ? 1.15 : 1.6) * (yb - hz), mound: 0.03 * W.w, grad: {} };
     return G;
   }
   // 路与墙的渐变：按视口与此刻的颜色缓存（颜色随时辰缓缓变，取整后多帧共用一个）
@@ -247,13 +252,15 @@
   const cX = (g, s, l) => g.vx + s * (g.xl + l * (g.xr - g.xl) - g.vx);
 
   // 各深度处路的开合
-  const NS = 24, NX = 28;             // 0..NS：画面之内（s ≤ 1）；左墙再往画面外延伸到 NX，免得墙头像被刀切断
+  const NS = 24, NX = 28;             // 0..NS：路口以内（s ≤ 1）；路口左边的岸是斜下去的坡，干地与左墙再往岸下延伸到 NX
   const SS = [];
   for (let i = 0; i <= NS; i++) SS.push(0.012 + 0.988 * Math.pow(i / NS, 1.35));
-  SS.push(1.25, 1.55, 1.9, 2.3);
-  const GE = SS.map(() => ({ s: 0, cx: 0, hw: 0, y: 0, hh: 0, hr: 0, tp: 1, ox: 0, m: 0, wf: 0, hf: 0, ln: 0 }));
-  // 右墙近岸的一端不是刀切的竖面：墙头向岸边斜斜地塌下去、铺开，成为一堆斜入岸边的水
-  const heapR = s => (s >= 1 ? 1 : smoothstep(0.6, 1, s));
+  SS.push(1.07, 1.14, 1.22, 1.32);
+  const GE = SS.map(() => ({ s: 0, cx: 0, hw: 0, y: 0, hh: 0, hl: 0, hr: 0, tp: 1, tl: 1, ox: 0, oxl: 0, m: 0, wf: 0, hf: 0, ln: 0 }));
+  // 两墙近岸的一端都不是刀切的竖面：墙头向岸边斜斜地塌下去、铺开，成为一堆斜入岸边的水
+  // （右墙在路口处落到岸上；左墙顺着路口左边斜下去的岸坡，再往前一点才落下）
+  const heapR = s => (s >= 1 ? 1 : smoothstep(0.7, 1, s));
+  const heapL = s => (s >= 1.32 ? 1 : smoothstep(0.8, 1.28, s));
   function geomAt(g, s, out) {
     const p = W.lv.rsSea, c = W.lv.rsClose;
     const op = c01((p - 0.26 * (1 - s)) / 0.74);
@@ -270,10 +277,13 @@
     out.hw = s * (g.xr - g.xl) * 0.5 * wf;
     out.y = cY(g, s);
     out.hh = s * g.wh * hf;
-    const hq = heapR(s);
+    const hq = heapR(s), hl = heapL(s);
     out.tp = 1 - 0.92 * Math.pow(hq, 1.5);
     out.hr = out.hh * out.tp;
-    out.ox = Math.pow(hq, 0.85) * 0.17 * W.w * hf * (1 - ln);
+    out.ox = Math.pow(hq, 0.85) * 0.07 * W.w * hf * (1 - ln);
+    out.tl = 1 - 0.95 * Math.pow(hl, 1.4);
+    out.hl = out.hh * out.tl;
+    out.oxl = Math.pow(hl, 0.85) * 0.022 * W.w * hf * (1 - ln);
     out.m = s * g.mound * (0.25 + 0.75 * hf);
     out.wf = wf; out.hf = hf; out.ln = ln;
     return out;
@@ -288,7 +298,7 @@
     const e = geomAt(g, s, TMP);
     return [e.cx + (l - 0.5) * 2 * e.hw, e.y, e];
   }
-  const TMP = { s: 0, cx: 0, hw: 0, y: 0, hh: 0, hr: 0, tp: 1, ox: 0, m: 0, wf: 0, hf: 0, ln: 0 };
+  const TMP = { s: 0, cx: 0, hw: 0, y: 0, hh: 0, hl: 0, hr: 0, tp: 1, tl: 1, ox: 0, oxl: 0, m: 0, wf: 0, hf: 0, ln: 0 };
 
   // 水墙的颜色（按此刻的光）：夜里的水是深的靛青，只有墙顶的薄水透着月光与火光
   const WN = { base: [3, 12, 26], low: [6, 24, 44], mid: [10, 36, 62], up: [16, 54, 84], lip: [40, 108, 134], foam: [206, 226, 240] };
@@ -348,18 +358,18 @@
       // 墙脚与沙相接处是一道曲折的线，不是尺子画的直边
       const jig = (i, sd) => (2 + 3.5 * rt(i * 7 + sd * 37 + 1500)) * Math.sin(i * 1.9 + sd * 2.3 + 0.7) * Math.min(1, GE[i].s) * u * GE[i].wf * (1 - GE[i].ln);
       const wob = (i, ph) => 4 * u * Math.min(1, GE[i].s) * GE[i].hf * Math.sin(t * 1.3 + i * 1.7 + ph);
-      const topL = i => GE[i].y - GE[i].hh - wob(i, 0);
+      const topL = i => GE[i].y - GE[i].hl - wob(i, 0) * GE[i].tl;
       const topR = i => GE[i].y - GE[i].hr - wob(i, 2.4) * GE[i].tp;
       const xL = i => GE[i].cx - GE[i].hw + jig(i, 0), xR = i => GE[i].cx + GE[i].hw + jig(i, 1), yB = i => GE[i].y;
       // 倾倒时两墙的墙顶正好在路心相合（不留缝）
-      const tL = i => lerp(xL(i), GE[i].cx, GE[i].ln), tR = i => lerp(xR(i), GE[i].cx, GE[i].ln) + GE[i].ox;
-      const HH = side => (side ? (e => e.hr) : (e => e.hh));
-      // 墙面上高 f 处的 x（右墙近岸一端是斜的）
-      const faceX = (e, side, f) => (side ? e.cx + e.hw + e.ox * f : e.cx - e.hw);
+      const tL = i => lerp(xL(i), GE[i].cx, GE[i].ln) - GE[i].oxl, tR = i => lerp(xR(i), GE[i].cx, GE[i].ln) + GE[i].ox;
+      const HH = side => (side ? (e => e.hr) : (e => e.hl));
+      // 墙面上高 f 处的 x（两墙近岸的一端是斜的）
+      const faceX = (e, side, f) => (side ? e.cx + e.hw + e.ox * f : e.cx - e.hw - e.oxl * f);
       // 墙外堆起的水丘：一整块，由墙色渐渐淡入海里（左墙的水丘都藏在墙后，不画）
       for (const side of [1]) {
         const X = side ? xR : xL, XT = side ? tR : tL, TOP = side ? topR : topL, sg = side ? 1 : -1, n = side ? NS : NX;
-        const x0 = side ? g.xr + 0.02 * W.w : g.xl + 0.1 * W.w, x1 = side ? g.xr + 0.17 * W.w + g.mound : g.xl - g.mound;
+        const x0 = side ? g.xr + 0.01 * W.w : g.xl + 0.1 * W.w, x1 = side ? g.xr + 0.08 * W.w + g.mound : g.xl - g.mound;
         const make = () => {
           const gr = ctx.createLinearGradient(x0, 0, x1, 0);
           gr.addColorStop(0, rgba(C.up, 0.95)); gr.addColorStop(0.45, rgba(mix(C.mid, C.base, 0.3), 0.75)); gr.addColorStop(1, rgba(C.base, 0));
@@ -384,14 +394,14 @@
         };
         mkF.k = ckey(C.sand) + ckey(C.sandFar);
         ctx.fillStyle = gradOf(g, 'floor', mkF);
-        polyStrip(ctx, NS, xL, yB, xR, yB); ctx.fill();
+        polyStrip(ctx, NX, xL, yB, xR, yB); ctx.fill();
         // 墙脚渗水的暗沙
         for (const side of [0, 1]) {
           const X = side ? xR : xL, k = side ? 1 : -1;
           ctx.fillStyle = rgba(C.wet, 0.42);
-          polyStrip(ctx, NS, X, yB, i => GE[i].cx + k * GE[i].hw * (0.6 + 0.05 * Math.sin(i * 2.3 + side)), yB); ctx.fill();
+          polyStrip(ctx, NX, X, yB, i => GE[i].cx + k * GE[i].hw * (0.6 + 0.05 * Math.sin(i * 2.3 + side)), yB); ctx.fill();
           ctx.fillStyle = rgba(mix(C.wet, C.base, 0.5), 0.5);
-          polyStrip(ctx, NS, X, yB, i => GE[i].cx + k * GE[i].hw * 0.87 + jig(i, side) * 0.6, yB); ctx.fill();
+          polyStrip(ctx, NX, X, yB, i => GE[i].cx + k * GE[i].hw * 0.87 + jig(i, side) * 0.6, yB); ctx.fill();
         }
         // 沙上深浅的斑（湿的、干的）
         ctx.fillStyle = rgba(mix(C.sand, C.wet, 0.55), 0.4);
@@ -472,7 +482,7 @@
       // 水从两边涌进路来：干地没入水中
       if (fk < 0.99) {
         ctx.fillStyle = rgba(mix(C.low, C.mid, 0.4), (1 - fk) * wa);
-        polyStrip(ctx, NS, xL, yB, xR, yB); ctx.fill();
+        polyStrip(ctx, NX, xL, yB, xR, yB); ctx.fill();
       }
       // 水墙的内面：由墙脚到墙顶，由深而浅；夜里只有墙顶的薄水透光
       for (const side of [0, 1]) {
@@ -562,7 +572,7 @@
           ctx.lineCap = 'round';
           for (let i = 1; i <= n; i++) {
             if (hh(GE[i]) < 1.5) continue;
-            ctx.lineWidth = Math.max(0.6, (0.8 + 4.2 * Math.min(1.3, GE[i].s)) * u * (0.5 + 0.5 * GE[i].hf) * (side ? 0.4 + 0.6 * GE[i].tp : 1));
+            ctx.lineWidth = Math.max(0.6, (0.8 + 4.2 * Math.min(1.3, GE[i].s)) * u * (0.5 + 0.5 * GE[i].hf) * (side ? 0.4 + 0.6 * GE[i].tp : 0.4 + 0.6 * GE[i].tl));
             ctx.beginPath(); ctx.moveTo(X(i - 1), TOP(i - 1)); ctx.lineTo(X(i), TOP(i)); ctx.stroke();
           }
           ctx.strokeStyle = rgba(C.foam, 0.22 * crestK);
@@ -573,7 +583,7 @@
           }
           // 墙头翻卷的白沫（一道起伏的浪唇）
           ctx.fillStyle = rgba(C.foam, 0.42 * crestK);
-          polyStrip(ctx, n, X, TOP, X, i => TOP(i) - (2 + 7 * Math.min(1.2, GE[i].s)) * u * GE[i].hf * (0.6 + 0.4 * Math.sin(t * 2.2 + i * 2.7 + side)) * (side ? Math.sqrt(GE[i].tp) : 1));
+          polyStrip(ctx, n, X, TOP, X, i => TOP(i) - (2 + 7 * Math.min(1.2, GE[i].s)) * u * GE[i].hf * (0.6 + 0.4 * Math.sin(t * 2.2 + i * 2.7 + side)) * Math.sqrt(side ? GE[i].tp : GE[i].tl));
           ctx.fill();
         }
         // 月光在水墙上的碎光
@@ -583,7 +593,7 @@
             const s = 0.2 + 0.8 * rt(k * 7 + side * 300 + 1300), e = geomAt(g, s, TMP), H = hh(e);
             if (H < 10) continue;
             const fh = 0.55 + 0.4 * rt(k * 3 + side * 50 + 1301);
-            const x = side ? e.cx + e.hw * (1 - e.ln) + e.ox * fh : e.cx - e.hw * (1 - e.ln), y = e.y - H * fh;
+            const x = side ? e.cx + e.hw * (1 - e.ln) + e.ox * fh : e.cx - e.hw * (1 - e.ln) - e.oxl * fh, y = e.y - H * fh;
             const tw = Math.pow(Math.max(0, Math.sin(t * (1.5 + rt(k + 1302)) + k * 2.1)), 12);
             if (tw > 0.03) glowSp(ctx, SP.white, x, y, (3 + 5 * s) * u, tw * (side ? 0.6 : 0.4));
           }
@@ -640,7 +650,7 @@
       }
       pk('海中的干地', cX(g, 0.7, 0.5), cY(g, 0.7), 0.1 * W.w * seaOpenK());
       const e3 = GE[NS - 6];
-      pk('水墙', e3.cx - e3.hw - 0.04 * W.w, e3.y - e3.hh * 0.5, 0.08 * W.w * seaOpenK());
+      pk('水墙', e3.cx - e3.hw - 0.04 * W.w, e3.y - e3.hl * 0.5, 0.08 * W.w * seaOpenK());
       pk('水墙', e3.cx + e3.hw + e3.ox * 0.5, e3.y - e3.hr * 0.5, 0.05 * W.w * seaOpenK());
     }
 
@@ -908,12 +918,12 @@
     if (churn > 0.01) {
       const sink = smoothstep(0.3, 0.85, c), flood = smoothstep(0.08, 0.4, c);
       for (let i = 2; i <= NS; i += 2) {
-        const s = SS[i], e = geomAt(g, s, TMP), full = s * (g.xr - g.xl) * 0.5, hm = Math.max(e.hh, e.hr);
+        const s = SS[i], e = geomAt(g, s, TMP), full = s * (g.xr - g.xl) * 0.5, hm = Math.max(e.hl, e.hr);
         // 两道墙头卷倒、翻成白浪
         for (const sd of [-1, 1]) {
-          const H = sd < 0 ? e.hh : e.hr;
+          const H = sd < 0 ? e.hl : e.hr;
           if (H < 2) continue;
-          const x = lerp(e.cx + sd * e.hw, e.cx, e.ln) + (sd > 0 ? e.ox : 0);
+          const x = lerp(e.cx + sd * e.hw, e.cx, e.ln) + (sd > 0 ? e.ox : -e.oxl);
           glowE(ctx, SP.foam, x - sd * full * 0.05, e.y - H * 0.96, full * 0.26, H * 0.12 + 5 * s * u, 0.4 * churn);
         }
         // 涌进路来的水在路心相撞：一带翻滚的白水贴着水面，随水墙落下而铺开
@@ -923,10 +933,10 @@
       for (let k = 0; k < 44; k++) {
         const s = 0.15 + 0.85 * Math.pow(rt(k * 7 + 1800), 0.8), e = geomAt(g, s, TMP);
         if (e.hw < 3) continue;
-        const sd = rt(k * 13 + 1806) < 0.5 ? -1 : 1, H = sd < 0 ? e.hh : e.hr;
+        const sd = rt(k * 13 + 1806) < 0.5 ? -1 : 1, H = sd < 0 ? e.hl : e.hr;
         const ph = U.fract(t * (0.3 + 0.25 * rt(k + 1801)) + rt(k * 3 + 1802));
         const f = (0.98 - 0.85 * ph) * (0.75 + 0.25 * rt(k * 11 + 1804));
-        const x0 = lerp(e.cx + sd * e.hw, e.cx, e.ln) + (sd > 0 ? e.ox : 0);
+        const x0 = lerp(e.cx + sd * e.hw, e.cx, e.ln) + (sd > 0 ? e.ox : -e.oxl);
         const x = lerp(x0, e.cx + sd * e.hw * (0.2 + 0.5 * rt(k * 5 + 1803)), ph) + Math.sin(ph * 5 + k) * 4 * s * u, y = e.y - H * f;
         const r = (5 + 11 * rt(k + 1805)) * s * u * (0.6 + 0.8 * ph);
         glowSp(ctx, SP.foam, x, y, r, 0.36 * churn * Math.sin(ph * Math.PI));
@@ -941,10 +951,10 @@
       const dots = [];
       for (let k = 0; k < 56; k++) {
         const s = 0.18 + 0.82 * Math.pow(rt(k * 3 + 910), 0.8), e = geomAt(g, s, TMP);
-        const sd = rt(k * 11 + 913) < 0.5 ? -1 : 1, H = sd < 0 ? e.hh : e.hr;
+        const sd = rt(k * 11 + 913) < 0.5 ? -1 : 1, H = sd < 0 ? e.hl : e.hr;
         if (H < 4) continue;
         const ph = U.fract(t * (0.55 + 0.4 * rt(k * 5 + 911)) + rt(k * 7 + 912));
-        const x0 = lerp(e.cx + sd * e.hw, e.cx, e.ln) + (sd > 0 ? e.ox : 0), y0 = e.y - H * 0.97;
+        const x0 = lerp(e.cx + sd * e.hw, e.cx, e.ln) + (sd > 0 ? e.ox : -e.oxl), y0 = e.y - H * 0.97;
         const rise = (30 + 30 * rt(k + 915)) * s * u, run = -sd * (10 + 24 * rt(k + 916)) * s * u;
         const P = q => [x0 + run * q, y0 - rise * 4 * q * (1 - q)];
         const [xa, ya] = P(Math.max(0, ph - 0.12)), [xb, yb] = P(ph);
@@ -976,17 +986,21 @@
   //  云柱 · 火柱
   // ════════════════════════════════════════════════════════════
   const PA = {
-    lead: { x: 0.745 }, etham: { x: 0.56 }, front: { x: 0.495 }, rear: { x: 0.842 }, rear2: { x: 0.585 },
+    lead: { x: 0.745 }, etham: { x: 0.56 }, front: { x: 0.495 }, rear: { x: 0.842 }, rear2: { x: 0.72 },
     sea: { s: 0.4, l: 0.5 }, far: { s: 0.04, l: 0.5 },
     // 过海之后，云柱停在中丘上（营的后面），把近处的地留给百姓
     shore: { x: 0.9, layer: 1 }, marah: { x: 0.9, layer: 1 }, elim: { x: 0.93, layer: 1 }, sin: { x: 0.88, layer: 1 },
     reph: { x: 0.6, layer: 1 }, horeb: { x: 0.6, layer: 1 },
   };
+  // 竖屏的手机上：柱不立在画面正中（言说的字写在正中），立在右边、百姓的前头
+  const PA_PORT = { lead: 0.78, etham: 0.78, front: 0.77, rear2: 0.78 };
+  const PORT = () => W.w < W.h * 0.9;
   function anchor(name) {
     const A = PA[name] || PA.lead;
     if (A.x != null) {
       const l = A.layer || 2;
-      return { x: A.x * W.w, y: gY(l, A.x) + (l === 2 ? 2 * LS(2) : 1), k: l === 2 ? 1 : 0.66, sea: false, layer: l, a: 1 };
+      const ax = PORT() && PA_PORT[name] != null ? PA_PORT[name] : A.x;
+      return { x: ax * W.w, y: gY(l, ax) + (l === 2 ? 2 * LS(2) : 1), k: l === 2 ? 1 : 0.66, sea: false, layer: l, a: 1 };
     }
     const g = corr();
     return { x: cX(g, A.s, A.l), y: cY(g, A.s), k: A.s * 1.1, sea: true, layer: -1, a: 1 };
@@ -1016,7 +1030,9 @@
     const u = Math.max(0.42, W.unit) * (PHN() ? 1.2 : 1) * Math.max(k, 0.42);
     const fire = fireK(), cloud = 1 - fire, dark = W.lv.rsDark, glory = W.lv.rsGlory;
     const hw0 = 34 * u, hw1 = 60 * u;
-    const top = -0.08 * W.h, t = W.t;
+    // 柱顶在画面顶上的一带（卷名与按钮）淡去：不冲淡卷名，也不在按钮后面发白
+    const top = 0.015 * W.h, t = W.t;
+    const hud = y => 0.3 + 0.7 * smoothstep(34, 120, y);
     const desc = eOut(W.lv.rsCloud) * (1 - (rise || 0));   // 自天降下，立在地上（挪移时先升起）
     const byE = lerp(top + 0.3 * W.h, by, desc);
     const Hh = byE - top;
@@ -1059,7 +1075,7 @@
         const y = byE - ph * Hh;
         const r = lerp(hw0, hw1, ph) * (0.95 + 0.45 * rt(i * 7));
         const x = bx + Math.sin(t * 0.4 + i * 1.7) * r * 0.18 + (rt(i * 3) - 0.5) * r * 0.5;
-        const al = a * cloud * Math.min(1, ph * 14 + 0.2) * Math.min(1, (1 - ph) * 3.5);
+        const al = a * cloud * Math.min(1, ph * 14 + 0.2) * Math.min(1, (1 - ph) * 3.5) * hud(y - r * 0.5);
         if (al < 0.01) continue;
         ctx.globalAlpha = al * 0.38;
         ctx.drawImage(SP.cloudSh, x - r + r * 0.22, y - r + r * 0.26, r * 2, r * 2);
@@ -1089,7 +1105,7 @@
         const y = byE - ph * Hh;
         const r = lerp(hw0, hw1, ph) * (0.8 + 0.4 * rt(i * 5 + 3));
         const x = bx + Math.sin(t * 1.3 + i * 2.1) * r * 0.25 + (rt(i * 9) - 0.5) * r * 0.7;
-        const al = a * fire * Math.min(1, ph * 10 + 0.3) * Math.min(1, (1 - ph) * 3) * 0.34;
+        const al = a * fire * Math.min(1, ph * 10 + 0.3) * Math.min(1, (1 - ph) * 3) * 0.34 * hud(y - r);
         glowE(ctx, SP.fireO, x, y, r * 0.62, r * (1.35 + 0.3 * Math.sin(t * 5 + i)), al);
       }
       // 内层：金黄的焰
@@ -1098,7 +1114,7 @@
         const y = byE - ph * Hh;
         const r = lerp(hw0, hw1, ph) * (0.55 + 0.3 * rt(i * 13 + 5));
         const x = bx + Math.sin(t * 1.7 + i * 1.3) * r * 0.2 + (rt(i * 17) - 0.5) * r * 0.35;
-        const al = a * fire * Math.min(1, ph * 10 + 0.3) * Math.min(1, (1 - ph) * 3) * 0.3;
+        const al = a * fire * Math.min(1, ph * 10 + 0.3) * Math.min(1, (1 - ph) * 3) * 0.3 * hud(y - r);
         glowE(ctx, SP.fire, x, y, r * 0.5, r * 1.2, al);
       }
       ctx.globalAlpha = a * fire * 0.28;
@@ -1108,19 +1124,15 @@
       for (let i = 0; i < 22; i++) {
         const ph = U.fract(t * (0.12 + 0.05 * rt(i * 3 + 60)) + rt(i * 7 + 61));
         const x = bx + (rt(i * 11 + 62) - 0.5) * hw1 * 2.6 + Math.sin(t * 2 + i) * 6 * u, y = byE - ph * Hh * 0.85;
-        ctx.globalAlpha = a * fire * (1 - ph) * 0.8;
-        ctx.fillRect(x, y, 1.6 * u + 0.6, 1.6 * u + 0.6);
+        ctx.globalAlpha = a * fire * (1 - ph) * 0.8 * hud(y);
+        ctx.beginPath(); ctx.arc(x, y, 0.9 * u + 0.4, 0, TAU); ctx.fill();
       }
       ctx.globalCompositeOperation = 'source-over';
       if (desc > 0.9) flame(ctx, bx, by + 2 * u, 56 * u, a * fire, 3.1);
     }
-    // 向埃及营的一边是黑暗
-    if (dark > 0.02) {
-      for (let i = 0; i < 14; i++) {
-        const ph = (i + 0.5) / 14, y = byE - ph * Hh * 0.95;
-        const r = lerp(hw0, hw1, ph) * 1.3;
-        glowSp(ctx, SP.dark, bx + r * 0.8, y, r, a * dark * 0.5);
-      }
+    // 向埃及营的一边是黑暗：只在柱脚的那一边压一层低低的暗（黑云本身另画在埃及营的上空）
+    if (dark > 0.02 && desc > 0.5) {
+      for (let i = 0; i < 3; i++) glowE(ctx, SP.dark, bx + hw1 * (1.1 + 0.5 * i), by - hw1 * (0.4 + 0.35 * i), hw1 * (1.3 - 0.2 * i), hw1 * (0.8 - 0.1 * i), a * dark * 0.32);
     }
     ctx.globalAlpha = 1;
     pk(fire > 0.5 ? '火柱' : '云柱', bx, byE - Math.min(Hh * 0.45, 0.3 * W.h), hw1 * 1.2);
@@ -1131,7 +1143,8 @@
   // ════════════════════════════════════════════════════════════
   const SITES = {
     etham: { n: [0.635, 0.695, 0.76, 0.825, 0.885, 0.945, 0.995], m: [0.61, 0.69, 0.77, 0.85, 0.93], chest: 0.72 },
-    sea: { n: [0.56, 0.62, 0.68, 0.74, 0.79], m: [0.6, 0.67, 0.74, 0.8], chest: 0.655 },
+    // 海边的营：帐棚都在路口（画面正中）的右边，海分开时不挡在路口前
+    sea: { n: [0.635, 0.69, 0.745, 0.8, 0.855], m: [0.6, 0.67, 0.74, 0.8], chest: 0.665 },
     elim: { n: [0.82, 0.875, 0.93, 0.985], m: [0.8, 0.87, 0.94], chest: null },
     sin: { n: [0.665, 0.725, 0.79, 0.855, 0.92, 0.98], m: [0.6, 0.68, 0.76, 0.84, 0.92], chest: null },
     reph: { n: [0.905, 0.965], m: [0.62, 0.7, 0.78, 0.86, 0.94], chest: null },
@@ -1290,12 +1303,16 @@
     GL.push([x + 4 * s, y - 12.5 * s, 2.6 * s, a, x * 0.013 + 1]);
     GL.push([x + 0.6 * s, y - 29 * s, 1.8 * s, a * 0.8, x * 0.021 + 3]);
   }
+  // 车队的位置：自西（右）赶来；跟着下到海中时，一辆一辆驶向路口（岸线上，画面正中）
+  const DIVE_X = MOUTH + 0.012;
   function armyX(x0, v) {
     const ar = W.lv.rsArmy, dv = W.lv.rsDive;
     let x = x0 + (1 - eOut(ar)) * 0.55;
-    if (dv > 0) x = lerp(x, 0.372 + v * 0.02, ease(dv));
+    if (dv > 0) x = lerp(x, DIVE_X + v * 0.03, ease(dv));
     return x;
   }
+  // 纵深：驶近路口时都收到岸线上（v → 0），才好下到路口里去
+  const armyV = v => v * (1 - ease(c01(W.lv.rsDive * 1.15)));
   function drawArmy(ctx, layer) {
     const ar = W.lv.rsArmy;
     if (ar < 0.002) return;
@@ -1304,15 +1321,16 @@
     const gait = moving ? 1 : 0;
     // 全在黑暗里时，只剩几点铜光（14:20）
     if (W.lv.rsDark > 0.9 && !moving) {
-      if (layer === 2) for (let i = 0; i < CHN.length; i++) { const [x0, v] = CHN[i], x = armyX(x0, v); if (x > 1.05) continue; const s = LS(2) * (1 + 0.35 * v) * 1.15, y = fY(2, x, v * 0.8); GL.push([x * W.w + 4 * s, y - 12.5 * s, 2.6 * s, 1, i * 1.7]); }
+      if (layer === 2) for (let i = 0; i < CHN.length; i++) { const [x0, v0] = CHN[i], x = armyX(x0, v0), v = armyV(v0); if (x > 1.05) continue; const s = LS(2) * (1 + 0.35 * v) * 1.15, y = fY(2, x, v * 0.8); GL.push([x * W.w + 4 * s, y - 12.5 * s, 2.6 * s, 1, i * 1.7]); }
       return;
     }
     const ph = W.t * 9;
     if (layer === 2) {
       for (let i = CHN.length - 1; i >= 0; i--) {
-        const [x0, v] = CHN[i];
-        const x = armyX(x0, v);
-        const a = c01((x - 0.378) / 0.05) * c01(ar * 4);
+        const [x0, v0] = CHN[i];
+        const x = armyX(x0, v0), v = armyV(v0);
+        // 到了路口便没入海中的路（路里自后看去的车接着往前赶）
+        const a = c01(ar * 4) * (1 - smoothstep(0.8, 0.99, W.lv.rsDive));
         if (a < 0.02 || x > 1.12) continue;
         const s = LS(2) * (1 + 0.35 * v) * 1.15, y = fY(2, x, v * 0.8);
         if (moving) {
@@ -1345,7 +1363,18 @@
     }
     GL.length = 0;
   }
-  // 一边黑暗：云柱向埃及营的那一边——一团黑云，从地上直到天空
+  // 一边黑暗（14:20）：云柱向埃及营的那一边——一团压在埃及营上的黑云。
+  // 由许多大小不一、互相叠着的云团组成，边上参差；贴着地最浓，往上渐淡，到海平线之上便化开（不是一道竖的黑条）
+  const DARK = [];
+  (function () {
+    const r = U.mulberry32(1420);
+    for (let i = 0; i < 26; i++) {
+      const hgt = Math.pow(r(), 1.6);                 // 多数的云团低低的
+      DARK.push({ dx: 0.03 + 0.34 * r(), hgt, rx: 0.045 + 0.075 * r() * (1 - 0.4 * hgt), ry: 0.035 + 0.05 * r(), a: 0.55 + 0.45 * r(), ph: r() * TAU, sp: 0.04 + 0.06 * r() });
+    }
+    // 边上零碎的小云（参差的边）
+    for (let i = 0; i < 12; i++) DARK.push({ dx: 0.02 + 0.36 * r(), hgt: 0.3 + 0.55 * r(), rx: 0.018 + 0.025 * r(), ry: 0.014 + 0.02 * r(), a: 0.5 + 0.4 * r(), ph: r() * TAU, sp: 0.08 + 0.08 * r() });
+  })();
   function drawDarkness(ctx) {
     const k = W.lv.rsDark;
     if (k < 0.01) return;
@@ -1353,14 +1382,17 @@
     const P = pillarNow()[0];
     const bx = P && P.layer === 2 ? P.x : 0.8 * W.w;
     const hz = W.horizonY;
-    for (let i = 0; i < 7; i++) {
-      const f = i / 6;
-      glowE(ctx, SP.dark, bx + (0.07 + 0.05 * f) * W.w, lerp(W.h * 0.92, hz - 0.35 * W.h, f), 0.09 * W.w, 0.16 * W.h, 0.55 * k);
-    }
-    for (let i = 0; i < 6; i++) {
-      const x = bx + (0.2 + 0.19 * i) * W.w;
-      glowE(ctx, SP.dark, x, W.h * (0.86 - 0.05 * (i % 2)), 0.2 * W.w, 0.26 * W.h, 0.75 * k);
-      glowE(ctx, SP.dark, x + 0.05 * W.w, hz - 0.08 * W.h - 0.06 * W.h * (i % 3), 0.2 * W.w, 0.24 * W.h, 0.55 * k);
+    for (const d of DARK) {
+      const x = bx + (d.dx + 0.012 * Math.sin(W.t * d.sp + d.ph)) * W.w;
+      if (x - d.rx * W.w > W.w * 1.05) continue;
+      const g = gY(2, clamp(x / W.w, 0, 1));
+      // 高度：自近地（营的地面）升到海平线之上一点
+      const y = lerp(g + 0.02 * W.h, hz - 0.1 * W.h, d.hgt) + 0.006 * W.h * Math.sin(W.t * d.sp * 1.3 + d.ph);
+      // 在天上的部分淡得多，到了海平线之上一成便化开
+      const sky = 1 - smoothstep(hz - 0.12 * W.h, hz + 0.02 * W.h, y);
+      const fade = (1 - 0.75 * sky) * c01((x - bx) / (0.05 * W.w) + 0.2);
+      const rx = d.rx * W.w * (1 + 0.06 * Math.sin(W.t * d.sp * 2 + d.ph)), ry = d.ry * W.h;
+      glowE(ctx, SP.dark, x, y, rx, ry, k * 0.66 * d.a * fade);
     }
     ctx.globalAlpha = 1;
   }
@@ -1378,7 +1410,10 @@
       const sp = (0.18 + 0.2 * rt(i * 5 + 701)) * W.w;
       const L = (0.04 + 0.06 * rt(i * 7 + 702)) * W.w * s;
       const x = ((rt(i * 11 + 703) * 1.4 * W.w + W.t * sp) % (1.4 * W.w)) - 0.2 * W.w;
-      if (x > g.xs + 0.05 * W.w) continue;
+      if (x > g.xs + 0.05 * W.w && y > gY(2, clamp((x + L) / W.w, 0, 1)) - 3) continue;
+      if (x + L > W.w * 1.02) continue;
+      const sd = (y - g.hz) / Math.max(1, g.yb - g.hz);
+      if (seaOpenK() > 0.05 && sd <= 1.45 && x + L > cX(g, sd, -0.3) && x < cX(g, sd, 1.3)) continue;
       ctx.moveTo(x, y); ctx.quadraticCurveTo(x + L * 0.5, y - 2 * s, x + L, y);
     }
     ctx.stroke();
@@ -1388,13 +1423,13 @@
   //  对岸的旷野 · 神的山
   // ════════════════════════════════════════════════════════════
   function drawFarShore(ctx) {
-    const hz = W.horizonY, x0 = -0.02 * W.w, x1 = 0.36 * W.w, n = 44;
+    const hz = W.horizonY, x0 = (VANISH - 0.3) * W.w, x1 = (VANISH + 0.14) * W.w, n = 44;
     ctx.fillStyle = W.shadeCSS([128, 112, 100], 0.86);
     ctx.beginPath(); ctx.moveTo(x0, hz + 1.5);
     for (let i = 0; i <= n; i++) {
       const t = i / n, x = lerp(x0, x1, t);
-      const taper = 1 - smoothstep(0.7, 1, t);
-      const h = (0.004 + 0.011 * (0.5 + 0.5 * U.fbm1(t * 5.3 + 2.3, 3)) + 0.006 * Math.exp(-Math.pow((t - 0.42) / 0.08, 2))) * W.h * taper;
+      const taper = smoothstep(0, 0.2, t) * (1 - smoothstep(0.75, 1, t));
+      const h = (0.004 + 0.011 * (0.5 + 0.5 * U.fbm1(t * 5.3 + 2.3, 3)) + 0.006 * Math.exp(-Math.pow((t - 0.58) / 0.08, 2))) * W.h * taper;
       ctx.lineTo(x, hz - h);
     }
     ctx.lineTo(x1, hz + 1.5); ctx.closePath(); ctx.fill();
@@ -2113,6 +2148,12 @@
     if (g) g.members.forEach(m => { if (!m.isAnimal) m.prop = k; });
   }
   const avoid = (...rs) => { W.beastAvoid = rs.map(r => [clamp(Math.min(r[0], r[1]), 0, 1), clamp(Math.max(r[0], r[1]), 0, 1)]); };
+  function crowdFace(gid, d) {
+    const c = C(), g = c.crowds && c.crowds.get ? c.crowds.get(gid) : null;
+    if (g) g.members.forEach(m => { if (!m.isAnimal) { m.facing = d; if (W.replaying) m.fd = d; } });
+  }
+  // 海的那一边（书珥的旷野）：近处的地是黄沙
+  const SHUR = [['bare', 1], ['grass', 0.05], ['bloom', 0], ['herbs', 0], ['trees', 0.02]];
   const ROBE = {
     moses: [132, 104, 76], aaron: [92, 108, 150], miriam: [170, 110, 104], joshua: [140, 100, 66], hur: [120, 112, 92],
     jethro: [118, 96, 128], zipporah: [176, 132, 96], gershom: [140, 118, 90], eliezer: [160, 138, 104], bearer: [118, 96, 78],
@@ -2191,7 +2232,7 @@
       { text: '你发鼻中的气，水便聚起成堆，<br>大水直立如垒，海中的深水凝结。', ref: '出埃及记 15:8', hold: 7 },
     ],
     cross: [
-      { text: '以色列人下海中走干地，水在他们的左右作了墙垣。', ref: '出埃及记 14:22', hold: 7 },
+      { text: '以色列人下海中走干地，水在他们的左右作了墙垣。', ref: '出埃及记 14:22', hold: 9 },
     ],
     cross2: [
       { text: '埃及人追赶他们，法老一切的马匹、车辆，和马兵都跟着下到海中。', ref: '出埃及记 14:23', hold: 6.5 },
@@ -2375,11 +2416,11 @@
           [0, b => {
             W.goTo(0.99, 20, b.instant);
             avoid([0.42, 1]);
-            // 摩西站到岸边高一点的地方（不缩在画面最暗的角落），夜里身上的光亮一些
-            walk('moses', 0.392, { speed: 0.035, pose: 'point' });
+            // 摩西站到岸边、路口的左角上（海要在他面前分开），夜里身上的光亮一些；百姓退到路口的右边
+            walk('moses', 0.455, { speed: 0.035, pose: 'point' });
             face('moses', -1);
             const m = fig('moses'); if (m) m.glow = 0.8;
-            crowdWalk('rs:folk', 0.5, 0.8, { speed: 0.02 });
+            crowdWalk('rs:folk', 0.585, 0.82, { speed: 0.02 });
           }],
           [4, b => { W.set('rsRod', 1, b.instant); }],
           [10.5, b => { W.set('rsRod', 0, b.instant); }],
@@ -2409,26 +2450,28 @@
           [0, b => {
             S.across = true;
             W.set('rsCross', 1, b.instant);
-            avoid([0.36, 0.64]);
+            avoid([0.42, 0.74]);
             setSite(null, b.instant);
             movePillar('rear2', b.instant);
-            crowdWalk('rs:folk', 0.37, 0.44, { speed: 0.055 });
-            crowdWalk('rs:flock', 0.375, 0.42, { speed: 0.03 });
-            walk('aaron', 0.385, { speed: 0.03 }); walk('miriam', 0.4, { speed: 0.03 });
-            walk('bearer1', 0.39); walk('bearer2', 0.415);
+            // 百姓走进路口（画面正中的岸边），在路上化作由近而远的人流
+            crowdWalk('rs:folk', 0.475, 0.57, { speed: 0.055 });
+            crowdWalk('rs:flock', 0.5, 0.56, { speed: 0.03 });
+            walk('aaron', 0.49, { speed: 0.03 }); walk('miriam', 0.51, { speed: 0.03 });
+            walk('bearer1', 0.53); walk('bearer2', 0.555);
             if (!b.instant) sfx('crowd', { soft: true });
           }],
           [2.5, () => { rmCrowd('rs:folk2'); }],
           [7.5, () => { rmCrowd('rs:folk'); rmCrowd('rs:flock'); }],
           [8.5, () => { rm('aaron'); rm('miriam'); rm('bearer1'); rm('bearer2'); S.chest = null; }],
-          [13.5, b => {
+          // 14:23 紧接着 14:22（不留一段无声的空白）：埃及人的车一辆一辆驶向路口
+          [11, b => {
             narrate(V.cross2, b);
             W.set('rsDark', 0.3, b.instant);
             W.set('rsDive', 1, b.instant);
             if (!b.instant) sfx('thunder', { soft: true });
           }],
           [17, b => {
-            walk('moses', 0.345, { speed: 0.02 });
+            walk('moses', 0.5, { speed: 0.02 });
             W.set('rsChase', 0.4, b.instant);
           }],
           [19.5, () => { rm('moses'); }],
@@ -2497,7 +2540,29 @@
             W.set('rsWind', 0, b.instant);
             W.set('gale', 0.08, b.instant);
           }],
-          [14, b => { W.set('rsStaff', 0, b.instant); }],
+          // 天亮了，海水复原：以色列人已在海的那一边——近处的地换成书珥旷野的黄沙（不是埃及那边的青草地），
+          // 摩西站在岸边，仍向海伸着杖（14:27）；海边冲上岸的车轮与盾牌（14:30）；百姓都在岸上看着（14:31）
+          [10.5, b => {
+            W.set('rsStaff', 0, b.instant);
+            S.across = false;
+            W.set('rsCross', 0, true);
+            for (const [k2, v2] of SHUR) if (W.hasLevel(k2)) W.set(k2, v2, b.instant);
+            W.set('rsWreck', 1, b.instant);
+            avoid([0.46, 1]);
+            const fr = b.instant ? 'none' : 'fade';
+            add('moses', { label: '摩西', sex: 'm', age: 'elder', x: 0.5, facing: -1, robe: ROBE.moses, glow: 0.6, prop: 'staff', pose: 'raise', from: fr });
+            liftStaff(true);
+            add('aaron', { label: '亚伦', sex: 'm', age: 'elder', x: 0.535, facing: -1, robe: ROBE.aaron, glow: 0.3, from: fr });
+            crowd('rs:folk', { n: 14, x0: 0.56, x1: 0.9, layer: 2, label: '以色列人', from: fr, mill: false });
+            crowdFace('rs:folk', -1);
+            herd('rs:flock', { kind: 'sheep', n: 7, x0: 0.93, x1: 1.02, label: '羊群', from: fr, mill: false });
+            if (!b.instant) sfx('crowd', { soft: true });
+          }],
+          // 以色列人看见耶和华向埃及人所行的大事，就敬畏耶和华（14:31）
+          [15, b => {
+            crowdPose('rs:folk', 'bow'); pose('aaron', 'bow');
+            if (!b.instant) sfx('harp', { soft: true });
+          }],
         ]);
       },
     },
@@ -2510,22 +2575,16 @@
         ring(c);
         T(c, [
           [0, b => {
-            S.across = false;
-            W.set('rsCross', 0, true);
+            // 摩西、亚伦与百姓已在海的这一边（上一句天亮时显出）
             W.goTo(0.37, 12, b.instant);
             movePillar('shore', b.instant);
             W.set('rsCloud', 1, b.instant);
             W.set('gale', 0, b.instant);
-            // 已在海的那一边：近处的地换成书珥旷野的黄沙（不是埃及那边的青草地），海边冲上岸的车轮与盾牌（14:30）
-            for (const [k2, v2] of [['bare', 1], ['grass', 0.05], ['bloom', 0], ['herbs', 0], ['trees', 0.02]]) if (W.hasLevel(k2)) W.set(k2, v2, true);
-            W.set('rsWreck', 1, b.instant);
             avoid([0.46, 1]);
-            const fr = b.instant ? 'none' : 'fade';
-            S.lift = false;
-            add('moses', { label: '摩西', sex: 'm', age: 'elder', x: 0.5, facing: -1, robe: ROBE.moses, glow: 0.45, prop: 'staff', from: fr });
-            add('aaron', { label: '亚伦', sex: 'm', age: 'elder', x: 0.535, facing: -1, robe: ROBE.aaron, glow: 0.3, from: fr });
-            crowd('rs:folk', { n: 14, x0: 0.56, x1: 0.9, layer: 2, label: '以色列人', from: fr, mill: false });
-            herd('rs:flock', { kind: 'sheep', n: 7, x0: 0.93, x1: 1.02, label: '羊群', from: fr, mill: false });
+            pose('moses', 'stand'); liftStaff(false); face('moses', -1);
+            const m = fig('moses'); if (m) m.glow = 0.45;
+            pose('aaron', 'stand');
+            crowdPose('rs:folk', 'stand');
             if (!b.instant) sfx('crowd', { soft: true });
           }],
           [2.5, b => {

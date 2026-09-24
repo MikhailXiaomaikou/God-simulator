@@ -43,6 +43,7 @@
   W.defineLevel('psPool', 'exp', 0.35);     // 可安歇的水边（23:2）
   W.defineLevel('psPath', 'lin', 0.2);      // 指示你当行的路（32:8）：一条光的路
   W.defineLevel('psWith', 'exp', 0.6);      // 你与我同在（23:4）：随着牧人的光
+  W.defineLevel('psVale', 'lin', 0.4);      // 死荫的幽谷（23:4）：两壁的山影合拢，遍地昏黑，只有牧人身边有光
   W.defineLevel('psTable', 'exp', 0.5);     // 筵席与满溢的福杯（23:5）
   W.defineLevel('psOil', 'exp', 0.5);       // 用油膏了我的头
   W.defineLevel('psZion', 'exp', 0.35);     // 耶和华的殿的光（23:6 → 122 → 150）
@@ -61,7 +62,7 @@
   W.defineLevel('psFlight', 'lin', 0.085);  // 飞到海极
   W.defineLevel('psPraise', 'exp', 0.45);   // 在神的圣所赞美他（150）
   W.defineLevel('psBreath', 'exp', 0.6);    // 凡有气息的（150:6）：万物呼出光来
-  const MY = ['psStream', 'psTree', 'psFruit', 'psLyre', 'psLine', 'psPool', 'psPath', 'psWith', 'psTable', 'psOil', 'psZion',
+  const MY = ['psStream', 'psTree', 'psFruit', 'psLyre', 'psLine', 'psPool', 'psPath', 'psWith', 'psVale', 'psTable', 'psOil', 'psZion',
     'psSway', 'psRay', 'psDeer', 'psVine', 'psGrape', 'psFace', 'psField', 'psWither', 'psSpring', 'psLamp', 'psKeep',
     'psWings', 'psFlight', 'psPraise', 'psBreath'];
 
@@ -79,6 +80,12 @@
     [0.625, 0.39], [0.596, 0.46], [0.572, 0.49], [0.54, 0.485], [0.508, 0.44], [0.478, 0.37], [0.45, 0.29], [0.422, 0.2], [0.392, 0.12], [0.37, 0.06]];
   // 光的路（32:8）：自水池旁（大卫跪的地方）穿过幽谷，在溪水之前，到筵席那里
   const PATH = [[0.672, 0.43], [0.69, 0.37], [0.715, 0.335], [0.748, 0.318], [0.78, 0.306], [0.808, 0.296], [0.83, 0.29]];
+  // 死荫的幽谷（23:4）：两壁陡峭的山影自近地的脊上升起，牧人与光的路在两壁之间（[x, 高]；高以 valeH() 为 1）
+  const VALE_L = [[0.45, 0], [0.462, 0.16], [0.476, 0.34], [0.494, 0.48], [0.514, 0.56], [0.532, 0.66], [0.55, 0.7], [0.566, 0.8],
+    [0.58, 0.76], [0.596, 0.84], [0.612, 0.78], [0.626, 0.64], [0.64, 0.46], [0.652, 0.28], [0.662, 0.12], [0.67, 0]];
+  const VALE_R = [[0.842, 0], [0.852, 0.14], [0.864, 0.3], [0.876, 0.46], [0.89, 0.58], [0.904, 0.72], [0.92, 0.84], [0.936, 1],
+    [0.95, 0.94], [0.966, 0.98], [0.984, 0.88], [1.0, 0.84], [1.03, 0.8], [1.03, 0]];
+  const valeH = () => Math.min(W.h * 0.36, W.w * 0.26);
 
   const ROBE_D = [92, 104, 146];
   const TRUNK = [70, 52, 36], LEAF = [74, 124, 60], LEAF_D = [42, 80, 46], LEAF_H = [150, 190, 104], FRUIT = [214, 96, 60];
@@ -317,6 +324,9 @@
     g.table = { x: X.table * W.w, y: fY(X.table, X.tableV), s: s * 1.3 };
     // 光的路
     g.path = arcify(catmull(PATH.map(([xf, v]) => [xf * W.w, fY(xf, v), v]), 6), v => (3 + 7 * v) * s * 0.55);
+    // 幽谷的两壁：每一点记下脊上的底（像素）与高（像素）
+    const vh = valeH();
+    g.vale = [VALE_L, VALE_R].map(list => catmull(list, 3).map(([xf, hf]) => ({ x: xf * W.w, y: gY(2, Math.min(1, xf)) + 3 * s, h: Math.max(0, hf) * vh })));
     // 耶和华的殿（中丘）与城中的房屋
     const ts = 1.6 * s1;
     g.zion = { x: X.zion * W.w, y: gY(1, X.zion) + 1.5 * ts, s: ts };
@@ -835,11 +845,61 @@
   // ════════════════════════════════════════════════════════════
   //  画：光的路、筵席与福杯、鹿、早晨的草
   // ════════════════════════════════════════════════════════════
+  // 死荫的幽谷：两壁的山影（近地，画在人物之后面）
+  function valeCrest(list, e) { return list.map(q => [q.x, q.y - q.h * e]); }
+  function drawValeWalls(ctx, g) {
+    const k = LV.psVale;
+    if (k < 0.01 || !g.vale) return;
+    const e = k * k * (3 - 2 * k);
+    for (const list of g.vale) {
+      const cr = valeCrest(list, e);
+      ctx.beginPath();
+      ctx.moveTo(cr[0][0], list[0].y);
+      for (const q of cr) ctx.lineTo(q[0], q[1]);
+      for (let i = list.length - 1; i >= 0; i--) ctx.lineTo(list[i].x, list[i].y);
+      ctx.closePath();
+      ctx.fillStyle = css([28, 28, 36], 2, Math.min(1, k * 2.5));
+      ctx.fill();
+    }
+  }
+  // 幽谷里的昏黑：盖过全地与天，只在牧人身边留一团光；两壁的脊上一线冷光，看得出是山谷
+  function drawVale(ctx, g) {
+    const k = LV.psVale;
+    if (k < 0.01) return;
+    const h = personH('david'), p = headOf('david', 0.45), A = 0.84 * k;
+    const r1 = h * 2.6;
+    const gr = ctx.createRadialGradient(p[0], p[1], h * 0.45, p[0], p[1], r1);
+    gr.addColorStop(0, 'rgba(3,4,9,0)');
+    gr.addColorStop(0.45, U.rgba(3, 4, 9, A * 0.45));
+    gr.addColorStop(1, U.rgba(3, 4, 9, A));
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = gr;
+    ctx.fillRect(-20, -20, W.w + 40, W.h + 40);
+    if (!g.vale) return;
+    const e = k * k * (3 - 2 * k);
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = Math.max(1, 1.5 * g.s);
+    ctx.strokeStyle = rgba([150, 168, 214], 0.34 * k);
+    for (const list of g.vale) {
+      const cr = valeCrest(list, e);
+      ctx.beginPath();
+      let on = false;
+      for (let i = 0; i < cr.length; i++) {
+        if (list[i].h * e < 6 * g.s) { on = false; continue; }
+        if (on) ctx.lineTo(cr[i][0], cr[i][1]); else { ctx.moveTo(cr[i][0], cr[i][1]); on = true; }
+      }
+      ctx.stroke();
+    }
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  }
   function drawPath(ctx, g, air) {
     const k = LV.psPath;
     if (k < 0.01) return;
     const A = g.path, pts = A.pts, front = k * A.len;
-    const lit = clamp(0.35 + LV.gloom * 1.2, 0, 1);
+    const lit = clamp(0.35 + Math.max(LV.gloom, LV.psVale) * 1.2, 0, 1);
     if (!air) {
       ctx.fillStyle = rgba([255, 226, 170], 0.55 * lit);
       ribbon(ctx, pts, front, 1.6, 20 * g.s);
@@ -1187,14 +1247,16 @@
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
     // 你与我同在：一团随着牧人的光
     if (LV.psWith > 0.01 && has('david')) {
-      const h = personH('david'), p = headOf('david', 0), a = LV.psWith * (0.35 + LV.gloom * 0.6);
+      const h = personH('david'), p = headOf('david', 0), a = LV.psWith * (0.35 + Math.max(LV.gloom, LV.psVale) * 0.6);
       glowAt(ctx, SP.pale, p[0], p[1] - h * 0.5, h * 2.1, 0.3 * a);
       glowAt(ctx, SP.warm, p[0], p[1] - h * 0.9, h * 0.9, 0.22 * a);
+      // 幽谷里：他的脚下一圈暖光（杖与竿都安慰我）
+      if (LV.psVale > 0.01) glowAt(ctx, SP.warm, p[0], p[1] - h * 0.04, h * 0.8, 0.3 * LV.psVale * LV.psWith);
     }
     // 用油膏了我的头
     if (LV.psOil > 0.01 && has('david')) { const p = headOf('david', 0.92); glowAt(ctx, SP.gold, p[0], p[1], personH('david') * 0.5, 0.55 * LV.psOil); }
     // 福杯的光
-    if (LV.psTable > 0.01) { const t = g.table; glowAt(ctx, SP.gold, t.x + 4.5 * t.s, t.y - 14 * t.s, 16 * t.s, (0.25 + 0.4 * nightK() + 0.3 * LV.gloom) * LV.psTable); }
+    if (LV.psTable > 0.01) { const t = g.table; glowAt(ctx, SP.gold, t.x + 4.5 * t.s, t.y - 14 * t.s, 16 * t.s, (0.25 + 0.4 * nightK() + 0.3 * Math.max(LV.gloom, LV.psVale)) * LV.psTable); }
     // 脚前的灯
     if (LV.psLamp > 0.01) {
       cmembers('pilgrims').forEach((m, i) => {
@@ -1443,6 +1505,7 @@
     if (pass === 'sky') { U.safe('psalms.lines', () => drawLines(ctx)); U.safe('psalms.wings', () => drawWings(ctx)); U.safe('psalms.lyre', () => drawLyre(ctx)); return; }
     if (pass === 'mid') { U.safe('psalms.zion', () => drawZion(ctx, g)); U.safe('psalms.springs', () => drawSprings(ctx, g)); U.safe('psalms.vineM', () => drawVine(ctx, g, 'mid')); return; }
     if (pass === 'near') {
+      U.safe('psalms.valeW', () => drawValeWalls(ctx, g));
       U.safe('psalms.stream', () => drawStream(ctx, g));
       U.safe('psalms.pool', () => drawPool(ctx, g));
       U.safe('psalms.vine', () => drawVine(ctx, g, 'near'));
@@ -1454,6 +1517,7 @@
       return;
     }
     if (pass === 'air') {
+      U.safe('psalms.vale', () => drawVale(ctx, g));
       U.safe('psalms.rays', () => drawRays(ctx));
       U.safe('psalms.face', () => drawFace(ctx));
       U.safe('psalms.pathA', () => drawPath(ctx, g, true));
@@ -1728,26 +1792,28 @@
       apply(c) {
         T(c, [
           [0, b => {
-            W.goTo(0.6, 7, inst(b)); W.set('gloom', 0.72, inst(b));
-            pose('david', 'stand'); glow('david', 0.35); cpose('flock', 'stand'); avoid([0.5, 0.9]);
+            // 两壁的山影合拢，遍地昏黑；「你与我同在」的光一开始就随着牧人——全地只有他身边是亮的
+            W.goTo(0.6, 7, inst(b)); W.set('gloom', 0, inst(b)); lv('psVale', 1, b); lv('psWith', 1, b);
+            pose('david', 'stand'); glow('david', 0.6); cpose('flock', 'stand'); avoid([0.5, 0.9]);
             sfx(b, 'wind', { soft: true, low: true });
           }],
           // 牧人在前（纵深在羊群之前），羊群在后跟着
-          [3.5, () => { walk('david', 0.69, { speed: 0.012 }); sink('david', 0.36); }],
-          [9.8, b => {
-            lv('psPath', 1, b); lv('psWith', 1, b);
+          [2.5, () => { walk('david', 0.69, { speed: 0.012 }); sink('david', 0.36); }],
+          [7.5, b => {
+            lv('psPath', 1, b);
             if (!inst(b)) { const h = headOf('david', 0.5); fx().ring(h[0], h[1], [255, 236, 190], M() * 0.35, 2.6, 1.4); sfx(b, 'harp'); }
           }],
-          [11.2, () => { walk('david', 0.75, { speed: 0.02 }); sink('david', 0.31); }],
-          [11.8, () => cwalk('flock', 0.6, 0.69, { speed: 0.02, pose: 'stand' })],
-          [15, () => { walk('david', 0.812, { speed: 0.022 }); sink('david', 0.3); }],
-          [15.6, () => cwalk('flock', 0.64, 0.75, { speed: 0.022, pose: 'graze' })],
-          [17.4, b => { W.set('gloom', 0, inst(b)); lv('psTable', 1, b); lv('psZion', 0.55, b); sfx(b, 'harp'); }],
-          [20.5, b => {
+          [8.8, () => { walk('david', 0.75, { speed: 0.02 }); sink('david', 0.31); }],
+          [9.4, () => cwalk('flock', 0.6, 0.69, { speed: 0.02, pose: 'stand' })],
+          [12.4, () => { walk('david', 0.812, { speed: 0.022 }); sink('david', 0.3); }],
+          [13, () => cwalk('flock', 0.64, 0.75, { speed: 0.022, pose: 'graze' })],
+          // 出了幽谷：两壁退下，天光回来，筵席摆设
+          [15.5, b => { W.set('gloom', 0, inst(b)); lv('psVale', 0, b); lv('psTable', 1, b); lv('psZion', 0.55, b); glow('david', 0.35); sfx(b, 'harp'); }],
+          [18.5, b => {
             face('david', 1); pose('david', 'kneel'); lv('psOil', 1, b); lv('psWith', 0.35, b);
             if (!inst(b)) { const h = headOf('david', 0.95); fx().sparkle(h[0], h[1], 26, [255, 226, 150], 8, 'air'); }
           }],
-          [26, b => { if (!inst(b)) { const z = layout().zion; fx().ring(z.x, z.y - 20 * z.s, [255, 232, 190], M() * 0.25, 3, 1.2); } }],
+          [23, b => { if (!inst(b)) { const z = layout().zion; fx().ring(z.x, z.y - 20 * z.s, [255, 232, 190], M() * 0.25, 3, 1.2); } }],
         ]);
       },
     },

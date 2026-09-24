@@ -37,12 +37,21 @@
 
   // ── 地上的位置（画面宽度的比例）：左 = 东（摩押），右 = 西（伯利恒）──
   // 摩押在近地的最东头（坡上），界石之后才是犹大的田；别人的田在中丘上、城边
-  const X = {
+  const XL = {
     house: 0.43, graves: 0.479, naomi0: 0.515, orpah0: 0.53, ruth0: 0.545, cairn: 0.586,
     fieldB0: 0.615, fieldB1: 0.83, fieldO0: 0.64, fieldO1: 0.775,
     floor: 0.69, gate: 0.852, door: 0.898, town0: 0.874, town1: 1.05,
     bench0: 0.757, seatB: 0.815, seatK: 0.785, seatV: 0.28,
   };
+  // 竖屏的手机上：近地的故事收拢到 0.36–0.84 之间（城门、城中的房屋不落到右边之外）；
+  // 画面以外（≥ 1）的进出之处不变。每一幕开场（setup）按屏幕的形状定下一次，重演与观看一样。
+  const X = Object.assign({}, XL);
+  let PORT = false;
+  const PX = x => (!PORT || x >= 1 ? x : 0.36 + (x - 0.4) * 0.8);
+  function layout() {
+    PORT = GS.W.w < GS.W.h * 0.9;
+    for (const k in XL) X[k] = k === 'seatV' ? XL[k] : PX(XL[k]);
+  }
   const ROBE = {
     naomi: [88, 82, 100], ruth: [178, 92, 74], orpah: [122, 104, 134], boaz: [52, 78, 132],
     overseer: [146, 122, 88], kin: [112, 100, 86],
@@ -83,7 +92,8 @@
   const has = id => { const c = C(); return c.has ? c.has(id) : !!(c.get && c.get(id)); };
   const hasCrowd = gid => { const c = C(); return !!(c.crowds && c.crowds.has && c.crowds.has(gid)); };
   function fig(id) { const c = C(); return c.get ? c.get(id) : null; }
-  function add(id, o) { return C().add(id, Object.assign({ from: W.replaying ? 'none' : 'fade' }, o)); }
+  const FIGK = () => (PORT ? 1.15 : 1);      // 竖屏上人物再大些（与人物模块在手机上的放大相乘）
+  function add(id, o) { return C().add(id, Object.assign({ from: W.replaying ? 'none' : 'fade' }, has(id) ? {} : { scale: FIGK() }, o)); }
   function walk(id, x, o) { if (has(id)) C().walk(id, x, o); }
   function place(id, x, layer) { if (has(id)) C().place(id, x, layer); }
   function pose(id, p, o) { if (has(id)) C().pose(id, p, o); }
@@ -99,6 +109,7 @@
     if (hasCrowd(gid)) C().removeCrowd(gid, { fade: false });
     const ms = C().crowd(gid, Object.assign({ from: W.replaying ? 'none' : 'fade', mill: false }, o)) || [];
     if (dressFn) ms.forEach((m, i) => dressFn(m, i, ms.length));
+    if (PORT) ms.forEach(m => { m.scale = (m.scale || 1) * FIGK(); });
     return ms;
   }
   function cwalk(gid, x0, x1, o) { if (hasCrowd(gid)) C().crowdWalk(gid, x0, x1, o); }
@@ -1483,7 +1494,7 @@
         if (!p.label || p.a < 0.4) continue;
         const s = LS(p.layer) * (p.size || 1);
         if (p.kind === 'field') { const xf = (p.x0 + p.x1) / 2; consider(p.label, xf * W.w, baseY(p.layer, xf, 0.3) - 14 * s); }
-        else if (p.kind === 'town') { const xf = p.layer === 2 ? 0.95 : (p.x0 + p.x1) / 2; consider(p.label, xf * W.w, gY(p.layer, xf) - 22 * s); }
+        else if (p.kind === 'town') { const xf = p.layer === 2 ? PX(0.95) : (p.x0 + p.x1) / 2; consider(p.label, xf * W.w, gY(p.layer, xf) - 22 * s); }
         else if (p.kind === 'floor') { const fp = floorPos(p); consider(p.label, fp.x, fp.y - 8 * s); }
         else if (p.kind === 'gate') consider(p.label, p.x * W.w, gY(2, p.x) - 26 * s);
         else consider(p.label, p.x * W.w, gY(p.layer, p.x) - 12 * s);
@@ -1532,10 +1543,11 @@
       ruVisit: 0, ruWing: 0, ruKanaf: 0, ruLamp: 0, ruLine: 0, ruDry: 1 };
     for (const k in lv) if (W.hasLevel(k)) W.set(k, lv[k], true);
     W.freeClock = false;
+    layout();
     // 青草自摩押（东）一带而起；那棵树长在摩押的坡上，荫着坟与小屋
-    W.setOrigin('grass', W.w * 0.47, W.ridgeBaseY(2, W.w * 0.47));
-    W.setOrigin('herbs', W.w * 0.47, W.ridgeBaseY(2, W.w * 0.47));
-    W.setOrigin('trees', W.w * 0.37, W.ridgeBaseY(2, W.w * 0.37));
+    W.setOrigin('grass', W.w * PX(0.47), W.ridgeBaseY(2, W.w * PX(0.47)));
+    W.setOrigin('herbs', W.w * PX(0.47), W.ridgeBaseY(2, W.w * PX(0.47)));
+    W.setOrigin('trees', W.w * PX(0.37), W.ridgeBaseY(2, W.w * PX(0.37)));
     W.goTo(0.33, 0, true);
     const lx = W.w * 0.44, ly = W.ridgeBaseY(2, lx);
     W.setPop('fish', 80, W.w * 0.15, W.h * 0.8, true);
@@ -1583,7 +1595,7 @@
           [0, b => {
             W.set('ruVisit', 1, b.instant); W.set('ruDry', 0, b.instant);
             W.set('clouds', 0.62, b.instant); W.set('rain', 0.3, b.instant); W.set('storm', 0.12, b.instant);
-            beam(b, 0.8, 2, { dur: 6, w: 150, r: 0.34 });
+            beam(b, PX(0.8), 2, { dur: 6, w: 150, r: 0.34 });
             sfx(b, 'harp'); sfx(b, 'rain', { soft: true });
           }],
           [1.4, () => { pose('naomi', 'stand'); face('naomi', 1); }],
@@ -1596,9 +1608,9 @@
           [6, b => { W.set('rain', 0, b.instant); W.set('storm', 0, b.instant); W.set('clouds', 0.32, b.instant); W.goTo(0.37, 6, b.instant); sfx(b, 'bird', { soft: true }); }],
           // 起行：走到摩押地的边上、界石跟前
           [8.3, () => {
-            walk('naomi', 0.568, { speed: 0.024 });
-            walk('orpah', 0.553, { speed: 0.022 });
-            walk('ruth', 0.539, { speed: 0.02 });
+            walk('naomi', PX(0.568), { speed: 0.024 });
+            walk('orpah', PX(0.553), { speed: 0.022 });
+            walk('ruth', PX(0.539), { speed: 0.02 });
             avoid([0.38, 1]);
           }],
           [13.6, b => { W.set('ruVisit', 0.12, b.instant); }],
@@ -1638,7 +1650,7 @@
             beamOn(b, 'ruth', { dur: 4, w: 90, r: 0.16 });
           }],
           // 过了界石，往犹大地去
-          [22.4, () => { walk('naomi', 0.648, { speed: 0.022 }); walk('ruth', 0.633, { speed: 0.022 }); }],
+          [22.4, () => { walk('naomi', PX(0.648), { speed: 0.022 }); walk('ruth', PX(0.633), { speed: 0.022 }); }],
         ]);
       },
     },
@@ -1721,7 +1733,7 @@
           [14.2, b => {
             add('boaz', { label: '波阿斯', x: X.gate + 0.004, facing: -1, robe: ROBE.boaz, glow: 0.45, accent: [214, 180, 110] });
             add('overseer', { label: '监管收割的仆人', x: X.gate + 0.03, facing: -1, robe: ROBE.overseer, glow: 0.1 });
-            walk('boaz', 0.805, { speed: 0.03, pose: 'raise' }); walk('overseer', 0.782, { speed: 0.03 });
+            walk('boaz', PX(0.805), { speed: 0.03, pose: 'raise' }); walk('overseer', PX(0.782), { speed: 0.03 });
             sink('boaz', 0.32); sink('overseer', 0.24);
           }],
           [18.4, b => { beamOn(b, 'boaz', { dur: 4, w: 90, r: 0.2 }); sfx(b, 'harp'); }],
@@ -1909,7 +1921,7 @@
           // 众民聚在城门里边、房屋前；路得走到城门口
           [13.6, b => {
             pose('boaz', 'raise'); face('boaz', -1);
-            crowd('folk', { n: 8, x0: 0.905, x1: 0.985, layer: 2, label: '众民' }, (m, i) => { m.robe = WOMEN[i % WOMEN.length]; m.v = 0.04 + ((i * 0.618) % 1) * 0.14; });
+            crowd('folk', { n: 8, x0: PX(0.905), x1: PX(0.985), layer: 2, label: '众民' }, (m, i) => { m.robe = WOMEN[i % WOMEN.length]; m.v = 0.04 + ((i * 0.618) % 1) * 0.14; });
             cface('folk', -1);
             walk('ruth', X.gate + 0.018, { speed: 0.02 }); sink('ruth', 0.3);
             sfx(b, 'crowd');
@@ -1930,9 +1942,9 @@
     {
       kind: 'act', utter: '耶和华使她怀孕生了一个儿子', cmd: 'fork 俄备得 --from 路得 --blessed', ref: '4:13',
       verse: [
-        { text: '于是，波阿斯娶了路得为妻……耶和华使她怀孕生了一个儿子。', ref: '路得记 4:13', hold: 6 },
-        { text: '妇人们对拿俄米说：「耶和华是应当称颂的！因为今日没有撇下你，使你无至近的亲属。……<br>有这儿妇比有七个儿子还好！」', ref: '路得记 4:14–15', hold: 7.5 },
-        { text: '拿俄米就把孩子抱在怀中，作他的养母。', ref: '路得记 4:16', hold: 5 },
+        { text: '于是，波阿斯娶了路得为妻……', ref: '路得记 4:13', hold: 5.5 },
+        { text: '……耶和华使她怀孕生了一个儿子。', ref: '路得记 4:13', hold: 6 },
+        { text: '拿俄米就把孩子抱在怀中，作他的养母。', ref: '路得记 4:16', hold: 5.5 },
       ],
       apply(c) {
         T(c, [
@@ -1942,26 +1954,26 @@
             crm('elders'); crm('folk'); unprop('seats');
             pose('boaz', 'stand'); sink('boaz', 0.1); sink('ruth', 0.1);
             add('ruth', { accent: [246, 222, 160] });
-            crowd('lamps', { n: 6, x0: 0.7, x1: 0.78, layer: 2, label: '使女', prop: 'torch' }, woman(MAID, 0.04, 0.3));
-            cwalk('lamps', 0.8, 0.87, { speed: 0.035 });
+            crowd('lamps', { n: 6, x0: PX(0.7), x1: PX(0.78), layer: 2, label: '使女', prop: 'torch' }, woman(MAID, 0.04, 0.3));
+            cwalk('lamps', PX(0.8), PX(0.87), { speed: 0.035 });
             sfx(b, 'harp');
           }],
           [1.6, () => { walk('boaz', X.door - 0.004, { speed: 0.035 }); }],
           [3.6, () => { face('ruth', 1); face('boaz', -1); hands('ruth', 'boaz', true); }],
           // 夜
-          [4.6, b => { W.goTo(0.02, 3, b.instant); rm('boaz'); rm('ruth'); cpose('lamps', 'stand'); }],
+          [4.6, b => { W.goTo(0.02, 2.4, b.instant); rm('boaz'); rm('ruth'); cpose('lamps', 'stand'); }],
           // 夜里：一年过去——田又青了
-          [6.4, () => {
+          [5.8, () => {
             prop('fieldB', null, { reap: 0, grow: 0.2, gold: 0, k2: 0, now: true });
             prop('fieldO', null, { reap: 0, grow: 0.2, gold: 0, k2: 0, now: true });
           }],
-          [6.6, () => { crm('lamps'); }],
-          // 早晨：孩子；田里的大麦又长起来，黄熟了
-          [7.6, b => {
-            W.goTo(0.33, 3.5, b.instant); W.set('ruLamp', 0.3, b.instant);
+          [6, () => { crm('lamps'); }],
+          // 早晨：孩子（「耶和华使她怀孕生了一个儿子」那一句正显出）；田里的大麦又长起来，黄熟了
+          [6.8, b => {
+            W.goTo(0.33, 3, b.instant); W.set('ruLamp', 0.3, b.instant);
             prop('fieldB', null, { grow: 1, gold: 1 }); prop('fieldO', null, { grow: 1, gold: 1 });
           }],
-          [9.6, b => {
+          [8.4, b => {
             add('ruth', { label: '路得', sex: 'f', x: X.door - 0.02, facing: 1, pose: 'stand', robe: ROBE.ruth, glow: 0.7, accent: [246, 222, 160] });
             babe('ruth', 'baby');
             add('boaz', { label: '波阿斯', x: X.door + 0.03, facing: -1, robe: ROBE.boaz, glow: 0.45, accent: [214, 180, 110] });
@@ -1969,13 +1981,14 @@
             sfx(b, 'angel', { soft: true });
           }],
           [11.4, b => {
-            crowd('neighbors', { n: 6, x0: 0.79, x1: 0.86, layer: 2, label: '邻舍的妇人' }, woman(WOMEN, 0.04, 0.26));
+            crowd('neighbors', { n: 6, x0: PX(0.79), x1: PX(0.86), layer: 2, label: '邻舍的妇人' }, woman(WOMEN, 0.04, 0.26));
             cface('neighbors', 1);
             sfx(b, 'crowd', { soft: true });
           }],
-          [13.4, b => { cpose('neighbors', 'raise'); face('naomi', -1); }],
-          [15.6, () => { face('naomi', 1); }],
-          [16.8, b => {
+          // 拿俄米把孩子抱在怀中（4:16 那一句）；邻舍的妇人称颂耶和华在下一句（4:14）
+          [13.6, () => { face('naomi', -1); }],
+          [16.4, () => { face('naomi', 1); }],
+          [14.8, b => {
             babe('ruth', null); babe('naomi', 'baby'); glow('naomi', 0.8);
             if (!b.instant && fx()) { const h = headOf('naomi', 0.5); fx().ring(h[0], h[1], [255, 230, 180], M() * 0.14, 2.2, 1.6); }
             sparkleOn(b, 'naomi', 26, [255, 236, 190]);
@@ -1990,20 +2003,22 @@
     {
       kind: 'bless', utter: '耶和华是应当称颂的', cmd: 'git log 法勒斯..大卫 --oneline', ref: '4:14',
       verse: [
+        { text: '妇人们对拿俄米说：「耶和华是应当称颂的！因为今日没有撇下你，使你无至近的亲属。……<br>有这儿妇比有七个儿子还好！」', ref: '路得记 4:14–15', hold: 7.5 },
         { text: '邻舍的妇人说：「拿俄米得孩子了！」就给孩子起名叫俄备得。<br>这俄备得是耶西的父，耶西是大卫的父。', ref: '路得记 4:17', hold: 7 },
-        { text: '法勒斯的后代记在下面：<br>法勒斯生希斯仑；希斯仑生兰；兰生亚米拿达；亚米拿达生拿顺；', ref: '路得记 4:18–20', hold: 6 },
         { text: '拿顺生撒门；撒门生波阿斯；<br>波阿斯生俄备得；俄备得生耶西；耶西生大卫。', ref: '路得记 4:20–22', hold: 6.5 },
       ],
       apply(c) {
         const beats = [
           [0, b => { W.goTo(0.772, 8, b.instant); W.set('ruLamp', 0.8, b.instant); W.set('ruLine', 1, b.instant); cpose('neighbors', 'raise'); }],
-          [0.8, b => { nameOver(b, 'naomi', '拿俄米', { hold: 2, rgb: [255, 230, 170] }); sfx(b, 'laugh', { soft: true }); }],
-          [3.8, b => { nameOver(b, 'naomi', '俄备得', { hold: 2.6, rgb: [255, 238, 196] }); }],
-          [6.4, () => { cpose('neighbors', 'stand'); }],
+          // 「耶和华是应当称颂的！因为今日没有撇下你」（4:14）：拿俄米的名以金光重新聚成
+          [0.8, b => { nameOver(b, 'naomi', '拿俄米', { hold: 2.4, rgb: [255, 230, 170] }); sfx(b, 'laugh', { soft: true }); }],
+          [8, () => { cpose('neighbors', 'stand'); }],
+          // 「就给孩子起名叫俄备得」（4:17）
+          [9.6, b => { nameOver(b, 'naomi', '俄备得', { hold: 2.6, rgb: [255, 238, 196] }); }],
         ];
-        // 名字随经文一颗一颗亮起：法勒斯……拿顺随第二行，撒门……大卫随第三行
+        // 名字一颗一颗亮在天上：法勒斯……拿顺在 4:17 那一句的末了（天上的名自己说出 4:18–20），撒门……大卫随 4:20–22
         for (let i = 0; i < GENE.length; i++) {
-          beats.push([i < 5 ? 8.8 + i * 1.1 : 15.9 + (i - 5) * 1.2, b => {
+          beats.push([i < 5 ? 11.6 + i * 0.9 : 17.5 + (i - 5) * 1.2, b => {
             S.line = i + 1;
             if (!b.instant) {
               const p = genePts()[i];
@@ -2012,7 +2027,7 @@
             }
           }]);
         }
-        beats.push([21.4, b => {
+        beats.push([23.2, b => {
           pose('naomi', 'gaze'); pose('ruth', 'gaze'); pose('boaz', 'gaze'); cpose('neighbors', 'gaze');
           sfx(b, 'harp');
         }]);

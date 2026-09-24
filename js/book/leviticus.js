@@ -35,6 +35,7 @@
   W.defineLevel('levHearth', 'exp', 0.6);   // 营火（19:34）
   W.defineLevel('levTents', 'lin', 0.06);   // 「我要在你们中间行走」：荣光走过之处，帐棚一一亮起（26:12）
   W.defineLevel('levGlean', 'exp', 0.6);    // 田角留下的庄稼（23:22）：留给穷人和寄居的
+  W.defineLevel('levCol', 'exp', 0.5);      // 日间云柱的浓淡：说到荣光时满满的；讲地上的小事时淡一些，让人看得见（1 = 满）
 
   // ── 地上的位置（画面宽度的比例）：左 = 东（会幕的门朝东），右 = 西 ──
   // 营的东边（左）止于 CAMP0：再往左是海岸的陡坡——「营外」，长大麻风的人独居之处
@@ -760,6 +761,8 @@
   }
   const PUFF = (() => { const r = U.mulberry32(4040), out = []; for (let i = 0; i < 64; i++) out.push([r(), r(), r(), r()]); return out; })();
   function pillarBase() { const G = tabGeom(); return G.top + 2 * G.s; }
+  // 日间云柱的浓淡（夜里不减：夜里是云中的火）
+  const colK = () => lerp(1, clamp(W.lv.levCol, 0.2, 1), clamp(W.daylight * 1.3, 0, 1));
   // 云柱画在两张离屏的画布上：云（常规叠加）每十分之一秒重画一次——云走得很慢；
   // 火与荣光（加亮叠加）夜里每秒三十次，火的闪动才不会一顿一顿
   const PC = { a: null, b: null, ta: -99, tb: -99, w: 0, h: 0, glow: false };
@@ -815,9 +818,9 @@
     const G = P.G, s = G.s, L = P.L, Hh = P.Hh;
     const day = W.daylight, nk = nightK(), inc = W.lv.levIncense;
     const lx = litX() >= P.cx ? 1 : -1;
-    // 夜里云淡下去，让火透出来
-    const dim = 1 - 0.6 * nk;
-    const aLit = (0.36 + 0.26 * day) * dim, aSh = (0.46 + 0.3 * day) * dim;
+    // 夜里云淡下去，让火透出来；白日里讲地上的小事时（levCol < 1）云也淡一些，不是一根发白的柱子
+    const dim = 1 - 0.6 * nk, vk = colK();
+    const aLit = (0.36 + 0.26 * day) * dim * vk, aSh = (0.46 + 0.3 * day) * dim * vk;
     // 背光的一面
     for (let i = 0; i < PN; i++) {
       const ph = puffPh(i), [x, y, r] = puffAt(P, i, ph);
@@ -828,8 +831,10 @@
       const b = 1 + 0.03 * Math.sin(W.t * 0.4 + q[0] * 9);
       return [G.x0 + L * q[0], G.top - L * q[3] * k, L * q[1] * b, L * q[2] * b];
     };
-    for (const q of REST) { const [x, y, rx, ry] = restAt(q, 1); sprE(ctx, cs.shade, x - lx * rx * 0.1, y + ry * 0.3, rx, ry, aSh * 0.9); }
-    for (const q of REST) { const [x, y, rx, ry] = restAt(q, 1); sprE(ctx, cs.lit, x + lx * rx * 0.08, y - ry * 0.25, rx * 0.86, ry * 0.8, aLit * 0.95); }
+    // 歇在帐幕上的云（出 40:34）淡得少些
+    const rk = Math.sqrt(vk) / vk;
+    for (const q of REST) { const [x, y, rx, ry] = restAt(q, 1); sprE(ctx, cs.shade, x - lx * rx * 0.1, y + ry * 0.3, rx, ry, aSh * 0.9 * rk); }
+    for (const q of REST) { const [x, y, rx, ry] = restAt(q, 1); sprE(ctx, cs.lit, x + lx * rx * 0.08, y - ry * 0.25, rx * 0.86, ry * 0.8, aLit * 0.95 * rk); }
     // 迎光的一面
     for (let i = 0; i < PN; i++) {
       const ph = puffPh(i), [x, y, r] = puffAt(P, i, ph);
@@ -851,12 +856,12 @@
       const fl = 0.8 + 0.2 * Math.sin(W.t * 3.1 + i * 2.7);
       const a = Math.min(1, ph * 8) * pillarFadeTop(ph) * (1 - ph * 0.4);
       const r = w0 * (0.68 + 0.8 * ph);
-      spr(gl, SP.gold, cx + sw, y, r * 0.8, a * day * 0.045);
+      spr(gl, SP.gold, cx + sw, y, r * 0.8, a * day * 0.045 * colK());
       if (nk > 0.02) {
         spr(gl, SP.fireSoft, cx + sw, y, r, a * nk * 0.75 * fl);
         if (ph < 0.7) spr(gl, SP.white, cx + sw * 0.5, y, w0 * 0.35 * (1 + ph), a * nk * 0.4 * (0.85 + 0.15 * fl));
       }
-      if (g > 0.02) spr(gl, SP.gold, cx + sw, y, r * 1.05, a * g * (0.07 + 0.29 * nk) * fl);
+      if (g > 0.02) spr(gl, SP.gold, cx + sw, y, r * 1.05, a * g * (0.07 * colK() + 0.29 * nk) * fl);
     }
     if (nk > 0.02) spr(gl, SP.warm, cx, base - Hh * 0.12, w0 * 2, nk * 0.45);
     if (g > 0.02) spr(gl, SP.gold, cx, base - 6 * s, w0 * 2.4, g * (0.22 + 0.25 * nk));
@@ -1116,24 +1121,42 @@
           if (p > 0.8) spr(ctx, SP.white, b[0], b[1], 14 * s2, (1 - p) * 3);
         }
       } else if (e.type === 'bird') {
-        // 又把活鸟放在田野里（14:7）：一只白鸟自祭司手中飞起，飞过海面，没入天空，身后一道淡淡的光
-        const x0 = e.xf * W.w, y0 = e.yf * W.h, x2 = W.w * 0.08, y2 = W.h * 0.14, x1 = lerp(x0, x2, 0.3), y1 = y0 - W.h * 0.28;
+        // 又把活鸟放在田野里（14:7）：一只白鸟自祭司手中飞起，越过营与会幕，飞向右边空旷的田野，
+        // 身后一道长长的光（比别的转瞬之光大一倍：这是这一句的事）
+        const x0 = e.xf * W.w, y0 = e.yf * W.h, x2 = W.w * 0.97, y2 = W.h * (port() ? 0.46 : 0.4);
+        const x1 = lerp(x0, x2, 0.22), y1 = Math.min(y0, y2) - W.h * 0.3;
         const at = p => [(1 - p) * (1 - p) * x0 + 2 * (1 - p) * p * x1 + p * p * x2, (1 - p) * (1 - p) * y0 + 2 * (1 - p) * p * y1 + p * p * y2];
         const p = U.easeInOut(q);
         const [bx, by] = at(p);
-        const sz = lerp(8.4, 3.4, p) * Math.max(0.8, u) * (W.w < 600 ? 1.2 : 1), flap = Math.sin(e.t * 16) * sz;
-        const fade = 1 - smoothstep(0.85, 1, q);
+        const sz = lerp(8.4, 4.6, p) * Math.max(0.8, u) * (port() ? 1.2 : 2), flap = Math.sin(e.t * 13) * sz;
+        const fade = 1 - smoothstep(0.86, 1, q);
         ctx.globalCompositeOperation = 'lighter';
-        for (let j = 1; j <= 10; j++) {
-          const pj = Math.max(0, p - j * 0.012);
+        for (let j = 1; j <= 22; j++) {
+          const pj = Math.max(0, p - j * 0.011);
           const [tx, ty] = at(pj);
-          spr(ctx, SP.gold, tx, ty, sz * (1.6 - j * 0.1), fade * (1 - j / 11) * 0.35);
+          spr(ctx, SP.gold, tx, ty, sz * (1.5 - j * 0.045), fade * (1 - j / 23) * 0.42);
         }
-        spr(ctx, SP.white, bx, by, sz * 4, fade * 0.45);
+        spr(ctx, SP.white, bx, by, sz * 3.6, fade * 0.4);
         ctx.globalCompositeOperation = 'source-over';
+        // 身后一道细细的光痕（白日的天上也看得见），越往后越淡
+        ctx.lineCap = 'round';
+        ctx.strokeStyle = 'rgb(255,242,208)';
+        for (let j = 0; j < 14; j++) {
+          const pa = Math.max(0, p - (j + 1) * 0.016), pb = Math.max(0, p - j * 0.016);
+          if (pb <= 0) break;
+          const [ax, ay] = at(pa), [bx2, by2] = at(pb);
+          ctx.globalAlpha = fade * 0.5 * (1 - j / 14);
+          ctx.lineWidth = Math.max(0.8, sz * 0.28 * (1 - j / 16));
+          ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx2, by2); ctx.stroke();
+        }
+        // 一道淡淡的暗边：飞过白云时也看得见
+        const wing = () => { ctx.beginPath(); ctx.moveTo(bx - sz * 1.6, by - flap); ctx.quadraticCurveTo(bx - sz * 0.6, by - sz * 0.5, bx, by); ctx.quadraticCurveTo(bx + sz * 0.6, by - sz * 0.5, bx + sz * 1.6, by - flap); };
+        ctx.lineCap = 'round';
+        ctx.globalAlpha = fade * 0.35; ctx.strokeStyle = 'rgb(70,74,90)'; ctx.lineWidth = Math.max(2, sz * 0.62);
+        wing(); ctx.stroke();
         ctx.globalAlpha = fade;
-        ctx.strokeStyle = 'rgb(250,248,242)'; ctx.lineWidth = Math.max(1.2, sz * 0.45); ctx.lineCap = 'round';
-        ctx.beginPath(); ctx.moveTo(bx - sz * 1.6, by - flap); ctx.quadraticCurveTo(bx - sz * 0.6, by - sz * 0.5, bx, by); ctx.quadraticCurveTo(bx + sz * 0.6, by - sz * 0.5, bx + sz * 1.6, by - flap); ctx.stroke();
+        ctx.strokeStyle = 'rgb(250,248,242)'; ctx.lineWidth = Math.max(1.2, sz * 0.4);
+        wing(); ctx.stroke();
         ctx.fillStyle = 'rgb(250,248,242)';
         ctx.beginPath(); ctx.ellipse(bx, by + sz * 0.1, sz * 0.5, sz * 0.32, 0, 0, TAU); ctx.fill();
       } else if (e.type === 'sins') {
@@ -1302,6 +1325,31 @@
     ctx.globalCompositeOperation = 'source-over';
   }
 
+  // 故事里要认得出的人与羊（长大麻风的人、归与阿撒泻勒的羊与送它的人）：脚下一圈柔和的光（画在人物之下）
+  function drawMarks(ctx) {
+    let any = false;
+    for (const e of FXL) if (e.type === 'mark') { any = true; break; }
+    if (!any) return;
+    SP || sprites();
+    ctx.globalCompositeOperation = 'lighter';
+    for (const e of FXL) {
+      if (e.type !== 'mark') continue;
+      const q = clamp(e.t / e.dur, 0, 1), env = smoothstep(0, 0.1, q) * (1 - smoothstep(0.82, 1, q));
+      const pulse = 0.82 + 0.18 * Math.sin(e.t * 2.2);
+      for (const id of e.ids) {
+        const f = fig(id);
+        if (!f || f.dying) continue;
+        const h = f._vis && f._h ? f._h : 44 * LS(2), x = f._vis ? f._x : f.nx * W.w, y = f._vis ? f._y : gY(2, f.nx);
+        const R = Math.max(h * 0.62, 16) * (port() ? 1.25 : 1), a = env * (f.alpha == null ? 1 : f.alpha);
+        ring(ctx, x, y + h * 0.02, R * pulse, 0.3, a * 0.62);
+        sprE(ctx, SP.gold, x, y, R * 1.1, R * 0.34, a * 0.3);
+        spr(ctx, SP.gold, x, y - h * 0.5, h * 0.95, a * 0.1);
+      }
+    }
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 1;
+  }
+
   // 一道扁扁的光环贴着地面荡开（位置、半径都按画面的比例记下）
   function halo(b, xf, y, R, dur) { fl(b, { type: 'waves', pts: [[xf, y / W.h]], R: R / W.w, dur: dur || 3 }); }
 
@@ -1338,6 +1386,7 @@
         drawDays(ctx);
         drawGlean(ctx);
         drawWaves(ctx);
+        drawMarks(ctx);
       }
     },
     draw(ctx, pass) {
@@ -1376,7 +1425,7 @@
     // 西奈的旷野：枯黄的地，花隐去，几乎没有树
     const lv = { deep: 1, light: 1, gather: 1, dayNight: 1, vault: 1, clouds: 0.35, land: 1, grass: 1, herbs: 0.35, trees: 0, lights: 1, moon: 1, stars: 1, life: 1, good: 0, given: 1, sabbath: 0,
       bare: 0.86, bloom: 0, rain: 0, storm: 0, gale: 0, hail: 0, gloom: 0,
-      levGlory: 0.28, levFire: 0.75, levHoly: 0, levIncense: 0, levDays: 0, levBooths: 0, levLamp: 0, levHearth: 0, levTents: 0, levGlean: 0 };
+      levGlory: 0.28, levFire: 0.75, levHoly: 0, levIncense: 0, levDays: 0, levBooths: 0, levLamp: 0, levHearth: 0, levTents: 0, levGlean: 0, levCol: 1 };
     for (const k in lv) if (!W.hasLevel || W.hasLevel(k)) W.set(k, lv[k], true);
     const ox = W.w * 0.997, oy = W.ridgeBaseY(2, ox);
     W.setOrigin('trees', ox, oy);
@@ -1432,7 +1481,7 @@
       ],
       apply(c) {
         T(c, [
-          [0, b => { fl(b, { type: 'voice', dur: 4.5 }); W.set('levGlory', 0.75, b.instant); W.goTo(0.36, 26, b.instant); sfx(b, 'angel', { soft: true }); }],
+          [0, b => { W.set('levCol', 1, b.instant); fl(b, { type: 'voice', dur: 4.5 }); W.set('levGlory', 0.75, b.instant); W.goTo(0.36, 26, b.instant); sfx(b, 'angel', { soft: true }); }],
           [0.6, () => { face('moses', 1); pose('moses', 'kneel'); }],
           [3.4, () => { W.set('levGlory', 0.3); pose('moses', 'stand'); face('moses', -1); }],
           [4.2, () => pose('moses', 'point')],
@@ -1467,7 +1516,7 @@
       ],
       apply(c) {
         T(c, [
-          [0, b => { W.set('levFire', 1.25, b.instant); if (!b.instant) fx().sparkle(altarGeom().x, altarGeom().top - 14, 30, [255, 210, 150], 14, 'air'); W.goTo(0.76, 13, b.instant); sfx(b, 'fire'); }],
+          [0, b => { W.set('levCol', 1, b.instant); W.set('levFire', 1.25, b.instant); if (!b.instant) fx().sparkle(altarGeom().x, altarGeom().top - 14, 30, [255, 210, 150], 14, 'air'); W.goTo(0.76, 13, b.instant); sfx(b, 'fire'); }],
           [2.4, b => {
             pose('offerer', 'stand');
             animal('shegoat', 'goat', HOME.offerer - 0.03, { label: '母山羊', facing: 1, v: FORE, from: b.instant ? 'none' : 'fade' });
@@ -1500,7 +1549,7 @@
       ],
       apply(c) {
         T(c, [
-          [0, b => {
+          [0, b => { W.set('levCol', 0.75, b.instant);
             W.goTo(0.42, 14, b.instant);
             crowdMill('campL', false); crowdMill('campR', false);
             crowdWalk('campR', 0.47, 0.545, { speed: 0.036 });
@@ -1560,7 +1609,7 @@
       ],
       apply(c) {
         T(c, [
-          [0, b => {
+          [0, b => { W.set('levCol', 1, b.instant);
             W.set('levDays', 0);
             W.goTo(0.22, 11, b.instant);             // 夜将尽：火在黎明前落下
             ['nadab', 'abihu', 'eleazar', 'ithamar'].forEach(id => pose(id, 'stand'));
@@ -1619,7 +1668,7 @@
       ],
       apply(c) {
         T(c, [
-          [0, b => {
+          [0, b => { W.set('levCol', 0.55, b.instant);
             W.goTo(0.4, 24, b.instant);
             W.set('levFire', 1.05);
             people('stand', -1); crowdPose('campM', 'stand');
@@ -1665,7 +1714,7 @@
       ],
       apply(c) {
         T(c, [
-          [0, b => {
+          [0, b => { W.set('levCol', 0.55, b.instant);
             W.set('levHoly', 1, b.instant);
             W.goTo(0.5, 26, b.instant);
             fl(b, { type: 'sweep', x0: PILLAR_X, x1: 0.36, dur: 4.2 }); fl(b, { type: 'sweep', x0: PILLAR_X, x1: 1.0, dur: 3.4 });
@@ -1697,6 +1746,7 @@
             walk('leper', X.leper, { speed: 0.022, pose: 'sit' });
             pose('ithamar', 'stand');
             fl(b, { type: 'campEdge', dur: 7 });
+            fl(b, { type: 'mark', ids: ['leper'], dur: 8 });
           }],
         ]);
       },
@@ -1711,12 +1761,13 @@
       ],
       apply(c) {
         T(c, [
-          [0, b => {
+          [0, b => { W.set('levCol', 0.5, b.instant);
             W.goTo(0.58, 24, b.instant);
             W.set('levHoly', 0.35);
             walk('eleazar', X.leper + 0.026, { speed: 0.042 });
             pose('leper', 'stand'); face('leper', 1);
             fl(b, { type: 'campEdge', dur: 8 });
+            fl(b, { type: 'mark', ids: ['leper'], dur: 17 });
           }],
           [6.3, b => { face('eleazar', -1); pose('eleazar', 'point'); fl(b, { type: 'sprinkle', from: 'eleazar', to: 'leper', dur: 4 }); sfx(b, 'splash', { soft: true }); }],
           [10.4, b => {
@@ -1751,7 +1802,7 @@
       ],
       apply(c) {
         T(c, [
-          [0, b => {
+          [0, b => { W.set('levCol', 0.55, b.instant);
             W.goTo(0.745, 26, b.instant);
             W.set('levHoly', 0);
             dressAaron(2);
@@ -1764,7 +1815,7 @@
             sfx(b, 'goat');
           }],
           // 为那两只羊拈阄（16:8）
-          [1.4, b => { face('aaron', -1); pose('aaron', 'point'); fl(b, { type: 'lots', dur: 4.2 }); sfx(b, 'chime'); }],
+          [1.4, b => { face('aaron', -1); pose('aaron', 'point'); fl(b, { type: 'lots', dur: 4.2 }); fl(b, { type: 'mark', ids: ['goatA'], dur: 13.4 }); sfx(b, 'chime'); }],
           // 归与耶和华的羊献为赎罪祭（16:9）；亚伦进入幔内，香的烟云遮掩施恩座（16:12–13）
           [4.2, b => {
             pose('aaron', 'stand');
@@ -1790,6 +1841,7 @@
           }],
           [15, b => {
             add('sent', { label: '所派的人', sex: 'm', age: 'adult', x: X.gate + 0.05, facing: 1, robe: ROBE.sent, glow: 0.2, v: 0.46, from: b.instant ? 'none' : 'fade' });
+            fl(b, { type: 'mark', ids: ['goatA', 'sent'], dur: 14 });
           }],
           [15.6, b => say(b, [{ text: '要把这羊放在旷野，这羊要担当他们一切的罪孽，带到无人之地。', ref: '利未记 16:22', hold: 6.5 }])],
           // 藉着所派之人的手，送到旷野去：走在众人前面，向西没入落日
@@ -1821,7 +1873,7 @@
       ],
       apply(c) {
         T(c, [
-          [0, b => {
+          [0, b => { W.set('levCol', 0.7, b.instant);
             W.goTo(0.82, 26, b.instant);
             W.set('levHoly', 0.2);
             W.set('levHearth', 1, b.instant);
@@ -1863,7 +1915,7 @@
       ],
       apply(c) {
         T(c, [
-          [0, b => {
+          [0, b => { W.set('levCol', 1, b.instant);
             W.goTo(0.93, 16, b.instant);
             walk('aaron', X.tabL - 0.014, { speed: 0.03 }); walk('eleazar', X.tabL - 0.036, { speed: 0.03 }); walk('ithamar', X.tabL - 0.058, { speed: 0.03 });
             walk('moses', X.gate + 0.02, { speed: 0.03 });
@@ -1894,7 +1946,7 @@
       ],
       apply(c) {
         T(c, [
-          [0, b => {
+          [0, b => { W.set('levCol', 0.6, b.instant);
             W.goTo(0.2, 26, b.instant);
             W.set('levHearth', 0);
             W.set('levGlean', 1, b.instant);
@@ -1929,7 +1981,7 @@
       ],
       apply(c) {
         T(c, [
-          [0, b => {
+          [0, b => { W.set('levCol', 0.6, b.instant);
             W.goTo(0.3, 14, b.instant);
             W.set('levBooths', 0, b.instant);
             W.set('levLamp', 0.4);
@@ -1983,7 +2035,7 @@
       ],
       apply(c) {
         T(c, [
-          [0, b => {
+          [0, b => { W.set('levCol', 0.8, b.instant);
             W.set('rain', 0.75, b.instant); W.set('storm', 0.22, b.instant); W.set('clouds', 0.75, b.instant);
             W.goTo(0.62, 9, b.instant);
             sfx(b, 'rain');
@@ -2020,7 +2072,8 @@
   // ════════════════════════════════════════════════════════════
   GS.book.act({
     id: ACT, book: '利未记', books: [3], title: '圣洁', sub: '利未记 1 — 27', tint: [255, 226, 180], music: 'abraham',
-    intro: [{ text: '日间，耶和华的云彩是在帐幕以上；夜间，云中有火，<br>在以色列全家的眼前。在他们所行的路上都是这样。', ref: '出埃及记 40:38', hold: 7.5 }],
+    // 上一幕（西奈）末了一句是 40:38：这里接 40:35——摩西不能进会幕，耶和华便从会幕中呼叫他（1:1）
+    intro: [{ text: '摩西不能进会幕；因为云彩停在其上，<br>并且耶和华的荣光充满了帐幕。', ref: '出埃及记 40:35', hold: 6.5 }],
     outro: 18,
     setup, stages: STAGES, scene: SCENE,
     // 书成之后，按住本卷的人与物，显出它的经文

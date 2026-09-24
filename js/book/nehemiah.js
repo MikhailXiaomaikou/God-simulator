@@ -1885,8 +1885,9 @@
   // 夜里察看的路上，经过的门的名字在月光下显出（2:13–15）
   function gateName(b, str, i, quiet) {
     if (b.instant) return;
+    // 字要大些、停久些，写在城门楼顶之上（聚定后核心会显出带暗衬的清楚字形）
     const G = geo(), sg = G.front[i], xm = (sg.xa + sg.xb) / 2;
-    nameHere(b, str, xm * W.w, G.g(xm) - G.WH * 1.25, [226, 232, 255], { size: 0.022, hold: 2.6, quiet });
+    nameHere(b, str, xm * W.w, G.g(xm) - G.WG * 1.2, [232, 238, 255], { size: 0.036, hold: 3.5, quiet });
   }
   // 夜里人群中每四人一支火把（读得出人来）；on=false 时交还原来手里的东西
   function crowdTorches(gid, on) {

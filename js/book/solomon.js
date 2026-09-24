@@ -106,7 +106,7 @@
   const fieldY = (xf, v) => { const g = gY(2, xf); return g + v * Math.max(0, W.h - g) * 0.8; };
   const dayA = () => 0.3 + 0.7 * W.daylight;
   // 与近地的人同一比例（成人约高 44 个单位）
-  const PK = () => (34 * W.layerScale(2) * (W.w < 600 ? 1.4 : 1) * 1.3) / 44;
+  const PK = () => (34 * W.layerScale(2) * (W.w < 600 ? 1.55 : 1) * 1.3) / 44;
 
   const RT = [];
   (function () { const r = U.mulberry32(1011); for (let i = 0; i < 1024; i++) RT.push(r()); })();
@@ -169,7 +169,7 @@
   function figPt(id, frac) {
     const f = fig(id);
     if (!f) return null;
-    const l = f.layer == null ? 2 : f.layer, bo = W.w < 600 ? 1.4 : 1, ak = ACT_K[l] || 1;
+    const l = f.layer == null ? 2 : f.layer, bo = W.w < 600 ? 1.55 : 1, ak = ACT_K[l] || 1;
     let x, y;
     if (f.attach && f._ax != null && isFinite(f._ax)) { x = f._ax; y = f._ay; }
     else {
@@ -190,7 +190,7 @@
     if (b.instant) return;
     o = o || {};
     const p = figPt(id, 1) || [W.w * 0.7, W.h * 0.8];
-    const size = (o.size || 0.042) * M(), n = Array.from(str).length;
+    const size = (o.size || 0.042) * M() * (tall() ? 1.4 : 1), n = Array.from(str).length;
     const half = (size * 1.08 * (n - 1)) / 2 + size * 0.6;
     const cx = tall() ? p[0] : Math.max(p[0], W.w * 0.49 + half);
     const c = nameAt(cx, p[1] - size * (o.lift || 1.0) - 6, size, n);
@@ -202,7 +202,8 @@
   function nameAtPt(b, str, x, y, rgb, src, o) {
     if (b.instant) return;
     o = o || {};
-    const size = (o.size || 0.036) * M(), n = Array.from(str).length;
+    // 竖屏（手机）上字放大些，才读得清
+    const size = (o.size || 0.04) * M() * (tall() ? 1.5 : 1), n = Array.from(str).length;
     // 横屏时经文在左边的海上：名字不落进经文框
     if (!tall()) x = Math.max(x, W.w * 0.49 + (size * 1.08 * (n - 1)) / 2 + size * 0.6);
     const c = nameAt(x, y, size, n);
@@ -1818,14 +1819,14 @@
     { text: '天下列王听见所罗门的智慧，就都差人来听他的智慧话。', ref: '列王纪上 4:34', hold: 5 },
   ];
   const V7 = [
-    { text: '所罗门也差遣人去见希兰，说：「……我定意要为耶和华我神的名建殿……」', ref: '列王纪上 5:2–5', hold: 6 },
+    { text: '所罗门也差遣人去见希兰，说：「……我定意要为耶和华我神的名建殿，是照耶和华应许我父亲大卫的话说：<br>『我必使你儿子接续你坐你的位，他必为我的名建殿。』」', ref: '列王纪上 5:2–5', hold: 7.5 },
     { text: '希兰打发人去见所罗门，说：「……我的仆人必将这木料从黎巴嫩运到海里，<br>扎成筏子，浮海运到你所指定我的地方……」', ref: '列王纪上 5:8–9', hold: 8 },
     { text: '王下令，人就凿出又大又宝贵的石头来，用以立殿的根基。', ref: '列王纪上 5:17', hold: 5.5 },
   ];
   const V8 = [
     { text: '建殿是用山中凿成的石头。<br>建殿的时候，锤子、斧子，和别样铁器的响声都没有听见。', ref: '列王纪上 6:7', hold: 7 },
     { text: '所罗门建殿，安置香柏木的栋梁，又用香柏木板遮盖。……<br>全殿都贴上金子，直到贴完……', ref: '列王纪上 6:9–22', hold: 6.5 },
-    { text: '……殿和一切属殿的都按着样式造成。他建殿的工夫共有七年。', ref: '列王纪上 6:38', hold: 5.5 },
+    { text: '耶和华的话临到所罗门说：「论到你所建的这殿……<br>我必住在以色列人中间，并不丢弃我民以色列。」', ref: '列王纪上 6:11–13', hold: 6.3 },
     { text: '他将两根柱子立在殿廊前头：右边立一根，起名叫雅斤；<br>左边立一根，起名叫波阿斯。', ref: '列王纪上 7:21', hold: 6.5 },
   ];
   const V9 = [
@@ -2099,7 +2100,7 @@
             fxAdd(b, { type: 'cedar', dur: 7.5 });
             const ct = cedarTop();
             nameAtPt(b, '香柏树', ct[0], ct[1] - 22 * SU(), [190, 236, 170], null, { delay: 0.8 });
-            nameAtPt(b, '飞禽', W.w * 0.74, W.h * 0.3, [236, 244, 255], null, { delay: 1.8 });
+            nameAtPt(b, '飞禽', W.w * 0.74, W.h * (tall() ? 0.42 : 0.3), [236, 244, 255], null, { delay: 1.8 });
             nameAtPt(b, '走兽', W.w * 0.9, fieldY(0.9, 0.1) - 70 * PK(), [240, 214, 170], null, { delay: 2.8 });
             nameAtPt(b, '水族', W.w * 0.57, W.h * 0.8, [190, 224, 255], () => [W.w * rand(0.5, 0.64), W.h * rand(0.76, 0.84)], { delay: 3.8 });
             sfx(b, 'bird');
@@ -2164,6 +2165,8 @@
           [L[1] + 2, b => { W.set('soCedar', 1, b.instant); glideLogs(b, 2.4, 8); }],
           [L[1] + 4.6, b => { W.set('soLogs', 0, b.instant); W.set('soStones', 0, b.instant); W.set('soGold', 1, b.instant); fxAdd(b, { type: 'sheen', dur: 3.4 }); sfx(b, 'angel'); }],
           [L[2], b => { W.goTo(0.42, 4.5, b.instant); crowdWalk('workers', 0.78, 0.94, { speed: 0.03 }); }],
+          // 耶和华的话临到所罗门：我必住在以色列人中间（6:11–13）——殿上掠过一道光
+          [L[2] + 1.4, b => { fxAdd(b, { type: 'sheen', dur: 4 }); sfx(b, 'harp', { soft: true }); }],
           [L[2] + 3, () => uncrowd('workers')],
           [L[3], b => { W.set('soPillars', 1, b.instant); W.set('soSea', 1, b.instant); sfx(b, 'build', { soft: true }); }],
           [L[3] + 4.4, b => {

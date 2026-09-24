@@ -32,6 +32,7 @@
   // ── 本卷的程度（缓动的量；恢复存档时对齐）───────────────────
   W.defineLevel('elDry', 'exp', 0.3);      // 旱：天色发白，地气蒸腾（17:1）
   W.defineLevel('elLamp', 'exp', 0.5);     // 耶路撒冷的灯光（15:4）
+  W.defineLevel('elLampHi', 'exp', 0.7);   // 说出「仍使他在耶路撒冷有灯光」时，那灯格外明亮
   W.defineLevel('elBaal', 'exp', 0.5);     // 巴力庙前的红火（16:32）
   W.defineLevel('elHush', 'exp', 2.2);     // 火降下之前，天地屏息
   W.defineLevel('elHeaven', 'exp', 1.1);   // 自天降下的火（18:38）
@@ -42,7 +43,7 @@
   W.defineLevel('elStill', 'exp', 0.4);    // 火后有微小的声音
   W.defineLevel('elSeven', 'lin', 0.12);   // 七千未曾向巴力屈膝的人（19:18）
   W.defineLevel('elAram', 'exp', 0.6);     // 亚兰人满了地面（20:27）
-  const MY_LEVELS = { elDry: 0, elLamp: 0.3, elBaal: 0, elHush: 0, elHeaven: 0, elHand: 0, elWind: 0, elQuake: 0, elBlaze: 0, elStill: 0, elSeven: 0, elAram: 0 };
+  const MY_LEVELS = { elDry: 0, elLamp: 0.3, elLampHi: 0, elBaal: 0, elHush: 0, elHeaven: 0, elHand: 0, elWind: 0, elQuake: 0, elBlaze: 0, elStill: 0, elSeven: 0, elAram: 0 };
 
   // ── 地上的位置（画面宽度的比例）───────────────────────────
   const X = {
@@ -88,16 +89,30 @@
   const fieldH = g => Math.max(0, W.h - g);
   const port = () => W.w < W.h * 0.9;
   const hsh = n => { const s = Math.sin(n * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); };
+  // 竖屏时，近地上的一切（人、牲畜、布景、山）按同一比例收进 0.45–0.9 之间：
+  // 右边缘不再切掉迦密山的众民、拿伯的葡萄园、耶斯列的宫、王座与米该雅。
+  // 只在情节发生的那一刻换算（存下换算后的比例，重演与观看一样）；画面外的位置（> 1）不动，人仍从画面外走进、走出。
+  const PK = 0.82, PX0 = 0.45;
+  const pmap = xf => (port() && typeof xf === 'number' && xf > PX0 && xf <= 1 ? PX0 + (xf - PX0) * PK : xf);
+  const pmapD = d => (port() ? d * PK : d);
+  const isNear = l => (l == null ? 2 : l) === 2;
+  // 某件布景此刻所在（已换算）；没有时按本卷的位置换算
+  const PXf = (id, xf) => { const p = P.get(id); return p ? p.x : pmap(xf); };
+  const altX = () => PXf('lordAlt', X.lordAlt);
 
   // 人物
   const C = () => cast();
   const has = id => { const c = C(); return c.has ? c.has(id) : !!(c.get && c.get(id)); };
   const hasCrowd = gid => { const c = C(); return !!(c.crowds && c.crowds.has && c.crowds.has(gid)); };
-  function add(id, o) { return C().add(id, o); }
-  function walk(id, x, o) { if (has(id)) C().walk(id, x, o); }
+  const figNear = id => { const f = fig(id); return !f || isNear(f.layer); };
+  function add(id, o) {
+    if (o && o.x != null && (o.layer != null ? isNear(o.layer) : figNear(id))) o = Object.assign({}, o, { x: pmap(o.x) });
+    return C().add(id, o);
+  }
+  function walk(id, x, o) { if (has(id)) C().walk(id, (o && o.layer != null ? isNear(o.layer) : figNear(id)) ? pmap(x) : x, o); }
   function pose(id, p, o) { if (has(id)) C().pose(id, p, o); }
-  function face(id, d) { if (has(id)) C().face(id, d); }
-  function place(id, x, l) { if (has(id)) C().place(id, x, l); }
+  function face(id, d) { if (has(id)) C().face(id, typeof d === 'number' && d !== 1 && d !== -1 && figNear(id) ? pmap(d) : d); }
+  function place(id, x, l) { if (has(id)) C().place(id, (l != null ? isNear(l) : figNear(id)) ? pmap(x) : x, l); }
   function rm(id, now) { if (has(id)) C().remove(id, now ? { fade: false } : undefined); }
   function fig(id) { const c = C(); return c.get ? c.get(id) : null; }
   function glow(id, v) { if (has(id)) C().glow(id, v); }
@@ -110,25 +125,32 @@
   const ride = (id, m) => { const c = C(); if (c.ride && has(id)) U.safe('cast.ride', () => c.ride(id, m || null)); };
   const embrace = (a, b, o) => { const c = C(); if (c.embrace && has(a) && has(b)) U.safe('cast.embrace', () => c.embrace(a, b, o)); else { pose(a, 'stand'); pose(b, 'stand'); } };
   const attach = (id, fn) => { const c = C(); if (c.attach && has(id)) c.attach(id, fn || null); };
-  const follow = (id, o, dx) => { const c = C(); if (c.follow && has(id)) U.safe('cast.follow', () => c.follow(id, o, dx)); };
+  const follow = (id, o, dx) => { const c = C(); if (c.follow && has(id)) U.safe('cast.follow', () => c.follow(id, o, dx == null ? dx : pmapD(dx))); };
   function animal(id, kind, x, o) {
     const c = C();
     if (!c.animal) return null;
-    return U.safe('cast.animal', () => c.animal(id, Object.assign({ kind, x, layer: 2 }, o || {})));
+    const oo = Object.assign({ kind, x, layer: 2 }, o || {});
+    if (isNear(oo.layer)) oo.x = pmap(oo.x);
+    return U.safe('cast.animal', () => c.animal(id, oo));
   }
   function herd(gid, o) {
     const c = C();
     if (!c.herd || hasCrowd(gid)) return;
-    U.safe('cast.herd', () => c.herd(gid, Object.assign({ from: W.replaying ? 'none' : 'fade' }, o)));
+    const oo = Object.assign({ from: W.replaying ? 'none' : 'fade' }, o);
+    if (isNear(oo.layer)) { oo.x0 = pmap(oo.x0); oo.x1 = pmap(oo.x1); }
+    U.safe('cast.herd', () => c.herd(gid, oo));
   }
   function crowd(gid, o) {
     if (hasCrowd(gid)) return;
-    C().crowd(gid, Object.assign({ from: W.replaying ? 'none' : 'fade', mill: false }, o));
+    const oo = Object.assign({ from: W.replaying ? 'none' : 'fade', mill: false }, o);
+    if (isNear(oo.layer)) { oo.x0 = pmap(oo.x0); oo.x1 = pmap(oo.x1); }
+    C().crowd(gid, oo);
   }
   function crowdEach(gid, fn) { const c = C(); const g = c.crowds && c.crowds.get && c.crowds.get(gid); if (g) g.members.forEach(fn); }
-  function crowdFace(gid, d) { crowdEach(gid, m => { if (typeof d === 'number' && d !== 1 && d !== -1) m.facing = d >= m.nx ? 1 : -1; else m.facing = d; if (W.replaying) m.fd = m.facing; }); }
+  function crowdFace(gid, d) { crowdEach(gid, m => { if (typeof d === 'number' && d !== 1 && d !== -1) m.facing = (isNear(m.layer) ? pmap(d) : d) >= m.nx ? 1 : -1; else m.facing = d; if (W.replaying) m.fd = m.facing; }); }
   function crowdPose(gid, p) { if (hasCrowd(gid)) C().crowdPose(gid, p); }
-  function crowdWalk(gid, a, b, o) { if (hasCrowd(gid)) C().crowdWalk(gid, a, b, o); }
+  function crowdNear(gid) { let n = true; crowdEach(gid, m => { if (!isNear(m.layer)) n = false; }); return n; }
+  function crowdWalk(gid, a, b, o) { if (hasCrowd(gid)) { const k = crowdNear(gid); C().crowdWalk(gid, k ? pmap(a) : a, k ? pmap(b) : b, o); } }
   function rmCrowd(gid) { if (hasCrowd(gid)) C().removeCrowd(gid); }
 
   // 旁白（情节里补充的经文；瞬间重演时不念）
@@ -159,7 +181,7 @@
     return [clamp(xf * W.w, half + 8, W.w - half - 8), cy];
   }
   // 地上的走兽绕开主要人物与布景所在的几段
-  function avoid(...rs) { W.beastAvoid = rs.map(r => [clamp(Math.min(r[0], r[1]), 0, 1), clamp(Math.max(r[0], r[1]), 0, 1)]); }
+  function avoid(...rs) { W.beastAvoid = rs.map(r => [clamp(Math.min(pmap(r[0]), pmap(r[1])), 0, 1), clamp(Math.max(pmap(r[0]), pmap(r[1])), 0, 1)]); }
   function lv(name, v, b) { W.set(name, v, !!(b && b.instant)); }
 
   // ════════════════════════════════════════════════════════════
@@ -185,10 +207,11 @@
     return lerp(pts[i][1], pts[i + 1][1], f - i);
   }
   const mSpec = p => MOUNTS[p.kind === 'horeb' ? 'horeb' : 'carmel'];
+  const mHW = p => mSpec(p).hw * (p.pk || 1);     // 山的半宽（画面比例；竖屏时随布景一同收窄，高不变）
   function mountH(p) { const m = mSpec(p), hw = m.hw * W.w; return Math.min(m.hmax * W.h, m.hpx * LS(2), m.hr * hw * (port() ? 1.6 : 1)); }
   function mountYOf(p, xf) {
     if (!p || !p.model || p.grow < 0.005) return null;
-    const u = (xf - p.x) / mSpec(p).hw;
+    const u = (xf - p.x) / mHW(p);
     if (u <= -1 || u >= 1) return null;
     const k = kAt(p.model, u), gc = gY(2, p.x);
     return Math.min(gY(2, xf), gc + 3 - k * mountH(p) * p.grow);
@@ -205,7 +228,7 @@
   // 洞口前的平台（19:9 他在那里进了一个洞）
   function caveXY(dx) {
     const p = P.get('horeb');
-    const xf = (p ? p.x : X.horeb) + CAVE_U * MOUNTS.horeb.hw + (dx || 0);
+    const xf = p ? p.x + (CAVE_U * MOUNTS.horeb.hw + (dx || 0)) * (p.pk || 1) : pmap(X.horeb + CAVE_U * MOUNTS.horeb.hw + (dx || 0));
     const y = p ? mountYOf(p, xf) : null;
     return [xf * W.w, y == null ? gY(2, xf) : y];
   }
@@ -230,7 +253,13 @@
       p.ta = 1; p.tgrow = 1; p.grow = o.grow != null ? 0 : 1;
       P.set(id, p);
     }
-    for (const k of ['x', 'x0', 'x1', 'layer', 'size', 'label', 'variant', 'hill', 'noAltar', 'lord', 'wood', 'bull', 'trench', 'gs', 'stone', 'ax', 'ak', 'teams', 'cap']) if (o[k] !== undefined) p[k] = o[k];
+    // 近地上的布景：竖屏时按同一比例收进画面（见 pmap）；pk 记下换算时的比例，山的宽窄随之
+    const near = isNear(o.layer !== undefined ? o.layer : p.layer);
+    for (const k of ['x', 'x0', 'x1', 'xa', 'xb', 'layer', 'size', 'label', 'variant', 'hill', 'noAltar', 'lord', 'wood', 'bull', 'trench', 'gs', 'stone', 'ax', 'ak', 'teams', 'cap']) {
+      if (o[k] === undefined) continue;
+      p[k] = !near ? o[k] : (k === 'x' || k === 'x0' || k === 'x1' || k === 'xa' || k === 'xb') ? pmap(o[k]) : k === 'ax' ? pmapD(o[k]) : o[k];
+    }
+    if (o.x !== undefined) p.pk = near && port() ? PK : 1;
     for (const k of KEYS) if (k !== 'a' && o[k] != null) p['t' + k] = o[k];
     if (o.show != null) p.ta = o.show ? 1 : 0;
     if (!isNew && p.dying && o.show !== false) { p.dying = false; p.ta = 1; }
@@ -555,17 +584,35 @@
     // 耶路撒冷的灯（15:4）：远处一点不灭的光
     if (lampX != null) {
       SP || sprites();
-      const k = W.lv.elLamp, fl = 0.88 + 0.12 * Math.sin(W.t * 2.3) + 0.05 * Math.sin(W.t * 7.1);
-      const a = k * fl * (0.35 + 0.65 * nk);
-      const r = Math.max(10, 70 * s) * (0.6 + 0.6 * k);
+      // hi：说出这句话时，灯格外明亮（一团暖光与十字的光芒），白昼黄昏里也看得清
+      const k = W.lv.elLamp, hi = W.lv.elLampHi || 0, fl = 0.88 + 0.12 * Math.sin(W.t * 2.3) + 0.05 * Math.sin(W.t * 7.1);
+      const a = Math.min(1.2, k * fl * (0.35 + 0.65 * nk) + 0.75 * hi);
+      const r = Math.max(10, 70 * s) * (0.6 + 0.6 * k) * (1 + 1.3 * hi);
       glowAt(ctx, SP.gold, lampX, lampY, r, a * 0.8 * p.a);
       glowAt(ctx, SP.warm, lampX, lampY, r * 0.4, a * p.a);
+      if (hi > 0.02) {
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.fillStyle = 'rgb(255,226,168)';
+        const L = r * 0.9 * fl, t = Math.max(1, 1.3 * Math.max(0.6, W.unit));
+        ctx.globalAlpha = hi * 0.55 * p.a;
+        ctx.fillRect(lampX - L, lampY - t / 2, L * 2, t);
+        ctx.fillRect(lampX - t / 2, lampY - L * 0.75, t, L * 1.5);
+        ctx.globalCompositeOperation = 'source-over';
+      }
       ctx.globalAlpha = Math.min(1, a * 1.4) * p.a;
       ctx.fillStyle = 'rgb(255,244,210)';
-      const cs = Math.max(1.4, 2.4 * s);
+      const cs = Math.max(1.4, 2.4 * s) * (1 + 0.8 * hi);
       ctx.fillRect(lampX - cs / 2, lampY - cs / 2, cs, cs);
     }
     ctx.globalAlpha = 1;
+  }
+
+  // 耶路撒冷的灯在画面上的位置（与 drawCity 同一算法）
+  function lampXY() {
+    const p = getP('jeru');
+    if (!p) return null;
+    const s = LS(p.layer) * p.size, u = 110 * s, tx = pX(p.x, p.cap) * W.w + 0.1 * u;
+    return [tx, gY(p.layer, tx / W.w) + 2 - 0.36 * u * p.grow - 2 * s];
   }
 
   // 金牛犊（12:28）：伯特利的在近处（台、座、有角的坛），但的在远处
@@ -926,7 +973,7 @@
     const g = p.grow;
     if (g <= 0.005 || !p.model) return;
     const horeb = p.kind === 'horeb';
-    const l = 2, m = p.model, hw = mSpec(p).hw * W.w, H = mountH(p) * g, s = LS(l);
+    const l = 2, m = p.model, hw = mHW(p) * W.w, H = mountH(p) * g, s = LS(l);
     const qk0 = horeb ? W.lv.elQuake : 0;
     const cx = p.x * W.w + (qk0 > 0.02 ? Math.sin(W.t * 43) * 2.2 * qk0 * s : 0), gc = gY(l, p.x) + 3;
     const top = u => { const x = cx + u * hw; return Math.min(gY(l, x / W.w), gc - H * kAt(m, u)); };
@@ -1304,7 +1351,8 @@
     const l = 2, s = LS(l) * p.size;
     ctx.globalAlpha = p.a;
     ctx.fillStyle = css([150, 128, 100], l);
-    const xa = X.throneA * W.w, xb = X.throneJ * W.w, ya = gY(l, X.throneA) + 2 * s, yb = gY(l, X.throneJ) + 2 * s;
+    const fa = p.xa != null ? p.xa : X.throneA, fb = p.xb != null ? p.xb : X.throneJ;
+    const xa = fa * W.w, xb = fb * W.w, ya = gY(l, fa) + 2 * s, yb = gY(l, fb) + 2 * s;
     ctx.beginPath(); ctx.moveTo(xa - 12 * s, ya); ctx.lineTo(xa - 11 * s, ya - 3 * s); ctx.lineTo(xb + 11 * s, yb - 3 * s); ctx.lineTo(xb + 12 * s, yb); ctx.closePath(); ctx.fill();
     for (const [x, y, d] of [[xa, ya, 1], [xb, yb, -1]]) {
       ctx.fillStyle = css([118, 84, 56], l);
@@ -1447,7 +1495,7 @@
   }
   const FIRE_LAYERS = [['fOut', 1.55, 0.75, 45], ['fMid', 0.85, 1.05, 70], ['fCore', 0.3, 1.15, 90]];   // 名、宽、亮、每层至多几条
   // 天开之处：画面上方聚拢的云向四围分开，当中一圈金边；火从那里降下
-  function riftXY() { return [X.lordAlt * W.w, W.h * (port() ? 0.22 : 0.085)]; }
+  function riftXY() { return [altX() * W.w, W.h * (port() ? 0.22 : 0.085)]; }
   const RIFT_N = 7;
   function riftPuff(i, rh, open) {
     const m = M(), a = i / RIFT_N * TAU + 0.35, P = m * (0.13 + 0.06 * hsh(i * 3.1)), dd = rh + P * (0.35 + 0.45 * open);
@@ -1497,7 +1545,7 @@
     SP || sprites();
     drawRift(ctx, A, k);
     if (k < 0.01) return;
-    const s = LS(2), xf = X.lordAlt, x = xf * W.w, yA = surfY(xf) - 8 * s;
+    const s = LS(2), xf = altX(), x = xf * W.w, yA = surfY(xf) - 8 * s;
     const ry = riftXY()[1];
     const reach = smoothstep(0, 0.42, k);
     const yB = lerp(ry, yA, reach);
@@ -1586,7 +1634,7 @@
   function drawHush(ctx) {
     const k = Math.max(W.lv.elHush, W.lv.elHeaven * 0.75);
     if (k < 0.01) return;
-    const x = X.lordAlt * W.w, y = surfY(X.lordAlt) - 20 * LS(2);
+    const ax = altX(), x = ax * W.w, y = surfY(ax) - 20 * LS(2);
     const c = vig('hush', Math.round(x) + ',' + Math.round(y), g => {
       const gr = g.createRadialGradient(x, y, M() * 0.08, x, y, Math.hypot(W.w, W.h) * 0.85);
       gr.addColorStop(0, 'rgba(6,8,22,0)'); gr.addColorStop(0.35, 'rgba(6,8,22,0.45)'); gr.addColorStop(1, 'rgba(6,8,22,1)');
@@ -1600,7 +1648,7 @@
   function drawBlazeSky(ctx) {
     const k = W.lv.elBlaze;
     if (k < 0.01) return;
-    const x = X.horeb * W.w, y = W.horizonY, R = Math.max(W.w, W.h) * 0.7;
+    const x = PXf('horeb', X.horeb) * W.w, y = W.horizonY, R = Math.max(W.w, W.h) * 0.7;
     const c = vig('blaze', String(Math.round(y)), g => {
       const gr = g.createRadialGradient(x, y, 0, x, y, R);
       gr.addColorStop(0, 'rgba(255,110,50,1)'); gr.addColorStop(0.5, 'rgba(190,60,36,0.44)'); gr.addColorStop(1, 'rgba(120,30,20,0)');
@@ -1840,7 +1888,7 @@
     if (b.instant) return;
     const p = getP('horeb');
     if (!p) return;
-    const s = LS(2), hw = MOUNTS.horeb.hw;
+    const s = LS(2), hw = mHW(p);
     for (let i = 0; i < 46; i++) {
       const u = -0.7 + 1.4 * Math.random(), xf = p.x + u * hw, y = surfY(xf) - Math.random() * 6 * s;
       fx().add({ x: xf * W.w, y, vx: (60 + Math.random() * 180) * s, vy: (-80 + Math.random() * 60) * s, max: 1.2 + Math.random() * 1.4,
@@ -1948,7 +1996,7 @@
         else if (p.kind === 'altar') py = surfY(p.x) - 8 * s;
         else if (p.kind === 'field' || p.kind === 'vines') { px = (p.x0 + p.x1) / 2 * W.w; py = gY(2, (p.x0 + p.x1) / 2) + 8 * s; }
         else if (p.kind === 'city') py = gY(p.layer, p.x) - 110 * s * 0.15 - (p.hill || 0) * 110 * s;
-        else if (p.kind === 'thrones') { px = (X.throneA + X.throneJ) / 2 * W.w; py = gY(2, X.throneA) - 14 * s; }
+        else if (p.kind === 'thrones') { const fa = p.xa != null ? p.xa : X.throneA, fb = p.xb != null ? p.xb : X.throneJ; px = (fa + fb) / 2 * W.w; py = gY(2, fa) - 14 * s; }
         else py = gY(p.layer, p.x) - ({ calf: 14, temple: 18, brook: -12, gate: 16, house: 14, jars: 5, broom: 22 }[p.kind] || 10) * s;
         const d = Math.hypot(px - x, py - y);
         if (d < r && (!best || d < best.d)) best = { label: p.label, x: px, y: py - 10 * s, d };
@@ -2013,7 +2061,7 @@
       apply(c) {
         T(c, [
           [0, b => {
-            flash(b, { type: 'seam', xf: X.seam, dur: 4.5 });
+            flash(b, { type: 'seam', xf: pmap(X.seam), dur: 4.5 });
             flash(b, { type: 'crown', id: 'reho', dur: 2.6 });
             sfx(b, 'thunder', { far: true, low: true }); W.goTo(0.42, 24, b.instant);
           }],
@@ -2044,7 +2092,7 @@
             crowdWalk('army', 0.47, 0.565, { speed: 0.03 });
             sfx(b, 'crowd', { far: true });
           }],
-          [18.5, b => { flash(b, { type: 'seam', xf: 0.615, dur: 3.2 }); sfx(b, 'harp'); crowdFace('army', -1); }],
+          [18.5, b => { flash(b, { type: 'seam', xf: pmap(0.615), dur: 3.2 }); sfx(b, 'harp'); crowdFace('army', -1); }],
           [19.5, () => { crowdWalk('army', 0.41, 0.47, { speed: 0.026 }); }],
           // 两个金牛犊：伯特利与但
           [22, b => {
@@ -2066,8 +2114,8 @@
       kind: 'judge', utter: '这坛必破裂，坛上的灰必倾撒', cmd: 'rm -rf /伯特利/坛  # 灰必倾撒', ref: '13:3',
       verse: [
         { text: '那时，有一个神人奉耶和华的命从犹大来到伯特利。耶罗波安正站在坛旁要烧香；<br>神人奉耶和华的命向坛呼叫，说：「坛哪，坛哪！……」', ref: '列王纪上 13:1–2', hold: 7 },
+        { text: '当日，神人设个预兆，说：<br>「这坛必破裂，坛上的灰必倾撒，这是耶和华说的预兆。」', ref: '列王纪上 13:3', hold: 5.5 },
         { text: '王向神人所伸的手就枯干了，不能弯回；<br>坛也破裂了，坛上的灰倾撒了，正如神人奉耶和华的命所设的预兆。', ref: '列王纪上 13:4–5', hold: 7 },
-        { text: '于是神人从别的路回去，不从伯特利来的原路回去。', ref: '列王纪上 13:10', hold: 4.5 },
         { text: '耶和华必击打以色列人，使他们摇动，像水中的芦苇一般；……<br>因为他们做木偶，惹耶和华发怒。', ref: '列王纪上 14:15', hold: 6 },
       ],
       apply(c) {
@@ -2082,10 +2130,14 @@
             sfx(b, 'fire', { soft: true });
           }],
           [4.2, () => { face('jero', 1); pose('jero', 'raise'); }],
+          // 「坛哪，坛哪！」
           [4.5, b => { pose('mog', 'point'); face('mog', 1); beamOn(b, 'mog', { dur: 3.5, w: 50, r: 0.2 }); }],
+          // 当日，神人设个预兆（13:3）：他举手向天，坛上的火一时暗下，像是在等候
+          [8.6, b => { pose('mog', 'raise'); beamOn(b, 'mog', { dur: 4.5, w: 56, r: 0.24 }); prop('calfB', null, { fire: 0.45 }); sfx(b, 'chime', { soft: true }); }],
+          [12.5, () => { pose('mog', 'point'); }],
           // 王伸手：「拿住他吧！」——手就枯干了
-          [8, () => { pose('jero', 'point'); face('jero', -1); crowdFace('isr', 0.5); }],
-          [9.2, b => {
+          [14, () => { pose('jero', 'point'); face('jero', -1); crowdFace('isr', 0.5); }],
+          [15.4, b => {
             S.withered = 1;
             glow('jero', 0.05);
             add('jero', { robe: WITHER });           // 伸出的手枯干了，不能弯回：他就那样僵在那里
@@ -2102,14 +2154,15 @@
             }
             sfx(b, 'thunder', { low: true }); sfx(b, 'stone');
           }],
-          [11.5, () => { crowdPose('isr', 'kneel'); }],
-          [13, () => { pose('mog', 'pray'); }],
-          [15, b => { S.withered = 0; add('jero', { robe: ROBE.jero }); glow('jero', 0.4); pose('jero', 'stand'); sfx(b, 'harp', { soft: true }); }],
-          [16, () => { pose('mog', 'stand'); walk('mog', 0.39, { speed: 0.028 }); crowdPose('isr', 'stand'); }],
+          [17.5, () => { crowdPose('isr', 'kneel'); pose('mog', 'stand'); }],
+          [19, () => { pose('mog', 'pray'); }],
+          [20.8, b => { S.withered = 0; add('jero', { robe: ROBE.jero }); glow('jero', 0.4); pose('jero', 'stand'); sfx(b, 'harp', { soft: true }); }],
+          // 神人从别的路回去
+          [21.8, () => { pose('mog', 'stand'); walk('mog', 0.39, { speed: 0.028 }); crowdPose('isr', 'stand'); }],
           // 像水中的芦苇一般
-          [20, b => { W.set('gale', 0.65, b.instant); sfx(b, 'wind'); rm('mog'); }],
-          [22, () => { crowdPose('isr', 'bow'); }],
-          [24.5, b => { W.set('gale', 0.08, b.instant); crowdPose('isr', 'stand'); }],
+          [23.6, b => { W.set('gale', 0.65, b.instant); sfx(b, 'wind'); rm('mog'); }],
+          [25.4, () => { crowdPose('isr', 'bow'); }],
+          [28, b => { W.set('gale', 0.08, b.instant); crowdPose('isr', 'stand'); }],
         ]);
       },
     },
@@ -2119,38 +2172,53 @@
       kind: 'act', utter: '仍使他在耶路撒冷有灯光', cmd: 'keep-alive --lamp 耶路撒冷  # 因大卫的缘故', ref: '15:4',
       verse: [
         { text: '然而耶和华他的神因大卫的缘故，仍使他在耶路撒冷有灯光，<br>叫他儿子接续他作王，坚立耶路撒冷。', ref: '列王纪上 15:4', hold: 6.5 },
-        { text: '暗利行耶和华眼中看为恶的事，比他以前的列王作恶更甚。', ref: '列王纪上 16:25', hold: 5.5 },
         { text: '暗利用二他连得银子向撒玛买了撒马利亚山，在山上造城，<br>就按着山的原主撒玛的名，给所造的城起名叫撒马利亚。', ref: '列王纪上 16:24', hold: 6.5 },
+        { text: '暗利行耶和华眼中看为恶的事，比他以前的列王作恶更甚。', ref: '列王纪上 16:25', hold: 5.5 },
         { text: '暗利的儿子亚哈行耶和华眼中看为恶的事，比他以前的列王更甚，……<br>又娶了西顿王谒巴力的女儿耶洗别为妻，去事奉敬拜巴力，<br>在撒马利亚建造巴力的庙，在庙里为巴力筑坛。', ref: '列王纪上 16:30–32', hold: 8 },
       ],
       apply(c) {
         T(c, [
+          // 黄昏（还不是夜）：远山上耶路撒冷的灯亮起来，清清楚楚——「耶路撒冷」
           [0, b => {
-            W.goTo(0.765, 14, b.instant);
-            lv('elLamp', 1, b);
-            const p = getP('jeru');
-            if (p && !b.instant) beam(b, p.x, gY(0, p.x) - 12 * LS(0), { dur: 6, w: 40, r: 0.18 });
+            W.goTo(0.735, 7, b.instant);
+            lv('elLamp', 1, b); lv('elLampHi', 1, b);
+            const q = lampXY();
+            if (q && !b.instant) beam(b, q[0] / W.w, q[1], { dur: 6.5, w: 46, r: 0.22 });
             sfx(b, 'harp');
             prop('calfB', null, { dim: 0.6 }); prop('calfD', null, { dim: 0.6 });
             crowdWalk('isr', 0.7, 0.99, { speed: 0.02 });
             walk('jero', 0.7, { speed: 0.02 });
           }],
+          [1.2, b => {
+            const q = lampXY();
+            if (!q || b.instant) return;
+            const size = Math.max(22, Math.min(34, M() * (port() ? 0.07 : 0.042)));
+            const at = nameAt(q[0] / W.w, q[1] - size * 1.6, size, 4);
+            fx().nameStr('耶路撒冷', at[0], at[1], size, [255, 226, 160], () => [q[0] + (Math.random() - 0.5) * 16, q[1] + (Math.random() - 0.5) * 6], { hold: 3.6 });
+          }],
           [3, () => { rmCrowd('isr'); rm('jero'); }],
-          // 北国的王一个接一个（拿答、巴沙、以拉、心利、暗利）
-          ...KINGS.map((k, i) => [3.5 + i * 1.8, b => {
+          // 北国的王一个接一个（拿答、巴沙、以拉、心利、暗利）；耶路撒冷的灯一直亮着
+          ...KINGS.map((k, i) => [3.2 + i * 1.1, b => {
             if (i > 0) rm(KINGS[i - 1][0]);
             add(k[0], { label: k[1], sex: 'm', age: 'adult', x: X.kingsM + (i % 2 ? 0.014 : -0.01), facing: i % 2 ? -1 : 1, robe: [110 + i * 8, 74, 70], accent: GOLD, glow: 0.5, from: b.instant ? 'none' : 'light' });
             flash(b, { type: 'crown', id: k[0], dur: 2.2, fire: i === 3 });
             if (i === 3) sfx(b, 'fire', { far: true });
             else sfx(b, 'chime', { soft: true });
           }]),
-          [14.5, b => { lv('elLamp', 1, b); sfx(b, 'harp', { soft: true }); }],
-          // 暗利造撒马利亚
-          [15, b => {
+          [7, b => { lv('elLampHi', 0, b); }],
+          // 暗利用二他连得银子买了撒马利亚山，在山上造城（黄昏的光里看得见）
+          [8.4, b => {
+            if (!b.instant) { const h = headOf('k5', 20); fx().sparkle(h[0], h[1], 18, [226, 230, 240], 10 * LS(2), 'top'); }
+            sfx(b, 'chime', { soft: true });
+          }],
+          [9.2, b => {
             prop('samaria', 'city', { x: X.samaria, layer: 1, size: 1.3, variant: 'samaria', hill: 0.22, grow: 1, gs: 0.18, cap: 0.86, label: '撒马利亚' });
             walk('k5', 0.86, { speed: 0.02 });
             sfx(b, 'build');
           }],
+          // 暗利行恶，比以前的列王更甚：天黑下来，伯特利与但的牛犊又亮了，他向牛犊下拜
+          [15.6, b => { W.goTo(0.78, 6, b.instant); prop('calfB', null, { dim: 0 }); prop('calfD', null, { dim: 0 }); }],
+          [17, () => { face('k5', X.bethel); pose('k5', 'bow'); }],
           [20.5, () => { rm('k5'); }],
           // 亚哈与耶洗别；巴力的庙
           [21, b => {
@@ -2240,14 +2308,14 @@
           [6.5, b => {
             pose('elijah', 'stand');
             prop('jars', 'jars', { x: X.jars, size: 1.4, lit: 1, label: '坛与瓶' });
-            if (!b.instant) { const s = LS(2); fx().sparkle(X.jars * W.w, gY(2, X.jars) - 8 * s, 30, [255, 236, 190], 10 * s, 'top'); }
+            if (!b.instant) { const s = LS(2), jx = PXf('jars', X.jars); fx().sparkle(jx * W.w, gY(2, jx) - 8 * s, 30, [255, 236, 190], 10 * s, 'top'); }
             sfx(b, 'harp');
           }],
           [9, () => { hold('widow', null); walk('widow', X.house - 0.044, { speed: 0.024 }); walk('elijah', X.jars - 0.02, { speed: 0.024 }); }],
           [12.5, b => { prop('house', null, { fire: 1 }); sfx(b, 'fire', { soft: true }); pose('widow', 'kneel'); }],
           // 许多日子
           [14, b => { W.goTo(0.98, 3, b.instant); prop('jars', null, { lit: 0.6 }); pose('widow', 'stand'); }],
-          [17, b => { S.jarDays = 1; W.goTo(0.4, 3, b.instant); prop('jars', null, { lit: 1 }); if (!b.instant) { const s = LS(2); fx().sparkle(X.jars * W.w, gY(2, X.jars) - 8 * s, 20, [255, 236, 190], 10 * s, 'top'); } }],
+          [17, b => { S.jarDays = 1; W.goTo(0.4, 3, b.instant); prop('jars', null, { lit: 1 }); if (!b.instant) { const s = LS(2), jx = PXf('jars', X.jars); fx().sparkle(jx * W.w, gY(2, jx) - 8 * s, 20, [255, 236, 190], 10 * s, 'top'); } }],
           // 孩子病了，身无气息：他不见了（被抱到楼上），楼窗暗了，母亲跪在门前哭
           [20, b => {
             W.goTo(0.765, 4, b.instant);
@@ -2261,14 +2329,15 @@
           [22, () => { walk('elijah', X.house - 0.018, { speed: 0.03 }); }],
           // 以利亚把孩子抱到楼上，三次伏在他身上求告耶和华：楼窗亮了
           [24, b => { walk('elijah', X.house + 0.004, { speed: 0.03 }); prop('house', null, { dim: 0, lit: 1 }); }],
-          [25, b => { rm('elijah'); const s = LS(2); bloom(b, X.house + 8 * s / W.w, gY(2, X.house) - 22 * s, 0.12, 1.5, 0.5); }],
-          [26, b => { const s = LS(2); bloom(b, X.house + 8 * s / W.w, gY(2, X.house) - 22 * s, 0.16, 1.5, 0.5); }],
+          [25, b => { rm('elijah'); const s = LS(2), hx = PXf('house', X.house); bloom(b, hx + 8 * s / W.w, gY(2, hx) - 22 * s, 0.12, 1.5, 0.5); }],
+          [26, b => { const s = LS(2), hx = PXf('house', X.house); bloom(b, hx + 8 * s / W.w, gY(2, hx) - 22 * s, 0.16, 1.5, 0.5); }],
           [27, b => {
             prop('house', null, { lit: 0.3 });
             add('elijah', { label: '以利亚', sex: 'm', age: 'adult', x: X.house - 0.004, facing: -1, robe: ROBE.elijah, hair: 'long', beard: true, prop: 'staff', accent: [70, 52, 36], glow: 0.45, pose: 'stand', from: b.instant ? 'none' : 'fade' });
             add('son', { label: '寡妇的儿子', sex: 'm', age: 'child', x: X.house - 0.014, facing: -1, robe: ROBE.son, glow: 0.5, pose: 'stand', from: b.instant ? 'none' : 'light' });
             pose('widow', 'stand', { weep: false });
-            bloom(b, X.house, gY(2, X.house) - 14 * LS(2), 0.3, 2, 0.5);
+            const hx = PXf('house', X.house);
+            bloom(b, hx, gY(2, hx) - 14 * LS(2), 0.3, 2, 0.5);
             sfx(b, 'harp');
           }],
           [28, () => { embrace('widow', 'son', { weep: false }); }],
@@ -2360,9 +2429,9 @@
           [7, b => {
             S.stones = 12;
             if (!b.instant) {
-              const s = LS(2), size = Math.max(22, Math.min(46, M() * 0.06));
-              const cx = nameAt(X.lordAlt, 0, size, 3), cy = Math.min(surfY(X.lordAlt) - 90 * s, W.h * 0.44);
-              const src = () => [X.lordAlt * W.w + (Math.random() - 0.5) * 40 * s, surfY(X.lordAlt) - Math.random() * 10 * s];
+              const s = LS(2), size = Math.max(22, Math.min(46, M() * (port() ? 0.07 : 0.06)));
+              const ax = altX(), cx = nameAt(ax, 0, size, 3), cy = Math.min(surfY(ax) - 90 * s, W.h * 0.44);
+              const src = () => [ax * W.w + (Math.random() - 0.5) * 40 * s, surfY(ax) - Math.random() * 10 * s];
               fx().nameStr('以色列', cx[0], Math.max(cy, port() ? W.h * 0.36 : W.h * 0.2), size, [255, 226, 160], src, { hold: 3.4 });
               sfx(b, 'chime');
             }
@@ -2411,8 +2480,8 @@
             S.consumed = 1;
             if (!b.instant) {
               W.flash = Math.max(W.flash || 0, 0.9); W.shake = 1.1;
-              const s = LS(2), x = X.lordAlt * W.w, y = surfY(X.lordAlt) - 6 * s;
-              bloom(b, X.lordAlt, y - 10 * s, 0.55, 1.2, 0.75);   // 落处一团柔和的金光，一秒内散开
+              const s = LS(2), ax = altX(), x = ax * W.w, y = surfY(ax) - 6 * s;
+              bloom(b, ax, y - 10 * s, 0.55, 1.2, 0.75);   // 落处一团柔和的金光，一秒内散开
               fx().burst(x, y - 20 * s, { c: [255, 214, 150], motes: 120, dur: 1.4, strength: 0.6 });
               fx().sparkle(x, y - 10 * s, 60, [255, 200, 120], 30 * s, 'top');
             }
@@ -2430,9 +2499,9 @@
             pose('ahab', 'kneel');
             BP.forEach(id => glow(id, 0));
             if (!b.instant) {
-              const s = LS(2), size = Math.max(20, Math.min(40, M() * 0.052));
-              const at = nameAt(0.8, port() ? W.h * 0.42 : W.h * 0.3, size, 5);
-              const src = () => { const xx = 0.92 + (Math.random() - 0.5) * 0.14; return [xx * W.w, surfY(xx) - 10 * s]; };
+              const s = LS(2), size = Math.max(20, Math.min(40, M() * (port() ? 0.07 : 0.052)));
+              const at = nameAt(pmap(0.8), port() ? W.h * 0.42 : W.h * 0.3, size, 5);
+              const src = () => { const xx = pmap(0.92 + (Math.random() - 0.5) * 0.14); return [xx * W.w, surfY(xx) - 10 * s]; };
               fx().nameStr('耶和华是神', at[0], at[1], size, [255, 232, 176], src, { hold: 3.2 });
             }
             sfx(b, 'crowd'); sfx(b, 'angel', { soft: true });
@@ -2471,12 +2540,13 @@
             W.goTo(0.755, 8, b.instant);
             walk('elijah', 0.628, { speed: 0.02, pose: 'kneel' });
             walk('servant', 0.645, { speed: 0.02 });
-            // 王的车：两匹马套着车，停在山东边的平地上
-            animal('horse', 'horse', 0.972, { label: '马', facing: 1, from: b.instant ? 'none' : 'fade' });
-            animal('horse2', 'horse', 0.966, { label: '马', col: [66, 48, 36], facing: 1, v: 0.05, from: b.instant ? 'none' : 'fade' });
-            animal('chariot', 'wagon', 0.938, { label: '亚哈的车', facing: 1, from: b.instant ? 'none' : 'fade' });
-            walk('ahab', 0.895, { speed: 0.02 });
-            avoid([0.88, 1]);
+            // 王的车：两匹马套着车，停在迦密山西麓、海边的路上（车头朝东，往耶斯列）
+            animal('horse', 'horse', 0.462, { label: '马', facing: 1, from: b.instant ? 'none' : 'fade' });
+            animal('horse2', 'horse', 0.456, { label: '马', col: [66, 48, 36], facing: 1, v: 0.05, from: b.instant ? 'none' : 'fade' });
+            animal('chariot', 'wagon', 0.428, { label: '亚哈的车', facing: 1, from: b.instant ? 'none' : 'fade' });
+            // 亚哈上去吃喝：沿着山脚往他的车那里去
+            walk('ahab', 0.44, { speed: 0.03 });
+            avoid([0.42, 1]);
           }],
           // 如此七次
           ...[0, 1, 2, 3, 4, 5, 6].map(k => [7 + k * 1.3, b => {
@@ -2488,7 +2558,9 @@
           ...[0, 1, 2, 3, 4, 5].map(k => [7.7 + k * 1.3, () => { face('servant', 1); pose('servant', 'stand'); }]),
           // 一小片云从海里上来
           [15.5, b => { lv('elHand', 1, b); pose('servant', 'point'); sfx(b, 'wind', { soft: true }); }],
-          [18, () => { pose('elijah', 'stand'); pose('servant', 'stand'); face('servant', 1); walk('servant', 0.8, { speed: 0.04 }); }],
+          // 「你上去告诉亚哈，当套车下去」：仆人向山下的亚哈呼叫；以利亚起来，下山
+          [18, () => { pose('elijah', 'stand'); pose('servant', 'stand'); walk('servant', 0.6, { speed: 0.03, pose: 'point' }); }],
+          [19.5, () => { walk('elijah', 0.486, { speed: 0.05 }); }],
           // 天因风云黑暗，降下大雨
           [20.5, b => {
             W.set('storm', 0.8, b.instant); W.set('clouds', 1, b.instant); W.set('gale', 0.45, b.instant);
@@ -2506,13 +2578,21 @@
             // 旱地复青
             W.set('bare', 0.15, b.instant); W.set('bloom', 0.45, b.instant);
             W.set('grass', 1, b.instant); W.set('herbs', 0.9, b.instant); W.set('trees', 0.22, b.instant);
-            walk('horse', 1.12, { speed: 0.05 });
-            glow('elijah', 0.8);
-            walk('elijah', 1.16, { speed: 0.075 });
-            crowdWalk('isr', 1.02, 1.15, { speed: 0.03 });
-            walk('servant', 1.1, { speed: 0.03 });
+            pose('servant', 'stand');
           }],
-          [27.5, () => { rm('horse'); rm('horse2'); rm('chariot'); rm('ahab'); rm('elijah'); rm('servant'); rmCrowd('isr'); }],
+          // 耶和华的灵降在以利亚身上（18:46）：他站在山脚，车前；一道光落在他身上
+          [22.6, b => {
+            offMount('elijah');
+            face('elijah', 1); pose('elijah', 'raise');
+            glow('elijah', 1);
+            beamOn(b, 'elijah', { dur: 3.2, w: 56, r: 0.26 });
+            if (!b.instant) { const h = headOf('elijah', 20); fx().sparkle(h[0], h[1], 24, [255, 236, 196], 12 * LS(2), 'top'); }
+            sfx(b, 'angel', { soft: true });
+          }],
+          // 他就束上腰，奔在亚哈前头：沿着山脚一路往东，车在后面跟着
+          [23.6, () => { pose('elijah', 'stand'); glow('elijah', 0.85); walk('elijah', 1.14, { speed: 0.1, run: true }); }],
+          [24, b => { walk('horse', 1.12, { speed: 0.095 }); sfx(b, 'chariot'); }],
+          [30.4, () => { rm('horse'); rm('horse2'); rm('chariot'); rm('ahab'); rm('elijah'); rm('servant'); rmCrowd('isr'); }],
         ]);
       },
     },
@@ -2545,7 +2625,7 @@
             add('angel', { label: '天使', angel: true, sex: 'm', age: 'adult', x: X.broom + 0.05, facing: -1, glow: 0.8, from: b.instant ? 'none' : 'light' });
             sfx(b, 'angel');
           }],
-          [11.5, b => { pose('angel', 'bow'); prop('meal', 'jars', { x: X.broom + 0.004, size: 1.3, variant: 'meal', label: '炭火烧的饼' }); if (!b.instant) { const s = LS(2); fx().sparkle((X.broom + 0.002) * W.w, gY(2, X.broom) - 4 * s, 20, [255, 220, 170], 6 * s, 'top'); } }],
+          [11.5, b => { pose('angel', 'bow'); prop('meal', 'jars', { x: X.broom + 0.004, size: 1.3, variant: 'meal', label: '炭火烧的饼' }); if (!b.instant) { const s = LS(2), bx = PXf('broom', X.broom) + pmapD(0.002); fx().sparkle(bx * W.w, gY(2, bx) - 4 * s, 20, [255, 220, 170], 6 * s, 'top'); } }],
           [12.5, () => { pose('elijah', 'sit'); pose('angel', 'stand'); }],
           [15, () => { pose('elijah', 'lie'); rm('angel'); }],
           // 第二次
@@ -2750,7 +2830,7 @@
             unprop('vines'); unprop('palace');
             rm('elijah');
             prop('gateS', 'gate', { x: X.gateS, size: 1.25, label: '撒马利亚的城门' });
-            prop('thrones', 'thrones', { x: (X.throneA + X.throneJ) / 2, size: 1.3, label: '王座' });
+            prop('thrones', 'thrones', { x: (X.throneA + X.throneJ) / 2, xa: X.throneA, xb: X.throneJ, size: 1.3, label: '王座' });
             add('ahab', { label: '亚哈', sex: 'm', age: 'adult', robe: ROBE.ahab, accent: GOLD, glow: 0.35, x: X.throneA, facing: -1, from: b.instant ? 'none' : 'fade' });
             place('ahab', X.throneA); face('ahab', -1); pose('ahab', 'seat');
             add('jehos', { label: '约沙法', sex: 'm', age: 'adult', x: X.throneJ, facing: -1, robe: ROBE.jehos, accent: GOLD, glow: 0.3, pose: 'seat', from: b.instant ? 'none' : 'fade' });

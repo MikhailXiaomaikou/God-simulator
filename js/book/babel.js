@@ -994,12 +994,51 @@
     ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = 'source-over';
   }
+  // 名与名不相叠：按固定的次序一个个放，后放的若与先放的相碰，就沿纵向推开
+  // （dir：-1 向上；0 各自远离）；推开的多少随横向相叠的程度平滑地增减——名字飘过彼此时不会跳
+  const LB = [];
+  function lbl(i) { return LB[i] || (LB[i] = { x: 0, y: 0, tw: 0, th: 0, a: 0, sp: null }); }
+  function unclutter(m, dir) {
+    const g = Math.max(2, 3 * W.unit);
+    for (let i = 1; i < m; i++) {
+      const P = LB[i];
+      for (let it = 0; it < 4; it++) {
+        let moved = false;
+        for (let j = 0; j < i; j++) {
+          const Q = LB[j];
+          if (Q.a < 0.04) continue;
+          const ox = (P.tw + Q.tw) * 0.5 + g - Math.abs(P.x - Q.x);
+          if (ox <= 0) continue;
+          const H = (P.th + Q.th) * 0.5 + g * 0.5;
+          const d = dir || (P.y >= Q.y ? 1 : -1);
+          const need = d > 0 ? Q.y + H - P.y : P.y - (Q.y - H);
+          if (need <= 0.25) continue;
+          P.y += d * need * U.smoothstep(0, 2 * g, ox);
+          moved = true;
+        }
+        if (!moved) break;
+      }
+    }
+  }
+  function drawLabels(ctx, m) {
+    for (let i = 0; i < m; i++) {
+      const L = LB[i];
+      if (L.a <= 0.004) continue;
+      ctx.globalAlpha = clamp(L.a, 0, 1);
+      ctx.drawImage(L.sp.c, L.x - L.sp.w / 2, L.y - L.sp.h / 2, L.sp.w, L.sp.h);
+    }
+    ctx.globalAlpha = 1;
+  }
+  // 次序：留下的名先放（它们最后停在那里），渐隐的名后放
+  const NAT_ORDER = [];
   function drawNations(ctx) {
     const k = W.lv.babelNations;
     if (k < 0.01) return;
     if (!lay()) return;
     const px = natPx(), hn = hnear();
-    for (const n of NATIONS) {
+    if (!NAT_ORDER.length) for (const keep of [true, false]) for (const n of NATIONS) if (n.keep === keep) NAT_ORDER.push(n);
+    let m = 0;
+    for (const n of NAT_ORDER) {
       const age = W.t - S.natT0 - n.delay;
       if (age <= 0) continue;
       if (!n.keep && age >= NAT_LIFE) continue;
@@ -1010,16 +1049,19 @@
       const x = sx + t * t * (n.dx - sx) + Math.sin(W.t * 0.3 + n.seed) * 4 * W.unit * t;
       const y = sy + (1 - u * u) * (n.dy - sy) + Math.cos(W.t * 0.23 + n.seed) * 3 * W.unit * t;
       const a = n.keep ? 0.62 + 0.33 * u : (0.95 - 0.2 * t) * clamp((NAT_LIFE - age) / 1.3, 0, 1);
-      const sp = textSprite(n.name, px, n.rgb);
-      ctx.globalAlpha = clamp(k * born * a, 0, 1);
-      ctx.drawImage(sp.c, x - sp.w / 2, y - sp.h / 2, sp.w, sp.h);
+      const sp = textSprite(n.name, px, n.rgb), L = lbl(m++);
+      L.x = x; L.y = y; L.sp = sp; L.tw = Math.max(px, sp.w - 16); L.th = px * 1.1; L.a = k * born * a;
     }
-    ctx.globalAlpha = 1;
+    unclutter(m, 0);
+    drawLabels(ctx, m);
   }
   function drawGens(ctx) {
     if (!S.gens.length) return;
     const px = Math.round(clamp(16 * W.unit, 12, 20)), hn = hnear();
-    for (const g of S.gens) {
+    let m = 0;
+    // 新的一代先放（正在他头上），先前各代的名若与之相碰，就往上让开
+    for (let gi = S.gens.length - 1; gi >= 0; gi--) {
+      const g = S.gens[gi];
       const age = W.t - g.t0;
       if (age < 0 || age > 13) continue;
       const a = clamp(age / 0.9, 0, 1) * (age > 4.5 ? clamp(1 - (age - 4.5) / 8, 0, 1) : 1);
@@ -1034,11 +1076,12 @@
         ctx.drawImage(glowSprite('soul', [255, 236, 200]), x - s / 2, gy - hn * 0.6 - s / 2, s, s);
         ctx.globalCompositeOperation = 'source-over';
       }
-      const sp = textSprite(g.name, px, [255, 234, 190]);
-      ctx.globalAlpha = a;
-      ctx.drawImage(sp.c, x - sp.w / 2, y - sp.h / 2, sp.w, sp.h);
+      const sp = textSprite(g.name, px, [255, 234, 190]), L = lbl(m++);
+      L.x = x; L.y = y; L.sp = sp; L.tw = Math.max(px, sp.w - 16); L.th = px * 1.1; L.a = a;
     }
     ctx.globalAlpha = 1;
+    unclutter(m, -1);
+    drawLabels(ctx, m);
   }
   function drawDescent(ctx) {
     const k = W.lv.babelShaft;

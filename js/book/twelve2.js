@@ -61,6 +61,7 @@
     tbStall: ['exp', 0.5],      // 棚内的牛
     tbSong: ['exp', 0.6],       // 先知的歌（哈 3:18）
     tbHind: ['lin', 0.11],      // 母鹿跳上高处（0 → 1，哈 3:19）
+    tbHindA: ['exp', 0.9],      // 母鹿的显隐（在原处淡去，不沿路倒跳回去）
     tbLamps: ['exp', 0.6],      // 用灯巡查耶路撒冷（番 1:12）
     tbT1: ['exp', 0.9],         // 先前的殿（1 立着 → 0 倾倒）
     tbHumble: ['exp', 0.5],     // 谦卑人头上隐藏他们的光（番 2:3）
@@ -2011,25 +2012,27 @@
     ctx.restore();
     ctx.globalAlpha = 1;
   }
-  // 远山的高处：发光的母鹿（哈 3:19）
+  // 中丘的高处：发光的母鹿（哈 3:19）——在看得清的中丘山脊上跳到最高处（不在雾里的远山上，免得像浮在海上）
   let HIND = null;
+  const HIND_L = 1;
   function hindPath() {
     const key = W.w + 'x' + W.h + (tall() ? 'p' : 'l');
     if (HIND && HIND.key === key) return HIND;
-    let best = X('hind1'), by = Infinity;
-    for (let xf = X('hind0') + 0.12; xf <= X('hind1'); xf += 0.005) { const y = W.ridgeBaseY(0, xf * W.w); if (y < by) { by = y; best = xf; } }
+    const x1 = Math.min(X('hind1'), 0.84);
+    let best = x1, by = Infinity;
+    for (let xf = X('hind0') + 0.08; xf <= x1; xf += 0.005) { const y = W.ridgeBaseY(HIND_L, xf * W.w); if (y < by) { by = y; best = xf; } }
     return (HIND = { key, x0: X('hind0'), x1: best });
   }
   function drawHind(ctx) {
-    const u = lv('tbHind');
-    if (u < 0.002) return;
+    const u = lv('tbHind'), fa = lv('tbHindA');
+    if (u < 0.002 || fa < 0.004) return;
     SP || sprites();
     const P = hindPath(), hops = 5;
-    const xf = lerp(P.x0, P.x1, u), g = gY(0, xf);
+    const xf = lerp(P.x0, P.x1, u), g = gY(HIND_L, xf);
     const s = Math.max(10, (tall() ? 0.05 : 0.028) * M());
     const leapU = u < 1 ? U.fract(u * hops) : 0, air = u < 1 ? Math.sin(Math.PI * leapU) : 0;
     const x = xf * W.w, y = g - air * s * 1.3 - 1;
-    const a = Math.min(1, u * 12);
+    const a = Math.min(1, u * 12) * fa;
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
     glowAt(ctx, SP.gold, x, y - s * 0.5, s * 1.8, a * 0.55);
@@ -2580,8 +2583,8 @@
     drawUnder(ctx, pass) {
       if (!isCur()) return;
       if (pass === 'sky') { drawFurnace(ctx); drawDawnSky(ctx); return; }
-      if (pass === 'far') { drawIncense(ctx, 0); drawHind(ctx); return; }
-      if (pass === 'mid') { U.safe('tb.nineveh', () => drawNineveh(ctx)); drawIncense(ctx, 1); return; }
+      if (pass === 'far') { drawIncense(ctx, 0); return; }
+      if (pass === 'mid') { U.safe('tb.nineveh', () => drawNineveh(ctx)); drawIncense(ctx, 1); drawHind(ctx); return; }
       if (pass === 'near') {
         const Cm = city();
         U.safe('tb.garden', () => { drawOlive(ctx, X('olive'), lv('tbOrchard')); drawFig(ctx, X('fig'), lv('tbOrchard')); drawVine(ctx, X('vine'), lv('tbOrchard')); });
@@ -2657,7 +2660,7 @@
       if (lv('tbRiver') > 0.5) { const p = samplePath(riverPaths()[0], 0.55); consider('活水', p[0] * W.w, vY(p[0], p[1])); }
       if (lv('tbLampstand') > 0.5) { const c = X('lamp'); consider('灯台', c[0] * W.w, c[1] * W.h); }
       if (lv('tbBook') > 0.5) { const c = X('book'); consider('纪念册', c[0] * W.w, c[1] * W.h); }
-      if (lv('tbHind') > 0.5) { const P = hindPath(), xf = lerp(P.x0, P.x1, lv('tbHind')); consider('母鹿', xf * W.w, gY(0, xf) - 8); }
+      if (lv('tbHind') > 0.5 && lv('tbHindA') > 0.5) { const P = hindPath(), xf = lerp(P.x0, P.x1, lv('tbHind')); consider('母鹿', xf * W.w, gY(HIND_L, xf) - 8); }
       if (lv('tbFire') > 0.5) { const R = fireRing(), q = R.back[Math.round(R.back.length * 0.35)]; consider('火城', q[0], q[1] - q[2] * 0.5); }
       if (lv('tbSun') > 0.5) consider('公义的日头', W.sun.x, W.sun.y);
       return best;
@@ -2834,7 +2837,7 @@
           [9.6, b => { pose('hab', 'raise'); W.set('tbSong', 1, b.instant); sfx(b, 'harp'); glow('hab', 0.8); }],
           [12, b => { cpose('judah', 'stand'); cface('judah', -1); sfx(b, 'harp', { soft: true }); }],
           [14.4, () => { cpose('judah', 'gaze'); }],
-          [16.6, b => { W.set('tbHind', 1, b.instant); sfx(b, 'wings', { soft: true }); }],
+          [16.6, b => { W.set('tbHind', 1, b.instant); W.set('tbHindA', 1, true); sfx(b, 'wings', { soft: true }); }],
           [21.5, b => { cpose('judah', 'raise'); sfx(b, 'chime'); }],
           [24.5, b => { W.set('tbSong', 0.35, b.instant); cpose('judah', 'stand'); }],
         ]);
@@ -2857,7 +2860,7 @@
             W.goTo(0.6, 20, b.instant);
             W.set('gloom', 0.5, b.instant); W.set('clouds', 0.95, b.instant); W.set('storm', 0.5, b.instant);
             W.weatherExclude = [];
-            W.set('tbSong', 0, b.instant); W.set('tbHind', 0, b.instant);
+            W.set('tbSong', 0, b.instant); W.set('tbHindA', 0, b.instant);     // 母鹿在原处淡去
             W.set('tbLamps', 1, b.instant); W.set('tbCity', 0, b.instant);
             pose('hab', 'bow'); glow('hab', 0.4);
             cpose('judah', 'bow');

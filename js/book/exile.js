@@ -41,7 +41,7 @@
     exLetter: ['exp', 0.6],    // 在耶和华面前展开的书信（19:14）
     exDome: ['exp', 0.35],     // 保护这城的光（19:34）
     exBed: ['exp', 0.8],       // 希西家的病榻（20:1）
-    exShadow: ['lin', 2.4],    // 亚哈斯日晷上的日影（以"度"计：自顶往下盖住几级，0 … 20）
+    exShadow: ['lin', 3.2],    // 亚哈斯日晷上的日影（以"度"计：自顶往下盖住几级，0 … 20；退回时由情节一级一级地定）
     exHalo: ['exp', 0.5],      // 日头周围的光环（20:11）
     exGold: ['exp', 0.6],      // 宝库的金银给巴比伦的使者看（20:13）
     exIdol: ['exp', 0.35],     // 殿的两院中为天上万象所筑的坛、殿内的亚舍拉像（21:3–7）
@@ -452,7 +452,7 @@
   function stairGeo(ph) {
     const P = palGeo(ph);
     const x1 = X.st1 * W.w, y1 = P.g - P.H - P.up;
-    const x0 = x1 - Math.max(0.085 * W.w, 1.6 * ph), y0 = fieldY(x0 / W.w, X.stV);
+    const x0 = x1 - Math.max(0.1 * W.w, 1.8 * ph), y0 = fieldY(x0 / W.w, X.stV);
     return { x0, y0, x1, y1, dx: (x1 - x0) / STEPS, dy: (y0 - y1) / STEPS, g: P.g };
   }
   function stairPath(G) {
@@ -463,81 +463,104 @@
     p.closePath();
     return p;
   }
+  // 第 i 级台阶（0 = 最低）踏面的中点
+  function stepPt(i, ph) { const G = stairGeo(ph || PH(2)); return [G.x0 + (i + 0.5) * G.dx, G.y0 - (i + 1) * G.dy]; }
+  const TICK0 = STEPS - 16, TICK1 = STEPS - 6;     // 日影退回的那十级（20:11）
   function drawStair(ctx, ph) {
     const ruin = ruinK();
     if (ruin > 0.98) return;
     const G = stairGeo(ph), s = LS(2), a = 1 - smoothstep(0.5, 1, ruin), ml = moonL();
-    const path = stairPath(G);
+    const path = stairPath(G), yb = Math.max(G.g, G.y0) + 4;
     ctx.globalAlpha = a;
     const col = U.mixRGB([222, 204, 170], CHAR, clamp(burnK() * 0.4 + ruin * 0.5, 0, 1));
-    // 台阶的侧面（受光的石）、几道石缝，与一级一级的刻度（「度」）
-    ctx.fillStyle = css(U.mixRGB(col, STONE_S, 0.25), 2, 1, ml);
+    // 台阶的侧面：比踏面暗一些的石，一级一柱（隔一级略深，像刻度尺上的「度」），几道石缝
+    ctx.fillStyle = css(U.mixRGB(col, STONE_S, 0.6), 2, 1, ml);
     ctx.fill(path);
     ctx.save();
     ctx.clip(path);
-    ctx.strokeStyle = css([150, 128, 100], 2, 0.55, ml * 0.5); ctx.lineWidth = Math.max(0.6, 0.8 * s);
+    ctx.fillStyle = css([120, 98, 74], 2, 0.2, ml * 0.5);
     ctx.beginPath();
-    const yb = Math.max(G.g, G.y0);
+    for (let i = 0; i < STEPS; i += 2) ctx.rect(G.x0 + i * G.dx, G.y0 - (i + 1) * G.dy, G.dx, yb - G.y0 + (i + 1) * G.dy);
+    ctx.fill();
+    ctx.strokeStyle = css([150, 128, 100], 2, 0.4, ml * 0.5); ctx.lineWidth = Math.max(0.6, 0.8 * s);
+    ctx.beginPath();
     for (let k = 1; k <= 3; k++) { const y = lerp(yb, G.y1, k / 4.2); ctx.moveTo(G.x0 - 2, y); ctx.lineTo(G.x1 + 2, y); }
-    for (let k = 0; k < 6; k++) { const y = lerp(yb, G.y1, (k + 0.5) / 6.3), x = lerp(G.x0, G.x1, 0.25 + 0.5 * rt(k + 960)); ctx.moveTo(x, y); ctx.lineTo(x, y - (yb - G.y1) / 8.4); }
     ctx.stroke();
     ctx.restore();
-    ctx.strokeStyle = css([96, 80, 64], 2, 0.5, ml * 0.5); ctx.lineWidth = Math.max(0.5, 0.6 * s);
+    // 每一级的立面（竖的一小段）：深色，好让一级一级数得出来
+    ctx.strokeStyle = css([84, 68, 54], 2, 0.75, ml * 0.5); ctx.lineWidth = Math.max(0.8, 1.1 * s);
     ctx.beginPath();
-    for (let i = 1; i < STEPS; i++) { const x = G.x0 + i * G.dx, y = G.y0 - i * G.dy; ctx.moveTo(x, y + 0.5); ctx.lineTo(x, y + Math.min(G.dy * 1.6, 5 * s)); }
+    for (let i = 0; i < STEPS; i++) { const x = G.x0 + i * G.dx + 0.5, y = G.y0 - i * G.dy; ctx.moveTo(x, y + 0.5); ctx.lineTo(x, y - G.dy + 0.5); }
     ctx.stroke();
     // 踏面（受光）
     ctx.fillStyle = css(col, 2, 1, 0.1 + ml);
     ctx.beginPath();
-    const th = Math.max(1.2, G.dy * 0.38);
-    for (let i = 0; i < STEPS; i++) { const x = G.x0 + i * G.dx, y = G.y0 - (i + 1) * G.dy; ctx.rect(x, y, G.dx + 0.6, th); }
+    const th = Math.max(1.5, G.dy * 0.42);
+    for (let i = 0; i < STEPS; i++) { const x = G.x0 + i * G.dx + 1, y = G.y0 - (i + 1) * G.dy; ctx.rect(x, y, G.dx - 0.4, th); }
     ctx.fill();
-    // 日影：自顶往下盖住 n 级（柱在楼顶，日在西，影落在台阶上）
-    // 柱在楼顶；日头偏西（在柱的右边）时，影才顺着台阶往下落
+    // 日影：自顶往下盖住 n 级，一级一级地（柱在楼顶；日头偏西——在柱的右边——时，影才顺着台阶往下落）
     const P0 = palGeo(ph), gx = (P0.ux0 + P0.ux1) / 2;
     const west = W.sun ? smoothstep(0, 1, (W.sun.x - gx) / (0.1 * W.w)) : 0;
     const n = clamp(W.lv.exShadow, 0, STEPS), day = W.daylight * (1 - W.lv.gloom) * west;
-    const xs = G.x0 + (STEPS - n) * G.dx, ys = G.y0 - (STEPS - n) * G.dy;
+    const full = Math.floor(n + 1e-4), frac = n - full;
+    const edge = STEPS - full;                                  // 第一级在影里的台阶
+    const xs = G.x0 + edge * G.dx, ys = G.y0 - edge * G.dy;
+    const hk = W.lv.exHalo;
     if (n > 0.01 && day > 0.05) {
       ctx.save();
       ctx.clip(path);
-      ctx.fillStyle = U.rgba(24, 18, 34, 0.58 * day);
-      ctx.beginPath();
-      // 影的边是一道斜线（柱影的边缘）
-      ctx.moveTo(xs, ys - G.dy * 3); ctx.lineTo(xs - G.dx * 0.6, ys + G.dy * 3); ctx.lineTo(G.x1 + 4, G.y0 + 8); ctx.lineTo(G.x1 + 4, G.y1 - 8); ctx.closePath();
-      ctx.fill();
+      const band = (i, k) => {
+        ctx.globalAlpha = a * k;
+        ctx.fillRect(G.x0 + i * G.dx, G.y0 - (i + 1) * G.dy - 2, G.dx + 0.6, yb - G.y0 + (i + 1) * G.dy + 4);
+      };
+      ctx.fillStyle = U.rgba(24, 18, 34, 0.62 * day);
+      for (let i = edge; i < STEPS; i++) band(i, 1);
+      if (frac > 0.02 && edge - 1 >= 0) band(edge - 1, frac);      // 正被盖上的那一级
       ctx.restore();
-      // 影的尖端上一点暖光（夕照落在第一级不在影里的台阶上）
+      ctx.globalAlpha = a;
+      // 影里的踏面：一道一道暗的横线，仍数得出级数
+      ctx.fillStyle = U.rgba(12, 8, 20, 0.35 * day);
+      ctx.beginPath();
+      for (let i = edge; i < STEPS; i++) ctx.rect(G.x0 + i * G.dx + 1, G.y0 - (i + 1) * G.dy, G.dx - 0.4, th);
+      ctx.fill();
+      // 日光射到影的边上（影因日而有）
+      if (W.sun && W.sun.y < W.horizonY) {
+        const k = (0.2 + 0.45 * hk) * day * a, sx = W.sun.x, sy = W.sun.y;
+        const gr = ctx.createLinearGradient(sx, sy, xs, ys);
+        gr.addColorStop(0, U.rgba(255, 236, 190, 0)); gr.addColorStop(0.55, U.rgba(255, 236, 190, 0.35 * k)); gr.addColorStop(1, U.rgba(255, 226, 150, k));
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.strokeStyle = gr; ctx.lineWidth = Math.max(1, 1.3 * s);
+        ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(xs, ys); ctx.stroke();
+        ctx.globalCompositeOperation = 'source-over';
+      }
+      // 影的边上一点暖光（夕照落在第一级不在影里的台阶上）
       SP || sprites();
       ctx.globalCompositeOperation = 'lighter';
-      glowSp(ctx, SP.gold, xs - G.dx * 0.5, ys, Math.max(G.dy, G.dx) * 2.6, 0.4 * day * a);
+      glowSp(ctx, SP.gold, xs - G.dx * 0.5, ys, Math.max(G.dy, G.dx) * 2.6, 0.45 * day * a);
       ctx.globalCompositeOperation = 'source-over';
     }
-    // 日影退回的那十级：一级一级亮起（20:11）
-    const hk = W.lv.exHalo;
+    // 日影退回的那十级：一级一级亮起，每一级立起一道小小的光（十道，20:11）；最新退出的那一级最亮
     if (hk > 0.01) {
       SP || sprites();
       ctx.globalCompositeOperation = 'lighter';
-      for (let i = STEPS - 16; i < STEPS - 6; i++) {
-        if (i + 0.5 > STEPS - n) continue;
+      const tw = Math.max(1.4, 1.5 * s), tl = Math.max(G.dy * 1.1, 5 * s);
+      for (let i = TICK0; i < TICK1; i++) {
+        if (i >= edge) continue;
+        const u = edge - i, fl = Math.exp(-(u - 1) * 0.7);
         const x = G.x0 + (i + 0.5) * G.dx, y = G.y0 - (i + 1) * G.dy;
-        glowSp(ctx, SP.gold, x, y, Math.max(G.dy, G.dx) * 1.8, 0.28 * hk * a);
+        glowSp(ctx, SP.gold, x, y, Math.max(G.dy, G.dx) * (1.8 + 1.4 * fl), (0.3 + 0.45 * fl) * hk * a);
+        ctx.fillStyle = U.rgba(255, 232, 170, (0.75 + 0.25 * fl) * hk * a);
+        ctx.fillRect(G.x0 + i * G.dx + 1, y - 0.5, G.dx - 0.4, Math.max(1.4, th * 0.8));
+        ctx.fillStyle = U.rgba(255, 244, 210, (0.55 + 0.45 * fl) * hk * a);
+        ctx.fillRect(x - tw / 2, y - tl, tw, tl);
       }
-      ctx.fillStyle = U.rgba(255, 226, 150, 0.7 * hk * a);
-      ctx.beginPath();
-      for (let i = STEPS - 16; i < STEPS - 6; i++) {
-        if (i + 0.5 > STEPS - n) continue;
-        const x = G.x0 + i * G.dx, y = G.y0 - (i + 1) * G.dy;
-        ctx.rect(x, y - 0.5, G.dx, Math.max(1.2, 1 * s));
-      }
-      ctx.fill();
       ctx.globalCompositeOperation = 'source-over';
     }
     // 迎光的边
-    ctx.strokeStyle = css([255, 238, 206], 2, 0.45 * dayA(), 0.3);
+    ctx.strokeStyle = css([255, 238, 206], 2, 0.5 * dayA(), 0.3);
     ctx.lineWidth = Math.max(0.5, 0.7 * s);
     ctx.beginPath();
-    for (let i = 0; i < STEPS; i++) { const x = G.x0 + i * G.dx, y = G.y0 - (i + 1) * G.dy; ctx.moveTo(x, y); ctx.lineTo(x + G.dx, y); }
+    for (let i = 0; i < STEPS; i++) { if (n > 0.01 && day > 0.05 && i >= edge) continue; const x = G.x0 + i * G.dx, y = G.y0 - (i + 1) * G.dy; ctx.moveTo(x, y); ctx.lineTo(x + G.dx, y); }
     ctx.stroke();
     ctx.globalAlpha = 1;
   }
@@ -2036,15 +2059,21 @@
         const L = starts(V8);
         T(c, [
           [0, b => {
-            W.goTo(0.66, 6, b.instant);
+            W.goTo(0.66, 4, b.instant);
             walk('hez', 0.552, { speed: 0.03, pose: 'gaze' });
             walk('isaiah', 0.528, { speed: 0.03 });
             face('isaiah', 1);
           }],
-          [2.5, b => { W.set('exShadow', 16, b.instant); }],
+          // 日影向前进：自顶往下一级一级盖到第十六级（在 20:11 那一行之前走完）
+          [1.2, b => { W.set('exShadow', 16, b.instant); }],
           [L[0] + 5, b => { pose('isaiah', 'raise'); }],
-          [L[1] + 0.6, b => { W.set('exShadow', 6, b.instant); W.set('exHalo', 1, b.instant); sfx(b, 'harp'); if (!b.instant && W.sun) ringAt(b, W.sun.x, W.sun.y, [255, 236, 190], M() * 0.12, 2.4); }],
-          [L[1] + 4.5, b => { pose('hez', 'kneel'); pose('isaiah', 'stand'); }],
+          [L[1] + 0.6, b => { W.set('exShadow', 16, true); W.set('exHalo', 1, b.instant); sfx(b, 'harp'); if (!b.instant && W.sun) ringAt(b, W.sun.x, W.sun.y, [255, 236, 190], M() * 0.12, 2.4); }],
+          // 往后退了十度：一级一级地退回，每退一级，那一级亮起一道光（共十道）
+          ...Array.from({ length: 10 }, (_, j) => [L[1] + 1.2 + j * 0.5, b => {
+            W.set('exShadow', 15 - j, true);
+            if (!b.instant) { const q = stepPt(TICK0 + j); ringAt(b, q[0], q[1], [255, 230, 160], PH(2) * 0.55, 0.9); sfx(b, 'chime', { soft: true }); }
+          }]),
+          [L[1] + 6.2, b => { pose('hez', 'kneel'); pose('isaiah', 'stand'); }],
           [L[2], b => {
             W.set('exHalo', 0, b.instant);
             add('env1', { label: '巴比伦的使者', sex: 'm', age: 'adult', x: 0.47, v: 0.3, facing: 1, robe: ROBE.envoy, accent: [226, 190, 110], glow: 0.08, from: b.instant ? 'none' : 'fade' });

@@ -145,9 +145,10 @@
   // ════════════════════════════════════════════════════════════
   //  布局：一切以近岸大地的"跨度"比例安放（随屏幕缩放）
   // ════════════════════════════════════════════════════════════
+  // 亚当一家不再挤在右缘的树后：田收窄一些，家（二人与帐棚）挪进画面里，亚伯倒下之处随田左移
   const SPOT = {
-    flock0: 0.13, flock1: 0.3, altarA: 0.37, altarC: 0.48, field0: 0.56, field1: 0.86, fall: 0.7,
-    tent: 0.968, adam: 0.855, eve: 0.885, city0: 0.02, city1: 0.22,
+    flock0: 0.13, flock1: 0.3, altarA: 0.37, altarC: 0.48, field0: 0.53, field1: 0.74, fall: 0.63,
+    tent: 0.895, adam: 0.78, eve: 0.81, city0: 0.02, city1: 0.22,
   };
   const FIELD_V = 0.3;           // 田在近地纵深里的深度
   const P = { w: 0, h: 0, L0: 0.32, L1: 1, M0: 0.5, M1: 1, s: 1 };
@@ -1118,7 +1119,7 @@
       P.w = 0;
       layout();
       // 两座坛、田间与亚伯倒下之处：走兽让开这一片
-      W.beastAvoid = [[at(SPOT.altarA) - 0.04, at(SPOT.field1) + 0.02]];
+      W.beastAvoid = [[at(SPOT.altarA) - 0.04, at(SPOT.tent) + 0.03]];
       const gx = W.w * 0.96, hx = W.w * 0.94, tx = W.w * 0.995;
       W.setOrigin('grass', gx, W.ridgeBaseY(2, gx));
       W.setOrigin('herbs', hx, W.ridgeBaseY(2, hx));
@@ -1151,7 +1152,7 @@
           const E = at(SPOT.eve), A = at(SPOT.adam);
           T(c, [
             [0, b => { cast().pose('eve', 'sit', { stop: true }); cast().face('adam', 'eve'); if (!inst(b)) sfx('harp', b, { soft: true }); }],
-            [2.2, b => {
+            [1.6, b => {
               cast().carry('eve', 'baby');
               if (!inst(b)) {
                 sparkAt('eve', 26, [255, 232, 206], 0.3);
@@ -1159,18 +1160,19 @@
                 nameOver('该隐', 'eve', [255, 230, 196], { hold: 2.2, lift: 1.6 });
               }
             }],
-            [3.4, () => walk('adam', E - 0.022, 0.02, 'kneel')],
-            [5, b => W.goTo(0.99, 3.6, inst(b))],
-            [8.6, b => {
-              // 夜里：怀中的婴孩长成了孩子（该隐），夏娃怀中又有了亚伯
+            [3, () => walk('adam', E - 0.022, 0.02, 'kneel')],
+            [5.4, b => W.goTo(0.99, 2.8, inst(b))],
+            [8.2, () => {
+              // 夜里：怀中的婴孩长成了孩子（该隐）
               cast().add('cain', { label: '该隐', sex: 'm', age: 'child', layer: 2, x: E - 0.045, facing: 1, pose: 'stand', robe: ROBE.cain, glow: 0.4, from: 'fade' });
               cast().pose('eve', 'stand', { stop: true });
               cast().pose('adam', 'stand', { stop: true });
-              if (!inst(b)) { sparkAt('eve', 18, [255, 236, 214], 0.25); nameOver('亚伯', 'eve', [236, 240, 255], { hold: 2, lift: 1.6 }); }
             }],
-            [9, b => W.goTo(0.3, 3.6, inst(b))],
-            [13.2, b => W.goTo(0.99, 3.4, inst(b))],
-            [16.6, () => {
+            [8.4, b => W.goTo(0.3, 3, inst(b))],
+            // 天亮了：夏娃怀中又有了亚伯（4:2 在白日里）
+            [11.4, b => { if (!inst(b)) { sparkAt('eve', 18, [255, 236, 214], 0.25); nameOver('亚伯', 'eve', [236, 240, 255], { hold: 2.2, lift: 1.6 }); } }],
+            [13.2, b => W.goTo(0.99, 2.6, inst(b))],
+            [15.8, () => {
               // 又一夜：两个孩子都长大了
               cast().carry('eve', null);
               cast().add('cain', { age: 'adult' });
@@ -1178,17 +1180,17 @@
               cast().add('abel', { label: '亚伯', sex: 'm', age: 'adult', layer: 2, x: A - 0.05, facing: -1, pose: 'stand', robe: ROBE.abel, glow: 0.42, from: 'fade', prop: 'staff' });
               cast().face('adam', -1); cast().face('eve', -1);
             }],
-            [17, b => W.goTo(0.36, 4.2, inst(b))],
-            [19.6, b => {
+            [16, b => W.goTo(0.36, 3.2, inst(b))],
+            [19.4, b => {
               walk('abel', at(0.24), 0.032);
               herd('cain:flock', { kind: 'sheep', n: 7, x0: at(SPOT.flock0), x1: at(SPOT.flock1), layer: 2, label: '亚伯的羊', from: 'fade' });
               if (!inst(b)) sfx('bleat', b, { soft: true });
             }],
-            [20.2, () => walk('cain', at(SPOT.field1) - 0.012, 0.03)],
-            [21.5, b => lv('cainField', 1, b)],
-            [23, () => cast().pose('cain', 'bow')],
-            [27, () => walk('cain', at(SPOT.field0) + 0.05, 0.012, 'bow')],
-            [33, () => cast().pose('cain', 'stand')],
+            [20, () => walk('cain', at(SPOT.field1) - 0.012, 0.03)],
+            [21.3, b => lv('cainField', 1, b)],
+            [22.8, () => cast().pose('cain', 'bow')],
+            [26.2, () => walk('cain', at(SPOT.field0) + 0.04, 0.012, 'bow')],
+            [31, () => cast().pose('cain', 'stand')],
           ]);
         },
       },
@@ -1248,30 +1250,30 @@
           spiritRing(c, [255, 236, 214]);
           const fall = at(SPOT.fall);
           T(c, [
-            [0, b => { W.goTo(0.735, 17, inst(b)); cast().pose('cain', 'stand', { stop: true }); if (!inst(b)) sfx('wind', b, { soft: true }); }],
+            [0, b => { W.goTo(0.735, 15, inst(b)); cast().pose('cain', 'stand', { stop: true }); if (!inst(b)) sfx('wind', b, { soft: true }); }],
             [7.9, b => { lv('cainShadow', 1, b); if (!inst(b)) sfx('wind', b, { low: true }); }],
             [10, b => { lv('cainFireC', 0, b); lv('cainFireA', 0.3, b); }],
-            [18, () => { cast().pose('abel', 'stand', { stop: true }); cast().face('abel', 1); }],
-            [19.4, b => {
+            [17.6, () => { cast().pose('abel', 'stand', { stop: true }); cast().face('abel', 1); }],
+            [19, b => {
               cast().face('cain', 'abel');
-              say(b, [{ text: '该隐与他兄弟亚伯说话；二人正在田间。<br>该隐起来打他兄弟亚伯，把他杀了。', ref: '创世记 4:8', hold: 12.5 }]);
+              say(b, [{ text: '该隐与他兄弟亚伯说话；二人正在田间。<br>该隐起来打他兄弟亚伯，把他杀了。', ref: '创世记 4:8', hold: 11.5 }]);
             }],
-            [20.6, () => { walk('cain', fall + 0.022, 0.03); walk('abel', fall - 0.004, 0.029); }],
-            [28.6, b => {
+            [19.6, () => { walk('cain', fall + 0.022, 0.03); walk('abel', fall - 0.004, 0.034); }],
+            [26, b => {
               cast().face('cain', -1); cast().face('abel', 1);
               lv('cainDark', 1, b);
               if (!inst(b)) sfx('wind', b, { low: true });
             }],
-            [31.4, b => {
+            [28.2, b => {
               cast().pose('abel', 'fall', { stop: true });
               cast().glow('abel', 0.03);
               cast().crowdWalk('cain:flock', at(0.05), at(0.2), { run: true, pose: 'stand' });
               if (!inst(b)) sfx('thunder', b, { soft: true, low: true, far: true });
             }],
-            [33.6, b => { lv('cainShadow', 0, b); lv('cainDark', 0.15, b); lv('cainFireA', 0.12, b); }],
-            [34.5, b => W.goTo(0.86, 9, inst(b))],
-            [35.5, () => { cast().face('cain', 1); cast().pose('cain', 'stand', { stop: true }); }],
-            [38, () => { cast().pose('adam', 'sit'); cast().pose('eve', 'sit'); }],
+            [30.2, b => { lv('cainShadow', 0, b); lv('cainDark', 0.15, b); lv('cainFireA', 0.12, b); }],
+            [31, b => W.goTo(0.86, 8, inst(b))],
+            [31.6, () => { cast().face('cain', 1); cast().pose('cain', 'stand', { stop: true }); }],
+            [32.2, () => { cast().pose('adam', 'sit'); cast().pose('eve', 'sit'); }],
           ]);
         },
       },
@@ -1340,17 +1342,18 @@
 
       // ── 4:13–22 记号；挪得之地；以诺城 ───────────────────────
       {
-        kind: 'promise', utter: '凡杀该隐的，必遭报七倍', cmd: 'protect 该隐 --mark && mv 该隐 ./挪得  # 伊甸之东', ref: '4:13–22', hold: 3.2,
+        kind: 'promise', utter: '凡杀该隐的，必遭报七倍', cmd: 'protect 该隐 --mark && mv 该隐 ./挪得  # 伊甸之东', ref: '4:13–17', hold: 3.2,
         verse: [
-          { text: '该隐对耶和华说：「我的刑罚太重，过于我所能当的。<br>你如今赶逐我离开这地，以致不见你面；<br>我必流离飘荡在地上，凡遇见我的必杀我。」', ref: '创世记 4:13–14', hold: 10.5 },
-          { text: '耶和华对他说：「凡杀该隐的，必遭报七倍。」<br>耶和华就给该隐立一个记号，免得人遇见他就杀他。', ref: '创世记 4:15', hold: 9 },
+          { text: '该隐对耶和华说：「我的刑罚太重，过于我所能当的。<br>你如今赶逐我离开这地，以致不见你面；<br>我必流离飘荡在地上，凡遇见我的必杀我。」', ref: '创世记 4:13–14', hold: 10 },
+          { text: '耶和华对他说：「凡杀该隐的，必遭报七倍。」<br>耶和华就给该隐立一个记号，免得人遇见他就杀他。', ref: '创世记 4:15', hold: 8.5 },
+          { text: '于是该隐离开耶和华的面，去住在伊甸东边挪得之地。<br>该隐与妻子同房，他妻子就怀孕，生了以诺。<br>该隐建造了一座城，就按着他儿子的名将那城叫做以诺。', ref: '创世记 4:16–17', hold: 10 },
         ],
         apply(c) {
           spiritRing(c, [255, 232, 190]);
           const sx = c.x, sy = c.y;
           T(c, [
             [0, () => { cast().face('cain', 1); cast().pose('cain', 'pray', { stop: true }); }],
-            [11.9, b => {
+            [12.4, b => {
               lv('cainMark', 1, b);
               S.markT0 = inst(b) ? -1e9 : W.t;
               cast().pose('cain', 'kneel', { stop: true });
@@ -1365,24 +1368,22 @@
                 sfx('seal', b);
               }
             }],
-            [14, b => W.goTo(0.26, 16, inst(b))],
-            [19.5, () => { cast().pose('cain', 'stand', { stop: true }); cast().face('cain', -1); }],
-            [21.5, () => walk('cain', at(0.03), 0.028)],
-            [23.2, b => say(b, [{ text: '于是该隐离开耶和华的面，去住在伊甸东边挪得之地。', ref: '创世记 4:16', hold: 7.5 }])],
-            [24, () => { cast().pose('eve', 'stand', { stop: true }); cast().pose('adam', 'stand', { stop: true }); cast().face('eve', -1); cast().face('adam', -1); }],
-            [33.5, b => {
+            [14, b => W.goTo(0.26, 14, inst(b))],
+            [18, () => { cast().pose('cain', 'stand', { stop: true }); cast().face('cain', -1); }],
+            [19, () => walk('cain', at(0.03), 0.04)],
+            [22, () => { cast().pose('eve', 'stand', { stop: true }); cast().pose('adam', 'stand', { stop: true }); cast().face('eve', -1); cast().face('adam', -1); }],
+            [27.4, b => {
               cast().remove('cain');
-              const x0 = atM(SPOT.city0) - 0.02;
+              const x0 = atM(SPOT.city0) - 0.02, xN = atM(lerp(SPOT.city0, SPOT.city1, 0.35));
               cast().add('cainN', { label: '该隐', sex: 'm', age: 'adult', layer: 1, x: x0, facing: 1, pose: 'stand', robe: ROBE.cain, glow: 0.12, from: 'fade' });
               cast().add('cainW', { label: '该隐的妻子', sex: 'f', age: 'adult', layer: 1, x: x0 - 0.012, facing: 1, pose: 'stand', robe: [140, 96, 84], glow: 0.12, from: 'fade' });
-              walk('cainN', atM(lerp(SPOT.city0, SPOT.city1, 0.35)), 0.02);
-              cast().follow('cainW', 'cainN', 0.014);
+              walk('cainN', xN, 0.02);
+              walk('cainW', xN - 0.014, 0.02);          // 走到定点（不用 follow：跟随者停下的位置在重演时会差一点）
               lv('cainCity', 1, b);
               if (!inst(b)) sfx('build', b, { soft: true, far: true });
             }],
-            [34.5, b => say(b, [{ text: '该隐与妻子同房，他妻子就怀孕，生了以诺。<br>该隐建造了一座城，就按着他儿子的名将那城叫做以诺。', ref: '创世记 4:17', hold: 9 }])],
-            [40, () => cast().add('enochC', { label: '以诺', sex: 'm', age: 'child', layer: 1, x: atM(lerp(SPOT.city0, SPOT.city1, 0.42)), facing: -1, pose: 'stand', robe: [130, 96, 76], glow: 0.2, from: 'fade' })],
-            [44, b => {
+            [29.4, () => cast().add('enochC', { label: '以诺', sex: 'm', age: 'child', layer: 1, x: atM(lerp(SPOT.city0, SPOT.city1, 0.42)), facing: -1, pose: 'stand', robe: [130, 96, 76], glow: 0.2, from: 'fade' })],
+            [30.4, b => {
               if (inst(b)) return;
               const cx = atM((SPOT.city0 + SPOT.city1) / 2) * W.w, cy = gY(cx, 1), hm = hMid();
               const size = Math.max(14, M() * 0.04);
@@ -1390,22 +1391,17 @@
                 () => [cx + rnd(-1, 1) * hm * 2.4, cy - rnd(0, 1.2) * hm, [230, 190, 140]], { hold: 2.6 });
               chime('以');
             }],
-            [47, b => {
-              lv('cainArts', 1, b);
-              cast().crowd('cain:line', { n: 6, x0: atM(SPOT.city0 + 0.02), x1: atM(SPOT.city1 + 0.04), layer: 1, label: '该隐的后裔', robe: ROBE.line, glow: 0.06 });
-              herd('cain:cattle', { kind: 'cow', n: 3, x0: atM(0.25), x1: atM(0.34), layer: 1, label: '雅八的牲畜', from: 'fade' });
-              if (!inst(b)) sfx('harp', b, { soft: true, far: true });
-            }],
-            [48.5, b => say(b, [{ text: '亚大生雅八；雅八就是住帐棚、牧养牲畜之人的祖师。<br>雅八的兄弟名叫犹八；他是一切弹琴吹箫之人的祖师。', ref: '创世记 4:20–21', hold: 9.5 }])],
           ]);
         },
       },
 
       // ── 4:25–26 塞特；求告耶和华的名 ─────────────────────────
       {
-        kind: 'act', utter: '立了一个儿子代替亚伯', cmd: 'spawn 塞特 --in-place-of 亚伯 && call 耶和华的名', ref: '4:25–26', hold: 2.8,
+        kind: 'act', utter: '立了一个儿子代替亚伯', cmd: 'spawn 塞特 --in-place-of 亚伯 && call 耶和华的名', ref: '4:20–26', hold: 2.8,
         verse: [
+          { text: '亚大生雅八；雅八就是住帐棚、牧养牲畜之人的祖师。<br>雅八的兄弟名叫犹八；他是一切弹琴吹箫之人的祖师。', ref: '创世记 4:20–21', hold: 9 },
           { text: '亚当又与妻子同房，她就生了一个儿子，起名叫塞特，<br>意思说：「神另给我立了一个儿子代替亚伯，因为该隐杀了他。」', ref: '创世记 4:25', hold: 10 },
+          { text: '塞特也生了一个儿子，起名叫以挪士。<br>那时候，人才求告耶和华的名。', ref: '创世记 4:26', hold: 9.5 },
         ],
         apply(c) {
           spiritRing(c, [255, 240, 214]);
@@ -1419,7 +1415,14 @@
               cast().pose('eve', 'sit', { stop: true });
               cast().face('adam', 'eve');
             }],
-            [2.6, b => {
+            [0.6, b => {
+              // 远处以诺城里：住帐棚、牧养牲畜的，弹琴吹箫的，打造铜铁的
+              lv('cainArts', 1, b);
+              cast().crowd('cain:line', { n: 6, x0: atM(SPOT.city0 + 0.02), x1: atM(SPOT.city1 + 0.04), layer: 1, label: '该隐的后裔', robe: ROBE.line, glow: 0.06 });
+              herd('cain:cattle', { kind: 'cow', n: 3, x0: atM(0.25), x1: atM(0.34), layer: 1, label: '雅八的牲畜', from: 'fade' });
+              if (!inst(b)) sfx('harp', b, { soft: true, far: true });
+            }],
+            [11.6, b => {
               cast().carry('eve', 'baby');
               lv('cainBlood', 0, b); lv('cainGround', 0, b); lv('cainBloom', 1, b);
               if (!inst(b)) {
@@ -1430,9 +1433,9 @@
                 sfx('harp', b);
               }
             }],
-            [5, () => cast().crowdWalk('cain:flock', at(SPOT.flock0), at(SPOT.flock1), { pose: 'stand' })],
-            [12, b => W.goTo(0.99, 3, inst(b))],
-            [15, b => {
+            [12.4, () => cast().crowdWalk('cain:flock', at(SPOT.flock0), at(SPOT.flock1), { pose: 'stand' })],
+            [13.4, b => W.goTo(0.99, 2.6, inst(b))],
+            [16, b => {
               // 夜里：塞特长大，娶妻；以挪士生了
               cast().carry('eve', null);
               cast().pose('eve', 'stand', { stop: true });
@@ -1440,7 +1443,7 @@
               cast().add('sethW', { label: '塞特的妻子', sex: 'f', age: 'adult', layer: 2, x: at(0.77), facing: -1, pose: 'stand', robe: ROBE.sethW, glow: 0.35, from: 'fade', carry: 'baby' });
               if (!inst(b)) { sparkAt('sethW', 16, [255, 236, 210], 0.3); nameOver('以挪士', 'sethW', [236, 240, 255], { hold: 2, lift: 1.6 }); }
             }],
-            [15.4, b => W.goTo(0.71, 5, inst(b))],
+            [16.4, b => W.goTo(0.71, 4.6, inst(b))],
             [18, () => {
               walk('seth', xA + d, 0.03);
               walk('sethW', xA + d * 2.2, 0.03);
@@ -1448,7 +1451,6 @@
               walk('eve', xA - d * 2.1, 0.03);
               cast().crowd('cain:folk', { n: 4, x0: at(0.5), x1: at(0.62), layer: 2, label: '亚当的子孙', glow: 0.14 });
             }],
-            [22.4, b => say(b, [{ text: '塞特也生了一个儿子，起名叫以挪士。<br>那时候，人才求告耶和华的名。', ref: '创世记 4:26', hold: 9.5 }])],
             [23.5, b => {
               cast().face('seth', -1); cast().face('sethW', -1); cast().face('adam', -1); cast().face('eve', -1);
               cast().face('adam', 1); cast().face('eve', 1);
@@ -1470,8 +1472,10 @@
       {
         kind: 'act', utter: '以诺与神同行，神将他取去', cmd: 'git log 亚当..以诺 && take 以诺  # 与神同行', ref: '5:1–24', hold: 3.2,
         verse: [
-          { text: '亚当的后代记在下面。（当神造人的日子，是照着自己的样式造的，<br>并且造男造女。在他们被造的日子，神赐福给他们，称他们为「人」。）', ref: '创世记 5:1–2', hold: 10 },
-          { text: '亚当共活了九百三十岁就死了。', ref: '创世记 5:5', hold: 6 },
+          { text: '亚当的后代记在下面。……<br>亚当共活了九百三十岁就死了。', ref: '创世记 5:1–5', hold: 6 },
+          { text: '雅列活到一百六十二岁，生了以诺。', ref: '创世记 5:18', hold: 5.5 },
+          { text: '以诺生玛土撒拉之后，与神同行三百年，并且生儿养女。', ref: '创世记 5:22', hold: 7.5 },
+          { text: '以诺与神同行，神将他取去，他就不在世了。', ref: '创世记 5:24', hold: 8.5 },
         ],
         apply(c) {
           spiritRing(c, [255, 236, 206]);
@@ -1479,65 +1483,62 @@
           const beats = [
             [0, b => {
               lv('cainCall', 0, b); lv('cainFireA', 0.15, b);
-              W.goTo(0.5, 6, inst(b));
+              W.goTo(0.5, 5, inst(b));
               cast().removeCrowd('cain:folk');
               for (const id of ['seth', 'sethW', 'adam', 'eve']) cast().pose(id, 'stand', { stop: true });
             }],
-            [1.5, () => {
+            [0.8, () => {
               walk('seth', at(0.82), 0.03);
               cast().remove('sethW');
               cast().pose('adam', 'sit');
               cast().pose('eve', 'sit');
             }],
-            [11.4, () => { cast().place('adam', xAd); cast().pose('adam', 'lie', { stop: true }); cast().face('eve', 'adam'); }],
-            [13.5, b => {
+            [3.4, () => { cast().place('adam', xAd); cast().pose('adam', 'lie', { stop: true }); cast().face('eve', 'adam'); }],
+            [5.2, b => {
               cast().remove('adam');
               cairn(b, xAd, '亚当的坟');
               cast().pose('eve', 'kneel', { stop: true, weep: true });
               if (!inst(b)) sfx('weep', b, { soft: true });
             }],
-            [16.6, b => W.passDay(6.5, inst(b))],                    // 一夜过去
-            [19.5, () => cast().remove('eve')],
-            [23.2, b => W.goTo(0.6, 13, inst(b))],
-            [33.6, b => say(b, [{ text: '雅列活到一百六十二岁，生了以诺。', ref: '创世记 5:18', hold: 5 }])],
-            [37.6, b => W.goTo(0.735, 8, inst(b))],
+            [6.6, b => W.passDay(4.5, inst(b))],                     // 一夜过去
+            [8.4, () => cast().remove('eve')],
+            [11.2, b => W.goTo(0.6, 7, inst(b))],
+            [19.6, b => W.goTo(0.735, 6, inst(b))],
           ];
           // 一代一代如季节经过：子出现在父的东边（左），名字在他头上聚成；父老了，渐渐隐去
           GENS.forEach(([id, name], k) => {
-            const t = 23.4 + k * 3, prev = k ? GENS[k - 1][0] : 'seth';
+            const t = 6.8 + k * 1.8, prev = k ? GENS[k - 1][0] : 'seth';
             beats.push([t, b => {
               cast().add(id, { label: name, sex: 'm', age: 'adult', layer: 2, x: at(GEN_F[k]), facing: -1, pose: 'stand',
                 robe: id === 'enoch' ? ROBE.enoch : ROBE.gen[k % ROBE.gen.length], glow: id === 'enoch' ? 0.6 : 0.42, from: 'light' });
               cast().add(prev, { age: 'elder' });
               if (!inst(b)) nameOver(name, id, [255, 234, 200], { hold: 1.8, lift: k % 2 ? 2.4 : 1.1 });
             }]);
-            beats.push([t + 2.3, () => cast().remove(prev)]);
+            beats.push([t + 1.5, () => cast().remove(prev)]);
           });
           beats.push(
-            [38.4, b => {
+            [15.6, b => {
               cast().add('methu', { label: '玛土撒拉', sex: 'm', age: 'adult', layer: 2, x: at(0.4), facing: 1, pose: 'stand', robe: ROBE.methu, glow: 0.4, from: 'light' });
               lv('cainWalk', 1, b);
-              say(b, [{ text: '以诺生玛土撒拉之后，与神同行三百年，并且生儿养女。', ref: '创世记 5:22', hold: 8 }]);
               if (!inst(b)) sfx('harp', b, { soft: true });
             }],
-            [39.2, () => walk('enoch', at(0.62), 0.014)],
-            [48.8, b => {
+            [16.2, () => walk('enoch', at(0.62), 0.02)],
+            [24, b => {
               S.enochX = at(0.62);
               lv('cainTaken', 1, b);
               S.takenT0 = inst(b) ? -1e9 : W.t;
               cast().face('methu', 1);
-              say(b, [{ text: '以诺与神同行，神将他取去，他就不在世了。', ref: '创世记 5:24', hold: 9 }]);
               if (!inst(b)) sfx('harp', b);
             }],
-            [50, () => { cast().place('enoch', at(0.62)); cast().pose('enoch', 'gaze', { stop: true }); }],
-            [51, () => { cast().pose('enoch', 'raise', { stop: true }); cast().fly('enoch', at(0.62), 0.14, { dur: 6.5, pose: 'raise' }); }],
-            [57, b => {
+            [25, () => { cast().place('enoch', at(0.62)); cast().pose('enoch', 'gaze', { stop: true }); }],
+            [25.8, () => { cast().pose('enoch', 'raise', { stop: true }); cast().fly('enoch', at(0.62), 0.14, { dur: 5.4, pose: 'raise' }); }],
+            [31, b => {
               const eb = body('enoch');
               cast().remove('enoch');
               lv('cainWalk', 0, b);
               if (!inst(b) && eb) { fx().sparkle(eb.x, eb.y - eb.h * 0.5, 50, [255, 244, 220], eb.h * 0.8, 'top'); fx().ring(eb.x, eb.y - eb.h * 0.5, [255, 238, 200], M() * 0.3, 2.6, 1.2); }
             }],
-            [58.4, b => { lv('cainTaken', 0.22, b); cast().pose('methu', 'gaze'); }],
+            [32, b => { lv('cainTaken', 0.22, b); cast().pose('methu', 'gaze'); }],
           );
           T(c, beats);
         },
@@ -1548,22 +1549,24 @@
         kind: 'act', utter: '给他起名叫挪亚', cmd: 'name 挪亚  # 必为我们的劳苦安慰我们', ref: '5:25–32', hold: 2.8,
         tint: [255, 222, 176],
         verse: [
-          { text: '玛土撒拉活到一百八十七岁，生了拉麦。', ref: '创世记 5:25', hold: 6 },
-          { text: '拉麦活到一百八十二岁，生了一个儿子，给他起名叫挪亚，说：<br>「这个儿子必为我们的操作和手中的劳苦安慰我们；<br>这操作劳苦是因为耶和华咒诅地。」', ref: '创世记 5:28–29', hold: 11.5 },
+          { text: '玛土撒拉活到一百八十七岁，生了拉麦。', ref: '创世记 5:25', hold: 5.5 },
+          { text: '拉麦活到一百八十二岁，生了一个儿子，给他起名叫挪亚，说：<br>「这个儿子必为我们的操作和手中的劳苦安慰我们；<br>这操作劳苦是因为耶和华咒诅地。」', ref: '创世记 5:28–29', hold: 11 },
+          { text: '玛土撒拉共活了九百六十九岁就死了。', ref: '创世记 5:27', hold: 5.5 },
+          { text: '挪亚五百岁生了闪、含、雅弗。', ref: '创世记 5:32', hold: 6 },
         ],
         apply(c) {
           spiritRing(c, [255, 226, 186]);
           const xL = at(0.5), xW = at(0.545);
           T(c, [
-            [0, b => { lv('cainTaken', 0, b); W.goTo(0.99, 4.5, inst(b)); cast().pose('methu', 'stand', { stop: true }); }],
-            [4.6, () => {
+            [0, b => { lv('cainTaken', 0, b); W.goTo(0.99, 4, inst(b)); cast().pose('methu', 'stand', { stop: true }); }],
+            [4, () => {
               cast().add('methu', { age: 'elder' });
               cast().place('methu', at(0.44));
               cast().face('methu', 1);
               cast().add('lamech', { label: '拉麦', sex: 'm', age: 'adult', layer: 2, x: xL, facing: 1, pose: 'stand', robe: ROBE.lamech, glow: 0.4, from: 'fade' });
               cast().add('lamechW', { label: '拉麦的妻子', sex: 'f', age: 'adult', layer: 2, x: xW, facing: -1, pose: 'stand', robe: ROBE.lamechW, glow: 0.38, from: 'fade' });
             }],
-            [5.2, b => W.goTo(0.27, 10, inst(b))],
+            [4.4, b => W.goTo(0.27, 8, inst(b))],
             [7.6, b => {
               cast().pose('lamechW', 'sit', { stop: true });
               cast().carry('lamechW', 'baby');
@@ -1583,17 +1586,16 @@
                 chime('挪');
               }
             }],
-            [19.6, () => cast().pose('methu', 'sit')],
-            [21.2, b => say(b, [{ text: '玛土撒拉共活了九百六十九岁就死了。', ref: '创世记 5:27', hold: 6 }])],
-            [23, () => cast().pose('methu', 'lie')],
-            [25.4, b => {
+            [18.4, () => cast().pose('methu', 'sit')],
+            [20.6, () => cast().pose('methu', 'lie')],
+            [22.6, b => {
               cast().remove('methu');
               cairn(b, at(0.44), '玛土撒拉的坟');
               cast().face('lamech', -1);
               if (!inst(b)) sfx('weep', b, { soft: true });
             }],
-            [27.6, b => W.goTo(0.99, 3, inst(b))],
-            [30.6, b => {
+            [23.6, b => W.goTo(0.99, 2.6, inst(b))],
+            [26.2, () => {
               // 夜里：挪亚长大；到五百岁，生了闪、含、雅弗
               cast().carry('lamechW', null);
               cast().remove('lamechW');
@@ -1603,13 +1605,12 @@
               cast().add('shem', { label: '闪', sex: 'm', age: 'child', layer: 2, x: xW - 0.03, facing: -1, pose: 'stand', robe: ROBE.sons[0], glow: 0.36, from: 'light' });
               cast().add('ham', { label: '含', sex: 'm', age: 'child', layer: 2, x: xW + 0.026, facing: -1, pose: 'stand', robe: ROBE.sons[1], glow: 0.36, from: 'light' });
               cast().add('japheth', { label: '雅弗', sex: 'm', age: 'child', layer: 2, x: xW + 0.05, facing: -1, pose: 'stand', robe: ROBE.sons[2], glow: 0.36, from: 'light' });
-              say(b, [{ text: '挪亚五百岁生了闪、含、雅弗。', ref: '创世记 5:32', hold: 8 }]);
             }],
-            [31, b => W.goTo(0.33, 5, inst(b))],
-            [33.4, b => { if (!inst(b)) nameOver('闪', 'shem', [255, 232, 200], { hold: 1.8, size: Math.max(12, M() * 0.03) }); }],
-            [33.9, b => { if (!inst(b)) nameOver('含', 'ham', [255, 232, 200], { hold: 1.8, size: Math.max(12, M() * 0.03) }); }],
-            [34.4, b => { if (!inst(b)) nameOver('雅弗', 'japheth', [255, 232, 200], { hold: 1.8, size: Math.max(12, M() * 0.03) }); }],
-            [38, () => { cast().face('noah', -1); cast().pose('noah', 'gaze', { stop: true }); cast().face('lamech', -1); }],
+            [26.6, b => W.goTo(0.33, 4, inst(b))],
+            [28.4, b => { if (!inst(b)) nameOver('闪', 'shem', [255, 232, 200], { hold: 1.8, size: Math.max(12, M() * 0.03) }); }],
+            [28.9, b => { if (!inst(b)) nameOver('含', 'ham', [255, 232, 200], { hold: 1.8, size: Math.max(12, M() * 0.03) }); }],
+            [29.4, b => { if (!inst(b)) nameOver('雅弗', 'japheth', [255, 232, 200], { hold: 1.8, size: Math.max(12, M() * 0.03) }); }],
+            [31.6, () => { cast().face('noah', -1); cast().pose('noah', 'gaze', { stop: true }); cast().face('lamech', -1); }],
           ]);
         },
       },

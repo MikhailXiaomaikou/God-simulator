@@ -80,6 +80,8 @@
     cragL: 0.812, cragR: 0.905, pass: 0.858,
     star: 0.618,                   // 远山上的光（伯利恒）
   };
+  // 米斯巴：非利士人阵前的三人（id、站定之处、纵深）——雷声中仆倒（7:10）
+  const PF = [['pf1', 0.826, 0.16], ['pf2', 0.853, 0.02], ['pf3', 0.876, 0.24]];
   const ROBE = {
     elkanah: [122, 104, 84], hannah: [172, 102, 118], peninnah: [152, 128, 90], kid1: [164, 142, 104], kid2: [136, 110, 96],
     eli: [218, 210, 190], hophni: [190, 168, 136], phinehas: [170, 146, 120], linen: [240, 236, 224],
@@ -98,7 +100,7 @@
   // ════════════════════════════════════════════════════════════
   const phone = () => W.w < 600;
   const LS = l => W.layerScale(l) * (phone() ? 1.15 : 1);
-  const PH = l => 34 * W.layerScale(l) * (phone() ? 1.4 : 1) * ([1.1, 1.2, 1.3][l] || 1);   // 人的身高（像素），与人物模块一致
+  const PH = l => 34 * W.layerScale(l) * (phone() ? 1.55 : 1) * ([1.1, 1.2, 1.3][l] || 1);   // 人的身高（像素），与人物模块一致
   const DEP = l => (W.LAYERS[l] ? W.LAYERS[l].depth : 0);
   const gY = (l, xf) => {
     const x = xf * W.w, L = GS.land;
@@ -1689,9 +1691,9 @@
   ];
   const V7 = [
     { text: '非利士人将神的约柜抬进大衮庙，放在大衮的旁边。<br>次日清早，亚实突人起来，见大衮仆倒在耶和华的约柜前，脸伏于地……', ref: R('5:2–3'), hold: 7.5 },
-    { text: '又次日清早起来，见大衮仆倒在耶和华的约柜前，脸伏于地，<br>并且大衮的头和两手都在门槛上折断，只剩下大衮的残体。', ref: R('5:4'), hold: 7.2 },
-    { text: '牛直行大道，往伯‧示麦去，一面走一面叫，不偏左右。', ref: R('6:12'), hold: 5.2 },
-    { text: '伯‧示麦人正在平原收割麦子，举目看见约柜，就欢喜了。', ref: R('6:13'), hold: 5.2 },
+    { text: '又次日清早起来，见大衮仆倒在耶和华的约柜前，脸伏于地，<br>并且大衮的头和两手都在门槛上折断，只剩下大衮的残体。', ref: R('5:4'), hold: 7 },
+    { text: '耶和华的手重重加在亚实突人身上，败坏他们……<br>亚实突和亚实突的四境都是如此。', ref: R('5:6'), hold: 5.6 },
+    { text: '牛直行大道，往伯‧示麦去，一面走一面叫，不偏左右……<br>伯‧示麦人正在平原收割麦子，举目看见约柜，就欢喜了。', ref: R('6:12–13'), hold: 7 },
   ];
   const V8 = [
     { text: '他们就聚集在米斯巴，打水浇在耶和华面前，当日禁食，<br>说：「我们得罪了耶和华。」于是撒母耳在米斯巴审判以色列人。', ref: R('7:6'), hold: 7.5 },
@@ -1989,31 +1991,32 @@
           [L[1] + 2.4, b => { tod(b, 0.05, 1.6); }],
           [L[1] + 3.4, b => { W.set('smFall', 1); W.set('smBroken', 1); shake(b, 0.3); sfx(b, 'build', { low: true }); }],
           [L[1] + 4.2, b => { tod(b, 0.28, 2.6); }],
-          [L[1] + 6.4, b => { W.set('smPlague', 1); crowdPose('ashdod', 'weep'); sfx(b, 'weep', { soft: true }); }],
+          // 耶和华的手重重加在亚实突人身上（5:6）：与这一行经文同时
+          [L[2] + 0.4, b => { W.set('smPlague', 1); crowdPose('ashdod', 'weep'); sfx(b, 'weep', { soft: true }); shake(b, 0.15); }],
           // 新车，两只有乳的母牛
-          [L[2] - 0.4, b => {
+          [L[3] - 0.6, b => {
             S.ark = 'cart';
             animal('cow1', 'cow', 0.812, { facing: -1, label: '母牛', from: b.instant ? 'none' : 'fade', v: 0.02 });
             animal('cow2', 'cow', 0.815, { facing: -1, label: '母牛', from: b.instant ? 'none' : 'fade', v: 0.14 });
             animal('cart', 'wagon', 0.848, { facing: -1, label: '新车', from: b.instant ? 'none' : 'fade', pack: false });
           }],
-          [L[2] + 0.4, b => {
+          [L[3] + 0.2, b => {
             walk('cow1', 0.735, { speed: 0.012 }); walk('cow2', 0.738, { speed: 0.012 }); walk('cart', 0.771, { speed: 0.012 });
             sfx(b, 'cow');
           }],
-          [L[2] + 2.6, b => {
+          [L[3] + 2.2, b => {
             // 约柜离开了亚实突：庙在一阵尘土里很快隐去
             const D = dagonGeo();
             dustAt(b, D.x, D.base - 0.4 * D.ph, 40, [196, 170, 132], D.hw * 0.9);
             dustAt(b, D.x - D.hw * 0.5, D.base - 1.2 * D.ph, 24, [206, 184, 150], D.hw * 0.7);
             W.set('smPlague', 0); W.set('smDagon', 0); uncrowd('ashdod'); sfx(b, 'cow', { far: true }); S.fieldX = X.field6; W.set('smWheat', 1); W.set('smGold', 1);
           }],
-          [L[2] + 3.4, b => {
+          [L[3] + 2.8, b => {
             crowd('reapers', { n: 4, x0: 0.648, x1: 0.73, layer: 2, label: '伯‧示麦人', pose: 'bow', v: 0.28, from: b.instant ? 'none' : 'fade', mill: false });
             crowdFace('reapers', 1);
           }],
-          [L[3] + 0.4, b => { crowdPose('reapers', 'raise'); sfx(b, 'crowd', { soft: true }); }],
-          [L[3] + 2.4, b => { sfx(b, 'cow', { soft: true }); }],
+          [L[3] + 5.2, b => { crowdPose('reapers', 'raise'); sfx(b, 'crowd', { soft: true }); }],
+          [L[3] + 6.2, b => { sfx(b, 'cow', { soft: true }); }],
         ]);
       },
     },
@@ -2035,7 +2038,7 @@
             W.set('smWheat', 0); W.set('smGold', 0); W.set('smFall', 0); W.set('smBroken', 0);
             tod(b, 0.4, 3);
             walk('samuel', X.mizpah, { speed: 0.035 }); pose('samuel', 'stand');
-            crowd('mizpah', { n: 9, x0: 0.66, x1: 0.8, layer: 2, label: '以色列人', from: b.instant ? 'none' : 'fade', mill: false });
+            crowd('mizpah', { n: 9, x0: 0.66, x1: 0.785, layer: 2, label: '以色列人', from: b.instant ? 'none' : 'fade', mill: false });
             crowdFace('mizpah', -1);
           }],
           [2.4, b => { fxl(b, { type: 'pour', dur: 4.5, xs: [0.672, 0.702, 0.735, 0.77] }); }],
@@ -2043,15 +2046,30 @@
           [L[1] - 0.8, b => {
             S.alt2X = X.mizpah - 0.03; W.set('smAlt2', 1); W.set('smAlt2Fire', 1);
             face('samuel', -1); pose('samuel', 'raise');
-            crowd('phil2', { n: 7, x0: 1.02, x1: 1.12, layer: 2, label: '非利士人', robe: ROBE.phil, from: b.instant ? 'none' : 'fade', mill: false, prop: 'spear' });
-            crowdWalk('phil2', 0.86, 0.97, { speed: 0.05 });
+            // 非利士人的阵列：在大树之前（0.82–0.93），看得清；前排三人单独立着，好让雷声中看得见谁仆倒
+            crowd('phil2', { n: 5, x0: 1.02, x1: 1.12, layer: 2, label: '非利士人', robe: ROBE.phil, from: b.instant ? 'none' : 'fade', mill: false, prop: 'spear', v: 0.06 });
+            crowdWalk('phil2', 0.845, 0.93, { speed: 0.062 });
+            PF.forEach((q, i) => {
+              add(q[0], { label: '非利士人', sex: 'm', age: 'adult', x: 1.03 + i * 0.02, facing: -1, robe: ROBE.phil, glow: 0.06, prop: 'spear', from: b.instant ? 'none' : 'fade', v: q[2] });
+              walk(q[0], q[1], { speed: 0.062 });
+            });
             sfx(b, 'fire', { soft: true });
           }],
           [L[1] + 1.6, b => { W.set('storm', 0.72); W.set('gale', 0.3); }],
-          [L[1] + 3.2, b => { if (!b.instant && GS.weather) GS.weather.bolt({ x: 0.9, near: true }); shake(b, 0.5); flash(b, 0.3); }],
-          [L[1] + 4.3, b => { if (!b.instant && GS.weather) GS.weather.bolt({ x: 0.84, near: true }); crowdWalk('phil2', 1.06, 1.2, { run: true, speed: 0.09 }); shake(b, 0.4); }],
+          // 耶和华大发雷声，惊乱非利士人：雷打在阵前，前排的人仆倒、枪落在地上，其余的乱了队伍
+          [L[1] + 3.2, b => {
+            if (!b.instant && GS.weather) GS.weather.bolt({ x: 0.85, near: true });
+            shake(b, 0.55); flash(b, 0.32);
+            pose('pf1', 'fall'); pose('pf3', 'fall');
+            crowdWalk('phil2', 0.8, 0.99, { run: true, speed: 0.075 });
+            dustAt(b, 0.85 * W.w, gY(2, 0.85), 30, [206, 184, 150], 30 * SU());
+            sfx(b, 'crowd', { soft: true });
+          }],
+          [L[1] + 3.9, () => { pose('pf2', 'fall'); crowdFace('phil2', 1); }],
+          [L[1] + 4.4, b => { if (!b.instant && GS.weather) GS.weather.bolt({ x: 0.9, near: true }); crowdWalk('phil2', 1.06, 1.2, { run: true, speed: 0.09 }); shake(b, 0.4); }],
           [L[1] + 5.4, b => { if (!b.instant && GS.weather) GS.weather.bolt({ x: 0.96 }); }],
-          [L[1] + 6, () => { crowdPose('mizpah', 'stand'); crowdWalk('mizpah', 0.7, 0.86, { speed: 0.05 }); }],
+          [L[1] + 6, () => { crowdPose('mizpah', 'stand'); crowdWalk('mizpah', 0.7, 0.8, { speed: 0.05 }); }],
+          [L[1] + 6.8, () => { PF.forEach(q => rm(q[0])); }],
           [L[1] + 7.6, () => { W.set('storm', 0); W.set('gale', 0); uncrowd('phil2'); W.set('smAlt2Fire', 0.4); }],
           [L[2] - 0.6, b => { tod(b, 0.72, 7); }],
           [L[2], b => { W.set('smEben', 1); W.set('smEbenGone', 0); walk('samuel', X.eben - 0.03, { speed: 0.04, pose: 'raise' }); sfx(b, 'build', { soft: true }); }],
@@ -2242,8 +2260,9 @@
             walk('samuel', 0.552, { speed: 0.03, pose: 'pray' });
             walk('saul', 0.9, { speed: 0.03 });
           }],
+          // 撒母耳清早起来迎接扫罗（15:12）：夜留到第一行经文说完，天才渐渐亮
+          [L[1] - 1.5, b => { tod(b, 0.3, 5.6); }],
           [3.2, b => {
-            tod(b, 0.33, 3.8);
             // 羊群在前（左），牛在后排；亚甲与跟随扫罗的人站在牛前（画面更低），都离开右边的树干
             herd('spoil', { kind: 'sheep', n: 6, x0: 0.8, x1: 0.875, layer: 2, label: '上好的羊', from: b.instant ? 'none' : 'fade', mill: false, v: 0.03 });
             herd('spoilOx', { kind: 'cow', n: 2, x0: 0.885, x1: 0.915, layer: 2, label: '上好的牛', from: b.instant ? 'none' : 'fade', mill: false, v: 0 });

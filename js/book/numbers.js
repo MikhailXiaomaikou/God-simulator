@@ -46,10 +46,11 @@
 
   // ── 地上的位置（画面宽度的比例）─────────────────────────────
   const TABV = 0.12;                         // 会幕在近地纵深里的位置
+  const RODV = 0.3;                          // 十二根杖：立在院子白幔之前（看得清），不在幔子后面
   const X = {
     tab: 0.66,                               // 会幕（院子约在 0.575–0.745）
     moses: 0.551, aaron: 0.563, eleazar: 0.54, ithamar: 0.575, miriam: 0.52, joshua: 0.53, caleb: 0.51,
-    rods: 0.64, serpent: 0.757, well: 0.83, rock: 0.905, cairnM: 0.47,
+    rods: 0.615, serpent: 0.757, well: 0.83, rock: 0.905, cairnM: 0.47,
     jordan: 0.885, jericho: 0.905,
     walls0: 0.7, walls1: 0.9,
   };
@@ -887,8 +888,8 @@
   function rodGeom(p) {
     const s = LS(2) * vS(p.v) * 1.5 * FOC(), x = p.x * W.w, y = posY(2, p.x, p.v);
     const focus = clamp(p.bud * 3, 0, 1);
-    const rx = x + (ROD_A - 5.5) * 3.4 * s, h = (30 + 4 * rt(ROD_A + 40)) * s * (1 + 0.4 * focus);
-    return { s, x, y, focus, rx, h };
+    const rx = x + (ROD_A - 5.5) * 3.4 * s, h = (30 + 4 * rt(ROD_A + 40)) * s * (1 + 0.9 * focus);
+    return { s, x, y, focus, rx, h, k: 1 + 0.8 * focus };     // k：发芽的那一根放大（约两倍），芽、花、杏也随之放大
   }
   function drawRods(ctx, p) {
     const G = rodGeom(p), s = G.s, x = G.x, y = G.y;
@@ -910,26 +911,26 @@
     }
     ctx.stroke();
     // 亚伦的杖
-    const b = p.bud, rx = G.rx, h = G.h, tip = rx + (rt(ROD_A + 60) - 0.5) * 2 * s;
+    const b = p.bud, rx = G.rx, h = G.h, tip = rx + (rt(ROD_A + 60) - 0.5) * 2 * s, sk = s * G.k;
     ctx.globalAlpha = p.a;
     if (b > 0.01 && SP) {
       ctx.globalCompositeOperation = 'lighter';
-      glowSp(ctx, SP.gold, rx, y - h * 0.62, 40 * s, (p.glow * 0.3 + b * 0.14) * p.a);
-      glowSp(ctx, SP.rose, rx, y - h * 0.72, 16 * s, (p.glow * 0.22 + b * 0.1) * p.a);
+      glowSp(ctx, SP.gold, rx, y - h * 0.62, 40 * sk, (p.glow * 0.3 + b * 0.14) * p.a);
+      glowSp(ctx, SP.rose, rx, y - h * 0.72, 16 * sk, (p.glow * 0.22 + b * 0.1) * p.a);
       ctx.globalCompositeOperation = 'source-over';
     }
     ctx.strokeStyle = css(b > 0.01 ? [138, 104, 66] : [112, 84, 58], 2, 1, 0.1 * G.focus);
-    ctx.lineWidth = Math.max(1, 1.5 * s * (1 + 0.25 * G.focus));
+    ctx.lineWidth = Math.max(1, 1.5 * s * (1 + 0.6 * G.focus));
     ctx.beginPath(); ctx.moveTo(rx, y); ctx.lineTo(tip, y - h); ctx.stroke();
     if (b > 0.01) {
       const at = t => [lerp(rx, tip, t), y - h * t];
       for (let j = 0; j < 13; j++) {
         const t = 0.3 + 0.68 * rt(j * 3 + 80), side = j % 2 ? 1 : -1, r = rt(j * 3 + 82);
-        const [ax, ay] = at(t), bx = ax + side * (1.4 + 1.8 * rt(j * 3 + 81)) * s, by = ay;
+        const [ax, ay] = at(t), bx = ax + side * (1.4 + 1.8 * rt(j * 3 + 81)) * sk, by = ay;
         const kb = clamp(b * 3.5 - r * 0.4, 0, 1);            // 发芽、生了花苞
         const kf = clamp((b - 0.36) * 3.5 - r * 0.3, 0, 1);   // 开了花
         const ka = clamp((b - 0.7) * 3.5 - r * 0.2, 0, 1);    // 结了熟杏
-        const Z = 2.2 * s;
+        const Z = 2.2 * sk;
         // 芽与叶
         if (kb > 0) {
           ctx.strokeStyle = css([96, 132, 64], 2, kb, 0.1); ctx.lineWidth = Math.max(0.6, 0.35 * Z);
@@ -2067,7 +2068,8 @@
     const out = [];
     for (const p of P.values()) {
       if (p.layer !== 2 || p.a < 0.005 || p.kind === 'carry' || p.kind === 'ark' || p.kind === 'incense' || p.kind === 'loose' || p.kind === 'lev') continue;
-      const v = p.kind === 'pillar' ? TABV - 0.001 : p.kind === 'tab' ? TABV : p.kind === 'walls' ? -0.5 : (p.v || 0);
+      // 十二根杖是这一句的记号：画在各纛之后，旗不遮住它（17:8）
+      const v = p.kind === 'pillar' ? TABV - 0.001 : p.kind === 'tab' ? TABV : p.kind === 'walls' ? -0.5 : p.kind === 'rods' ? 0.97 : (p.v || 0);
       out.push([v, p]);
     }
     out.sort((a, b) => a[0] - b[0] || a[1].x - b[1].x);
@@ -2559,37 +2561,48 @@
             [['caleb', 0.585], ['moses', 0.598], ['aaron', 0.612], ['eleazar', 0.626], ['joshua', 0.64], ['miriam', 0.575]].forEach(([id, x]) => walk(id, x, { speed: 0.035 }));
             walk('f0', 0.405, { speed: 0.03 }); walk('f1', 0.41, { speed: 0.03 }); walk('f2', 0.6, { speed: 0.035 });
           }],
-          [3, () => { face('moses', -1); pose('moses', 'raise'); }],
-          // 地开了口：帐棚与可拉一党沉下去，地口又照旧合闭（16:31–33）
-          [5.5, b => { flash(b, { type: 'rift', xf: RX, dur: 5.5 }); sfx(b, 'thunder', { low: true }); if (!b.instant) { W.shake = 1; fx().dust(RX * W.w, posY(2, RX, 0.25), 60, [170, 140, 110], 40 * SU()); } }],
-          [5.9, () => { ['rt0', 'rt1', 'rt2'].forEach(id => prop(id, null, { sink: 1 })); crowdPose('korah', 'fall'); }],
-          [6.9, () => { unCrowd('korah'); }],
-          [7.6, () => { unprop('rt0'); unprop('rt1'); unprop('rt2'); pose('moses', 'stand'); }],
-          // 瘟疫：亚伦拿着香炉，跑到会中
-          [11, b => {
-            flash(b, { type: 'plague', xf: 0.545, dur: 8 });
+          [2, () => { face('moses', -1); pose('moses', 'raise'); }],
+          [4, b => { flash(b, { type: 'rift', xf: RX, dur: 5.5 }); sfx(b, 'thunder', { low: true }); if (!b.instant) { W.shake = 1; fx().dust(RX * W.w, posY(2, RX, 0.25), 60, [170, 140, 110], 40 * SU()); } }],
+          [4.4, () => { ['rt0', 'rt1', 'rt2'].forEach(id => prop(id, null, { sink: 1 })); crowdPose('korah', 'fall'); }],
+          [5.4, () => { unCrowd('korah'); }],
+          [6.1, () => { unprop('rt0'); unprop('rt1'); unprop('rt2'); pose('moses', 'stand'); }],
+          // 瘟疫：亚伦拿着香炉，跑到会中（与 16:47–48 那一句同时）
+          [8, b => {
+            flash(b, { type: 'plague', xf: 0.545, dur: 6.5 });
             crowd('plagued', { n: 4, x0: 0.41, x1: 0.47, layer: 2, label: '以色列人', mill: false, v: 0.5 });
             hold('aaron', 'torch'); run('aaron', 0.535, { pose: 'raise' });
             prop('incense', 'incense', { fire: 1 });
             sfx(b, 'wind', { low: true });
           }],
-          [13, () => { crowdPose('plagued', 'lie'); }],
-          [17.5, () => { unCrowd('plagued'); unprop('incense'); pose('aaron', 'stand'); hold('aaron', null); folkHome({ speed: 0.035 }); }],
-          // 十二根杖，存在法柜前；过了一夜
-          [18.5, b => {
-            prop('rods', 'rods', { x: X.rods, v: 0.16, label: '十二根杖', n: 12 });   // 存在法柜前（17:7）
+          [9.6, () => { crowdPose('plagued', 'lie'); }],
+          [13, () => { unCrowd('plagued'); unprop('incense'); pose('aaron', 'stand'); hold('aaron', null); folkHome({ speed: 0.035 }); }],
+          // 十二根杖，存在耶和华面前（17:7；立在院子的白幔之前，纛的中间，看得见）；过了一夜
+          [13.4, b => {
+            prop('rods', 'rods', { x: X.rods, v: RODV, label: '十二根杖', n: 12 });
             eastFront({ speed: 0.03 }); if (has('caleb')) walk('caleb', X.caleb, { speed: 0.03 });
-            W.goTo(0.02, 3.5, b.instant);
+            walk('f4', X.rods - 0.03, { speed: 0.03 }); walk('f5', X.rods + 0.035, { speed: 0.03 });   // 杖前让出一条路
+            W.goTo(0.02, 2.4, b.instant);
           }],
-          [22.5, b => { W.goTo(0.3, 3.5, b.instant); }],
-          // 第二天：亚伦的杖发了芽（生了花苞）、开了花、结了熟杏——三步
-          ...[[25, 0.34, [220, 255, 190]], [26.5, 0.67, [255, 236, 240]], [28, 1, [255, 240, 200]]].map(([t, bud, col], i) => [t, b => {
+          // 第二天（17:8 那一句出来时天亮）
+          [15.6, b => { W.goTo(0.3, 3.2, b.instant); walk('aaron', X.rods - 0.045, { speed: 0.03 }); walk('moses', X.rods - 0.058, { speed: 0.03 }); }],
+          // 亚伦的杖发了芽（生了花苞）、开了花、结了熟杏——三步，都在 17:8 那一句里
+          ...[[16.6, 0.34, [220, 255, 190]], [18.1, 0.67, [255, 236, 240]], [19.6, 1, [255, 240, 200]]].map(([t, bud, col], i) => [t, b => {
             prop('rods', null, { bud, glow: 1, label: '亚伦的杖' });
             sfx(b, i ? 'chime' : 'harp', { soft: !!i });
-            if (!b.instant) { const p = getP('rods'); if (p) { const G = rodGeom(p); fx().sparkle(G.rx, G.y - G.h * 0.7, 18 + i * 6, col, 14 + i * 3, 'near'); } }
-            if (!i) folkFace(X.rods);
+            if (!b.instant) {
+              const p = getP('rods');
+              if (p) {
+                const G = rodGeom(p);
+                fx().sparkle(G.rx, G.y - G.h * 0.7, 22 + i * 8, col, 18 + i * 4, 'near');
+                fx().ring(G.rx, G.y - G.h * 0.62, col, M() * (0.05 + 0.02 * i), 1.8, 1.6);
+              }
+            }
+            if (!i) { folkFace(X.rods); face('aaron', 1); face('moses', 1); }
             if (i === 2) { pose('aaron', 'kneel'); glow('aaron', 0.6); }
           }]),
+          // 「我就是你的分，是你的产业」（18:20）：会幕里的光照在亚伦身上
+          [24.2, b => { beam(b, X.tab, TABV, { dur: 5, w: 60, r: 0.18 }); prop('tab', null, { glow: 0.5 }); sfx(b, 'harp', { soft: true }); }],
+          [29, () => { prop('tab', null, { glow: 0 }); }],
         ]);
       },
     },
@@ -2985,7 +2998,7 @@
       verse: [
         { text: '以色列人按着军队，在摩西、亚伦的手下出埃及地所行的路程记在下面。<br>摩西遵着耶和华的吩咐记载他们所行的路程……', ref: '民数记 33:1–2', hold: 7 },
         { text: '「你们到了迦南地，就是归你们为业的迦南四境之地……<br>这界要下到约旦河，通到盐海为止。这四围的边界以内，要作你们的地。」', ref: '民数记 34:2–12', hold: 7 },
-        { text: '「你们过约旦河，进了迦南地，就要分出几座城，为你们作逃城，<br>使误杀人的可以逃到那里。」', ref: '民数记 35:10–11', hold: 6.5 },
+        { text: '「你们过约旦河，进了迦南地，就要分出几座城，为你们作逃城……<br>你们不可玷污所住之地，就是我住在其中之地，<br>因为我耶和华住在以色列人中间。」', ref: '民数记 35:10–34', hold: 7.5 },
         { text: '这是耶和华在摩押平原约旦河边、耶利哥对面<br>藉着摩西所吩咐以色列人的命令典章。', ref: '民数记 36:13', hold: 7 },
       ],
       apply(c) {
@@ -2999,8 +3012,8 @@
             if (!b.instant) { const s = LS(q[1]) * q[3] * FOC(); fx().sparkle(q[0] * W.w, posY(q[1], q[0], q[2]) - 26 * s, 14, [255, 226, 170], 12, ['far', 'mid', 'near'][q[1]]); }
             sfx(b, 'chime', { soft: true, x: q[0] });
           }]),
-          // 我耶和华住在以色列人中间
-          [21.5, b => {
+          // 我耶和华住在以色列人中间（35:34 那一句正显出时）
+          [20.6, b => {
             W.set('nmDwell', 1, b.instant);
             glory(b, { big: 0.9, dur: 7, soft: 1 });
             TRIBES.forEach((tr, i) => prop('bn' + i, null, { lit: 1 }));
@@ -3009,7 +3022,7 @@
             pose('moses', 'raise');
             sfx(b, 'angel');
           }],
-          [27, () => { pose('moses', 'stand'); }],
+          [26.5, () => { pose('moses', 'stand'); }],
         ]);
       },
     },

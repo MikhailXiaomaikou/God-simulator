@@ -41,6 +41,7 @@
     oakA: 0.672, tent: 0.742, oakB: 0.8, altarM: 0.83,            // 幔利（希伯仑）
     cave: 0.875, tamarisk: 0.918, wellN: 0.958,
     moriah: 0.555,                                                // 摩利亚山（22:2 神所指示的山，在近处升起）
+    egypt: 0.835, palace: 0.935,                                  // 埃及（12:10–20）：画面右边，往埃及去的路上；法老的宫
     // 中景（盐海岸边的平原）
     lotTent: 0.505, sodom: 0.53, gomorrah: 0.578, salt: 0.618, zoar: 0.668,
   };
@@ -48,7 +49,7 @@
   const ROBE = {
     abram: [150, 118, 84], sarai: [168, 112, 100], lot: [112, 96, 82], hagar: [196, 186, 162], ishmael: [136, 104, 72],
     isaac: [150, 132, 100], rebekah: [176, 96, 88], servant: [120, 104, 86], mel: [236, 212, 160], angel: [238, 234, 222],
-    wife: [150, 116, 104], dau: [164, 120, 110],
+    wife: [150, 116, 104], dau: [164, 120, 110], pharaoh: [242, 236, 216],
   };
 
   // ── 本卷的状态（只在 setup / apply / 情节里改动，重演时一样）───────
@@ -622,6 +623,76 @@
     }
   }
 
+  // 法老的宫（12:15）：塔门（两座梯形的塔、门、旗）与其后的柱厅；在画面右边（往埃及去的路）
+  // 画的位置夹在屏幕之内（窄屏时整座宫仍看得见）；世界里记下的仍是 p.x
+  function palaceX(p) { const s = LS(p.layer) * p.size; return Math.min(p.x * W.w, W.w - 50 * s); }
+  function drawPalace(ctx, p) {
+    const l = p.layer, s = LS(l) * p.size, x = palaceX(p), y = gY(l, x / W.w) + 3 * s, g = p.grow;
+    if (g < 0.01) return;
+    const STONE = [230, 210, 168], SHD = [178, 154, 116], DARK = [40, 32, 26];
+    ctx.globalAlpha = p.a;
+    const d = litX() >= x ? 1 : -1;
+    // 柱厅（在塔门之后，向右）
+    const hx0 = x + 6 * s, hx1 = x + 44 * s, hh = 19 * s * g;
+    ctx.fillStyle = css(STONE, l);
+    ctx.fillRect(hx0, y - hh, hx1 - hx0, hh);
+    ctx.fillStyle = css([92, 76, 60], l);
+    ctx.fillRect(hx0 + 3 * s, y - hh + 3 * s, hx1 - hx0 - 6 * s, hh - 3 * s);
+    ctx.fillStyle = css(STONE, l, 1, 0.04);
+    for (let i = 0; i < 7; i++) {
+      const cx = lerp(hx0 + 5 * s, hx1 - 4 * s, i / 6);
+      ctx.fillRect(cx - 1.4 * s, y - hh + 3 * s, 2.8 * s, hh - 3 * s);
+      ctx.beginPath(); ctx.moveTo(cx - 2.6 * s, y - hh + 3 * s); ctx.lineTo(cx + 2.6 * s, y - hh + 3 * s); ctx.lineTo(cx + 1.4 * s, y - hh + 5.4 * s); ctx.lineTo(cx - 1.4 * s, y - hh + 5.4 * s); ctx.closePath(); ctx.fill();
+    }
+    ctx.fillStyle = css([218, 198, 158], l);
+    ctx.fillRect(hx0 - 1 * s, y - hh - 2.2 * s, hx1 - hx0 + 2 * s, 2.6 * s);
+    // 塔门
+    const TH = 38 * s * g, gw = 4 * s;
+    const tower = cx => {
+      const bw = 10.5 * s, tw = 8 * s;
+      ctx.beginPath(); ctx.moveTo(cx - bw, y); ctx.lineTo(cx - tw, y - TH); ctx.lineTo(cx + tw, y - TH); ctx.lineTo(cx + bw, y); ctx.closePath(); ctx.fill();
+      return [cx, bw, tw];
+    };
+    ctx.fillStyle = css(STONE, l);
+    const tl = tower(x - 12.5 * s), tr = tower(x + 12.5 * s);
+    ctx.fillStyle = css(SHD, l, 0.55);
+    ctx.fillRect(d > 0 ? tl[0] - tl[2] : tl[0] + tl[2] - 3 * s, y - TH, 3 * s, TH);
+    ctx.fillRect(d > 0 ? tr[0] - tr[2] : tr[0] + tr[2] - 3 * s, y - TH, 3 * s, TH);
+    // 门
+    ctx.fillStyle = css([222, 202, 160], l);
+    ctx.fillRect(x - gw - 2 * s, y - TH * 0.66, (gw + 2 * s) * 2, 3 * s);
+    ctx.fillStyle = css(DARK, l);
+    ctx.fillRect(x - gw, y - TH * 0.6, gw * 2, TH * 0.6);
+    // 檐与塔上的横纹（彩绘的一道蓝与一道红）
+    ctx.fillStyle = css([236, 220, 180], l);
+    ctx.fillRect(tl[0] - tl[2] - 0.8 * s, y - TH - 1.8 * s, tl[2] * 2 + 1.6 * s, 2.2 * s);
+    ctx.fillRect(tr[0] - tr[2] - 0.8 * s, y - TH - 1.8 * s, tr[2] * 2 + 1.6 * s, 2.2 * s);
+    for (const [k, rgb] of [[0.12, [52, 96, 150]], [0.2, [172, 64, 48]]]) {
+      ctx.fillStyle = css(rgb, l, 0.8);
+      for (const t of [tl, tr]) { const w = lerp(t[2], t[1], k); ctx.fillRect(t[0] - w * 0.86, y - TH * (1 - k), w * 1.72, 1.4 * s); }
+    }
+    // 旗杆与旗
+    const flags = [[x - 13.5 * s, [176, 60, 48]], [x + 13.5 * s, [52, 96, 150]]];
+    ctx.strokeStyle = css([120, 96, 66], l); ctx.lineWidth = Math.max(0.6, 0.9 * s);
+    ctx.beginPath();
+    for (const fl of flags) { ctx.moveTo(fl[0], y); ctx.lineTo(fl[0], y - TH - 12 * s * g); }
+    ctx.stroke();
+    for (let i = 0; i < flags.length; i++) {
+      const fx0 = flags[i][0], fy = y - TH - 12 * s * g + 0.5 * s, wv = Math.sin(W.t * 2.2 + i * 1.7) * 1.4 * s, dir = W.wind >= 0 ? 1 : -1;
+      ctx.fillStyle = css(flags[i][1], l, 1, 0.05);
+      ctx.beginPath(); ctx.moveTo(fx0, fy); ctx.quadraticCurveTo(fx0 + dir * 4 * s, fy + wv, fx0 + dir * 8 * s, fy + 1.2 * s + wv * 0.6);
+      ctx.lineTo(fx0 + dir * 7 * s, fy + 3.2 * s + wv * 0.4); ctx.quadraticCurveTo(fx0 + dir * 3.6 * s, fy + 3.4 * s + wv, fx0, fy + 3.4 * s); ctx.closePath(); ctx.fill();
+    }
+    // 迎光的一边
+    ctx.globalAlpha = p.a * 0.55;
+    ctx.strokeStyle = css([255, 244, 222], l, 1, 0.3); ctx.lineWidth = Math.max(0.6, 1 * s);
+    ctx.beginPath();
+    for (const t of [tl, tr]) { ctx.moveTo(t[0] + d * t[1], y); ctx.lineTo(t[0] + d * t[2], y - TH); }
+    ctx.moveTo(hx0, y - hh - 2.2 * s); ctx.lineTo(hx1, y - hh - 2.2 * s);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+
   function drawSalt(ctx, p) {
     const l = p.layer, s = LS(l), h = 31 * s, x = p.x * W.w, y = gY(l, p.x) + 1;
     ctx.globalAlpha = p.a;
@@ -1100,12 +1171,52 @@
         ctx.globalAlpha = env * 0.8;
         ctx.drawImage(SP.gold, hx * W.w - g / 2, gY(e.l, hx) - g / 2, g, g);
         ctx.globalCompositeOperation = 'source-over';
-      } else if (e.type === 'plague' && pass === 'far') {
-        const p = Math.pow(Math.max(0, Math.sin(e.t * 5.3)), 4) * (1 - q);
+      } else if (e.type === 'plague' && pass === 'air') {
+        // 大灾（12:17）：法老的宫上压着一团黑云，宫的四围暗下来；云中红光与电闪一阵一阵地落在宫上
+        const pal = getP('palace');
+        const s = LS(2), cx = pal ? palaceX(pal) + 8 * s : W.w * 0.9, gy = gY(2, cx / W.w);
+        const env = smoothstep(0, 0.1, q) * (1 - smoothstep(0.8, 1, q));
+        const R = 100 * s + 30, cy = gy - 150 * s;
+        // 宫的四围暗下来
+        const sh = ctx.createRadialGradient(cx, gy - 40 * s, 0, cx, gy - 40 * s, R * 1.9);
+        sh.addColorStop(0, U.rgba(24, 14, 12, 0.42 * env)); sh.addColorStop(0.55, U.rgba(24, 14, 12, 0.22 * env)); sh.addColorStop(1, 'rgba(24,14,12,0)');
+        ctx.fillStyle = sh; ctx.fillRect(cx - R * 2, gy - 40 * s - R * 2, R * 4, R * 4);
+        // 黑云
+        ctx.globalAlpha = env * 0.92;
+        for (let i = -4; i <= 4; i++) {
+          const ox = i * R * 0.27 + Math.sin(e.t * 0.6 + i * 1.9) * 6 * s, oy = Math.cos(i * 2.3) * R * 0.1 - (4 - Math.abs(i)) * R * 0.04, g = R * (1 - Math.abs(i) * 0.07);
+          ctx.drawImage(SP.soot, cx + ox - g / 2, cy + oy - g / 2, g, g);
+          if (Math.abs(i) < 3) ctx.drawImage(SP.soot, cx + ox * 0.8 - g * 0.35, cy + R * 0.22 - g * 0.35, g * 0.7, g * 0.7);
+        }
+        // 云下斜落的冰雹与雨
+        ctx.globalAlpha = env * 0.32;
+        ctx.strokeStyle = 'rgb(40,34,34)'; ctx.lineWidth = Math.max(0.8, 1.1 * s); ctx.lineCap = 'round';
+        ctx.beginPath();
+        for (let i = 0; i < 26; i++) {
+          const fx0 = cx + ((i * 0.618) % 1 - 0.5) * R * 1.9, ph = (e.t * 1.7 + i * 0.37) % 1;
+          const y0 = cy + R * 0.2 + ph * (gy - cy - R * 0.2), len = 16 * s;
+          ctx.moveTo(fx0 - ph * 12 * s, y0); ctx.lineTo(fx0 - ph * 12 * s - 4 * s, y0 + len);
+        }
+        ctx.stroke();
+        const p = Math.pow(Math.max(0, Math.sin(e.t * 5.3)), 4) * env;
         ctx.globalCompositeOperation = 'lighter';
-        ctx.globalAlpha = p * 0.8;
-        const g = W.h * 0.7;
-        ctx.drawImage(SP.ember, W.w * 1.02 - g / 2, W.horizonY - g / 2, g, g);
+        ctx.globalAlpha = p * 0.9;
+        const g = R * 1.7;
+        ctx.drawImage(SP.ember, cx - g / 2, gy - 22 * s - g / 2, g, g);
+        ctx.globalAlpha = p * 0.55;
+        ctx.drawImage(SP.ember, cx - g * 0.45, cy - g * 0.45, g * 0.9, g * 0.9);
+        // 电闪（每一阵亮时一道，从云里落到宫上）
+        if (p > 0.3) {
+          const k = Math.floor(e.t * 5.3 / Math.PI), r = U.mulberry32(k * 977 + 5);
+          ctx.strokeStyle = 'rgb(255,232,210)'; ctx.lineWidth = Math.max(1.2, 2 * s); ctx.lineJoin = 'round';
+          ctx.globalAlpha = Math.min(1, p * 1.2);
+          ctx.beginPath();
+          let bx = cx + (r() - 0.5) * R * 0.6, by = cy + R * 0.15;
+          ctx.moveTo(bx, by);
+          const ty = gy - 38 * s * (0.7 + r() * 0.3);
+          for (let j = 1; j <= 6; j++) { bx += (r() - 0.5) * 16 * s; by = lerp(cy + R * 0.15, ty, j / 6); ctx.lineTo(bx, by); }
+          ctx.stroke();
+        }
         ctx.globalCompositeOperation = 'source-over';
       } else if (e.type === 'battle' && pass === 'far') {
         const p = Math.pow(Math.max(0, Math.sin(e.t * 4.1 + 1)), 5) * (1 - q);
@@ -1168,6 +1279,7 @@
       case 'tent': drawTent(ctx, p); break;
       case 'altar': drawAltar(ctx, p); break;
       case 'city': drawCity(ctx, p); break;
+      case 'palace': drawPalace(ctx, p); break;
       case 'salt': drawSalt(ctx, p); break;
       case 'spring': drawSpring(ctx, p, false); break;
       case 'well': drawSpring(ctx, p, true); break;
@@ -1183,7 +1295,7 @@
     }
   }
   const LAYER_OF_PASS = { far: 0, mid: 1, near: 2 };
-  const ORDER = { cave: 0, oak: 1, tamarisk: 2, city: 1, salt: 3, shrub: 2, tent: 3, halo: 0, thicket: 3, altar: 4, spring: 4, well: 4, pieces: 5, ram: 5, mount: 6, bier: 9 };
+  const ORDER = { cave: 0, oak: 1, tamarisk: 2, city: 1, palace: 1, salt: 3, shrub: 2, tent: 3, halo: 0, thicket: 3, altar: 4, spring: 4, well: 4, pieces: 5, ram: 5, mount: 6, bier: 9 };
   // 山挡在它身后的橡树与旧坛之前；山上的物件（坛、小树、光）画在山之后
   const ord = p => (p.mt ? 7 + (ORDER[p.kind] || 0) / 10 : (ORDER[p.kind] || 0));
   let sorted = [], sortedN = -1;
@@ -1307,8 +1419,8 @@
       let best = null;
       for (const p of P.values()) {
         if (!p.label || p.a < 0.4 || p.kind === 'halo') continue;
-        const s = LS(p.layer) * (p.size || 1), px = p.x * W.w, gy = p.kind === 'mount' ? surfY(p.x) : baseY(p);
-        const hgt = { oak: 70, tent: 16, altar: 8, city: 18, salt: 16, cave: 16, tamarisk: 40, spring: 2, well: 4, thicket: 6, ram: 8, shrub: 6, pieces: 3, bier: 16, mount: -10 }[p.kind] || 10;
+        const s = LS(p.layer) * (p.size || 1), px = p.kind === 'palace' ? palaceX(p) : p.x * W.w, gy = p.kind === 'mount' ? surfY(p.x) : p.kind === 'palace' ? gY(p.layer, px / W.w) : baseY(p);
+        const hgt = { oak: 70, tent: 16, altar: 8, city: 18, palace: 22, salt: 16, cave: 16, tamarisk: 40, spring: 2, well: 4, thicket: 6, ram: 8, shrub: 6, pieces: 3, bier: 16, mount: -10 }[p.kind] || 10;
         const py = gy - hgt * s;
         const d = Math.hypot(px - x, py - y);
         if (d < r && (!best || d < best.d)) best = { label: p.label, x: px, y: py - 10 * s, d };
@@ -1422,7 +1534,19 @@
           [15.5, b => { prop('altarB', null, { fire: 1 }); pose('abram', 'pray'); sfx(b, 'fire'); }],
           // 饥荒：下埃及
           [20, b => { W.set('abDrought', 1, b.instant); prop('altarB', null, { fire: 0 }); say(b, [{ text: '那地遭遇饥荒。因饥荒甚大，<br>亚伯兰就下埃及去，要在那里暂居。', ref: '创世记 12:10', hold: 6.5 }]); }],
-          [22, () => { unprop('tentB'); unprop('tentL'); pose('abram', 'stand'); mill('flock', false); family(1.08, { speed: 0.03, dir: 1 }); walk('lot', 1.1, { speed: 0.03 }); avoid(); }],
+          // 往埃及去：牲口与仆婢走在前头（出了画面）；一家人走到画面右边，法老的宫在那里
+          [22, b => {
+            unprop('tentB'); unprop('tentL'); pose('abram', 'stand'); mill('flock', false);
+            family(1.08, { speed: 0.05, dir: 1 });
+            walk('abram', X.egypt, { speed: 0.03 }); walk('lot', X.egypt - 0.026, { speed: 0.03 });
+            walk('sarai', X.palace - 0.056, { speed: 0.03 });
+            prop('palace', 'palace', { x: X.palace, grow: 1, size: 1.25, label: '法老的宫' });
+            avoid([0.78, 1]);
+          }],
+          // 那妇人就被带进法老的宫去（12:15）
+          [25.5, b => {
+            if (!has('pharaoh')) add('pharaoh', { label: '法老', sex: 'm', age: 'adult', x: X.palace - 0.036, facing: -1, robe: ROBE.pharaoh, accent: [236, 194, 96], glow: 0.25, from: b.instant ? 'none' : 'fade' });
+          }],
         ]);
       },
     },
@@ -1432,13 +1556,17 @@
       kind: 'judge', utter: '降大灾与法老和他的全家', cmd: 'raise 大灾 --to 法老  # 为撒莱的缘故', ref: '12:17',
       verse: [
         { text: '耶和华因亚伯兰妻子撒莱的缘故，<br>降大灾与法老和他的全家。', ref: '创世记 12:17', hold: 6.5 },
-        { text: '亚伯兰的金、银、牲畜极多。', ref: '创世记 13:2', hold: 4.6 },
+        { text: '于是法老吩咐人将亚伯兰和他妻子，并他所有的都送走了。', ref: '创世记 12:20', hold: 5.5 },
       ],
       apply(c) {
         T(c, [
-          [0, b => { flash(b, { type: 'plague', dur: 7 }); sfx(b, 'thunder'); if (!b.instant) W.shake = 0.6; }],
-          [3.2, b => { sfx(b, 'thunder'); }],
-          [4.5, b => {
+          // 大灾落在法老的宫上：黑云、红光、电闪；法老跪倒
+          [0, b => { flash(b, { type: 'plague', dur: 7.5 }); sfx(b, 'thunder'); if (!b.instant) { W.shake = 0.6; W.flash = 0.35; } }],
+          [0.8, () => { pose('pharaoh', 'kneel'); }],
+          [3.2, b => { sfx(b, 'thunder'); if (!b.instant) W.flash = 0.25; }],
+          // 「现在你的妻子在这里，可以带她走吧。」（12:19）
+          [5.5, () => { pose('pharaoh', 'point'); face('pharaoh', -1); walk('sarai', X.egypt + 0.022, { speed: 0.03 }); }],
+          [7, b => {
             W.set('abDrought', 0, b.instant);
             W.goTo(0.64, 20, b.instant);
             // 从埃及上来：多了使女夏甲、骆驼、驴与牛羊
@@ -1452,8 +1580,11 @@
             family(X.tentB - 0.035, { speed: 0.045, lot: false });
             walk('abram', X.altarB - 0.018, { speed: 0.045, pose: 'pray' });     // 到了起先筑坛的地方
             sfx(b, 'camel');
+            pose('pharaoh', 'stand');
             avoid([0.55, 0.8]);
           }],
+          [10, () => { rm('pharaoh'); }],
+          [12, () => { unprop('palace'); }],
           [13, b => { prop('tentB', 'tent', { x: X.tentB, label: '帐棚' }); prop('tentL', 'tent', { x: X.tentL, size: 0.85, label: '罗得的帐棚' }); prop('altarB', null, { fire: 1 }); sfx(b, 'fire'); }],
           [17, b => {
             prop('altarB', null, { fire: 0 });
@@ -1946,6 +2077,8 @@
             prop('tentM', null, { lit: 0.6 });
           }],
           [3.5, () => { walk('abram', X.tent - 0.004, { speed: 0.03, pose: 'raise' }); }],
+          // 平原的烟渐渐散尽（此后是以撒长大的年日）
+          [10, b => { W.set('abSmoke', 0, b.instant); }],
           [14.5, b => {
             if (b.instant) return;
             const sz = M() * 0.06, at = nameAt(X.tent, W.h * 0.4, sz, 2), h = headOf('sarai', 14);
