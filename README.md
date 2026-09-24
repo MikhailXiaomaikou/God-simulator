@@ -6,9 +6,16 @@ God is the first vibecoder.
 
 ## 运行
 
-用浏览器直接打开 `index.html` 就能玩。不需要安装、构建或联网，所有画面和声音都在运行时生成。也可以部署到 GitHub Pages。
+**入口只有一个：根目录的 `index.html`。** 用浏览器直接打开它就能玩。不需要安装、构建或联网，所有画面和声音都在运行时生成。也可以部署到 GitHub Pages。
+
+根目录的 `index.html` 是单文件，样式、脚本和字体都内嵌在里面，只拿到这一个文件也能打开。它由 `build.py` 从 `src/` 生成，不要直接修改它。
 
 有声音，建议打开扬声器或戴上耳机。
+
+### 开发
+
+- 源码全部在 `src/`：`src/index.html`（开发用的舞台，直接引用 `src/css`、`src/js`、`src/fonts`，可以直接打开调试）。
+- 改完源码运行 `python3 build.py`，重新生成根目录的 `index.html`，一起提交。
 
 ## 操作
 
@@ -95,34 +102,36 @@ God is the first vibecoder.
 
 ## 技术
 
-- 纯静态文件，使用经典 `<script>`，不依赖任何库，也没有图片或音频素材。字体是三种开源书法字体的子集，放在 `fonts/`，离线也能用。
+- 纯静态文件，使用经典 `<script>`，不依赖任何库，也没有图片或音频素材。字体是三种开源书法字体的子集，放在 `src/fonts/`，离线也能用。
 - 天与海由 WebGL 着色器绘制，不支持 WebGL 时自动退回 Canvas2D。大地、草木和生灵用 Canvas2D 绘制，声音全部由 WebAudio 实时合成。
 - 帧率偏低时自动降低画质。
 
 ```
-index.html          舞台
-css/style.css       文字与界面
-js/core.js          数学、噪声、事件
-js/world.js         世界的状态：创造的程度、昼夜之钟、大地的形状、光与色
-js/story.js         第一幕「七日」的剧本：二十八步，每步只成就它自己
-js/book.js          旧约三十九卷的书目、幕的登记、情节时间线、幕布与卷首
-js/book/*.js        其后四十幕：伊甸 … 约瑟（创世记），摩西 … 公义的日头（出埃及记至玛拉基书）
-js/cast.js          人物：亚当、夏娃……摩西、大卫、以利亚，以及天使、骆驼、驴、羊
-js/weather.js       天气：雨、暴风、大风、冰雹、遍地的黑暗、闪电
-js/sky.js           天与海（WebGL）
-js/land.js          大地与草木
-js/sea.js           鱼与大鱼
-js/air.js           飞鸟
-js/beasts.js        牲畜、野兽、昆虫与人
-js/fx.js            灵、光、名字、星座
-js/audio.js         声音
-js/ui.js            神谕、经文、七日之印、创世日志、目录
-js/main.js          输入、言说的仪式、黎明、安息、存档
+index.html              入口：单文件成品（build.py 生成，勿直接修改）
+build.py                把 src/ 打包成 index.html
+src/index.html          开发用的舞台，引用 src/css 与 src/js
+src/css/style.css       文字与界面
+src/js/core.js          数学、噪声、事件
+src/js/world.js         世界的状态：创造的程度、昼夜之钟、大地的形状、光与色
+src/js/story.js         第一幕「七日」的剧本：二十八步，每步只成就它自己
+src/js/book.js          旧约三十九卷的书目、幕的登记、情节时间线、幕布与卷首
+src/js/book/*.js        其后四十幕：伊甸 … 约瑟（创世记），摩西 … 公义的日头（出埃及记至玛拉基书）
+src/js/cast.js          人物：亚当、夏娃……摩西、大卫、以利亚，以及天使、骆驼、驴、羊
+src/js/weather.js       天气：雨、暴风、大风、冰雹、遍地的黑暗、闪电
+src/js/sky.js           天与海（WebGL）
+src/js/land.js          大地与草木
+src/js/sea.js           鱼与大鱼
+src/js/air.js           飞鸟
+src/js/beasts.js        牲畜、野兽、昆虫与人
+src/js/fx.js            灵、光、名字、星座
+src/js/audio.js         声音
+src/js/ui.js            神谕、经文、七日之印、创世日志、目录
+src/js/main.js          输入、言说的仪式、黎明、安息、存档
 ```
 
 调试用参数：
 
-- `index.html?stage=N`：直接恢复到第 N 句话语成就之后。
+- `index.html?stage=N`（或 `src/index.html?stage=N`）：直接恢复到第 N 句话语成就之后。
 - `&fast=K`：把故事节奏加快 K 倍。
 - `&q=1`：锁定画质。
 - 在控制台里可以用 `GS.debug.next()` 直接成就下一句。

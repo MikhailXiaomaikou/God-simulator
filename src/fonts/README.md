@@ -8,4 +8,4 @@
 | `mashanzheng.woff2` | 马善政毛笔楷书 Ma Shan Zheng | 由粒子聚成的万物之名、七日之印、生灵之名 | SIL OFL 1.1（`OFL-MaShanZheng.txt`） |
 | `wenkai.woff2` | 霞鹜文楷 LXGW WenKai | 经文、提示、说明、创世日志 | SIL OFL 1.1（`OFL-LXGWWenKai.txt`） |
 
-子集的字表是从 `js/`、`js/book/`、`index.html` 和 `css/` 的字符串里提取的（全书约 1350 字，三种字体合计约 1MB）。如果以后新增了字表之外的汉字，这些字会退回系统字体显示。要补上它们，需要用原始字体重新生成子集，例如使用 [subset-font](https://www.npmjs.com/package/subset-font)。
+子集的字表是从 `src/js/`、`src/js/book/`、`src/index.html` 和 `src/css/` 的字符串里提取的（全书约 1350 字，三种字体合计约 1MB）。如果以后新增了字表之外的汉字，这些字会退回系统字体显示。要补上它们，需要用原始字体重新生成子集，例如使用 [subset-font](https://www.npmjs.com/package/subset-font)。
