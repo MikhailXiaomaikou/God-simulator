@@ -3,7 +3,7 @@
  *
  * 给下一位作曲者（写 js/music/ot2.js … 的人）：
  *   · 每一卷用 GS.audio.music(id, spec) 登记，id 就是 js/book/<id>.js 里的 ACT。登记之后，引擎不再借用 act.music 指定的
- *     创世记乐色，而用这里的乐垫、音阶与乐句；audio.js 不必再改。新文件在 index.html 里紧跟在前一个 music 文件之后引入。
+ *     创世记乐色，而用这里的乐垫、音阶与乐句；audio.js 不必再改。新文件在 src/index.html 里紧跟在前一个 music 文件之后引入。
  *   · 全书是一首连续的曲子：一切都在 A 上。每一卷只换色彩——调式（SC：maj min grief sus lyd hijaz ion mixo dor aeol phryg，
  *     或自己给半音数组）、音区、乐器（波形）、疏密。
  *   · spec.pad.groups：几组持续的声部，组与组之间随本卷的程度交叉淡变。声部 = [音名, 波形, 增益, 声像, 失谐(音分)?]；
