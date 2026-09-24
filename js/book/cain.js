@@ -292,7 +292,7 @@
         mote({ k: 'call', x: x + rnd(-2.6, 2.6) * h, y: y - rnd(0.2, 0.8) * h, vx: 0, vy: -rnd(10, 26) * P.s, life: 0, max: rnd(3, 5.5), s: rnd(0.6, 1.4) * Math.max(0.75, P.s), ph: rnd(0, TAU), pass: 'air' });
       }
     }
-    // 土八该隐的炉火：火星
+    // 土八‧该隐的炉火：火星
     const ar = LV.cainArts;
     if (ar > 0.3) {
       forgeAcc += dt * 5 * ar * q;
@@ -815,7 +815,7 @@
         ctx.beginPath(); ctx.moveTo(x - w * 0.22, y); ctx.lineTo(x, y - H * 0.55); ctx.lineTo(x + w * 0.18, y); ctx.closePath(); ctx.fill();
       }
     }
-    // 窗里的灯、土八该隐的炉火
+    // 窗里的灯、土八‧该隐的炉火
     ctx.globalCompositeOperation = 'lighter';
     if (nt > 0.05 && c > 0.6) {
       const s = Math.max(0.8, hm * 0.08);
@@ -1143,7 +1143,7 @@
       {
         kind: 'act', utter: '夏娃就怀孕，生了该隐', cmd: 'spawn 该隐 && spawn 亚伯  # 耶和华使我得了一个男子', ref: '4:1–2',
         verse: [
-          { text: '有一日，那人和他妻子夏娃同房，夏娃就怀孕，生了该隐（就是得的意思），<br>便说：「耶和华使我得了一个男子。」', ref: '创世记 4:1', hold: 8.5 },
+          { text: '有一日，那人和他妻子夏娃同房，夏娃就怀孕，生了该隐，<br>便说：「耶和华使我得了一个男子。」', ref: '创世记 4:1', hold: 8.5 },
           { text: '又生了该隐的兄弟亚伯。<br>亚伯是牧羊的；该隐是种地的。', ref: '创世记 4:2', hold: 8 },
         ],
         apply(c) {
@@ -1254,7 +1254,7 @@
             [18, () => { cast().pose('abel', 'stand', { stop: true }); cast().face('abel', 1); }],
             [19.4, b => {
               cast().face('cain', 'abel');
-              say(b, [{ text: '该隐与他兄弟亚伯说话；二人正在田间，<br>该隐起来打他兄弟亚伯，把他杀了。', ref: '创世记 4:8', hold: 12.5 }]);
+              say(b, [{ text: '该隐与他兄弟亚伯说话；二人正在田间。<br>该隐起来打他兄弟亚伯，把他杀了。', ref: '创世记 4:8', hold: 12.5 }]);
             }],
             [20.6, () => { walk('cain', fall + 0.022, 0.03); walk('abel', fall - 0.004, 0.029); }],
             [28.6, b => {
@@ -1470,7 +1470,7 @@
       {
         kind: 'act', utter: '以诺与神同行，神将他取去', cmd: 'git log 亚当..以诺 && take 以诺  # 与神同行', ref: '5:1–24', hold: 3.2,
         verse: [
-          { text: '亚当的后代记在下面。当神造人的日子，是照着自己的样式造的，<br>并且造男造女。在他们被造的日子，神赐福给他们，称他们为人。', ref: '创世记 5:1–2', hold: 10 },
+          { text: '亚当的后代记在下面。（当神造人的日子，是照着自己的样式造的，<br>并且造男造女。在他们被造的日子，神赐福给他们，称他们为「人」。）', ref: '创世记 5:1–2', hold: 10 },
           { text: '亚当共活了九百三十岁就死了。', ref: '创世记 5:5', hold: 6 },
         ],
         apply(c) {
