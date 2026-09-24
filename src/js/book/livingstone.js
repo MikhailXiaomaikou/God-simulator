@@ -1156,35 +1156,47 @@
     const k = lv('lsLion');
     if (k < 0.01 || !SP) return;
     const [x, y] = lionPt(), s = LS(2) * (PORT ? 1.05 : 1);
-    const L = 104 * s, H = 32 * s, back = lv('lsLionBack');
+    const L = 100 * s, H = 30 * s, back = lv('lsLionBack');
     // 被抵挡时烟影压扁、拉散
-    const LL = L * (1 + 0.3 * back), HH = H * (1 - 0.3 * back);
+    const LL = L * (1 + 0.3 * back), HH = H * (1 - 0.32 * back);
     const hump = f => Math.sin(Math.PI * clamp(f, 0, 1));
-    // 暗的身子：低低的一长团冷烟，微微翻动；没有形体
-    for (let i = 0; i < 13; i++) {
-      const f = i / 12, ph = W.t * 0.7 + i * 1.3;
-      const bx = x + (f - 0.5) * LL + Math.sin(ph) * 2.6 * s, by = y - HH * (0.3 + 0.36 * hump(f)) + Math.cos(ph * 1.2) * 1.8 * s;
-      glowAt(ctx, SP.cold, bx, by, HH * (0.5 + 0.3 * hump(f)), k * 0.62);
+    // 一长团低低的冷烟：几个翻动的烟团连成一片；没有头、没有腿，不是活物
+    const N = 9, lumps = [];
+    for (let i = 0; i < N; i++) {
+      const f = i / (N - 1), ph = W.t * 0.8 + i * 1.9;
+      const r = HH * (0.24 + 0.26 * hump(0.1 + 0.8 * f)) * (1 + 0.1 * Math.sin(ph));
+      lumps.push([x + (f - 0.5) * LL + Math.sin(ph * 0.7) * 2 * s, y - r * 0.95 - HH * 0.12 * hump(f) + Math.cos(ph) * 1.2 * s, r]);
     }
-    // 灰蓝的冷雾罩在上面
-    for (let i = 0; i < 9; i++) {
-      const f = i / 8, ph = W.t * 0.5 + i * 1.9;
-      glowAt(ctx, SP.mist, x + (f - 0.5) * LL * 1.08 + Math.sin(ph) * 3 * s, y - HH * (0.42 + 0.34 * hump(f)), HH * (0.62 + 0.2 * hump(f)), k * 0.26);
-    }
+    const blob = grow => {
+      ctx.beginPath();
+      for (const q of lumps) { ctx.moveTo(q[0] + q[2] + grow, q[1]); ctx.arc(q[0], q[1], q[2] + grow, 0, TAU); }
+      ctx.rect(lumps[0][0], y - HH * 0.3 - grow, lumps[N - 1][0] - lumps[0][0], HH * 0.3 + grow);
+    };
+    // 淡白的外缘（夜里也看得出它的轮廓）：两圈，由外而内渐浓
+    ctx.fillStyle = 'rgb(196,208,240)';
+    ctx.globalAlpha = k * 0.12; blob(4.5 * s); ctx.fill();
+    ctx.globalAlpha = k * 0.24; blob(2 * s); ctx.fill();
+    // 身子：上边灰蓝，下边冷黑
+    const gr = ctx.createLinearGradient(0, y - HH * 1.05, 0, y);
+    gr.addColorStop(0, 'rgb(104,116,146)');
+    gr.addColorStop(0.45, 'rgb(46,52,70)');
+    gr.addColorStop(1, 'rgb(14,15,22)');
+    ctx.fillStyle = gr;
+    ctx.globalAlpha = k * 0.82; blob(0); ctx.fill();
     // 当中一团暗而浑的红黑（没有眼睛）
-    glowAt(ctx, SP.core, x, y - HH * 0.42, HH * 0.8, k * 0.55 * (0.8 + 0.2 * Math.sin(W.t * 0.7)), 0.65);
-    // 往上散去的烟缕
+    glowAt(ctx, SP.core, x, y - HH * 0.4, HH * 0.8, k * 0.6 * (0.8 + 0.2 * Math.sin(W.t * 0.7)), 0.6);
+    // 边上散开的冷雾与往上散去的烟缕
+    for (let i = 0; i < 6; i++) {
+      const f = i / 5;
+      glowAt(ctx, SP.mist, x + (f - 0.5) * LL * 1.15, y - HH * 0.4, HH * 0.7, k * 0.2);
+    }
     for (let i = 0; i < 7; i++) {
       const ph = (W.t * 0.22 + i / 7) % 1;
-      glowAt(ctx, SP.mist, x + (hsh(i) - 0.5) * LL * 0.8 + ph * 8 * s, y - HH * 0.95 - ph * HH * 1.8, HH * (0.3 + ph * 0.55), k * (0.28 + 0.2 * back) * (1 - ph));
+      glowAt(ctx, SP.mist, x + (hsh(i) - 0.5) * LL * 0.8 + ph * 8 * s, y - HH * 0.95 - ph * HH * 1.8, HH * (0.3 + ph * 0.55), k * (0.3 + 0.2 * back) * (1 - ph));
     }
-    // 淡白的外缘：沿着上边一线，夜里看得出它的轮廓
+    // 受光的上缘
     ctx.globalCompositeOperation = 'lighter';
-    for (let i = 0; i < 11; i++) {
-      const f = (i + 0.5) / 11, ph = W.t * 0.6 + i;
-      glowAt(ctx, SP.pale, x + (f - 0.5) * LL * 0.98 + Math.sin(ph) * 2 * s, y - HH * (0.62 + 0.4 * hump(f)), HH * 0.36, k * 0.2);
-    }
-    glowAt(ctx, SP.pale, x, y - HH * 0.5, LL * 0.62, k * 0.1, 0.4);
+    for (let i = 1; i < N - 1; i++) { const q = lumps[i]; glowAt(ctx, SP.pale, q[0], q[1] - q[2] * 0.8, q[2] * 0.7, k * 0.14); }
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
   }

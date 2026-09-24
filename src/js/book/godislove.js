@@ -1086,8 +1086,8 @@
         ctx.globalAlpha = 0.22 * fade * Math.min(1, u * 6);
         ctx.drawImage(SP.beam, x - M() * 0.025, -10, M() * 0.05, Math.max(1, y + 10));
         const pl = 0.9 + 0.1 * Math.sin(W.t * 5);
-        glowAt(ctx, SP.gold, x, y, PH() * 0.8 * pl, 0.5 * fade);
-        glowAt(ctx, SP.white, x, y, PH() * 0.2, 0.95 * fade);
+        glowAt(ctx, SP.gold, x, y, PH() * 1.05 * pl, 0.6 * fade);
+        glowAt(ctx, SP.white, x, y, PH() * 0.24, 0.95 * fade);
         // 光照在他身上
         glowAt(ctx, SP.gold, p[0], p[1] + PH() * 0.2, PH() * 0.7, 0.3 * fade * down, 1.3);
       } else if (q.type === 'gutter') {

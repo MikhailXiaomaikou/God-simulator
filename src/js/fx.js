@@ -244,6 +244,28 @@
   }
 
   // ── 绘制 ────────────────────────────────────────────────────
+  // 光点画成柔和的圆（按颜色量化缓存一小张渐变图），白昼里不像方形的坏点
+  const SPR = new Map();
+  function sprite(c) {
+    const r = c[0] | 0, g = c[1] | 0, b = c[2] | 0, k = ((r >> 4) << 8) | ((g >> 4) << 4) | (b >> 4);
+    let s = SPR.get(k);
+    if (s) return s;
+    s = document.createElement('canvas');
+    s.width = s.height = 16;
+    const x = s.getContext('2d'), gr = x.createRadialGradient(8, 8, 0, 8, 8, 8);
+    gr.addColorStop(0, 'rgba(' + r + ',' + g + ',' + b + ',1)');
+    gr.addColorStop(0.42, 'rgba(' + r + ',' + g + ',' + b + ',0.72)');
+    gr.addColorStop(1, 'rgba(' + r + ',' + g + ',' + b + ',0)');
+    x.fillStyle = gr;
+    x.fillRect(0, 0, 16, 16);
+    SPR.set(k, s);
+    return s;
+  }
+  function softDot(ctx, c, a, x, y, s) {
+    ctx.globalAlpha = a > 1 ? 1 : a;
+    const d = s * 1.8;
+    ctx.drawImage(sprite(c), x - d, y - d, d * 2, d * 2);
+  }
   function drawParts(ctx, pass) {
     let any = false;
     for (let i = 0; i < parts.length; i++) {
@@ -255,10 +277,11 @@
       if (p.twinkle) a *= 0.6 + 0.4 * Math.sin(W.t * 18 + p.seed * 5);
       a *= p.a;
       if (a <= 0.01) continue;
-      ctx.fillStyle = U.rgba(p.c[0], p.c[1], p.c[2], a);
       const s = p.size;
-      ctx.fillRect(p.x - s, p.y - s, s * 2, s * 2);
+      if (s < 0.9) { ctx.fillStyle = U.rgba(p.c[0], p.c[1], p.c[2], a); ctx.fillRect(p.x - s, p.y - s, s * 2, s * 2); }
+      else softDot(ctx, p.c, a, p.x, p.y, s);
     }
+    ctx.globalAlpha = 1;
     if (any) ctx.globalCompositeOperation = 'source-over';
   }
 
@@ -304,11 +327,14 @@
           ctx.fillRect(X - hd - 0.8, Y - hd - 0.8, dot + 1.6, dot + 1.6);
           ctx.fillStyle = U.rgba(cc[0], cc[1], cc[2], Math.min(1, A * 1.15));
           ctx.fillRect(X - hd, Y - hd, dot, dot);
+        } else if (age < NAME_GATHER * 0.8 || age > NAME_GATHER + HOLD) {
+          softDot(ctx, cc, A, X, Y, hd);              // 聚与散：微尘各自飞行，画成柔和的圆
         } else {
           ctx.fillStyle = U.rgba(cc[0], cc[1], cc[2], A);
-          ctx.fillRect(X - hd, Y - hd, dot, dot);
+          ctx.fillRect(X - hd, Y - hd, dot, dot);     // 驻：字形密实，方点更清楚
         }
       }
+      ctx.globalAlpha = 1;
       if (nm.crisp) drawCrisp(ctx, nm, age, HOLD);
     }
     ctx.globalCompositeOperation = 'source-over';
