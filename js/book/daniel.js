@@ -1415,7 +1415,7 @@
       pts.forEach((p, i) => (i ? cave.lineTo(p[0], p[1]) : cave.moveTo(p[0], p[1])));
       cave.closePath();
       const shaft = new Path2D();
-      shaft.rect(x - 7 * k, g - 1, 14 * k, top - g + 6 * k);
+      shaft.rect(x - 7 * k, g + 1.5 * k, 14 * k, top - g + 4 * k);
       return { k, x, g, w, top, bot, floor: bot - 3 * k, cave, shaft };
     });
   }
@@ -1470,51 +1470,78 @@
     const al = lv('dnAngelL');
     ctx.save();
     ctx.globalAlpha = a;
-    // 土层的暗纹
-    ctx.strokeStyle = css([70, 50, 34], l, 0.5); ctx.lineWidth = Math.max(0.5, 1 * k);
+    // 坑周围翻过的土、土层的暗纹
+    ctx.fillStyle = css([92, 70, 48], l, 0.55);
+    ctx.beginPath(); ctx.ellipse(D.x, (D.top + D.bot) / 2, D.w * 0.62, (D.bot - D.top) * 0.66, 0, 0, TAU); ctx.fill();
+    ctx.strokeStyle = css([64, 46, 32], l, 0.55); ctx.lineWidth = Math.max(0.5, 1 * k);
     ctx.beginPath();
-    for (let i = 0; i < 4; i++) { const yy = lerp(D.top, D.bot, 0.15 + i * 0.25); ctx.moveTo(D.x - D.w * 0.72, yy + 2 * k); ctx.quadraticCurveTo(D.x, yy - 3 * k, D.x + D.w * 0.72, yy + 3 * k); }
+    for (let i = 0; i < 4; i++) { const yy = lerp(D.top, D.bot, 0.1 + i * 0.27); ctx.moveTo(D.x - D.w * 0.74, yy + 2 * k); ctx.quadraticCurveTo(D.x, yy - 3 * k, D.x + D.w * 0.74, yy + 3 * k); }
     ctx.stroke();
-    // 洞与井口
-    ctx.fillStyle = css([26, 18, 14], l);
+    // 井口与洞
+    ctx.fillStyle = css([22, 16, 13], l);
     ctx.fill(D.shaft);
+    ctx.beginPath(); ctx.ellipse(D.x, D.g + 1.5 * k, 8.5 * k, 2.4 * k, 0, 0, TAU); ctx.fill();
     ctx.fill(D.cave);
-    // 洞里的光（使者）
+    // 洞里：石壁的层次；使者的光由中心向外渐暗
     ctx.save();
     ctx.clip(D.cave);
-    const cg = ctx.createLinearGradient(0, D.top, 0, D.bot);
-    cg.addColorStop(0, 'rgba(60,42,30,0.6)'); cg.addColorStop(1, 'rgba(20,14,12,0)');
-    ctx.fillStyle = cg; ctx.fillRect(D.x - D.w, D.top, D.w * 2, D.bot - D.top);
-    if (SP && al > 0.01) {
-      ctx.globalCompositeOperation = 'lighter';
-      glowAt(ctx, SP.warm, D.x + 0.03 * D.w, (D.top + D.bot) / 2 + 6 * k, D.w * 0.62, al * 0.85 * a, 0.75);
-      glowAt(ctx, SP.gold, D.x + 0.06 * D.w, D.floor - 24 * k, D.w * 0.3, al * 0.6 * a);
-      ctx.globalCompositeOperation = 'source-over';
+    const ax = D.x + 0.08 * D.w, ay = D.floor - 22 * k;
+    if (al > 0.01) {
+      const rg = ctx.createRadialGradient(ax, ay, 0, ax, ay, D.w * 0.58);
+      rg.addColorStop(0, rgba([255, 222, 160], 0.95 * al));
+      rg.addColorStop(0.35, rgba([214, 150, 84], 0.75 * al));
+      rg.addColorStop(0.75, rgba([96, 60, 36], 0.6 * al));
+      rg.addColorStop(1, rgba([40, 26, 18], 0.5 * al));
+      ctx.fillStyle = rg;
+      ctx.fillRect(D.x - D.w, D.top - 4, D.w * 2, D.bot - D.top + 8);
+    } else {
+      const cg = ctx.createLinearGradient(0, D.top, 0, D.bot);
+      cg.addColorStop(0, 'rgba(70,50,36,0.5)'); cg.addColorStop(1, 'rgba(20,14,12,0)');
+      ctx.fillStyle = cg; ctx.fillRect(D.x - D.w, D.top, D.w * 2, D.bot - D.top);
     }
+    // 石壁上的暗块
+    ctx.fillStyle = 'rgba(18,12,10,0.45)';
+    ctx.beginPath();
+    for (let i = 0; i < 12; i++) {
+      const ang = (i / 12) * TAU + 0.3, rx = D.w * 0.5 * (0.92 + 0.08 * hsh(i * 2.1)), ry = (D.bot - D.top) * 0.5;
+      const x = D.x + Math.cos(ang) * rx, y = (D.top + D.bot) / 2 + Math.sin(ang) * ry, r = (6 + 7 * hsh(i * 3.7)) * k;
+      ctx.moveTo(x + r, y); ctx.ellipse(x, y, r, r * 0.7, ang, 0, TAU);
+    }
+    ctx.fill();
+    // 地面
+    ctx.fillStyle = al > 0.01 ? rgba([150, 108, 66], 0.55 * al + 0.2) : css([58, 42, 30], l);
+    ctx.fillRect(D.x - D.w, D.floor, D.w * 2, D.bot - D.floor + 6);
     // 狮子
     const calm = lv('dnCalm');
+    const lieK = smoothstep(0.3, 0.9, calm);
     for (let i = 0; i < LIONS.length; i++) {
       const L = LIONS[i];
       const pace = (1 - calm) * Math.sin(W.t * 0.35 + i * 1.7) * 0.05 * D.w;
       const ph = W.t * 3.2 + i * 1.3;
-      const s = L[2] * 0.95 * k * (port() ? 1.1 : 1);
-      const lieK = smoothstep(0.3, 0.9, calm);
-      const dd = (1 - calm) > 0.5 ? (Math.cos(W.t * 0.35 + i * 1.7) >= 0 ? 1 : -1) : L[1];
-      drawLion(ctx, D.x + L[0] * D.w + pace, D.floor + 1, s, dd, lieK, ph, a * (0.35 + 0.65 * Math.max(al, 0.5 + 0.5 * nightK() * 0.2 + 0.3)), calm);
+      const sc = L[2] * 1.3 * k * (port() ? 1.05 : 1);
+      const dd = calm < 0.5 ? (Math.cos(W.t * 0.35 + i * 1.7) >= 0 ? 1 : -1) : L[1];
+      drawLion(ctx, D.x + L[0] * D.w + pace, D.floor + 1, sc, dd, lieK, ph, a, calm);
     }
-    // 洞壁的亮边
+    if (SP && al > 0.01) {
+      ctx.globalCompositeOperation = 'lighter';
+      glowAt(ctx, SP.gold, ax, ay, D.w * 0.28, al * 0.45 * a);
+      ctx.globalCompositeOperation = 'source-over';
+    }
     ctx.restore();
-    ctx.strokeStyle = al > 0.05 ? rgba([255, 200, 130], 0.35 * al * a) : css([120, 92, 66], l, 0.5);
-    ctx.lineWidth = Math.max(0.6, 1.2 * k);
+    // 洞壁的亮边
+    ctx.strokeStyle = al > 0.05 ? rgba([255, 206, 140], 0.45 * al * a) : css([120, 92, 66], l, 0.55);
+    ctx.lineWidth = Math.max(0.6, 1.3 * k);
     ctx.stroke(D.cave);
     // 坑口的石头（封：盖住井口；开：挪在一旁）与王的玺
     const se = lv('dnSeal');
-    const sx = D.x + (1 - se) * 20 * k, sy = D.g - 7 * k, r = 11 * k;
+    const sx = D.x + (1 - se) * 22 * k, sy = D.g - 7 * k, r = 11 * k;
     ctx.fillStyle = css([150, 140, 126], l);
     ctx.beginPath();
     for (let i = 0; i <= 14; i++) { const t = (i / 14) * Math.PI, rr = r * (1 + 0.06 * Math.sin(i * 2.7)); ctx.lineTo(sx + Math.cos(Math.PI + t) * rr * 1.25, sy + 8 * k - Math.sin(t) * rr); }
     ctx.closePath(); ctx.fill();
-    ctx.strokeStyle = css([240, 232, 214], l, 0.35 * dayA(), 0.2); ctx.lineWidth = Math.max(0.5, 0.8 * k);
+    ctx.fillStyle = css([110, 102, 92], l, 0.6);
+    ctx.beginPath(); ctx.ellipse(sx + r * 0.35, sy + 4 * k, r * 0.7, r * 0.45, 0, 0, TAU); ctx.fill();
+    ctx.strokeStyle = css([240, 232, 214], l, 0.4 * dayA(), 0.2); ctx.lineWidth = Math.max(0.5, 0.8 * k);
     ctx.beginPath(); ctx.arc(sx, sy + 8 * k, r, Math.PI * 1.15, Math.PI * 1.7); ctx.stroke();
     if (se > 0.5) {
       ctx.globalAlpha = a * smoothstep(0.5, 0.9, se);
