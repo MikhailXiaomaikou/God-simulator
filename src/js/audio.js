@@ -23,6 +23,7 @@
  *         新的音效：羊角（shofar）、银号、狮吼、鼓（手鼓与串铃）、钹、里拉、战车、窑匠的轮、甩石的机弦、铁锤与砧、小铃、海浪、
  *         地震、倒塌、刀剑、箭、行军、呐喊、蝗群、冰雹、旋风、鲸、笛、歌唱、瓦器破碎、书卷、书写、锁链、心跳、骨节相碰、
  *         微小的声音、鹰、磨、斧、银钱、马蹄……（见 SFX 与 SFX_ALIAS）。
+ * 新约：乐曲在 js/music/nt1.js … nt3.js；新的音效：鸡叫、撕裂的幔子、滚石、划桨、叩门、倒水（酒）。
  *
  * 链路：声部 → 各声部总线（干 + 送混响）→ 卷积混响（程序生成 2.8s 立体声衰减噪声）
  *       → 压缩 → 主音量 0.55 → 限幅 → 静音/可见 → 输出
@@ -1379,6 +1380,11 @@
 
   // ── 每 0.1 秒：世界驱动的声床与生成的音乐 ──────────────
   let actNow = 0, lastAct = -1, endAt = -1;
+  // 终章（finale）：上一次的时刻（紧接着的第二个终章奏变格的「阿们」）；全书终了之后的第一个终章——尾声从此只再留 FIN_HOLD 秒。
+  // 两者都按情节的钟（W.t × W.fast，与 main.js 排终章用的 GS.book.after 同一个钟）计，慢的设备上也对得上
+  let finLastW = -1e9, finAt = -1, finAtW = 0;
+  const FIN_HOLD = 13;
+  const storySince = w => ((W.t || 0) - w) * (W.fast || 1);
   // 按住言说时，世界（与乐声）让开多少：越庄重的话，让得越多
   const DEEP_DUCK = { human: 1, behold: 1, holy: 1, judge: 1, name: 1 };
   function tick(dt) {
@@ -1395,8 +1401,10 @@
     // 全书讲完（末一句成就之后）：乐声归于安息；登记的末一卷可以带一段尾声（spec.coda 秒）再退去
     const ended = st >= bookLen();
     if (!ended) endAt = -1; else if (endAt < 0) endAt = t;
+    //   终章写在天上之后，尾声再留 FIN_HOLD 秒便退去，由终章的和弦收尾（新约之后是「新约 · 终」「圣经 · 终」两个终章）
     const coda = later && MUS[id] ? MUS[id].coda : 0;
-    const am = later && (!ended || t - endAt < coda) ? 1 : 0;
+    const codaOn = t - endAt < coda && !(finAt >= endAt && storySince(finAtW) > FIN_HOLD);
+    const am = later && (!ended || codaOn) ? 1 : 0;
     actNow += (am - actNow) * (1 - Math.exp(-dt / (am ? 2.5 : 7)));
     if (!am && actNow < 0.002) actNow = 0;
 
@@ -3148,6 +3156,69 @@
     }
     metal(ps, { pan: s.pan, rev: 0.3, at: s.at });
   }
+  // ── 新约各卷的音效 ──────────────────────────────────────────
+  // 鸡叫（彼得三次不认主，「鸡就叫了」）：「喔—喔—喔——」三个短音节，末一声长、先扬后落；嗓子粗而沙（颤动的调幅）
+  function roosterSfx(o) {
+    const s = sopt(o, landPan()), k = s.k * (s.far ? 0.85 : 1), f = rnd(500, 560), g = 0.034 * k;
+    const ph = [[0, 0.12, f * 0.92, f * 1.08, g * 0.7, f * 1.04, 0.5], [0.17, 0.12, f * 1.12, f * 1.26, g * 0.82, f * 1.22, 0.5],
+      [0.34, 0.14, f * 1.2, f * 1.34, g * 0.9, f * 1.28, 0.5], [0.54, s.soft ? 0.62 : 0.9, f * 1.36, f * 1.52, g, f * 0.98, 0.3]];
+    brass(ph, { at: s.at, pan: s.pan, wave: PW.reed, bright: s.far ? 3.2 : 5, F1: 1850, q1: 2.6, nasal: 0.9, buzz: [rnd(44, 56), 0.3],
+      breath: 0.35, Fb: 3000, att: 0.018, rel: 0.1, vib: 22, vibHz: rnd(9, 12), rev: s.far ? 0.75 : 0.45, prio: 1 });
+  }
+  // 撕裂（殿里的幔子从上到下裂为两半）：粗布一路撕开——纤维绷断的细碎噼啪由高而低、越撕越急，末了沉重的幔子垂落
+  function tearSfx(o) {
+    const s = sopt(o, landPan()), k = s.k, z = clamp(s.size, 0.5, 2), dur = (s.soft ? 1.1 : 1.6) * (0.8 + 0.2 * z);
+    burst({ buf: 'pink', f: 3200, f2: 650, sweep: dur, q: 0.9, g: 0.16 * k, a: 0.06, s: Math.max(0.1, dur - 0.35), r: 0.3, am: [rnd(26, 34), 0.65], pan: s.pan, rev: 0.35, at: s.at });
+    burst({ buf: 'white', ft: 'highpass', f: 2500, q: 0.6, g: 0.05 * k, a: 0.04, s: dur * 0.5, r: dur * 0.4, pan: s.pan, rev: 0.3, at: s.at });
+    [[0, 0.36, 3200, 6500, 22], [0.33, 0.36, 1800, 4200, 26], [0.66, 0.34, 900, 2600, 30]].forEach(([f0, fr, lo, hi, n], i) =>
+      grains({ buf: 'white', n: Math.round(n * (s.soft ? 0.6 : 1)), dur: fr * dur, f0: lo, f1: hi, len: 0.01, q: 1.4, g: 0.1 * k, at: s.at + f0 * dur,
+        pan: s.pan, spread: 0.12, rev: 0.3, prio: i ? 0 : 1 }));
+    if (!s.soft) {
+      note({ f: 72, path: [[40, 0.4]], g: 0.08 * k * z, a: 0.01, d: 0.7, at: s.at + dur, pan: s.pan, prio: 1 });
+      burst({ buf: 'brown', ft: 'lowpass', f: 360, q: 0.7, g: 0.12 * k * z, a: 0.02, d: 0.7, at: s.at + dur, pan: s.pan, rev: 0.45 });
+    }
+  }
+  // 滚石（「把一块大石头滚到墓门口」「石头已经滚开了」）：沉重的圆石在岩上碾过——低沉的隆隆随石的转动一起一伏，
+  // 砂砾的碎响，末了靠在墓门上的一声闷响（size 越大石越重、转得越慢）
+  function rollstoneSfx(o) {
+    const s = sopt(o, landPan()), k = s.k, z = clamp(s.size, 0.5, 2), dur = s.soft ? 2.2 : rnd(2.8, 3.4), rot = rnd(1.1, 1.5) / z;
+    const p1 = clamp(s.pan + (s.pan > 0.2 ? -0.25 : 0.25), -0.9, 0.9), sus = Math.max(0.3, dur - 1.1);
+    roll({ f0: 300, f1: 150, g: 0.22 * k, a: 0.45, s: sus, r: 0.7, rate: 0.06, depth: 0.5, pan: s.pan, rev: 0.4, at: s.at, prio: 1 });
+    burst({ buf: 'brown', ft: 'lowpass', f: 220, q: 0.8, g: 0.14 * k * Math.sqrt(z), a: 0.5, s: sus, r: 0.6, am: [rot, 0.5], pan: s.pan, pan2: p1, rev: 0.35, at: s.at });
+    burst({ buf: 'pink', f: 170, q: 2.4, g: 0.1 * k, a: 0.5, s: sus, r: 0.6, am: [rot, 0.45], pan: s.pan, pan2: p1, rev: 0.3, at: s.at, prio: 0 });
+    grains({ buf: 'white', n: Math.round(dur * 12), dur: dur - 0.5, f0: 600, f1: 2400, len: 0.025, q: 1.5, g: 0.045 * k, at: s.at + 0.2, pan: s.pan, spread: 0.15, rev: 0.25, prio: 0 });
+    const at = s.at + dur;
+    note({ f: 62, path: [[36, 0.5]], g: 0.09 * k * Math.sqrt(z), a: 0.008, d: 0.9, at, pan: p1, prio: 2 });
+    burst({ buf: 'brown', ft: 'lowpass', f: 300, q: 0.7, g: 0.12 * k, a: 0.005, d: 0.6, at, pan: p1, rev: 0.5 });
+    knocks([[0, 650, 90, 0.05 * k, true]], { lp: 1800, pan: p1, rev: 0.5, at, prio: 0 });
+  }
+  // 划桨（加利利的湖上）：一下一下——桨入水的轻溅、划过水的"哗"、桨架木头的闷响、提桨时滴落的水珠；湖在左边
+  function oarsSfx(o) {
+    const s = sopt(o, rnd(-0.7, -0.3)), k = s.k, n = s.soft ? 2 : 3, per = rnd(1.5, 1.8), hits = [];
+    for (let i = 0; i < n; i++) {
+      const t0 = s.at + i * per, a = (i === 0 ? 0.85 : 1) * k;
+      burst({ buf: 'white', f: rnd(1600, 2200), q: 0.8, g: 0.065 * a, a: 0.004, d: 0.14, at: t0, pan: s.pan, rev: 0.3, prio: i ? 0 : 1 });
+      burst({ buf: 'pink', f: 820, f2: 420, sweep: 0.55, q: 1.1, g: 0.17 * a, a: 0.14, s: 0.2, r: 0.4, at: t0 + 0.04, pan: s.pan, pan2: clamp(s.pan + 0.12, -1, 1), rev: 0.3, prio: 0 });
+      grains({ buf: 'white', n: rint(4, 7), dur: 0.55, f0: 2600, f1: 5200, len: 0.012, q: 4, g: 0.065 * a, at: t0 + 0.85, pan: s.pan, spread: 0.2, rev: 0.3, prio: 0 });
+      hits.push([i * per + 0.62, rnd(900, 1200), rnd(170, 210), 0.045 * a, false], [i * per + 1.05, rnd(1000, 1300), rnd(180, 220), 0.03 * a, false]);
+    }
+    knocks(hits, { q: 1.8, lp: 2600, pan: s.pan, rev: 0.35, at: s.at, prio: 0 });
+  }
+  // 叩门（「看哪，我站在门外叩门」）：指节叩在木门上，三下（soft 两下；low 是厚重的门）
+  function knockSfx(o) {
+    const s = sopt(o, landPan()), k = s.k, n = s.soft ? 2 : 3, gap = rnd(0.26, 0.32), fb = s.low ? rnd(120, 140) : rnd(170, 200), hits = [];
+    for (let i = 0; i < n; i++) hits.push([i * gap * (i === n - 1 ? 1.08 : 1), rnd(1000, 1250), fb * rnd(0.98, 1.02), 0.072 * k * (i === n - 1 ? 1.05 : 0.95), true]);   // 峰值与 gate / shout 相当（原 0.12 时与雷声一样响）
+    knocks(hits, { q: 1.5, lp: s.far ? 1800 : 3600, pan: s.pan, rev: s.far ? 0.55 : 0.32, at: s.at });
+  }
+  // 倒水 / 倒酒（「把缸倒满了水」「舀出来」）：一股水流注入瓦缸——缸里的空腔越灌越满，那一声共鸣由低而高；
+  // 细细的水声与几个气泡（size 越大缸越大、越低）
+  function pourSfx(o) {
+    const s = sopt(o, landPan()), k = s.k, z = clamp(s.size, 0.5, 2), dur = s.soft ? 1.8 : rnd(2.6, 3.2), f0 = 330 / Math.sqrt(z);
+    burst({ buf: 'pink', f: f0, f2: f0 * 3.6, sweep: dur, q: 4, g: 0.25 * k, a: 0.18, s: dur - 0.55, r: 0.35, am: [rnd(8, 12), 0.4], pan: s.pan, rev: 0.3, at: s.at });
+    burst({ buf: 'white', f: 2400, q: 0.7, g: 0.025 * k, a: 0.1, s: dur - 0.4, r: 0.3, pan: s.pan, rev: 0.25, at: s.at, prio: 0 });
+    const nb = s.soft ? 3 : 6;
+    for (let i = 0; i < nb; i++) bubble(s.at + 0.2 + rnd(0, dur - 0.4), clamp(s.pan + rnd(-0.1, 0.1), -1, 1), 0.035 * k, 'evt');
+  }
   // 未知的名字：一声温和的铃（由名字定音高），从不报错
   function chimeSfx(o, name) {
     const s = sopt(o), str = String(name || '');
@@ -3170,6 +3241,8 @@
     shatter: shatterSfx, scroll: scrollSfx, write: writeSfx, chains: chainsSfx, heart: heartSfx, rattle: rattleSfx,
     whisper: whisperSfx, eagle: eagleSfx, mill: millSfx, axe: axeSfx, coins: coinsSfx,
     whale: o => { const s = sopt(o, rnd(-0.8, -0.3)); whaleSong(s.at, s.pan, 0.09 * s.k, 'evt'); },
+    // 新约各卷
+    rooster: roosterSfx, tear: tearSfx, rollstone: rollstoneSfx, oars: oarsSfx, knock: knockSfx, pour: pourSfx,
   };
   const SFX_ALIAS = {
     grace: 'harp', stone: 'build', stones: 'build', chisel: 'build', brick: 'build', bricks: 'build',
@@ -3202,13 +3275,22 @@
     hawk: 'eagle', falcon: 'eagle', vulture: 'eagle', grind: 'mill', grinding: 'mill', millstone: 'mill', millstones: 'mill',
     chop: 'axe', timber: 'axe', woodcut: 'axe', coin: 'coins', silver: 'coins', money: 'coins', shekel: 'coins', shekels: 'coins', gold: 'coins',
     torch: 'fire', torches: 'fire', furnace: 'fire', oven: 'fire', kiln: 'fire', blaze: 'fire', burning: 'fire',
+    // 新约各卷
+    cock: 'rooster', cockcrow: 'rooster', 'cock-crow': 'rooster', cock_crow: 'rooster', crowing: 'rooster', chicken: 'rooster',
+    veil: 'tear', curtain: 'tear', rip: 'tear', rend: 'tear', rent: 'tear', torn: 'tear', tearing: 'tear', ripping: 'tear',
+    tomb: 'rollstone', boulder: 'rollstone', roll_stone: 'rollstone', 'roll-stone': 'rollstone', stoneroll: 'rollstone', sepulchre: 'rollstone', sepulcher: 'rollstone',
+    oar: 'oars', row: 'oars', rowing: 'oars', rower: 'oars', rowers: 'oars', paddle: 'oars', boat: 'oars', boats: 'oars', rowboat: 'oars',
+    'door-knock': 'knock', doorknock: 'knock', door_knock: 'knock', knocking: 'knock', knocks: 'knock', rap: 'knock',
+    wine: 'pour', pouring: 'pour', poured: 'pour', fill: 'pour', ladle: 'pour', anoint: 'pour', ointment: 'pour', oil: 'pour',
+    hosanna: 'shout', hosannas: 'shout', acclaim: 'shout', palm: 'wind', palms: 'wind', branches: 'wind',
   };
   // 每个名字的最短间隔（秒）：同一声不会叠成一团
   const SFX_GAP = { harp: 0.3, wind: 0.8, build: 0.25, weep: 1.5, thunder: 0.9, fire: 1, seal: 0.8, crowd: 1.2, splash: 0.12, bleat: 0.6,
     gate: 0.8, rain: 1.5, dove: 1, camel: 0.8, donkey: 0.8, laugh: 1, angel: 2, stars: 0.6, cow: 1, bird: 0.4, raven: 0.8, wings: 0.4, chime: 0.3,
     horn: 0.6, trumpet: 0.8, lion: 2, timbrel: 1.5, cymbal: 0.5, bell: 0.4, lyre: 0.8, chariot: 1.5, hooves: 1, wheel: 2, sling: 1, hammer: 0.8,
     wave: 1.2, quake: 2, collapse: 1.5, sword: 0.5, arrow: 0.3, march: 2, shout: 1.2, swarm: 2, hail: 2, whirlwind: 2, whale: 3, pipe: 1.5,
-    sing: 2, shatter: 0.4, scroll: 1, write: 1.5, chains: 1, heart: 2, rattle: 1.2, whisper: 2, eagle: 1, mill: 2, axe: 1, coins: 1 };
+    sing: 2, shatter: 0.4, scroll: 1, write: 1.5, chains: 1, heart: 2, rattle: 1.2, whisper: 2, eagle: 1, mill: 2, axe: 1, coins: 1,
+    rooster: 2, tear: 2, rollstone: 3, oars: 3, knock: 1, pour: 2 };
   const sfxLast = {};
   let lastName = -1e9;
   // 成就的手势里已有竖琴般的一句：紧接着（情节第 0 拍）再来的竖琴便不叠上去
@@ -3420,12 +3502,19 @@
     }),
     // 造物主的底鸣永远退去（约 20 秒）
     rest: api('rest', () => { breathN = 0; }),
-    // 终幕：纯净的 A 大三和弦
+    // 终幕：纯净的 A 大三和弦。紧接着（30 秒内）的第二个终章——「新约 · 终」之后的「圣经 · 六十六卷 · 终」——是变格的「阿们」：
+    // IV（D/A）缓缓落到 I，高处是创世记「好」的三声铃（A5 C#6 E6）：整部圣经的末一个和弦。终章的和弦响着时，各卷的乐句让开
     finale: api('finale', () => {
-      chord([F.A2, F.E3, F.A3, F.Cs4, F.E4, F.A4], {
-        gs: [0.09, 0.07, 0.055, 0.045, 0.038, 0.03], types: ['sine', 'sine', 'sine', 'triangle', 'triangle', 'triangle'],
-        a: 3, s: 5, r: 9, spread: 0.7, rev: 0.65, strum: 0.35,
-      });
+      const t = T(), dw = storySince(finLastW), again = dw >= 0 && dw < 30;
+      finLastW = W.t || 0;
+      if ((W.stage | 0) >= bookLen() && endAt >= 0 && finAt < endAt) { finAt = t; finAtW = W.t || 0; }
+      nx.m1 = Math.max(nx.m1 || 0, t + 15); nx.m2 = Math.max(nx.m2 || 0, t + 15);
+      const I = [F.A2, F.E3, F.A3, F.Cs4, F.E4, F.A4], gI = [0.09, 0.07, 0.055, 0.045, 0.038, 0.03], ty = ['sine', 'sine', 'sine', 'triangle', 'triangle', 'triangle'];
+      if (!again) { chord(I, { gs: gI, types: ty, a: 3, s: 5, r: 9, spread: 0.7, rev: 0.65, strum: 0.35 }); return; }
+      chord([F.A2, F.A3, F.D4, F.Fs4, F.A4], { gs: [0.085, 0.05, 0.045, 0.036, 0.028], types: ['sine', 'sine', 'triangle', 'triangle', 'triangle'],
+        a: 2.2, s: 1.3, r: 2.6, spread: 0.6, rev: 0.65, strum: 0.2 });
+      chord(I, { gs: gI, types: ty, a: 2.4, s: 6, r: 10, at: 3.4, spread: 0.7, rev: 0.65, strum: 0.3 });
+      bells([F.A5, F.Cs6, F.E6], 0.22, 0.026, 4.5, 5.8, { prio: 1 });
     }),
     // 其后各卷的音效（见上面的 SFX）：未 init / 静音时为空操作；未知的名字只是一声温和的铃
     sfx: api('sfx', (name, opts) => {
