@@ -33,15 +33,19 @@
   W.defineLevel('msPromise', 'exp', 0.3);   // 流奶与蜜之地（3:8）
   W.defineLevel('msWith', 'exp', 0.5);      // 我必与你同在（3:12）
   W.defineLevel('msVisit', 'exp', 0.35);    // 耶和华眷顾他们（4:31）
+  W.defineLevel('msAway', 'exp', 0.3);      // 摩西在米甸与何烈山时：埃及退到远处的暮霭里（2:15 — 4:20）
 
   // ── 地上的位置（画面宽度的比例）─────────────────────────────
   const X = {
     // 埃及
     nileT: 0.53, bank: 0.542, palace: 0.585, pharaoh: 0.563,
     bricks: 0.64, pithom: 0.598, raamses: 0.69,
-    huts: [0.694, 0.714, 0.736, 0.757, 0.776], goshen0: 0.684, goshen1: 0.79,
-    // 米甸与何烈山
-    well: 0.793, tent: 0.962, tent2: 0.992, horeb: 0.9,
+    huts: [0.692, 0.708, 0.724, 0.74, 0.756], goshen0: 0.684, goshen1: 0.766,
+    // 旷野的边界（一道乱石与沙丘），米甸与何烈山
+    edge0: 0.764, edge1: 0.792,
+    well: 0.808, tent: 0.962, tent2: 0.992,
+    // 神的山：整座山都在画面里（竖屏时稍往左、稍宽）
+    get horeb() { return portrait() ? 0.84 : 0.875; },
   };
   const ROBE = {
     pharaoh: [242, 236, 216], task: [228, 218, 194], prince: [238, 232, 214], shepherd: [128, 100, 76],
@@ -61,7 +65,7 @@
   // ════════════════════════════════════════════════════════════
   //  小工具
   // ════════════════════════════════════════════════════════════
-  const LS = l => W.layerScale(l) * (W.w < 600 ? 1.15 : 1);
+  const LS = l => W.layerScale(l) * (W.w < 600 ? 1.35 : 1);
   const DEP = l => (W.LAYERS[l] ? W.LAYERS[l].depth : 0);
   const gY = (l, xf) => {
     const x = xf * W.w, L = GS.land;
@@ -79,7 +83,7 @@
   // 近地纵深里的一点：v 0 = 地的轮廓线，1 = 画面底
   const fieldY = (xf, v) => { const g = gY(2, xf); return g + v * Math.max(0, W.h - g); };
   // 竖屏时经文在画面顶上：天上的东西略往下放
-  const skyDY = () => (portrait() ? 0.12 : 0);
+  const skyDY = () => (portrait() ? 0.24 : 0);
 
   // 确定性的随机表
   const RT = [];
@@ -188,13 +192,16 @@
   }
 
   // ════════════════════════════════════════════════════════════
-  //  何烈山（神的山，3:1）：红色花岗岩的山自旷野升起；左坡可行，山顶一片平台，右后一道高岩
+  //  何烈山（神的山，3:1）：红色花岗岩的山自旷野升起；山脚一道宽平的岩台，其后岩壁陡起直到山顶，右后还有一肩
   // ════════════════════════════════════════════════════════════
-  // 左坡缓（有小路），u ≈ −0.42 … −0.24 是一道岩台（荆棘在那里），其后陡起的岩壁直到山顶，右后还有一峰
-  const HB_PTS = [[-1, 0], [-0.86, 0.07], [-0.72, 0.19], [-0.6, 0.3], [-0.5, 0.4], [-0.42, 0.47], [-0.36, 0.5], [-0.26, 0.52], [-0.2, 0.58],
-    [-0.14, 0.7], [-0.07, 0.83], [0, 0.93], [0.06, 0.99], [0.11, 1.0], [0.17, 0.96], [0.24, 0.88], [0.3, 0.86], [0.36, 0.845], [0.44, 0.76],
-    [0.54, 0.62], [0.66, 0.45], [0.78, 0.28], [0.9, 0.11], [1, 0]];
-  const BU = -0.31, STAND_U = -0.62, NEAR_U = -0.53;   // 荆棘、摩西初站、近前的位置（山上的 u）
+  // 左脚上一小段坡（有小路），u ≈ −0.86 … −0.18 是一道宽平的岩台（荆棘在岩台的尽头、岩壁脚下；人在台上可跪、可俯伏），
+  // 其后陡起的岩壁直到山顶，右后还有一肩
+  const HB_PTS = [[-1, 0], [-0.95, 0.07], [-0.9, 0.17], [-0.86, 0.235], [-0.8, 0.255], [-0.6, 0.262], [-0.4, 0.27], [-0.24, 0.278],
+    [-0.16, 0.3], [-0.1, 0.42], [-0.04, 0.6], [0.03, 0.78], [0.1, 0.92], [0.17, 0.99], [0.22, 1.0], [0.28, 0.96], [0.34, 0.9], [0.4, 0.87],
+    [0.47, 0.82], [0.56, 0.7], [0.66, 0.53], [0.76, 0.36], [0.87, 0.17], [1, 0]];
+  // 荆棘、摩西初站、近前的位置（山上的 u）；俯伏时身子向前伸出约一身之长，故近前处离荆棘留出一身有余
+  const BU = -0.24, STAND_U = -0.8, NEAR_U = -0.61;
+  const TERR0 = -0.86, TERR1 = -0.17;               // 岩台的两端
   const HB_N = 240;
   const HB_TAB = (function () {
     const P = HB_PTS, out = new Float32Array(HB_N + 1);
@@ -215,7 +222,7 @@
     const f = (u + 1) / 2 * HB_N, i = Math.min(HB_N - 1, Math.floor(f));
     return lerp(HB_TAB[i], HB_TAB[i + 1], f - i);
   }
-  const hbHW = () => (portrait() ? 0.2 : 0.14);
+  const hbHW = () => (portrait() ? 0.16 : 0.12);
   function hbH() { const hw = hbHW() * W.w; return Math.min(0.27 * W.h, 1.45 * hw, 200 * LS(2)); }
   const HU = u => X.horeb + u * hbHW();            // 山上 u 处的画面比例
   const hbG = () => smoothstep(0, 1, W.lv.msHoreb);
@@ -789,24 +796,33 @@
   let HB_MODEL = null;
   function hbModel() {
     if (HB_MODEL) return HB_MODEL;
-    const r = U.mulberry32(3031), strata = [], cracks = [], scrub = [], rocks = [], jit = [];
+    const r = U.mulberry32(3031), strata = [], cracks = [], scrub = [], rocks = [], jit = [], speck = [];
     for (let i = 0; i <= 60; i++) jit.push((r() - 0.5));
-    for (let i = 0; i < 18; i++) strata.push([-0.85 + r() * 1.7, 0.1 + r() * 0.78, 0.06 + r() * 0.14]);
-    for (let i = 0; i < 9; i++) cracks.push([-0.6 + r() * 1.4, 0.2 + r() * 0.6, (r() - 0.5) * 0.3, 0.1 + r() * 0.14]);
-    for (let i = 0; i < 14; i++) { const u = r() < 0.45 ? -(0.5 + r() * 0.42) : 0.3 + r() * 0.6; scrub.push([u, 0.1 + r() * 0.6, 0.5 + r() * 0.7]); }
-    for (let i = 0; i < 6; i++) rocks.push([(r() < 0.5 ? -1 : 1) * (0.7 + r() * 0.28), 0.5 + r() * 0.7]);
-    const path = [[-0.97, 0.01], [-0.82, 0.1], [-0.87, 0.15], [-0.7, 0.22], [-0.75, 0.27], [-0.58, 0.33], [-0.52, 0.38], [-0.44, 0.45]];
-    HB_MODEL = { strata, cracks, scrub, rocks, path, jit };
+    // 岩层：少而长，顺着山面（与山的轮廓平行，往里一段），两头尖
+    const ST = [[-0.12, 0.3, 0.1], [-0.02, 0.36, 0.16], [0.06, 0.4, 0.3], [0.2, 0.62, 0.12], [0.3, 0.64, 0.28], [0.44, 0.52, 0.2], [0.56, 0.5, 0.36],
+      [0.66, 0.4, 0.16], [-0.6, 0.24, 0.1]];
+    for (const q of ST) strata.push([q[0] + (r() - 0.5) * 0.04, q[1] * (0.9 + r() * 0.2), q[2], 0.5 + r() * 0.5]);
+    // 裂纹：自山面往下，渐细
+    for (let i = 0; i < 7; i++) cracks.push([-0.1 + r() * 0.85, 0.06 + r() * 0.1, (r() - 0.5) * 0.12, 0.14 + r() * 0.16]);
+    for (let i = 0; i < 12; i++) { const u = r() < 0.35 ? -(0.88 + r() * 0.1) : 0.3 + r() * 0.62; scrub.push([u, 0.1 + r() * 0.6, 0.5 + r() * 0.7]); }
+    for (let i = 0; i < 6; i++) rocks.push([(r() < 0.5 ? -1 : 1) * (0.72 + r() * 0.26), 0.5 + r() * 0.7]);
+    // 花岗岩的斑点
+    for (let i = 0; i < 70; i++) speck.push([-0.95 + r() * 1.9, 0.04 + r() * 0.9, r(), 0.5 + r()]);
+    const path = [[-0.99, 0.01], [-0.95, 0.06], [-0.975, 0.1], [-0.92, 0.14], [-0.94, 0.18], [-0.89, 0.21], [-0.86, 0.235]];
+    HB_MODEL = { strata, cracks, scrub, rocks, path, jit, speck };
     return HB_MODEL;
   }
-  // 画的轮廓：左坡与平台是人要走的地方，不加起伏；高岩与右坡带些嶙峋
+  // 画的轮廓：小路、岩台是人要走的地方，不加起伏；岩壁与右坡带些嶙峋
   function hbDrawK(u, m) {
     const k = hbK(u);
-    if (u < -0.18 && u > -0.95) return k;
+    if (u < -0.12 && u > -0.97) return k;
     const f = (u + 1) * 30, i = Math.min(59, Math.max(0, Math.floor(f)));
     const j = lerp(m.jit[i], m.jit[i + 1], f - i);
     return Math.max(0, k + j * 0.05 * smoothstep(0, 0.15, k));
   }
+  // 光照的档位：缓存渐变时用（日光、黄昏、昼夜、风暴稍有变化才重建）
+  const shadeKey = () => Math.round(W.daylight * 48) + ':' + Math.round(W.dusk * 24) + ':' + Math.round((W.dayFactor || 0) * 24) + ':' + Math.round((W.lv.storm || 0) * 10);
+  const cachedGrad = (key, build) => cachedData('g:' + key + ':' + shadeKey(), build);
   function drawHoreb(ctx) {
     const g = hbG();
     if (g < 0.004) return;
@@ -815,83 +831,121 @@
     const yK = (u, k) => gY(2, X.horeb + u * hbHW()) + 2 - k * H;
     const N = 72;
     const a = clamp(W.lv.msHoreb * 3, 0, 1);
-    // 山的轮廓只随画面大小与升起的程度而变：缓存
-    const gk = Math.round(g * 400);
-    const body = cachedPath('hb:' + gk, P2 => {
+    // 山的轮廓只随画面大小与升起的程度而变：缓存（升起的时候不缓存）
+    const gk = Math.round(g * 400), full = gk >= 400;
+    const path = (key, build) => { if (full) return cachedPath(key, build); const P2 = new Path2D(); build(P2); return P2; };
+    const body = path('hb:' + X.horeb, P2 => {
       for (let i = 0; i <= N; i++) { const u = -1 + 2 * i / N, X1 = cx + u * hw, Y1 = yAt(u); if (i) P2.lineTo(X1, Y1); else P2.moveTo(X1, Y1); }
       P2.lineTo(cx + hw, gY(2, X.horeb + hbHW()) + 8); P2.lineTo(cx - hw, gY(2, X.horeb - hbHW()) + 8);
       P2.closePath();
     });
     ctx.globalAlpha = a;
     // 山身：上浅下深的红色花岗岩
-    const top = gY(2, X.horeb) - H;
-    const gr = ctx.createLinearGradient(0, top, 0, gY(2, X.horeb) + 4);
-    gr.addColorStop(0, css([172, 116, 90], 2)); gr.addColorStop(0.45, css([138, 92, 74], 2)); gr.addColorStop(1, css([98, 72, 60], 2));
-    ctx.fillStyle = gr;
+    const top = gY(2, X.horeb) - H, base = gY(2, X.horeb) + 4;
+    const mkBody = () => {
+      const gr = ctx.createLinearGradient(0, top, 0, base);
+      gr.addColorStop(0, css([176, 118, 92], 2)); gr.addColorStop(0.45, css([140, 94, 76], 2)); gr.addColorStop(1, css([100, 74, 62], 2));
+      return gr;
+    };
+    ctx.fillStyle = full ? cachedGrad('hb:' + Math.round(top) + ':' + Math.round(base), mkBody) : mkBody();
     ctx.fill(body);
     ctx.save();
     ctx.clip(body);
-    // 背光的一面
+    // 迎光一面到背光一面：柔和的明暗
     const d = litX() >= cx ? 1 : -1;
-    ctx.fillStyle = css([62, 46, 44], 2, 0.5);
+    ctx.fillStyle = cachedGrad('hbx:' + d + ':' + Math.round(cx) + ':' + Math.round(hw), () => {
+      const gx = ctx.createLinearGradient(cx - d * hw, 0, cx + d * hw, 0);
+      const hi = W.shade([255, 226, 190], 0, 0.1), lo = W.shade([40, 28, 30], 0, 0);
+      gx.addColorStop(0, U.rgba(lo[0], lo[1], lo[2], 0.42)); gx.addColorStop(0.45, U.rgba(lo[0], lo[1], lo[2], 0.08));
+      gx.addColorStop(0.62, U.rgba(hi[0], hi[1], hi[2], 0)); gx.addColorStop(1, U.rgba(hi[0], hi[1], hi[2], 0.14 * dayA()));
+      return gx;
+    });
+    ctx.fillRect(cx - hw, top - 4, hw * 2, base - top + 12);
+    // 背光的一面（自山脊往下）
+    ctx.fillStyle = css([62, 46, 44], 2, 0.34);
     ctx.beginPath();
-    const u0 = d > 0 ? 0.11 : -0.2;
+    const u0 = d > 0 ? 0.22 : -0.1;
     ctx.moveTo(cx + u0 * hw, yAt(u0) - 4);
     for (let i = 0; i <= 18; i++) { const u = u0 - d * (i / 18) * (1 + d * u0); ctx.lineTo(cx + u * hw, yAt(u) - 4); }
     ctx.lineTo(cx - d * hw, gY(2, X.horeb - d * hbHW()) + 10);
     ctx.quadraticCurveTo(cx + (u0 - d * 0.3) * hw, gY(2, X.horeb) - H * 0.25, cx + u0 * hw, yAt(u0) - 4);
     ctx.fill();
-    // 岩壁上的竖纹（高岩）
-    ctx.strokeStyle = css([80, 56, 50], 2, 0.45); ctx.lineWidth = Math.max(0.6, 1 * s);
-    ctx.beginPath();
-    for (let i = 0; i < 9; i++) {
-      const u = -0.2 + i * 0.075, k = hbK(u);
-      if (k < 0.5) continue;
-      const y0 = yK(u, k - 0.04), y1 = yK(u, Math.max(0.52, k - 0.18 - 0.12 * rt(i + 70)));
-      ctx.moveTo(cx + u * hw, y0); ctx.lineTo(cx + (u + (rt(i + 80) - 0.5) * 0.04) * hw, y1);
-    }
-    ctx.stroke();
-    // 岩层与裂纹
-    ctx.lineCap = 'round';
-    for (const pass of [0, 1]) {
-      ctx.strokeStyle = pass ? css([232, 192, 160], 2, 0.3 * dayA(), 0.12) : css([78, 56, 48], 2, 0.6);
-      ctx.lineWidth = Math.max(0.6, (pass ? 0.9 : 1.4) * s);
-      ctx.beginPath();
-      for (const q of m.strata) {
+    // 岩层：顺着山面的长条，两头尖（暗的一道，其上一线亮）
+    const sliver = (P2, q, off, wid) => {
+      const n = 12;
+      const pt = (t, w) => { const u = q[0] - q[2] / 2 + q[2] * t, k = hbK(u); return [cx + u * hw, yK(u, Math.max(0, k - q[1] * 0.42)) + off + w]; };
+      for (let i = 0; i <= n; i++) { const p = pt(i / n, 0); if (i) P2.lineTo(p[0], p[1]); else P2.moveTo(p[0], p[1]); }
+      for (let i = n; i >= 0; i--) { const t = i / n, p = pt(t, wid * Math.sin(Math.PI * t)); P2.lineTo(p[0], p[1]); }
+      P2.closePath();
+    };
+    ctx.fillStyle = css([74, 50, 44], 2, 0.34);
+    ctx.fill(path('hbst:' + X.horeb, P2 => { for (const q of m.strata) sliver(P2, q, 0, 2.2 * s * q[3] + 0.6); }));
+    ctx.fillStyle = css([236, 196, 164], 2, 0.2 * dayA(), 0.12);
+    ctx.fill(path('hbsh:' + X.horeb, P2 => { for (const q of m.strata) sliver(P2, q, -1.3 * s, 1.1 * s * q[3] + 0.4); }));
+    // 裂纹：自山面往下，渐细
+    ctx.fillStyle = css([60, 42, 38], 2, 0.4);
+    ctx.fill(path('hbcr:' + X.horeb, P2 => {
+      for (const q of m.cracks) {
         const k = hbK(q[0]);
-        if (q[1] > k - 0.08) continue;
-        const yy = yK(q[0], q[1]) - (pass ? 1.5 * s : 0);
-        ctx.moveTo(cx + (q[0] - q[2]) * hw, yy + 1.4 * s); ctx.quadraticCurveTo(cx + q[0] * hw, yy - 1.1 * s, cx + (q[0] + q[2]) * hw, yy + 0.8 * s);
+        if (k < 0.45) continue;
+        const x0 = cx + q[0] * hw, y0 = yK(q[0], k - q[1]), L = q[3] * H, w = 1.1 * s;
+        const x1 = x0 + q[2] * hw, y1 = y0 + L;
+        P2.moveTo(x0 - w, y0); P2.quadraticCurveTo(x0 + q[2] * hw * 0.5 - w * 0.4, y0 + L * 0.5, x1, y1);
+        P2.quadraticCurveTo(x0 + q[2] * hw * 0.5 + w * 0.4, y0 + L * 0.5, x0 + w, y0); P2.closePath();
       }
-      ctx.stroke();
+    }));
+    // 花岗岩的斑点
+    for (const pass of [0, 1]) {
+      ctx.fillStyle = pass ? css([232, 206, 180], 2, 0.3 * dayA(), 0.1) : css([70, 50, 46], 2, 0.3);
+      ctx.fill(path('hbsp' + pass + ':' + X.horeb, P2 => {
+        for (let i = pass; i < m.speck.length; i += 2) {
+          const q = m.speck[i], k = hbK(q[0]);
+          if (k < 0.08) continue;
+          const x = cx + q[0] * hw, y = yK(q[0], k * (1 - q[1])) + 3, r = (0.5 + 0.6 * q[3]) * s;
+          P2.moveTo(x + r, y); P2.ellipse(x, y, r, r * 0.7, 0, 0, TAU);
+        }
+      }));
     }
-    ctx.strokeStyle = css([68, 48, 42], 2, 0.5); ctx.lineWidth = Math.max(0.6, 0.9 * s);
-    ctx.beginPath();
-    for (const q of m.cracks) {
-      const k = hbK(q[0]);
-      if (q[1] > k - 0.1) continue;
-      const x = cx + q[0] * hw, yy = yK(q[0], q[1]);
-      ctx.moveTo(x, yy); ctx.lineTo(x + q[2] * hw * 0.3, yy + q[3] * H * 0.5); ctx.lineTo(x + q[2] * hw * 0.1, yy + q[3] * H);
-    }
-    ctx.stroke();
     // 火光照在岩壁上（荆棘燃烧时）：只照在山上
     const b = getP('bush');
     if (b && b.fire > 0.01) {
       SP || sprites();
       const bx = b.x * W.w, by = surfY(b.x), fk = b.fire * a;
       ctx.globalCompositeOperation = 'lighter';
-      glowSp(ctx, SP.fire, bx + 6 * s, by - 18 * s, 150 * s, fk * (0.2 + 0.5 * nk));
-      glowSp(ctx, SP.gold, bx + 3 * s, by - 10 * s, 60 * s, fk * (0.15 + 0.35 * nk));
+      glowSp(ctx, SP.fire, bx + 10 * s, by - 34 * s, 170 * s, fk * (0.22 + 0.5 * nk));
+      glowSp(ctx, SP.gold, bx + 4 * s, by - 18 * s, 70 * s, fk * (0.16 + 0.36 * nk));
+      ctx.globalCompositeOperation = 'source-over';
+    }
+    // 圣地（3:5）：岩台上一片金色的地光——只在山身里（照在台面与其下的岩上）
+    const hk = W.lv.msHoly;
+    if (hk > 0.01) {
+      SP || sprites();
+      const hxf = HU((TERR0 + BU) / 2 + 0.04), hx = hxf * W.w, hy = surfY(hxf);
+      const rr = (BU - TERR0) * 0.62 * hw * (1 + 0.04 * Math.sin(W.t * 1.3));
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.save();
+      ctx.translate(hx, hy);
+      ctx.scale(1, 0.34);
+      glowSp(ctx, SP.gold, 0, 0, rr, a * hk * (0.5 + 0.35 * nk));
+      ctx.restore();
       ctx.globalCompositeOperation = 'source-over';
     }
     ctx.restore();
     ctx.globalAlpha = a;
-    // 岩台（荆棘所在）：一道迎光的平边
+    // 岩台：一道迎光的平边；圣地时是金色的
+    const terr = path('hbt:' + X.horeb, P2 => {
+      for (let i = 0; i <= 16; i++) { const u = TERR0 + (TERR1 - TERR0) * i / 16; if (i) P2.lineTo(cx + u * hw, yAt(u) + 0.6); else P2.moveTo(cx + u * hw, yAt(u) + 0.6); }
+    });
+    ctx.lineCap = 'round';
     ctx.strokeStyle = css([226, 184, 150], 2, 0.5 * (0.35 + 0.65 * Math.max(dayA(), (b ? b.fire : 0) * nk)), 0.15); ctx.lineWidth = Math.max(0.8, 1.4 * s);
-    ctx.beginPath();
-    for (let i = 0; i <= 10; i++) { const u = -0.45 + 0.23 * i / 10; if (i) ctx.lineTo(cx + u * hw, yAt(u) + 0.6); else ctx.moveTo(cx + u * hw, yAt(u) + 0.6); }
-    ctx.stroke();
-    // 上山的小路（左坡）
+    ctx.stroke(terr);
+    if (hk > 0.01) {
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.strokeStyle = U.rgba(255, 214, 140, a * hk * (0.35 + 0.35 * nk)); ctx.lineWidth = Math.max(1, 1.8 * s);
+      ctx.stroke(terr);
+      ctx.globalCompositeOperation = 'source-over';
+    }
+    // 上山的小路（左脚）
     ctx.strokeStyle = css([214, 184, 150], 2, 0.35 * dayA(), 0.08); ctx.lineWidth = Math.max(0.6, 1.2 * s);
     ctx.beginPath();
     m.path.forEach((q, i) => { const X1 = cx + q[0] * hw, Y1 = yK(q[0], Math.min(q[1], hbK(q[0]) * 0.94)); if (i) ctx.lineTo(X1, Y1); else ctx.moveTo(X1, Y1); });
@@ -913,24 +967,11 @@
     ctx.fill();
     // 迎光的山脊；夜里是一道冷的月光边
     ctx.strokeStyle = css([240, 206, 170], 2, 0.5 * dayA(), 0.25); ctx.lineWidth = Math.max(0.7, 1.3 * s);
-    const ridge = cachedPath('hbr:' + gk + ':' + d, P2 => {
-      for (let i = 0; i <= 30; i++) { const u = d > 0 ? -0.1 + 1.05 * i / 30 : 0.2 - 1.15 * i / 30; if (i) P2.lineTo(cx + u * hw, yAt(u)); else P2.moveTo(cx + u * hw, yAt(u)); }
+    const ridge = path('hbr:' + X.horeb + ':' + d, P2 => {
+      for (let i = 0; i <= 30; i++) { const u = d > 0 ? -0.14 + 1.1 * i / 30 : 0.26 - 1.14 * i / 30; if (i) P2.lineTo(cx + u * hw, yAt(u)); else P2.moveTo(cx + u * hw, yAt(u)); }
     });
     ctx.stroke(ridge);
     if (nk > 0.2) { ctx.strokeStyle = U.rgba(176, 194, 232, 0.28 * nk * a); ctx.stroke(ridge); }
-    // 圣地（3:5）：岩台上一片金色的地光
-    const hk = W.lv.msHoly;
-    if (hk > 0.01) {
-      SP || sprites();
-      const hxf = HU((BU + NEAR_U) / 2), hx = hxf * W.w, hy = surfY(hxf);
-      ctx.globalCompositeOperation = 'lighter';
-      ctx.save();
-      ctx.translate(hx, hy);
-      ctx.scale(1, 0.24);
-      glowSp(ctx, SP.gold, 0, 0, 52 * s * (1 + 0.05 * Math.sin(W.t * 1.3)), a * hk * (0.4 + 0.35 * nk));
-      ctx.restore();
-      ctx.globalCompositeOperation = 'source-over';
-    }
     ctx.globalAlpha = 1;
   }
 
@@ -980,66 +1021,126 @@
     ctx.fill();
     ctx.globalAlpha = 1;
   }
-  // 火：火舌自整丛荆棘的顶上升起，白金的焰心在丛中；枝与叶的剪影始终在火里（3:2 却没有烧毁）
+  // 火：火舌根在荆棘丛里，底宽顶尖，外侧的顺着圆顶向外斜；各层以竖向的渐变着色（白金的焰心 → 橙 → 顶上透明的红），
+  // 先画在一张小的离屏画布上，再以微微的模糊贴上，边缘柔和；枝与叶的剪影始终在火里（3:2 却没有烧毁）
   let flareT = -99;
+  const FIRE = { c: null, g: null, w: 0, h: 0, grad: null, gk: '' };
+  const FLAY = [      // [尺度, 渐变停点 [位置, r, g, b, a] …]（自火根往上）
+    [1, [[0, 255, 150, 60, 0.95], [0.4, 255, 104, 36, 0.8], [0.75, 214, 54, 24, 0.35], [1, 170, 30, 16, 0]]],
+    [0.78, [[0, 255, 196, 92, 1], [0.45, 255, 150, 58, 0.75], [0.85, 255, 110, 40, 0]]],
+    [0.56, [[0, 255, 238, 170, 1], [0.4, 255, 206, 110, 0.8], [0.8, 255, 170, 70, 0]]],
+    [0.34, [[0, 255, 255, 244, 1], [0.35, 255, 246, 206, 0.85], [0.7, 255, 226, 160, 0]]],
+  ];
+  function fireCanvas(w, h) {
+    if (!FIRE.c || FIRE.w !== w || FIRE.h !== h) { FIRE.c = cnv(w, h); FIRE.w = w; FIRE.h = h; FIRE.g = FIRE.c.getContext('2d'); FIRE.grad = null; FIRE.gk = ''; }
+    return FIRE;
+  }
   function drawBushFire(ctx, p) {
     const k = p.fire * p.a * smoothstep(0.55, 0.95, W.lv.msHoreb);
     if (k < 0.01) return;
     SP || sprites();
     const s = bushS(p), x = p.x * W.w, y = surfY(p.x) + 1 * s, R = 15 * s, m = bushModel();
-    const fl = Math.max(0, 1 - (W.t - flareT) / 2.2), boost = 1 + 0.6 * fl * fl;
-    const H = 30 * s * (0.55 + 0.45 * k) * boost, nk = nightK(), cy = y - 0.75 * R;
-    ctx.globalCompositeOperation = 'lighter';
-    // 大的暖光与丛中的光
-    glowSp(ctx, SP.fire, x, cy - H * 0.2, (R + H) * 1.9, k * (0.26 + 0.4 * nk) * boost);
-    glowSp(ctx, SP.gold, x, cy, R * 1.6, k * 0.75);
-    // 火舌：外焰、中焰、内焰、焰心——根在圆顶上
-    const LAY = [[1, 'rgb(255,100,34)', 0.5], [0.8, 'rgb(255,150,58)', 0.55], [0.58, 'rgb(255,212,118)', 0.66], [0.36, 'rgb(255,248,222)', 0.8]];
-    for (let li = 0; li < LAY.length; li++) {
-      const L = LAY[li];
-      ctx.fillStyle = L[1];
-      ctx.globalAlpha = k * L[2];
-      ctx.beginPath();
+    const fl = Math.max(0, 1 - (W.t - flareT) / 2.2), boost = 1 + 0.5 * fl * fl;
+    const FR = R * (1 + 0.3 * k);                             // 火的半宽
+    const H = 46 * s * (0.4 + 0.6 * k) * boost;                // 火舌高出丛顶多少
+    const Hn = 46 * s + 1.4 * R;                               // 渐变的全高（不随闪动而变，好缓存）
+    const nk = nightK(), cy = y - 0.75 * R;
+    // 离屏画布：够最高、最斜的火舌
+    const pad = Math.ceil(6 * s + 4);
+    const cw = Math.ceil(FR * 3.4 + pad * 2), chh = Math.ceil(46 * s * 1.95 + 2 * R + pad * 2);
+    const F = fireCanvas(cw, chh), g = F.g;
+    const ox = cw / 2, oy = chh - pad;                          // 荆棘的根处
+    const gkey = cw + 'x' + chh + ':' + Math.round(Hn);
+    if (F.gk !== gkey) {
+      F.grad = FLAY.map(L => {
+        const y0 = oy - 0.2 * R, gr = g.createLinearGradient(0, y0, 0, y0 - Hn * (0.55 + 0.45 * L[0]));
+        for (const q of L[1]) gr.addColorStop(q[0], U.rgba(q[1], q[2], q[3], q[4]));
+        return gr;
+      });
+      F.gk = gkey;
+    }
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.globalCompositeOperation = 'source-over';
+    g.globalAlpha = 1;
+    g.clearRect(0, 0, cw, chh);
+    for (let li = 0; li < FLAY.length; li++) {
+      const sc = FLAY[li][0];
+      g.fillStyle = F.grad[li];
+      g.beginPath();
       for (let i = 0; i < m.crown.length; i++) {
         const q = m.crown[i], ph = q[3];
         if (li === 3 && (i < 2 || i > 10)) continue;
         const f = 0.8 + 0.2 * Math.sin(W.t * (8 + q[4] * 4) + ph) + 0.1 * Math.sin(W.t * 21 + ph * 2);
-        const up = 1 - Math.abs(q[0]) * 0.45;
-        const hh = H * q[2] * L[0] * f * up + R * 0.35 * L[0];
-        const bx = x + q[0] * R * (0.55 + 0.45 * L[0]), by = y + q[1] * R * (0.6 + 0.4 * L[0]) + R * 0.35 * L[0];
-        const w = R * 0.3 * (0.55 + 0.45 * L[0]);
-        const tipx = bx + Math.sin(W.t * 6 + ph) * w * 0.7 + q[0] * R * 0.25 + W.wind * 2 * s;
-        ctx.moveTo(bx - w, by);
-        ctx.quadraticCurveTo(bx - w * 0.9, by - hh * 0.55, tipx, by - hh);
-        ctx.quadraticCurveTo(bx + w * 0.9, by - hh * 0.55, bx + w, by);
-        ctx.closePath();
+        const up = 1 - Math.abs(q[0]) * 0.4;
+        const hh = (H * q[2] * f * up + R * 0.7) * sc;
+        // 根在圆顶之内、高低不一（没有平平的底）；底宽，顶尖；外侧的向外斜
+        const bx = ox + q[0] * FR * 0.8 * (0.6 + 0.4 * sc);
+        const by = oy + q[1] * R * 0.55 * (0.7 + 0.3 * sc) + (rt(i * 7 + 500) - 0.5) * 0.4 * R;
+        const w = FR * (0.3 + 0.1 * rt(i * 7 + 501)) * (0.55 + 0.45 * sc);
+        const tipx = bx + q[0] * R * 0.62 * sc + Math.sin(W.t * 6 + ph) * w * 0.6 + W.wind * 2 * s;
+        const ty = by - hh;
+        g.moveTo(bx - w, by);
+        g.bezierCurveTo(bx - w * 1.1, by - hh * 0.4, tipx - w * 0.2, ty + hh * 0.3, tipx, ty);
+        g.bezierCurveTo(tipx + w * 0.2, ty + hh * 0.3, bx + w * 1.1, by - hh * 0.4, bx + w, by);
+        g.quadraticCurveTo(bx, by + w * 0.9, bx - w, by);
+        g.closePath();
       }
-      ctx.fill();
+      // 离开火舌、往上飘散的小焰（外两层）
+      if (li < 2) {
+        for (let j = 0; j < 5; j++) {
+          const ph = U.fract(W.t * (0.7 + 0.3 * rt(j + 540)) + rt(j + 541));
+          const bx = ox + (rt(j + 542) - 0.5) * FR * 1.1 + Math.sin(W.t * 3 + j) * R * 0.2, by = oy - 1.2 * R - H * (0.35 + 0.75 * ph);
+          const w = R * 0.16 * (1 - ph) * sc, hh = R * 0.7 * (1 - ph * 0.5) * sc;
+          if (w < 0.3) continue;
+          g.moveTo(bx - w, by); g.quadraticCurveTo(bx - w, by - hh * 0.5, bx, by - hh); g.quadraticCurveTo(bx + w, by - hh * 0.5, bx + w, by); g.quadraticCurveTo(bx, by + w, bx - w, by);
+        }
+      }
+      g.fill();
     }
-    glowSp(ctx, SP.white, x, cy - R * 0.2, R * 1.1, k * (0.45 + 0.25 * Math.sin(W.t * 3.1)));
-    // 火星
-    ctx.fillStyle = 'rgb(255,214,150)';
-    for (let i = 0; i < 18; i++) {
-      const ph = U.fract(W.t * (0.32 + 0.2 * rt(i * 5 + 300)) + rt(i * 5 + 301));
-      const sx = x + (rt(i * 5 + 302) - 0.5) * R * 1.6 + Math.sin(ph * 7 + i) * R * 0.3 * ph + W.wind * ph * 20 * s;
-      const sy = cy - R * 0.6 - ph * (H + R) * 2;
-      ctx.globalAlpha = k * Math.sin(ph * Math.PI) * 0.85;
-      const sz = (0.8 + rt(i) * 1.2) * Math.max(0.7, s);
-      ctx.fillRect(sx - sz / 2, sy - sz / 2, sz, sz);
-    }
+    const X0 = x - ox, Y0 = y - oy, hasF = 'filter' in ctx;
+    ctx.save();
+    // 大的暖光与丛中的光
+    ctx.globalCompositeOperation = 'lighter';
+    glowSp(ctx, SP.fire, x, cy - H * 0.3, (R + H) * 1.8, k * (0.24 + 0.4 * nk) * boost);
+    glowSp(ctx, SP.gold, x, cy, R * 1.7, k * 0.7);
+    // 火身（微模糊，边缘柔和）
+    ctx.globalCompositeOperation = 'source-over';
+    if (hasF) ctx.filter = 'blur(' + Math.max(0.6, 0.75 * s).toFixed(2) + 'px)';
+    ctx.globalAlpha = k * 0.94;
+    ctx.drawImage(F.c, X0, Y0);
+    // 一层泛光
+    ctx.globalCompositeOperation = 'lighter';
+    if (hasF) ctx.filter = 'blur(' + Math.max(1.5, 3.2 * s).toFixed(1) + 'px)';
+    ctx.globalAlpha = k * (0.3 + 0.25 * nk);
+    ctx.drawImage(F.c, X0, Y0);
+    if (hasF) ctx.filter = 'none';
+    glowSp(ctx, SP.white, x, cy - R * 0.15, R * 1.15, k * (0.5 + 0.2 * Math.sin(W.t * 3.1)));
     ctx.globalCompositeOperation = 'source-over';
     // 枝与叶的剪影仍在火中：暗枝，叶边一点青
     ctx.lineCap = 'round';
-    ctx.globalAlpha = k * 0.62;
-    ctx.strokeStyle = 'rgb(66,26,14)';
+    ctx.globalAlpha = k * 0.66;
+    ctx.strokeStyle = 'rgb(70,28,14)';
     ctx.lineWidth = Math.max(0.7, 1.15 * s);
     bushTwigs(ctx, x, y, R, s, m);
-    ctx.globalAlpha = k * 0.5;
+    ctx.globalAlpha = k * 0.52;
     ctx.fillStyle = 'rgb(58,70,34)';
     ctx.beginPath();
     for (const q of m.leaves) { ctx.moveTo(x + q[0] * R + q[2] * R * 0.8, y + q[1] * R); ctx.ellipse(x + q[0] * R, y + q[1] * R, q[2] * R * 0.8, q[2] * R * 0.55, q[3], 0, TAU); }
     ctx.fill();
+    // 火星
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.fillStyle = 'rgb(255,214,150)';
+    for (let i = 0; i < 18; i++) {
+      const ph = U.fract(W.t * (0.32 + 0.2 * rt(i * 5 + 300)) + rt(i * 5 + 301));
+      const sx = x + (rt(i * 5 + 302) - 0.5) * R * 1.6 + Math.sin(ph * 7 + i) * R * 0.3 * ph + W.wind * ph * 20 * s;
+      const sy = cy - R * 0.6 - ph * (H + R) * 1.8;
+      ctx.globalAlpha = k * Math.sin(ph * Math.PI) * 0.85;
+      const sz = (0.8 + rt(i) * 1.2) * Math.max(0.7, s);
+      ctx.fillRect(sx - sz / 2, sy - sz / 2, sz, sz);
+    }
+    ctx.restore();
     ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
   }
   // 火光照在人身上（画在人之后，柔和）
   function drawBushLight(ctx) {
@@ -1127,13 +1228,13 @@
   function cachedPath(key, build) {
     const G = geo();
     let p = G.path.get(key);
-    if (!p) { p = new Path2D(); build(p); G.path.set(key, p); if (G.path.size > 48) G.path.delete(G.path.keys().next().value); }
+    if (!p) { p = new Path2D(); build(p); G.path.set(key, p); if (G.path.size > 64) G.path.delete(G.path.keys().next().value); }
     return p;
   }
   function cachedData(key, build) {
     const G = geo();
     let d = G.data.get(key);
-    if (!d) { d = build(); G.data.set(key, d); if (G.data.size > 24) G.data.delete(G.data.keys().next().value); }
+    if (!d) { d = build(); G.data.set(key, d); if (G.data.size > 64) G.data.delete(G.data.keys().next().value); }
     return d;
   }
   function landPath(l, x0f, x1f, N) {

@@ -52,7 +52,7 @@
     nileT: 0.47, nileB: 0.468,              // 尼罗河在近地之内：西岸是海边的一条沙地，东岸是宫
     mag: [0.484, 0.493], throne: 0.505, palace: 0.536,
     aaronP: 0.523, mosesP: 0.537,           // 在法老面前
-    field1: 0.58, field2: 0.616,
+    field1: 0.594, field2: 0.63,
     houses: [0.648, 0.694, 0.74],
     straw: 0.762, bricks: 0.779, kiln: 0.803,
     wall: 0.818,
@@ -96,7 +96,8 @@
     if (!isFinite(y)) y = W.ridgeY(l, x);
     return y;
   };
-  const css = (rgb, l, a, ex) => W.shadeCSS(rgb, DEP(l), a, ex);
+  let DIM = 0;      // 黎明时埃及的城退入阴影：画埃及的物件时把颜色压暗
+  const css = (rgb, l, a, ex) => W.shadeCSS(DIM > 0.001 ? [rgb[0] * (1 - DIM), rgb[1] * (1 - DIM), rgb[2] * (1 - DIM)] : rgb, DEP(l), a, ex);
   const nightK = () => clamp(W.night * 1.15 + W.dusk * 0.35, 0, 1);
   const M = () => Math.min(W.w, W.h);
   const SU = () => Math.max(0.6, W.unit);
@@ -979,14 +980,14 @@
   }
   // 尼罗河：自近地的轮廓流向观者；两岸泥滩与芦荻；变作血时自上游（亚伦击打之处）向下红去
   function nilePt(t) {
-    const x0 = X.nileT * W.w, y0 = geo().nileY0 + 0.5, x3 = X.nileB * W.w, y3 = W.h + 8;
+    const x0 = X.nileT * W.w, y0 = geo().nileY0 + 0.5, x3 = X.nileB * W.w, y3 = W.h + 0.1 * W.h;   // 末端在画面之下（岸的偏移曲线在端点处不打折）
     const x1 = (X.nileT - 0.014) * W.w, y1 = lerp(y0, y3, 0.38), x2 = (X.nileB + 0.012) * W.w, y2 = lerp(y0, y3, 0.72), u = 1 - t;
     const px = u * u * u * x0 + 3 * u * u * t * x1 + 3 * u * t * t * x2 + t * t * t * x3;
     const py = u * u * u * y0 + 3 * u * u * t * y1 + 3 * u * t * t * y2 + t * t * t * y3;
     const dx = 3 * u * u * (x1 - x0) + 6 * u * t * (x2 - x1) + 3 * t * t * (x3 - x2), dy = 3 * u * u * (y1 - y0) + 6 * u * t * (y2 - y1) + 3 * t * t * (y3 - y2), L = Math.hypot(dx, dy) || 1;
     return [px, py, -dy / L, dx / L];
   }
-  const nileW = t => (0.007 + 0.07 * Math.pow(t, 1.35)) * W.w;
+  const nileW = t => (0.007 + 0.082 * Math.pow(t, 1.35)) * W.w;
   // 河在某一纵深（v）上的东岸（画面比例）：人与物都放在其右
   const nileEast = v => { const q = nilePt(clamp(v, 0, 1)); return q[0] / W.w + nileW(clamp(v, 0, 1)) * 0.66 / W.w + 0.004; };
   const nileWest = v => { const q = nilePt(clamp(v, 0, 1)); return q[0] / W.w - nileW(clamp(v, 0, 1)) * 0.66 / W.w - 0.004; };
@@ -1563,7 +1564,7 @@
     return clamp(k * (1 - Math.abs(lx) * 1.6), 0, 1);
   }
   // 横屏时经文所在的一块（左下，海上）：[外框右, 外框上, 内框右, 内框上]（像素）
-  const narrZone = () => (port() ? null : [0.5 * W.w, 0.5 * W.h, 0.44 * W.w, 0.56 * W.h]);
+  const narrZone = () => (port() ? null : [0.5 * W.w, 0.46 * W.h, 0.44 * W.w, 0.56 * W.h]);
   function drawLocusts(ctx) {
     const k = W.lv.plLocust;
     if (k < 0.01) return;
@@ -1577,23 +1578,36 @@
     // 遮天：日光都暗了
     const cover = locustCover();
     if (cover > 0.01) { ctx.fillStyle = U.rgba(40, 30, 16, 0.32 * cover); ctx.fillRect(-20, -20, W.w + 40, W.h + 40); }
-    // 云团：四层错开，缓缓翻动
-    const cloud = am => {
-      for (let j = 0; j < 4; j++) {
-        const ox = Math.sin(W.t * (0.21 + j * 0.07) + j * 2) * 0.05 * cw, oy = Math.cos(W.t * (0.17 + j * 0.05) + j) * 0.05 * ch;
-        const sc = 0.75 + 0.17 * j;
-        ctx.globalAlpha = clamp(k * (0.95 - j * 0.16) * am, 0, 1);
-        ctx.drawImage(SP.swarm, cx - cw * sc / 2 + ox, cy - ch * sc / 2 + oy, cw * sc, ch * sc);
-      }
+    // 云团：四层错开，缓缓翻动。
+    // 横屏时经文在左下（海上）：那里的蝗虫云柔和地淡去，免得压在字后——把每一层按格子切开（源图的子矩形），
+    // 每格以自己的透明度画（不裁剪、不离屏，便宜）
+    const NZ = narrZone(), IMG = SP.swarm, IW = IMG.width, IH = IMG.height;
+    const NC = 9, NR = 5, cols = [], rows = [], HX = [], VY = [];
+    if (NZ) {
+      const xa = NZ[2] - 0.18 * W.w;                     // 羽化带：xa → 区右（NZ[0]）
+      cols.push(0); for (let c = 1; c < NC; c++) cols.push(lerp(xa, NZ[0], (c - 1) / (NC - 1))); cols.push(NZ[0]);
+      for (let c = 0; c < NC; c++) HX.push(c ? 0.86 * (1 - (c - 0.5) / (NC - 1)) : 0.86);
+      for (let r = 0; r < NR; r++) rows.push(r < NR - 1 ? lerp(NZ[1], NZ[3], r / (NR - 1)) : NZ[3]);
+      rows.push(W.h + 40);
+      for (let r = 0; r < NR; r++) VY.push(r < NR - 1 ? (r + 0.5) / (NR - 1) : 1);
+    }
+    const piece = (dx, dy, dw, dh, x0, y0, x1, y1, a) => {
+      x0 = Math.max(x0, dx); y0 = Math.max(y0, dy); x1 = Math.min(x1, dx + dw); y1 = Math.min(y1, dy + dh);
+      if (x1 - x0 < 0.5 || y1 - y0 < 0.5 || a < 0.004) return;
+      ctx.globalAlpha = a;
+      ctx.drawImage(IMG, (x0 - dx) / dw * IW, (y0 - dy) / dh * IH, (x1 - x0) / dw * IW, (y1 - y0) / dh * IH, x0, y0, x1 - x0, y1 - y0);
     };
-    // 横屏时经文在左下（海上）：那里的蝗虫云淡去，免得压在字后
-    const NZ = narrZone();
-    if (!NZ) cloud(1);
-    else {
-      const [ox1, oy0, ix1, iy0] = NZ, B = W.h + 60;
-      ctx.save(); ctx.beginPath(); ctx.rect(-60, -60, W.w + 120, W.h + 120); ctx.rect(-60, oy0, ox1 + 60, B - oy0); ctx.clip('evenodd'); cloud(1); ctx.restore();
-      ctx.save(); ctx.beginPath(); ctx.rect(-60, oy0, ox1 + 60, B - oy0); ctx.rect(-60, iy0, ix1 + 60, B - iy0); ctx.clip('evenodd'); cloud(0.5); ctx.restore();
-      ctx.save(); ctx.beginPath(); ctx.rect(-60, iy0, ix1 + 60, B - iy0); ctx.clip(); cloud(0.16); ctx.restore();
+    for (let j = 0; j < 4; j++) {
+      const ox = Math.sin(W.t * (0.21 + j * 0.07) + j * 2) * 0.05 * cw, oy = Math.cos(W.t * (0.17 + j * 0.05) + j) * 0.05 * ch;
+      const sc = 0.75 + 0.17 * j, A = clamp(k * (0.95 - j * 0.16), 0, 1);
+      const dx = cx - cw * sc / 2 + ox, dy = cy - ch * sc / 2 + oy, dw = cw * sc, dh = ch * sc;
+      if (!NZ || dx >= NZ[0] || dy + dh <= NZ[1]) { ctx.globalAlpha = A; ctx.drawImage(IMG, dx, dy, dw, dh); continue; }
+      piece(dx, dy, dw, dh, -1e5, -1e5, 1e5, NZ[1], A);                  // 区上
+      piece(dx, dy, dw, dh, NZ[0], NZ[1], 1e5, 1e5, A);                  // 区右
+      for (let r = 0; r < NR; r++) for (let c = 0; c < NC; c++) {
+        const x0 = c ? cols[c] : -1e5;
+        piece(dx, dy, dw, dh, x0, rows[r], cols[c + 1], rows[r + 1], A * (1 - HX[c] * VY[r]));
+      }
     }
     // 近处飞过的一只只蝗虫
     const N = Math.round(200 * q), vx = (W.lv.gale || 0.3) * 90 * s * (lx < -0.05 && W.lv.plLocX < W.lt.plLocX + 0.01 ? -1 : 1);
@@ -1696,6 +1710,81 @@
     if (LA) glowSp(ctx, SP.gold, LA[0], LA[1], LA[2] * 0.9, 0.16 * k);
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
+  }
+
+  // ── 出埃及的大队（12:37–38）：中丘上一长行小小的人、火把与牛羊，自右（歌珊）向左（东，向海）缓缓而行，扬起一层尘 ──
+  const HOSTN = 110;
+  function hostSpan() {
+    const sp1 = W.landSpan ? W.landSpan(1) : [0.49 * W.w, W.w];
+    const xL = Math.max(0.5, sp1[0] / W.w + 0.035), xR = 1.03;
+    return [xL, xR, lerp(xR, xL, clamp(W.lv.plHost, 0, 1))];
+  }
+  function drawHost(ctx) {
+    const k = clamp(W.lv.plHost, 0, 1);
+    if (k < 0.005) return;
+    SP || sprites();
+    const l = 1, s = LS(1), [xL, xR, head] = hostSpan(), route = xR - xL;
+    const Hh = 21 * s, nk = nightK(), day = dayA();
+    // 尘：一层暖灰的薄雾贴着行列
+    ctx.globalCompositeOperation = 'source-over';
+    for (let j = 0; j < 9; j++) {
+      const xf = lerp(head + 0.02, 1.0, (j + 0.5) / 9) + Math.sin(W.t * 0.3 + j) * 0.01;
+      if (xf < head) continue;
+      glowSp(ctx, SP.smoke, xf * W.w, gY(l, xf) - Hh * 0.6, Hh * 2.4, 0.2 * (0.35 + 0.65 * day) * smoothstep(head, head + 0.05, xf));
+    }
+    const PP = [new Path2D(), new Path2D()], BB = [new Path2D(), new Path2D()], torch = [];
+    for (let i = 0; i < HOSTN; i++) {
+      const u = U.fract(i / HOSTN + rt(i + 3300) * 0.004 + W.t * 0.0032 / route);
+      const xf = xR - u * route;
+      if (xf < head || xf > 1.02) continue;
+      const a = smoothstep(head, head + 0.03, xf) * smoothstep(xL - 0.005, xL + 0.03, xf);
+      if (a < 0.33) continue;
+      const bi = a < 0.66 ? 1 : 0, x = xf * W.w, y = gY(l, xf) + (0.6 + 2.2 * rt(i + 3310)) * s, kd = i % 6;
+      const ph = W.t * 5.2 + i * 1.3, bob = Math.abs(Math.sin(ph)) * 0.5 * s, str = Math.sin(ph) * 0.05 * Hh;
+      if (kd === 5) {
+        // 牛羊
+        const B = BB[bi], big = rt(i + 3330) < 0.35, bw = (big ? 0.42 : 0.3) * Hh, bh = (big ? 0.2 : 0.16) * Hh, by = y - bh * 2.1 - bob * 0.5;
+        B.moveTo(x + bw, by); B.ellipse(x, by, bw, bh, 0, 0, TAU);
+        B.moveTo(x - bw * 0.9 + bh * 0.7, by - bh * 0.4); B.arc(x - bw * 0.95, by - bh * 0.4, bh * 0.7, 0, TAU);
+        for (const lx of [-0.6, -0.3, 0.3, 0.6]) B.rect(x + lx * bw - 0.4 * s, by, 0.8 * s, y - by);
+        continue;
+      }
+      const P2 = PP[bi], hs = rt(i + 3320) < 0.2 ? 0.66 : 1, H = Hh * hs, top = y - H - bob, r = 0.12 * H;
+      P2.moveTo(x + r, top + r); P2.arc(x, top + r, r, 0, TAU);
+      P2.moveTo(x - 0.1 * H, top + 2 * r); P2.lineTo(x + 0.1 * H, top + 2 * r); P2.lineTo(x + 0.17 * H + str, y); P2.lineTo(x - 0.17 * H - str, y); P2.closePath();
+      if (i % 3 === 1 && hs === 1) P2.rect(x + 0.02 * H, top + 2 * r - 0.14 * H, 0.24 * H, 0.17 * H);     // 肩上的抟面盆（12:34）
+      if (i % 4 === 2 && hs === 1) {
+        P2.rect(x - 0.21 * H, top - 0.12 * H, Math.max(0.6, 0.07 * H), H * 1.1);                  // 杖
+        if (i % 8 === 2) torch.push(x - 0.18 * H, top - 0.16 * H, i);                            // 火把
+      }
+    }
+    const pc = css([72, 56, 44], l), bc = css([150, 132, 108], l);
+    for (let bi = 0; bi < 2; bi++) {
+      ctx.globalAlpha = bi ? 0.5 : 1;
+      ctx.fillStyle = bc; ctx.fill(BB[bi]);
+      ctx.fillStyle = pc; ctx.fill(PP[bi]);
+    }
+    if (torch.length) {
+      ctx.globalCompositeOperation = 'lighter';
+      const tk = 0.35 + 0.65 * nk;
+      for (let i = 0; i < torch.length; i += 3) {
+        const fl = 0.8 + 0.2 * Math.sin(W.t * 11 + torch[i + 2]);
+        glowSp(ctx, SP.warm, torch[i], torch[i + 1], 9 * s * fl + 3, 0.75 * tk);
+        glowSp(ctx, SP.gold, torch[i], torch[i + 1], 3 * s + 1.2, 0.95 * tk * fl);
+      }
+      ctx.globalCompositeOperation = 'source-over';
+    }
+    ctx.globalAlpha = 1;
+  }
+  // 黎明：为奴之家的城退入阴影（地上压暗；房屋与宫殿的颜色由 DIM 压暗）
+  function drawEShadeGround(ctx) {
+    const k = W.lv.plShade;
+    if (k < 0.01) return;
+    const g = ctx.createLinearGradient(0, 0, W.w, 0), c = 'rgba(16,12,26,';
+    g.addColorStop(0.36, c + '0)'); g.addColorStop(0.47, c + (0.32 * k).toFixed(3) + ')');
+    g.addColorStop(X.wall - 0.035, c + (0.32 * k).toFixed(3) + ')'); g.addColorStop(X.wall + 0.01, c + '0)');
+    ctx.fillStyle = g;
+    ctx.fill(landPath(2, 0.25, 1.0, 56));
   }
 
   // ════════════════════════════════════════════════════════════
@@ -1997,12 +2086,15 @@
       const l = LAYER_OF_PASS[pass];
       if (l != null) {
         drawDesert(ctx, l);
-        if (l === 2) { drawGoshen(ctx); drawNile(ctx); }
-        const list = sortProps();
+        if (l === 2) { drawGoshen(ctx); drawNile(ctx); drawEShadeGround(ctx); }
+        const list = sortProps(), dimK = 0.4 * W.lv.plShade;
         for (const p of list) {
           if (p.layer !== l || p.a < 0.005) continue;
+          DIM = dimK > 0.004 && l === 2 && p.x < X.wall - 0.005 ? dimK : 0;
           drawKind(ctx, p);
         }
+        DIM = 0;
+        if (l === 1) drawHost(ctx);
         if (l === 2) { drawPools(ctx); drawLocustGround(ctx); }
         return;
       }
@@ -2036,15 +2128,18 @@
       if (!isCur()) return null;
       let best = null;
       const consider = (label, px, py) => { const d = Math.hypot(px - x, py - y); if (d < r && (!best || d < best.d)) best = { label, x: px, y: py, d }; };
+      const dark = W.lv.plDark > 0.5;        // 黑暗的三天里：只有歌珊看得见
       for (const p of P.values()) {
-        if (!p.label || p.a < 0.4) continue;
+        if (!p.label || p.a < 0.4 || (dark && p.x < X.wall)) continue;
         const s = LS(p.layer) * (p.size || 1), px = p.x * W.w, gy = gY(p.layer, p.x);
         const py = gy - (HGT[p.kind] || 10) * s;
         consider(p.label, px, py - 10 * s);
       }
+      if (dark) return best;
       const q = nilePt(0.55);
       consider(W.lv.plBlood > 0.5 ? '变作血的河' : '尼罗河', q[0], q[1] - 12);
       if (W.lv.plHeap > 0.5 && W.lv.plFrogGone < 0.5) HEAPS.forEach(h => consider('青蛙堆', h[0] * W.w, fieldY(h[0], h[1]) - 8));
+      if (W.lv.plHost > 0.5) { const hs = hostSpan(), hx = (hs[2] + 1) / 2; consider('以色列人', hx * W.w, gY(1, hx) - 16 * LS(1)); }
       return best;
     },
     sig() {
@@ -2101,7 +2196,7 @@
     const lv = { deep: 1, light: 1, gather: 1, dayNight: 1, vault: 1, clouds: 0.25, land: 1, grass: 0.4, herbs: 0.06, trees: 0.2, lights: 1, moon: 1, stars: 1, life: 1, good: 0, given: 1, sabbath: 0,
       bare: 0.5, bloom: 0, rain: 0, storm: 0, gale: 0, hail: 0, gloom: 0,
       plBlood: 0, plFrog: 0, plFrogDie: 0, plHeap: 0, plFrogGone: 0, plLice: 0, plFly: 0, plWall: 0, plAsh: 0, plHail: 0, plShine: 0,
-      plCrop: 1, plLocust: 0, plLocX: -1, plStrip: 0, plDark: 0, plName: 0 };
+      plCrop: 1, plLocust: 0, plLocX: -1, plStrip: 0, plDark: 0, plName: 0, plHost: 0, plShade: 0 };
     for (const k in lv) if (W.hasLevel(k)) W.set(k, lv[k], true);
     W.freeClock = false;
     const ox = W.w * 0.99, oy = W.ridgeBaseY(2, ox);
@@ -2730,7 +2825,7 @@
           [L[1], () => { face('c1', 'h2'); face('h2', 'c1'); pose('h2', 'point'); }],
           [L[2], b => { pose('c1', 'gaze'); pose('h2', 'raise'); glint(b, 'h2', null, 0.92); }],
           [L[3], b => { pose('c1', 'raise'); glint(b, 'h2', null, 0.66); face('moses', -1); pose('moses', 'raise'); }],
-          [L[3] + 4.5, () => {
+          [L[3] + 3.2, () => {
             // 行列起行：摩西在前，向东（左）、向着日出、向着海走去，直到落幕
             walk('moses', 0.49, { speed: 0.0062 }); walk('aaron', 0.502, { speed: 0.0062 });
             FRONT.forEach((id, i) => walk(id, 0.516 + i * 0.0125, { speed: 0.0062 * (0.95 + 0.1 * rt(i + 90)) }));

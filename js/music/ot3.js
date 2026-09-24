@@ -135,6 +135,28 @@
   }
   // 一句宁静的里拉，缓缓地（给安息、守望的夜）
   const soft = (a, g, p, sc, n) => a.lyre(a.pick(['A3', 'A4']), n || a.rint(3, 4), g * 0.65, p, sc, { gap: 0.4 });
+  // 迟来的一句里拉（应答的第二句）：api.lyre 不认 o.at，这里照它的写法自己排，整句推迟 at 秒
+  function lyreAt(a, base, n, g, p, sc, o) {
+    o = o || {};
+    const L = (Array.isArray(sc) ? sc : a.SC[sc] || a.SC.maj).length, ns = [];
+    let dir = Math.random() < 0.5 ? 1 : -1, i = a.rint(0, L - 1) + (dir < 0 ? L : 0), at = 0;
+    for (let k = 0; k < n; k++) {
+      const last = k === n - 1;
+      ns.push([a.deg(sc, base, i), at, g * a.rnd(0.8, 1) * (last ? 1.1 : 1), last ? 3.6 : 2.6]);
+      at += (o.gap || a.rnd(0.24, 0.34)) * (k === n - 2 ? 1.5 : 1);
+      i += dir * (Math.random() < 0.8 ? 1 : 2);
+      if (Math.random() < 0.18) dir = -dir;
+    }
+    a.strings(ns, { at: o.at || 0, pan: p, rev: 0.6, bright: 5, d: 2.8 });
+  }
+  // 一次性的乐句（签轮、绕城的两队……）：某个程度正在立起（lo 与 hi 之间）时奏一次，落回 lo 以下之后才可再奏。
+  // 这样的时刻只有几秒：由次要的一层（motif2）每秒查看一次（引擎给乐句的间隔太长，会错过）
+  const cued = {};
+  function once(key, x, lo, hi, fn) {
+    if (!(x > lo)) { cued[key] = 0; return false; }
+    if (x < hi && !cued[key]) { cued[key] = 1; fn(); return true; }
+    return false;
+  }
 
   // ══ 以斯拉记 · 归回 ══════════════════════════════════════
   // 巴比伦的河边，琴挂在柳树上（爱奥利亚，低处的银）；心被激动、诏书的光（利底亚的上行）；
@@ -154,7 +176,8 @@
     const praise = max(lv('ezPraise'), lv('ezJoy'), 0.6 * lv('ezPlay'), 0.7 * lv('ezLamp'), 0.8 * lv('ezTribes'));
     const one = max(lv('ezMix'), 0.8 * lv('ezFar'));
     const hand = max(0.8 * stir, lv('ezHand') * (1 - 0.6 * lv('ezTents')), 0.6 * lv('ezEye'), 0.8 * sm(0.7, 1, lv('ezStone')), lv('ezAnswer'),
-      0.8 * lv('ezScroll'), lv('ezPeg') * (1 - rain), lv('ezHope'), 0.5 * lv('ezAltar') * (1 - lv('ezFound')));
+      0.8 * lv('ezScroll'), lv('ezPeg') * (1 - rain), lv('ezHope'), 0.5 * lv('ezAltar') * (1 - lv('ezFound')),
+      0.75 * sm(0.5, 1, lv('ezBuild')) * sm(0.9, 0.97, lv('ezFire')));                                  // 殿造成了（坛上的火正旺；以斯拉起程时火小了，这一色便退去）
     return stack([['one', one], ['silver', silver], ['praise', praise], ['hand', hand], ['build', build], ['ruin', max(ruin, waste)]], 'road');
   };
   music('ezra', {
@@ -256,9 +279,18 @@
     const build = jeru * sm(0.08, 0.3, wall) * (1 - sm(0.93, 1, wall));
     const law = max(sm(0.5, 0.9, lv('neScroll')), 0.8 * lv('neCovenant'), 0.8 * lv('nePillar'));
     const fest = lv('nePulpit') * (1 - sm(0.5, 0.9, lv('neScroll'))) * (1 - lv('neSack')) * (1 - lv('neCovenant')) * (1 - lv('nePillar'));   // 七月的聚会
-    const choir = max(lv('neJoy'), lv('neChoir') * (1 - sm(0.05, 0.15, lv('neAltar')) * (1 - lv('neJoy'))), 0.8 * lv('neBooths'), 0.4 * fest);
+    const choir = max(lv('neJoy'), lv('neChoir') * (1 - sm(0.05, 0.15, lv('neAltar')) * (1 - lv('neJoy'))), 0.8 * lv('neBooths'), 0.65 * fest);
     return stack([['choir', choir], ['law', law], ['grief', grief], ['gather', gather], ['susa', susa], ['build', build], ['ruins', ruins]], 'city');
   };
+  // 告成之礼：两大队称谢的人一左一右绕城而行，在殿里相遇（尼 12:31–40）
+  function procession(a, g) {
+    const I = ['A3', 'Cs4', 'E4'], IV = ['A3', 'D4', 'Fs4'], gs = [1, 0.8, 0.6];
+    [[I, 0.2], [IV, 0.55], [I, 0.85]].forEach(([ch, pn], i) => {
+      a.choir(ch, { gs, g: g * 0.62, a: 0.4, s: 0.8, r: 1.1, at: i * 1.6, pan: -pn });
+      a.choir(ch, { gs, g: g * 0.62, a: 0.4, s: 0.8, r: 1.1, at: i * 1.6 + 0.8, pan: pn });
+    });
+    a.choir(['A3', 'E4', 'A4', 'Cs5'], { gs: [1, 0.85, 0.7, 0.5], g: g * 0.95, a: 0.9, s: 1.4, r: 3, at: 5, pan: 0 });
+  }
   music('nehemiah', {
     weight: { drone: 0.6, pad: 0.95 },
     pad: { lp: 1300, groups: {
@@ -293,15 +325,7 @@
       switch (top(neG(lv))) {
         case 'choir': {
           const c = lv('neChoir');
-          if (c > 0.02 && c < 0.97) {                                          // 两队一左一右绕城而行，在殿里相遇
-            const I = ['A3', 'Cs4', 'E4'], IV = ['A3', 'D4', 'Fs4'], gs = [1, 0.8, 0.6];
-            [[I, 0.2], [IV, 0.55], [I, 0.85]].forEach(([ch, pn], i) => {
-              a.choir(ch, { gs, g: g * 0.62, a: 0.4, s: 0.8, r: 1.1, at: i * 1.6, pan: -pn });
-              a.choir(ch, { gs, g: g * 0.62, a: 0.4, s: 0.8, r: 1.1, at: i * 1.6 + 0.8, pan: pn });
-            });
-            a.choir(['A3', 'E4', 'A4', 'Cs5'], { gs: [1, 0.85, 0.7, 0.5], g: g * 0.95, a: 0.9, s: 1.4, r: 3, at: 5, pan: 0 });
-            return [10, 13];
-          }
+          if (c > 0.02 && c < 0.97) return [3, 5];                            // 两队绕城而行：由 motif2 奏（见 procession）
           if (lv('neBooths') > 0.3 && lv('neJoy') < 0.3) {                    // 住棚：青翠的枝子，棚里的灯
             a.lyre('A4', a.rint(4, 6), g * 0.8, p, 'maj', { gap: 0.2 });
             if (Math.random() < 0.6) timbrel(a, g * 0.7, -p, 'D.t.tD.t.t..', 0.2);
@@ -342,12 +366,13 @@
     },
     motif2(t, g, a) {
       const lv = a.lv;
+      if (once('neChoir', lv('neChoir'), 0.02, 0.6, () => procession(a, g))) return [7, 9];
       if (lv('neSusa') > 0.5 && lv('neGather') > 0.05 && lv('neGather') < 0.97) { gathering(a, g * 0.8, 'lyd'); return [3, 5]; }   // 天涯的微光聚回
       if (lv('neLamps') > 0.6 || lv('neBooths') > 0.3) { a.ping(a.deg('maj', 'A5', a.rint(0, 7)), 0, g * 0.45, a.pan()); return [1.5, 3.2]; }
       if (lv('neVillage') > 0.6 && a.night() > 0.5) { a.ping(a.pick(['E5', 'A5', 'B5']), 0, g * 0.3, a.pan() * 1.3); return [2.5, 5]; }  // 远山上各城的灯
       if (lv('neClean') > 0.5) { a.glass(g * 0.4, 1); return [5, 8]; }       // 乳香的烟
       if (lv('neFoe') > 0.5) { a.pluck(a.deg('phryg', 'A4', a.rint(0, 7)), 0, g * 0.4, a.pan(), 0.5); return [2, 4]; }   // 敌营的火
-      return [5, 9];
+      return [1, 1.5];                                                        // 没有什么可奏：每秒看一眼（绕城的两队）
     },
   });
 
@@ -411,10 +436,10 @@
           return [12, 18];
         case 'ash': a.ney(g * 1.05, p); return [13, 19];                       // 麻衣与灰：各处的哀哭
         case 'lots':
-          if (lv('etLot') > 0.02 && lv('etLot') < 0.98) { lotWheel(a, g, p, false); return [9, 12]; }   // 签在轮上转
+          if (lv('etLot') > 0.02 && lv('etLot') < 0.98) return [3, 5];       // 签在轮上转：由 motif2 奏（lotWheel）
           santur(a, g * 0.8, p); return [11, 16];
         case 'glory':
-          if (lv('etTurn') > 0.05 && lv('etTurn') < 0.97) { lotWheel(a, g, p, true); return [9, 12]; }   // 签轮反转
+          if (lv('etTurn') > 0.05 && lv('etTurn') < 0.97) return [3, 5];     // 签轮反转：由 motif2 奏
           if (lv('etPur') > 0.4 || lv('etFeast') > 0.5) {                     // 普珥日：手鼓与舞
             timbrel(a, g * 0.85, -p, 'D.tD.tD.t.t.D.tD.t.', 0.18);
             a.lyre('A4', a.rint(5, 7), g * 0.8, p, 'maj', { gap: 0.18, });
@@ -436,13 +461,15 @@
     },
     motif2(t, g, a) {
       const lv = a.lv;
+      if (once('etLot', lv('etLot'), 0.01, 0.6, () => lotWheel(a, g, a.pan(), false))) return [6, 8];   // 签在轮上转，越转越慢
+      if (once('etTurn', lv('etTurn'), 0.03, 0.6, () => lotWheel(a, g, a.pan(), true))) return [6, 8];                            // 反倒：签轮倒转
       const prov = lv('etProv');
       if (prov > 0.2 && prov < 0.97 && lv('etProvRed') < 0.3) { a.ping(a.deg('maj', 'A5', a.rint(0, 7)), 0, g * 0.35, a.pan() * 1.3); return [0.5, 1.2]; }   // 一百二十七省的灯
       if (lv('etProvGold') > 0.1 && lv('etProvGold') < 0.95) { a.ping(a.deg('maj', 'A5', a.rint(0, 7)), 0, g * 0.4, a.pan() * 1.3); return [0.6, 1.3]; }  // 金色的谕旨飞遍各省
       if (lv('etWatch') > 0.4) { a.starPing(g * 0.9); return [0.8, 2]; }      // 众星守望
       if (lv('etLamps') > 0.4 && a.night() > 0.3) { a.ping(a.deg('maj', 'A5', a.rint(0, 7)), 0, g * 0.4, a.pan()); return [1.4, 3]; }
       if (lv('etScepter') > 0.4) { a.glass(g * 0.45, 1); return [3, 5]; }
-      return [5, 9];
+      return [1, 1.5];                                                        // 每秒看一眼签轮
     },
   });
 
@@ -668,7 +695,7 @@
             a.pipe([['E5', 0.55], ['D5', 0.25], ['Cs5', 0.25], ['B4', 0.3], ['A4', 1.2]], { g: g * 0.42, pan: p, bright: 4, breath: 0.3, vib: 10, rev: 0.65 });
           } else {                                                               // 对句：一句，再一句应答
             a.lyre('A4', 4, g * 0.75, p, 'mixo', { gap: 0.26 });
-            a.lyre('A3', 4, g * 0.65, -p, 'mixo', { gap: 0.26, at: 2 });
+            lyreAt(a, 'A3', 4, g * 0.65, -p, 'mixo', { gap: 0.26, at: 2 });
           }
           return [13, 19];
       }
@@ -690,14 +717,15 @@
   // ★ 日头出来、日头落下，风往南刮又向北转：一圈一圈的琴，同一个音型原样再来（已有的事后必再有）；
   // 凡事都有定期：春（A6/9、牧笛与鸟）· 秋（多利亚、落叶般下行的拨弦）· 冬（空冷的五度与高处的雪）；
   // 永生安置在世人心里（利底亚的高光）；三股合成的绳子（三个音交缠）；患难的日子（爱奥利亚）；
-  // ★ 银链折断，金罐破裂：一声玻璃的碎响；灵仍归于赐灵的神（上行的光）；
+  // 银链折断，金罐破裂（本卷自己的声响）时乐垫退回一口气的「虚空」；灵仍归于赐灵的神（上行的光）；
   // 末了「敬畏神，谨守他的诫命」——全卷唯一解决的终止：IV → I，庄重的伊奥尼亚。
   const ecG = (lv, night) => {
     const n = night || 0, fear = lv('ecGlory');
     const eternity = max(sm(0.3, 0.7, lv('ecHeart')), lv('ecHeaven'), lv('ecSpirit') * (1 - fear), 0.8 * sm(0.4, 1, lv('ecBread')));
     const trouble = max(lv('ecRainA'), lv('ecCloud') * (1 - lv('ecLamp')), sm(0.15, 0.35, lv('storm')), 0.8 * sm(0.8, 1, lv('clouds')));
     const cycle = max(lv('ecArc'), lv('ecWind'), lv('ecCycle'));
-    const spring = max(lv('ecRope'), 0.6 * sm(0.7, 1, lv('bloom')) * (1 - lv('bare')) * (1 - lv('ecShade')) * (1 - 0.8 * sm(0.5, 0.9, n)));
+    const spring = max(lv('ecRope'), 0.6 * sm(0.7, 1, lv('bloom')) * (1 - lv('bare')) * (1 - lv('ecShade')) * (1 - 0.8 * sm(0.5, 0.9, n))
+      * (1 - sm(0.4, 0.5, lv('clouds'))));                                    // 云彩反回之后（12:2 起）不再有春天的牧笛
     return stack([['fear', fear], ['trouble', trouble], ['winter', lv('ecSnow')], ['autumn', lv('ecLeaf')], ['eternity', eternity], ['cycle', cycle], ['spring', spring]], 'mist');
   };
   // 已有的事后必再有：同一个四音的音型，原样两遍
@@ -816,7 +844,7 @@
       switch (top(lmG(lv))) {
         case 'throne':                                                         // 你的宝座存到万代：高天之上安静的荣光
           a.choir(['E4', 'B4', 'Cs5', 'Gs5'], { gs: [1, 0.8, 0.6, 0.35], g: g * 0.6, a: 1.4, s: 1.6, r: 3.2, pan: 0 });
-          if (Math.random() < 0.5) a.lyre('A4', 3, g * 0.6, p, 'lyd', { gap: 0.45, at: 2 });
+          if (Math.random() < 0.5) lyreAt(a, 'A4', 3, g * 0.6, p, 'lyd', { gap: 0.45, at: 2 });
           return [13, 18];
         case 'dawn':
           if (lv('lmNear') > 0.4) {                                            // 不要惧怕！
@@ -871,7 +899,7 @@
     const hide = lv('ekHide'), vis = 1 - hide;
     const river = max(lv('ekFlow'), lv('ekWater'), lv('ekHeal'), lv('ekTrees'), lv('ekName'));
     const temple = max(lv('ekGloryE'), lv('ekFill'), 0.55 * lv('ekMount'));
-    const throne = max(vis * max(lv('ekThrone'), 0.7 * lv('ekFirm'), lv('ekBow'), lv('ekGlory') * (1 - cl(lv('ekGloryP') / 2.5))), temple);
+    const throne = max(vis * max(lv('ekThrone'), 0.7 * lv('ekFirm'), lv('ekBow'), lv('ekGlory') * (1 - cl(lv('ekGloryP') / 2.5))) * (1 - 0.8 * lv('ekGo')), temple);   // 异象离去：只剩轰轰的响声
     const vision = vis * max(max(lv('ekCloud') * lv('ekNear'), lv('ekFire'), 0.9 * lv('ekWheel')) * (1 - 0.7 * lv('ekThrone')), lv('ekGo'));
     const renewB = vis * max(sm(0.12, 0.25, lv('rain')), sm(0.5, 0.6, lv('bloom')));
     const judg = vis * max(lv('ekDim') * (1 - lv('ekCedar')), 0.7 * lv('ekPride'), lv('ekWave'), rise(lv('ekFall')), lv('ekRuin') * (1 - renewB));
@@ -886,6 +914,18 @@
     for (let k = 0; k < 12; k++) ns.push([A[k % 3], k * 0.21, g * (k % 3 ? 0.45 : 0.6), 1.2]);
     for (let k = 0; k < 9; k++) ns.push([B[k % 4], 0.1 + k * 0.28, g * (k % 4 ? 0.35 : 0.5), 1.4]);
     a.strings(ns, { bright: 6, d: 1.3, pan: p, spread: 0.5, rev: 0.6 });
+  }
+  // 骨与骨互相联络：一阵干涩的碰击
+  function rattle(a, g, p) {
+    const hits = [];
+    for (let k = 0; k < 9; k++) hits.push([k * a.rnd(0.09, 0.2), a.rnd(2200, 3600), a.rnd(500, 800), g * a.rnd(0.25, 0.45), false]);
+    a.knocks(hits, { lp: 6000, q: 3, pan: p, rev: 0.4 });
+  }
+  // 气息啊，要从四方而来：合唱从左右远近四面聚来，合在中间
+  function fourWinds(a, g) {
+    [[-0.85, 0], [0.85, 1.1], [-0.4, 2.2], [0.4, 3.3]].forEach(([pn, at]) =>
+      a.choir(['A3', 'E4'], { gs: [1, 0.7], g: g * 0.55, a: 0.5, s: 0.4, r: 1.2, at, pan: pn, rev: 0.85 }));
+    a.choir(['A3', 'Cs4', 'E4', 'A4'], { gs: [1, 0.85, 0.7, 0.5], g: g * 0.95, a: 1, s: 1.4, r: 3, at: 4.6, pan: 0 });
   }
   music('ezekiel', {
     weight: { drone: 0.6, pad: 0.95 },
@@ -927,10 +967,14 @@
           }
           const w = cl(lv('ekWater'));
           flowing(a, g, 'ion', 5 + Math.round(3 * w));                        // 水越深，琴越密
-          if (lv('ekTrees') > 0.5 && Math.random() < 0.5) a.lyre('A4', 4, g * 0.65, -p, 'ion', { gap: 0.26, at: 1.4 });
+          if (lv('ekTrees') > 0.5 && Math.random() < 0.5) lyreAt(a, 'A4', 4, g * 0.65, -p, 'ion', { gap: 0.26, at: 1.4 });
           return [9 - 3 * w, 12 - 3 * w];
         }
         case 'throne':
+          if (lv('ekEat') > 0.5 && lv('ekGo') < 0.3) {                         // 吃这书卷：在我口中甘甜如蜜
+            a.lyre('A5', 4, g * 0.6, p, 'lyd', { gap: 0.18 }); a.glass(g * 0.4, 1);
+            return [8, 11];
+          }
           if (lv('ekGloryE') > 0.3 || lv('ekFill') > 0.3) {                    // 荣光从东而来，充满了殿
             a.choir(['A3', 'E4', 'A4', 'Cs5', 'E5'], { gs: [1, 0.85, 0.7, 0.5, 0.35], g: g * 0.95, a: 1, s: 1.6, r: 3, pan: 0 });
             a.bells(['E5', 'A5', 'Cs6'], 0.24, g * 0.55, 3, 1.4);
@@ -954,13 +998,11 @@
           wheels(a, g, p); return [7, 10];
         case 'breath':
           if (lv('ekArmy') > 0.3) { hornCall(a, g, -0.5); hornCall(a, g * 0.7, 0.5); return [9, 13]; }   // 极大的军队
-          [[-0.85, 0], [0.85, 1.1], [-0.4, 2.2], [0.4, 3.3]].forEach(([pn, at]) =>                        // 气息啊，要从四方而来
-            a.choir(['A3', 'E4'], { gs: [1, 0.7], g: g * 0.55, a: 0.5, s: 0.4, r: 1.2, at, pan: pn, rev: 0.85 }));
-          a.choir(['A3', 'Cs4', 'E4', 'A4'], { gs: [1, 0.85, 0.7, 0.5], g: g * 0.95, a: 1, s: 1.4, r: 3, at: 4.6, pan: 0 });
-          return [10, 14];
+          fourWinds(a, g); return [10, 14];                                    // 气息啊，要从四方而来
         case 'judgment':
           if (lv('ekWave') > 0.4) return [7, 10];                              // 海使波浪涌上
           if (lv('ekGlory') > 0.3 && lv('ekGloryP') > 1.5) { a.angelRun(g * 0.6); return [9, 13]; }   // 荣耀从城中上升
+          if (lv('ekRuin') > 0.5) { a.ney(g * 0.95, p); return [11, 15]; }    // 密云黑暗的日子：一支苇笛在暗中寻找散了的羊
           a.bowed(a.pick(['A2', 'C3', 'E3', 'F3']), g * 0.85, p); return [13, 19];
         case 'renew':
           if (lv('ekEat') > 0.3) { a.lyre('A5', 4, g * 0.6, p, 'maj', { gap: 0.18 }); return [7, 10]; }   // 其甜如蜜
@@ -968,12 +1010,7 @@
           if (lv('ekRuin') > 0.5) { a.shepherd(g * 0.9, p); return [12, 17]; }   // 我必亲自寻找我的羊
           a.lyre('A4', a.rint(4, 6), g * 0.8, p, 'maj', { gap: 0.24 }); return [12, 17];   // 佳美的香柏树
         case 'bones':
-          if (rise(lv('ekJoin')) > 0.3) {                                      // 骨与骨互相联络
-            const hits = [];
-            for (let k = 0; k < 9; k++) hits.push([k * a.rnd(0.09, 0.2), a.rnd(2200, 3600), a.rnd(500, 800), g * a.rnd(0.25, 0.45), false]);
-            a.knocks(hits, { lp: 6000, q: 3, pan: p, rev: 0.4 });
-            return [2.5, 4.5];
-          }
+          if (rise(lv('ekJoin')) > 0.3) return [3, 5];                        // 骨与骨互相联络：由 motif2 奏（rattle）
           if (rise(lv('ekSinew')) > 0.3 || rise(lv('ekFlesh')) > 0.3) { a.bowed(a.pick(['A2', 'E3']), g * 0.8, p); return [6, 9]; }   // 有筋、有肉、有皮——只是还没有气息
           if (lv('ekNets') > 0.5 && lv('ekHide') < 0.5) { a.ney(g * 0.7, p); return [16, 24]; }
           a.knocks([[0, 3000, 700, g * 0.3, false], [0.14, 3300, 740, g * 0.2, false]], { lp: 6000, q: 3, pan: p, rev: 0.6 });   // 极其枯干
@@ -985,14 +1022,17 @@
       }
     },
     motif2(t, g, a) {
-      const lv = a.lv, k = top(ekG(lv));
+      const lv = a.lv, k = top(ekG(lv)), hide = lv('ekHide');
+      if (rise(lv('ekJoin')) > 0.3) { rattle(a, g, a.pan()); return [0.9, 1.8]; }                                   // 有响声，有地震，骨与骨互相联络
+      if (once('ekWind', hide * sm(0.4, 0.8, lv('gale')) * lv('ekFlesh') * (1 - lv('ekArmy')), 0.05, 0.9, () => fourWinds(a, g))) return [7, 9];
+      if (once('ekArmy', lv('ekArmy'), 0.03, 0.6, () => { hornCall(a, g, -0.5); hornCall(a, g * 0.7, 0.5); })) return [5, 7];   // 站起来，成为极大的军队
       if (k === 'vision' && lv('ekFire') > 0.4) { a.pluck(a.deg('phryg', 'A5', a.rint(0, 7)), 0, g * 0.4, a.pan(), 0.35); return [0.6, 1.6]; }   // 火在活物中间上去下来
       if (k === 'throne' && lv('ekFill') < 0.3) { a.glass(g * 0.45, 1); return [3, 6]; }
       if (lv('ekMark') > 0.05 && lv('ekMark') < 0.97) { a.ping('E5', 0, g * 0.4, a.pan()); return [1.2, 2.2]; }   // 额上的记号
       if (lv('ekNest') > 0.5 && k === 'renew' && lv('ekTyre') < 0.5) { a.pluck(a.deg('maj', 'A5', a.rint(0, 7)), 0, g * 0.35, a.pan(), 0.3); return [2, 4]; }   // 各类飞鸟
       if (k === 'river') { a.glass(g * 0.35, 1); return [3, 6]; }
       if (k === 'breath' && lv('ekArmy') < 0.3) { a.glass(g * 0.35, 1); return [3, 5]; }
-      return [5, 9];
+      return [1, 1.5];                                                        // 每秒看一眼（骨的响声、四方的风）
     },
   });
 
@@ -1007,14 +1047,15 @@
   // ★ 他的权柄是永远的：火焰的宝座，像人子的驾云而来（伊奥尼亚的合唱）；
   // 末了：智慧人必发光如同天上的光——光点自地升起成为星；「你必安歇」：一句宁静的琴，头上一颗星。
   const dnG = lv => {
+    const rescued = sm(0.85, 0.95, lv('dnFurnace')) * max(sm(0.02, 0.1, lv('dnFourth')), 1 - sm(0.17, 0.24, lv('dnHeat')));   // 火中有第四个、窑火退了：三人得救（金像仍立着，却不再是它的色彩）
     const stone = max(lv('dnMountGlow'), lv('dnGlory'), 0.85 * lv('dnSon'));
-    const fire = max(lv('dnFourth'), lv('dnAngelL'), lv('dnThrone') * (1 - lv('dnSon')), lv('dnLinen'), lv('dnFirm'), 0.8 * lv('dnReveal'), 0.6 * lv('dnRead'));
+    const fire = max(lv('dnFourth'), lv('dnAngelL'), lv('dnThrone') * (1 - lv('dnSon')), lv('dnLinen'), lv('dnFirm'), 0.8 * lv('dnReveal'), 0.6 * lv('dnRead') * (1 - lv('dnScale')));
     const wrath = max(lv('dnWrath'), lv('dnHeat') * lv('dnFurnace'), lv('dnV7') * sm(0.3, 2, lv('dnSea')) * (1 - lv('dnThrone')), 0.8 * lv('dnLittle') * (1 - lv('dnWin')),
       0.5 * lv('dnKings') * (1 - lv('dnFirm')), 0.5 * lv('dnDecree'), 0.6 * lv('dnScale'), 0.5 * lv('dnVoice'));
-    const image = max(lv('dnImage'), lv('dnGold') * (1 - lv('dnWrath')) * (1 - lv('dnHeat')), lv('dnFeast'), 0.6 * lv('dnTable'));
+    const image = max(lv('dnImage'), lv('dnGold') * (1 - lv('dnWrath')) * (1 - lv('dnHeat')) * (1 - rescued), lv('dnFeast'), 0.6 * lv('dnTable'));
     const den = max(lv('dnDen') * max(lv('dnLower'), lv('dnSeal')) * (1 - lv('dnCalm')), lv('dnFell') * max(lv('dnStump'), 0.7) * (1 - lv('dnShoot')),
       0.7 * lv('dnWrite') * (1 - lv('dnRead')) * (1 - lv('dnDen')), sm(0.1, 0.25, lv('gloom')));
-    const faith = max(lv('dnVeg'), lv('dnWin'), lv('dnTree') * (1 - lv('dnFell')), lv('dnShoot'), lv('dnCalm') * (1 - lv('dnV7')), lv('dnRest'), 0.6 * lv('dnBirds'));
+    const faith = max(rescued, lv('dnVeg'), lv('dnWin'), lv('dnTree') * (1 - lv('dnFell')), lv('dnShoot'), lv('dnCalm') * (1 - lv('dnV7')), lv('dnRest'), 0.6 * lv('dnBirds'));
     return stack([['stone', stone], ['fire', fire * (1 - lv('dnRest'))], ['wrath', wrath], ['den', den], ['image', image], ['faith', faith]], 'court');
   };
   // 尼布甲尼撒的乐队（但 3:5）：号角、笛、竖琴、鼓一齐
@@ -1023,6 +1064,15 @@
     a.pipe([['E5', 0.3], ['F5', 0.3], ['E5', 0.3], ['Cs5', 0.3], ['D5', 0.3], ['Cs5', 0.3], ['A4', 1]], { g: g * 0.38, pan: 0.45, bright: 5, breath: 0.2, vib: 8, at: 0.3, rev: 0.55 });
     a.lyre('A3', 7, g * 0.7, 0.1, 'hijaz', { gap: 0.16 });
     timbrel(a, g * 0.8, -0.1, 'D.tD.tD.tD.D.', 0.2);
+  }
+  // 弥尼、弥尼、提客勒、乌法珥新：墙上的字一个一个发光
+  function mene(a, g) {
+    [['E5', 0], ['C5', 0.32], ['E5', 1.1], ['C5', 1.42], ['D5', 2.2], ['Bb4', 2.52], ['A4', 3.3], ['F4', 3.62], ['E4', 3.94]].forEach(([n, at], i) =>
+      a.note({ f: n, g: g * (i === 8 ? 0.8 : 0.6), a: 0.003, d: 2.2, at, pan: -0.4 + i * 0.1, rev: 0.75 }));
+  }
+  // 提客勒：天平摇了两下，落在低处
+  function tekel(a, g) {
+    [['F4', 0], ['E4', 0.5], ['F4', 1.0], ['E4', 1.5], ['C4', 2.2]].forEach(([n, at], i) => a.ping(n, at, g * (0.55 - i * 0.04), i % 2 ? 0.3 : -0.3));
   }
   music('daniel', {
     weight: { drone: 0.6, pad: 0.95 },
@@ -1071,19 +1121,14 @@
           a.glass(g * 0.5, 2);
           return [10, 14];
         case 'wrath':
-          if (lv('dnScale') > 0.4) {                                           // 提客勒：天平摇了两下，落在低处
-            [['F4', 0], ['E4', 0.5], ['F4', 1.0], ['E4', 1.5], ['C4', 2.2]].forEach(([n, at], i) => a.ping(n, at, g * (0.55 - i * 0.04), i % 2 ? 0.3 : -0.3));
-            return [8, 11];
-          }
+          if (lv('dnScale') > 0.4) return [3, 5];                             // 提客勒：由 motif2 奏（tekel）
           if (lv('dnV7') > 0.5 && lv('dnSea') > 0.3) return [8, 12];           // 天的四风刮在大海之上
           a.bowed(a.pick(['A2', 'Bb2', 'C3', 'E3']), g * 0.85, p);
           if (lv('dnHeat') > 0.5 && Math.random() < 0.5) a.knocks([[0, 300, 70, g, true], [0.62, 300, 72, g * 0.7, true]], { lp: 700, pan: -p, rev: 0.6 });
           return [11, 16];
         case 'den':
-          if (lv('dnWrite') > 0.5 && lv('dnRead') < 0.5) {                     // 弥尼、弥尼、提客勒、乌法珥新
-            [['E5', 0], ['C5', 0.32], ['E5', 1.1], ['C5', 1.42], ['D5', 2.2], ['Bb4', 2.52], ['A4', 3.3], ['F4', 3.62], ['E4', 3.94]].forEach(([n, at], i) =>
-              a.note({ f: n, g: g * (i === 8 ? 0.8 : 0.6), a: 0.003, d: 2.2, at, pan: -0.4 + i * 0.1, rev: 0.75 }));
-            return [9, 12];
+          if (lv('dnWrite') > 0.5 && lv('dnRead') < 0.5) {                     // 字写在墙上：王的脸变了色（弥尼……由 motif2 奏）
+            a.bowed(a.pick(['A2', 'E3']), g * 0.7, p); return [8, 11];
           }
           a.bowed(a.pick(['A2', 'C3', 'E3', 'F3']), g * 0.8, p); return [13, 19];
         case 'image':
@@ -1113,6 +1158,8 @@
     },
     motif2(t, g, a) {
       const lv = a.lv;
+      if (once('dnHand', lv('dnHand'), 0.02, 0.5, () => mene(a, g))) return [5, 7];      // 指头一笔一笔写出
+      if (once('dnScale', lv('dnScale'), 0.05, 0.6, () => tekel(a, g))) return [4, 6];   // 你被称在天平里
       if (lv('dnRise') > 0.05 && lv('dnRise') < 0.97) { a.ping(a.deg('lyd', 'A5', a.rint(0, 11)), 0, g * 0.45, a.pan()); return [0.4, 0.9]; }   // 睡在尘埃中的复醒
       if (lv('dnStars') > 0.5) { a.starPing(g); return [0.7, 1.8]; }
       if (lv('dnHeat') > 0.5 && lv('dnFurnace') > 0.5) { a.pluck(a.deg('phryg', 'A4', a.rint(0, 7)), 0, g * 0.4, a.pan(), 0.35); return [0.8, 2]; }   // 窑火
@@ -1120,7 +1167,7 @@
       if (lv('dnDew') > 0.5) { a.glass(g * 0.35, 1); return [4, 7]; }          // 天露滴湿
       if (lv('dnKings') > 0.5 && lv('dnFirm') < 0.5) { a.note({ f: 'E4', type: 'warm', lp: 1100, g: g * 0.4, a: 0.2, s: 0.6, r: 1.4, pan: a.pick([-0.8, 0.8]), rev: 0.9 }); return [4, 7]; }   // 南北诸王的烽火
       if (lv('dnAngelL') > 0.5) { a.glass(g * 0.4, 1); return [3, 6]; }
-      return [5, 9];
+      return [1, 1.5];                                                        // 每秒看一眼（墙上的字、天平）
     },
   });
 })(window.GS);

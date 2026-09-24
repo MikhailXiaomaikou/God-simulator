@@ -236,10 +236,11 @@
       const hail = cl(max(lv('plHail'), sm(0.4, 0.9, lv('storm'))));
       const dark = cl(lv('plDark'));
       const goshen = cl(max(0.7 * lv('plWall'), 0.6 * lv('plShine'), k === 11 ? 1 : 0));
-      const night = k === 11 ? 0.55 : k === 12 ? 1 : 0;                                        // 逾越节的夜；半夜
+      const host = cl(lv('plHost')), shade = cl(lv('plShade'));                                 // 出埃及的大队；黎明里埃及的城退入阴影
+      const night = k === 11 ? 0.55 : k === 12 ? 1 : k === 13 ? 0.45 * (1 - host) : 0;          // 逾越节的夜；半夜；天未亮时半夜还留着
       const g = stack([['name', name], ['hail', hail], ['dark', 0.75 * dark], ['goshen', dark], ['swarm', swarm], ['blood', lv('plBlood')],
         ['night', night], ['goshen', goshen], ['exodus', k >= 13 ? 1 : 0]], 'court');
-      const lp = 1300 * (1 + 0.8 * g.name + 0.5 * g.goshen + 0.4 * g.exodus + 0.15 * g.swarm) * (1 - 0.35 * g.blood) * (1 - 0.45 * g.dark)
+      const lp = 1300 * (1 + 0.8 * g.name + 0.5 * g.goshen + 0.4 * g.exodus * (0.6 + 0.4 * host) + 0.15 * g.swarm + 0.2 * shade) * (1 - 0.35 * g.blood) * (1 - 0.45 * g.dark)
         * (1 - 0.3 * g.night) * (1 - 0.3 * g.hail) * (1 - 0.1 * g.court);
       return { g, lp, dlp: 1 - 0.25 * g.dark - 0.15 * g.blood, drone: 1 + 0.25 * g.blood + 0.3 * g.dark - 0.2 * g.exodus, pad: 1 - 0.3 * (k === 12 ? 1 : 0) };
     },
@@ -282,6 +283,7 @@
     motif2(t, g, a) {
       const lv = a.lv, k = said('plagues');
       if (k === 11 || lv('plDark') > 0.5) { a.ping(a.pick(['A4', 'Cs5', 'E5']), 0, g * 0.45, a.rnd(0.35, 0.85)); return [2, 4.5]; }  // 歌珊屋里的灯
+      if (k === 13 && lv('plHost') > 0.3) { a.pluck(a.deg('mixo', 'A4', a.rint(0, 7)), 0, g * 0.4, a.rnd(-0.8, 0.6), 0.6); return [1.2, 2.6]; }   // 一长行的火把
       if (k === 13) { a.starPing(g * 0.7); return [2, 4]; }
       if (max(lv('plFly'), lv('plLocust')) > 0.5) { buzz(a, g * 0.6); return [2.5, 5]; }
       return [5, 9];
@@ -464,7 +466,8 @@
       const bless = cl(max(lv('nmBless'), 0.75 * lv('nmFair'), lv('nmDwell')));
       const live = max(k === 7 && td < 0.4 ? 1 : 0, k === 8 ? 1 : 0, k === 9 ? 1 - cl(lv('nmSnakes')) : 0, k === 5 ? 0.5 * (1 - night) : 0);
       const wild = cl(max(lv('nmGraves') * (k === 6 ? 1 : 0.2), 0.45 * lv('nmManna'), k === 4 ? 0.8 : 0, 0.8 * lv('nmQuail'), k === 7 ? night : 0));
-      const river = k >= 12 ? cl(max(lv('nmJordan'), lv('nmCanaan'))) : 0;
+      // 约旦河、迦南；吹角的日子：夜里是节期的营（底组），天亮了是雅谢与基列可牧放牲畜之地
+      const river = k === 13 ? cl(max(lv('nmPasture'), 0.8 * (1 - night))) : k >= 12 ? cl(max(lv('nmJordan'), lv('nmCanaan'))) : 0;
       const g = stack([['serpent', serp], ['weep', weep], ['star', star], ['bless', bless], ['live', live], ['wild', wild], ['river', river]], 'camp');
       const lp = 1300 * (1 + 0.6 * g.bless + 0.5 * g.star + 0.5 * g.live + 0.3 * g.river + 0.35 * night * g.star) * (1 - 0.3 * g.wild) * (1 - 0.25 * g.weep)
         * (1 - 0.2 * g.serpent) * (1 - 0.3 * cl(lv('storm')));
@@ -490,6 +493,7 @@
         a.bowed(a.pick(['Bb2', 'A2', 'Ds3']), g * 0.8, -p);
         return [10, 15];
       }
+      if (k === 13 && a.night() < 0.5 && Math.random() < 0.45) { a.shepherd(g * 0.85, p); return [10, 14]; }   // 牲畜极其众多
       if (k === 3 || k === 13) { trumpets(a, g, p, Math.random() < 0.35); return [8, 12]; }      // 两枝银号
       if (lv('nmBless') > 0.4 || lv('nmDwell') > 0.5) {                                          // 愿耶和华赐福给你……使你脸上有光……赐你平安
         a.choir(['A3', 'Cs4', 'E4'], { gs: [1, 0.8, 0.7], g: g * 0.75, a: 0.9, s: 0.6, r: 1.6, pan: -0.3 });
