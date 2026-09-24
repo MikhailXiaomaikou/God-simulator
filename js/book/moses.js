@@ -12,7 +12,9 @@
  * 天亮：「现在去吧，我必赐你口才」——摩西带着妻儿下山；亚伦在神的山迎接他；长老聚集，百姓低头下拜。
  *
  * 画面的方位：左 = 尼罗河（自远处流向观者）与法老的宫，远处中丘上的金字塔与两座积货城；
- *            中 = 砖场与歌珊（以色列人的小屋）；右 = 米甸的旷野：井、叶忒罗的帐棚，与升起的何烈山。
+ *            中 = 砖场与歌珊（以色列人的小屋），其右一道乱石与沙丘是旷野的边界；
+ *            右 = 米甸的旷野：井、叶忒罗的帐棚，与升起的何烈山（整座在画面里；山脚一道宽平的岩台，荆棘在岩壁脚下）。
+ * 摩西逃往米甸之后，埃及退到远处的暮霭里（msAway）；摩西回埃及时，埃及又在眼前。
  * 一切位置都以画面宽度的比例记下；一切情节都可瞬间重演（恢复存档 / 提前言说）。
  * ───────────────────────────────────────────────────────────── */
 (function (GS) {
@@ -45,7 +47,7 @@
     edge0: 0.764, edge1: 0.792,
     well: 0.808, tent: 0.962, tent2: 0.992,
     // 神的山：整座山都在画面里（竖屏时稍往左、稍宽）
-    get horeb() { return portrait() ? 0.84 : 0.875; },
+    get horeb() { return portrait() ? 0.84 : 0.87; },
   };
   const ROBE = {
     pharaoh: [242, 236, 216], task: [228, 218, 194], prince: [238, 232, 214], shepherd: [128, 100, 76],
@@ -121,6 +123,8 @@
   function crowd(gid, o) { const c = C(); if (c.crowd) return c.crowd(gid, o); return null; }
   function crowdWalk(gid, x0, x1, o) { if (hasCrowd(gid)) C().crowdWalk(gid, x0, x1, o); }
   function crowdPose(gid, p) { if (hasCrowd(gid)) C().crowdPose(gid, p); }
+  // 人群 / 畜群是否自己走动（夜里坐着歇息的人、卧着的羊不再四处游走，免得走过旷野的边界）
+  function crowdMill(gid, on) { const c = C(); if (!c.crowds || !c.crowds.get) return; const g = c.crowds.get(gid); if (g) g.members.forEach(m => { m.mill = !!on; }); }
   function crowdFace(gid, d) { const c = C(); if (!c.crowds || !c.crowds.get) return; const g = c.crowds.get(gid); if (g) g.members.forEach(m => { m.facing = d; if (W.replaying) m.fd = d; }); }
   function ride(id, mount) { const c = C(); if (c.ride && fig(id)) U.safe('cast.ride', () => c.ride(id, mount)); }
   function attach(id, fn) { const c = C(); if (c.attach && fig(id)) c.attach(id, fn); }
@@ -196,12 +200,13 @@
   // ════════════════════════════════════════════════════════════
   // 左脚上一小段坡（有小路），u ≈ −0.86 … −0.18 是一道宽平的岩台（荆棘在岩台的尽头、岩壁脚下；人在台上可跪、可俯伏），
   // 其后陡起的岩壁直到山顶，右后还有一肩
-  const HB_PTS = [[-1, 0], [-0.95, 0.07], [-0.9, 0.17], [-0.86, 0.235], [-0.8, 0.255], [-0.6, 0.262], [-0.4, 0.27], [-0.24, 0.278],
-    [-0.16, 0.3], [-0.1, 0.44], [-0.04, 0.6], [0.02, 0.73], [0.08, 0.84], [0.15, 0.93], [0.22, 0.985], [0.29, 1.0], [0.36, 0.975], [0.43, 0.93],
-    [0.5, 0.9], [0.58, 0.8], [0.67, 0.64], [0.76, 0.46], [0.85, 0.27], [0.93, 0.11], [1, 0]];
+  const HB_PTS = [[-1, 0], [-0.96, 0.04], [-0.92, 0.1], [-0.88, 0.17], [-0.84, 0.22], [-0.8, 0.245], [-0.74, 0.256], [-0.6, 0.262], [-0.4, 0.27],
+    [-0.24, 0.278], [-0.14, 0.3], [-0.08, 0.44], [-0.02, 0.6], [0.04, 0.73], [0.1, 0.84], [0.16, 0.93], [0.23, 0.985], [0.3, 1.0], [0.37, 0.975],
+    [0.44, 0.93], [0.51, 0.9], [0.59, 0.8], [0.68, 0.64], [0.77, 0.46], [0.86, 0.27], [0.93, 0.11], [1, 0]];
   // 荆棘、摩西初站、近前的位置（山上的 u）；俯伏时身子向前伸出约一身之长，故近前处离荆棘留出一身有余
-  const BU = -0.24, STAND_U = -0.8, NEAR_U = -0.61;
-  const TERR0 = -0.86, TERR1 = -0.17;               // 岩台的两端
+  const BU = -0.17, STAND_U = -0.76, NEAR_U = -0.55;
+  const TERR0 = -0.82, TERR1 = -0.14;               // 岩台的两端
+  const SANDAL_U = -0.77, SERP_U = -0.52;            // 脱下的鞋、杖变作蛇之处（都在岩台的平地上）
   const HB_N = 240;
   const HB_TAB = (function () {
     const P = HB_PTS, out = new Float32Array(HB_N + 1);
@@ -222,17 +227,26 @@
     const f = (u + 1) / 2 * HB_N, i = Math.min(HB_N - 1, Math.floor(f));
     return lerp(HB_TAB[i], HB_TAB[i + 1], f - i);
   }
-  const hbHW = () => (portrait() ? 0.16 : 0.12);
+  const hbHW = () => (portrait() ? 0.16 : 0.125);
   function hbH() { const hw = hbHW() * W.w; return Math.min(0.25 * W.h, 1.32 * hw, 190 * LS(2)); }
   const HU = u => X.horeb + u * hbHW();            // 山上 u 处的画面比例
   const hbG = () => smoothstep(0, 1, W.lv.msHoreb);
+  // 山面在 u 处的像素 y（k 为该处山的高度比例）。岩台在画面上是水平的：地的轮廓线本身往右略升，故以岩台中点的高度拉平
+  function terrW(u) { return smoothstep(TERR0 - 0.08, TERR0 + 0.08, u) * (1 - smoothstep(TERR1 - 0.05, TERR1 + 0.03, u)); }
+  function hbSurf(u, k, g) {
+    const H = hbH() * g;
+    let y = gY(2, X.horeb + u * hbHW()) + 2 - k * H;
+    const w = terrW(u);
+    if (w > 0.001) { const um = (TERR0 + TERR1) / 2, yT = gY(2, X.horeb + um * hbHW()) + 2 - hbK(um) * H; y = lerp(y, yT, w); }
+    return y;
+  }
   // 山面在 xf 处的高度（像素 y）；不在山上、或山未升起时为 null
   function horebY(xf) {
     const g = hbG();
     if (g < 0.002) return null;
     const u = (xf - X.horeb) / hbHW();
     if (u <= -1 || u >= 1) return null;
-    return gY(2, xf) + 2 - hbK(u) * hbH() * g;
+    return hbSurf(u, hbK(u), g);
   }
   function surfY(xf) { const m = horebY(xf), g = gY(2, xf); return m == null ? g : Math.min(g, m); }
   // 人站到山上：脚下随山面高低（离了山，山面便是地面）
@@ -823,7 +837,7 @@
   // 画的轮廓：小路、岩台是人要走的地方，不加起伏；岩壁与右坡带些嶙峋
   function hbDrawK(u, m) {
     const k = hbK(u);
-    if (u < -0.12 && u > -0.97) return k;
+    if (u < -0.1 && u > -0.8) return k;           // 岩台上是平的；台前的陡面与岩壁嶙峋些
     const f = (u + 1) * 30, i = Math.min(59, Math.max(0, Math.floor(f)));
     const j = lerp(m.jit[i], m.jit[i + 1], f - i);
     return Math.max(0, k + j * 0.05 * smoothstep(0, 0.15, k));
@@ -835,9 +849,9 @@
     const g = hbG();
     if (g < 0.004) return;
     const m = hbModel(), cx = X.horeb * W.w, hw = hbHW() * W.w, H = hbH() * g, s = LS(2), nk = nightK();
-    const yAt = u => { const xf = X.horeb + u * hbHW(); return gY(2, xf) + 2 - hbDrawK(u, m) * H; };
+    const yAt = u => hbSurf(u, hbDrawK(u, m), g);
     const yK = (u, k) => gY(2, X.horeb + u * hbHW()) + 2 - k * H;
-    const N = 72;
+    const N = 96;
     const a = clamp(W.lv.msHoreb * 3, 0, 1);
     // 山的轮廓只随画面大小与升起的程度而变：缓存（升起的时候不缓存）
     const gk = Math.round(g * 400), full = gk >= 400;
@@ -1008,7 +1022,7 @@
     BUSH = { br, leaves, crown };
     return BUSH;
   }
-  const bushS = p => LS(2) * p.size * 1.25;
+  const bushS = p => LS(2) * p.size * 1.35;
   function bushTwigs(ctx, x, y, R, s, m) {
     ctx.beginPath();
     for (const q of m.br) { ctx.moveTo(x + q[0] * R, y + q[1] * R); ctx.quadraticCurveTo(x + q[2] * R, y + q[3] * R, x + q[4] * R, y + q[5] * R); }
@@ -1030,7 +1044,7 @@
     ctx.globalAlpha = 1;
   }
   // 火：火舌根在荆棘丛里，底宽顶尖，外侧的顺着圆顶向外斜；各层以竖向的渐变着色（白金的焰心 → 橙 → 顶上透明的红），
-  // 先画在一张小的离屏画布上，再以微微的模糊贴上，边缘柔和；枝与叶的剪影始终在火里（3:2 却没有烧毁）
+  // 先以半分辨率画在一张小的离屏画布上，再放大贴上（放大本身便使边缘柔和，不必用模糊滤镜）；枝与叶的剪影始终在火里（3:2 却没有烧毁）
   let flareT = -99;
   const FIRE = { c: null, g: null, w: 0, h: 0, grad: null, gk: '' };
   const FLAY = [      // [尺度, 渐变停点 [位置, r, g, b, a] …]（自火根往上）
@@ -1054,11 +1068,11 @@
     const Hn = 46 * s + 1.4 * R;                               // 渐变的全高（不随闪动而变，好缓存）
     const nk = nightK(), cy = y - 0.75 * R;
     // 离屏画布：够最高、最斜的火舌
-    const pad = Math.ceil(6 * s + 4);
-    const cw = Math.ceil(FR * 3.4 + pad * 2), chh = Math.ceil(46 * s * 1.95 + 2 * R + pad * 2);
-    const F = fireCanvas(cw, chh), g = F.g;
+    const pad = Math.ceil(6 * s + 4), RES = s >= 1 ? 0.5 : 0.72;
+    const cw = Math.ceil(R * 1.3 * 3.4 + pad * 2), chh = Math.ceil(46 * s * 1.95 + 2 * R + pad * 2);      // 按最大的火定尺寸：火势渐起时不必重建
+    const F = fireCanvas(Math.ceil(cw * RES), Math.ceil(chh * RES)), g = F.g;
     const ox = cw / 2, oy = chh - pad;                          // 荆棘的根处
-    const gkey = cw + 'x' + chh + ':' + Math.round(Hn);
+    const gkey = cw + 'x' + chh + ':' + Math.round(Hn) + ':' + RES;
     if (F.gk !== gkey) {
       F.grad = FLAY.map(L => {
         const y0 = oy - 0.2 * R, gr = g.createLinearGradient(0, y0, 0, y0 - Hn * (0.55 + 0.45 * L[0]));
@@ -1070,7 +1084,8 @@
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.globalCompositeOperation = 'source-over';
     g.globalAlpha = 1;
-    g.clearRect(0, 0, cw, chh);
+    g.clearRect(0, 0, F.w, F.h);
+    g.setTransform(RES, 0, 0, RES, 0, 0);
     for (let li = 0; li < FLAY.length; li++) {
       const sc = FLAY[li][0];
       g.fillStyle = F.grad[li];
@@ -1105,23 +1120,21 @@
       }
       g.fill();
     }
-    const X0 = x - ox, Y0 = y - oy, hasF = 'filter' in ctx;
     ctx.save();
+    ctx.imageSmoothingEnabled = true;
     // 大的暖光与丛中的光
     ctx.globalCompositeOperation = 'lighter';
     glowSp(ctx, SP.fire, x, cy - H * 0.3, (R + H) * 1.8, k * (0.24 + 0.4 * nk) * boost);
     glowSp(ctx, SP.gold, x, cy, R * 1.35, k * 0.45);
-    // 火身（微模糊，边缘柔和）
+    // 火身（半分辨率放大：边缘柔和）
     ctx.globalCompositeOperation = 'source-over';
-    if (hasF) ctx.filter = 'blur(' + Math.max(0.6, 0.75 * s).toFixed(2) + 'px)';
     ctx.globalAlpha = k * 0.94;
-    ctx.drawImage(F.c, X0, Y0);
-    // 一层泛光
+    ctx.drawImage(F.c, x - ox, y - oy, cw, chh);
+    // 一层泛光：同一张画布放大些、以 lighter 叠上
     ctx.globalCompositeOperation = 'lighter';
-    if (hasF) ctx.filter = 'blur(' + Math.max(1.5, 3.2 * s).toFixed(1) + 'px)';
-    ctx.globalAlpha = k * (0.3 + 0.25 * nk);
-    ctx.drawImage(F.c, X0, Y0);
-    if (hasF) ctx.filter = 'none';
+    ctx.globalAlpha = k * (0.26 + 0.22 * nk);
+    const bs = 1.14;
+    ctx.drawImage(F.c, x - ox * bs, y - oy * bs + 0.1 * R, cw * bs, chh * bs);
     glowSp(ctx, SP.white, x, cy - R * 0.1, R * 0.9, k * (0.34 + 0.14 * Math.sin(W.t * 3.1)));
     ctx.globalCompositeOperation = 'source-over';
     // 枝与叶的剪影仍在火中：暗枝，叶边一点青
@@ -1176,46 +1189,65 @@
     const s = LS(2) * p.size, x = p.x * W.w, y = surfY(p.x) + 0.5 * s;
     ctx.globalAlpha = p.a;
     ctx.fillStyle = css([74, 54, 38], 2);
-    ctx.beginPath(); ctx.ellipse(x - 2 * s, y, 2.4 * s, 0.9 * s, -0.1, 0, TAU); ctx.ellipse(x + 2.2 * s, y + 0.3 * s, 2.4 * s, 0.9 * s, 0.1, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(x - 4 * s, y, 4.8 * s, 1.5 * s, -0.08, 0, TAU); ctx.ellipse(x + 4.4 * s, y + 0.4 * s, 4.8 * s, 1.5 * s, 0.08, 0, TAU); ctx.fill();
+    // 鞋带与一线亮边（在圣地的光里）
+    ctx.strokeStyle = css([150, 112, 72], 2, 0.9); ctx.lineWidth = Math.max(0.5, 0.7 * s);
+    ctx.beginPath(); ctx.moveTo(x - 6 * s, y - 1.2 * s); ctx.quadraticCurveTo(x - 4 * s, y - 2.6 * s, x - 2 * s, y - 1.2 * s); ctx.moveTo(x + 2.4 * s, y - 0.8 * s); ctx.quadraticCurveTo(x + 4.4 * s, y - 2.2 * s, x + 6.4 * s, y - 0.8 * s); ctx.stroke();
+    const hk = W.lv.msHoly;
+    if (hk > 0.05) { ctx.strokeStyle = U.rgba(255, 220, 150, 0.5 * hk * p.a); ctx.beginPath(); ctx.moveTo(x - 8 * s, y - 1.3 * s); ctx.lineTo(x - 1 * s, y - 1.3 * s); ctx.moveTo(x + 0.4 * s, y - 0.9 * s); ctx.lineTo(x + 8.6 * s, y - 0.9 * s); ctx.stroke(); }
     ctx.globalAlpha = 1;
   }
 
-  // 杖与蛇（4:3–4）：丢在地上的杖化作蛇，蜿蜒而行；拿住尾巴，又在手中变为杖
+  // 杖与蛇（4:3–4）：丢在地上的杖化作蛇，蜿蜒而行、昂起头来；拿住尾巴，又在手中变为杖
   function drawSerpent(ctx, p) {
     const s = LS(2) * p.size, x = p.x * W.w, m = p.morph, dir = p.fd || 1;
     ctx.globalAlpha = p.a;
-    const N = 18, L = 11 * s;
-    const pts = [];
+    const N = 26, L = 19 * s * (1 - 0.1 * m);          // 半长
+    const pts = [], wid = [];
     for (let i = 0; i <= N; i++) {
-      const t = i / N, xx = x + (t - 0.5) * 2 * L * (1 - 0.15 * m) * dir;
-      const wv = Math.sin(t * 9 - W.t * 6) * 1.7 * s * m * (0.4 + 0.6 * t);
-      const yy = surfY(xx / W.w) - 1 * s - wv - (1 - m) * (t * 1.2 * s);
-      pts.push([xx + Math.cos(t * 9 - W.t * 6) * 0.8 * s * m, yy]);
+      const t = i / N;                                    // 0 尾 → 1 头
+      const xx = x + (t - 0.5) * 2 * L * dir;
+      const wv = Math.sin(t * 10 - W.t * 5) * 2.4 * s * m * (0.3 + 0.7 * t) * (t < 0.78 ? 1 : Math.max(0, 1 - (t - 0.78) * 4.5));
+      const lift = m * smoothstep(0.74, 1, t) * 8 * s * (0.86 + 0.14 * Math.sin(W.t * 2.3));      // 头昂起
+      const yy = surfY(xx / W.w) - 1.3 * s - wv * 0.3 - lift - (1 - m) * (t * 1.4 * s);
+      pts.push([xx + Math.cos(t * 10 - W.t * 5) * 1.1 * s * m * (t < 0.78 ? 1 : 0.3), yy]);
+      wid.push(Math.max(0.9, (1.6 + (1 - m) * 0.2 + 2.8 * m * Math.sin(Math.PI * Math.min(1, 0.08 + t * 1.02)) * (t > 0.84 ? 0.7 : 1)) * s));
     }
-    const col = U.mixRGB([112, 84, 56], [66, 72, 42], m);
+    const col = U.mixRGB([112, 84, 56], [70, 80, 44], m);
     ctx.strokeStyle = css(col, 2);
     ctx.lineCap = 'round';
     for (let i = 0; i < N; i++) {
-      const t = i / N;
-      ctx.lineWidth = Math.max(0.8, (1.4 + 1.2 * m * Math.sin(Math.PI * Math.min(1, t * 1.3))) * s);
+      ctx.lineWidth = wid[i];
       ctx.beginPath(); ctx.moveTo(pts[i][0], pts[i][1]); ctx.lineTo(pts[i + 1][0], pts[i + 1][1]); ctx.stroke();
     }
+    // 淡色的腹
+    if (m > 0.2) {
+      ctx.strokeStyle = css([214, 206, 160], 2, 0.6 * m, 0.1); ctx.lineWidth = Math.max(0.5, 0.8 * s);
+      ctx.beginPath();
+      for (let i = 2; i <= N - 4; i++) { const q = pts[i], yy = q[1] + wid[i] * 0.34; if (i === 2) ctx.moveTo(q[0], yy); else ctx.lineTo(q[0], yy); }
+      ctx.stroke();
+      // 背上的斑
+      ctx.fillStyle = css([40, 44, 26], 2, 0.7 * m);
+      ctx.beginPath();
+      for (let i = 3; i < N - 3; i += 2) { const q = pts[i], w = wid[i] * 0.28; ctx.moveTo(q[0] + w, q[1] - wid[i] * 0.15); ctx.ellipse(q[0], q[1] - wid[i] * 0.15, w, w * 0.6, 0, 0, TAU); }
+      ctx.fill();
+    }
     // 头（蛇）或杖头的弯（杖）
-    const hd = pts[N];
+    const hd = pts[N], nk = pts[N - 2], ang = Math.atan2(hd[1] - nk[1], hd[0] - nk[0]);
     if (m > 0.3) {
-      ctx.fillStyle = css([58, 64, 38], 2, clamp((m - 0.3) * 2, 0, 1));
-      ctx.beginPath(); ctx.ellipse(hd[0] + dir * 1.2 * s, hd[1] - 0.6 * s * m, 2.4 * s, 1.5 * s, 0, 0, TAU); ctx.fill();
+      ctx.fillStyle = css([62, 72, 40], 2, clamp((m - 0.3) * 2, 0, 1));
+      ctx.beginPath(); ctx.ellipse(hd[0] + Math.cos(ang) * 1.6 * s, hd[1] + Math.sin(ang) * 1.6 * s, 3.4 * s, 2.1 * s, ang, 0, TAU); ctx.fill();
     }
     if (m < 0.7) {
-      ctx.strokeStyle = css([112, 84, 56], 2, clamp((0.7 - m) * 2, 0, 1)); ctx.lineWidth = Math.max(0.8, 1.4 * s);
-      ctx.beginPath(); ctx.arc(hd[0] - dir * 1.5 * s, hd[1] - 1.8 * s, 1.8 * s, 0, Math.PI * 1.2); ctx.stroke();
+      ctx.strokeStyle = css([112, 84, 56], 2, clamp((0.7 - m) * 2, 0, 1)); ctx.lineWidth = Math.max(0.8, 1.6 * s);
+      ctx.beginPath(); ctx.arc(hd[0] - dir * 2 * s, hd[1] - 2.2 * s, 2.2 * s, 0, Math.PI * 1.2); ctx.stroke();
     }
     // 鳞上的光
     if (m > 0.2) {
-      ctx.globalAlpha = p.a * m * 0.5 * (0.4 + 0.6 * Math.max(W.daylight, nightK() * 0.6));
-      ctx.strokeStyle = 'rgb(220,230,180)'; ctx.lineWidth = Math.max(0.4, 0.5 * s);
+      ctx.globalAlpha = p.a * m * 0.55 * (0.4 + 0.6 * Math.max(W.daylight, nightK() * 0.6));
+      ctx.strokeStyle = 'rgb(226,236,186)'; ctx.lineWidth = Math.max(0.4, 0.55 * s);
       ctx.beginPath();
-      for (let i = 2; i < N; i += 2) { ctx.moveTo(pts[i][0], pts[i][1] - 0.9 * s); ctx.lineTo(pts[i + 1][0], pts[i + 1][1] - 0.9 * s); }
+      for (let i = 2; i < N; i += 2) { ctx.moveTo(pts[i][0], pts[i][1] - wid[i] * 0.42); ctx.lineTo(pts[i + 1][0], pts[i + 1][1] - wid[i + 1] * 0.42); }
       ctx.stroke();
     }
     ctx.globalAlpha = 1;
@@ -1450,7 +1482,7 @@
     const u = SU(), top = W.h * (0.14 + skyDY()), cxT = 0.7 * W.w;
     ctx.globalCompositeOperation = 'lighter';
     for (let i = 0; i < 48; i++) {
-      const x0 = lerp(0.6, 0.79, rt(i * 3 + 2000));
+      const x0 = lerp(0.6, 0.76, rt(i * 3 + 2000));
       const ph = U.fract(W.t * (0.045 + 0.03 * rt(i * 3 + 2001)) + rt(i * 3 + 2002));
       const gy = gY(2, x0) - 24 * LS(2);
       const y = lerp(gy, top, ph), x = lerp(x0 * W.w, cxT, ph * ph) + Math.sin(ph * 7 + i) * 10 * u * (1 - ph);
@@ -1463,24 +1495,51 @@
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
   }
-  // 流奶与蜜之地（3:8）：远方的山地泛起金绿的光
+  // 流奶与蜜之地（3:8）：夜里，远方的山地如在黎明里泛起一片金绿的光，山脊上现出橄榄树与葡萄园的剪影
   function drawPromiseFar(ctx) {
     const k = W.lv.msPromise;
     if (k < 0.01) return;
     SP || sprites();
-    const c = W.shade([150, 190, 96], DEP(0), 0.3);
-    const g = ctx.createLinearGradient(0.5 * W.w, 0, W.w, 0);
-    g.addColorStop(0, U.rgba(c[0], c[1], c[2], 0)); g.addColorStop(0.35, U.rgba(c[0], c[1], c[2], 0.5 * k)); g.addColorStop(1, U.rgba(c[0], c[1], c[2], 0.6 * k));
-    ctx.fillStyle = g;
-    ctx.fill(landPath(0, 0.5, 1.0, 40));
+    const nk = nightK(), u = SU(), kq = Math.round(k * 24) / 24;
     ctx.globalCompositeOperation = 'lighter';
-    const u = SU();
+    // 远山上的金绿（加上去的光：夜里也看得见）
+    ctx.globalAlpha = 0.45 + 0.55 * nk;
+    ctx.fillStyle = cachedData('pf:' + kq, () => {
+      const g = ctx.createLinearGradient(0.5 * W.w, 0, W.w, 0);
+      g.addColorStop(0, 'rgba(120,150,60,0)'); g.addColorStop(0.25, U.rgba(120, 150, 60, 0.16 * kq)); g.addColorStop(0.7, U.rgba(140, 160, 72, 0.22 * kq)); g.addColorStop(1, U.rgba(126, 146, 62, 0.16 * kq));
+      return g;
+    });
+    ctx.fill(landPath(0, 0.5, 1.0, 40));
+    // 一大片柔和的晨光，自远方的地平线上来
+    const cxp = 0.68 * W.w, cyp = gY(0, 0.68);
+    glowSp(ctx, SP.gold, cxp, cyp, M() * 0.38, k * (0.26 + 0.28 * nk));
+    glowSp(ctx, SP.warm, cxp, cyp, M() * 0.2, k * (0.12 + 0.16 * nk));
+    ctx.globalCompositeOperation = 'source-over';
+    // 橄榄树与葡萄园：映着晨光的剪影
+    ctx.globalAlpha = Math.min(1, k * 1.3);
+    ctx.fillStyle = W.shadeCSS([44, 60, 34], 0.55, 1, 0.02);
+    ctx.fill(cachedPath('olives', P2 => {
+      for (let i = 0; i < 26; i++) {
+        const xf = lerp(0.56, 0.99, (i + 0.5 * rt(i * 5 + 2600)) / 26), y = gY(0, xf) + 1.2 * u, r = (1.5 + 1.3 * rt(i * 5 + 2601)) * u;
+        if (rt(i * 5 + 2602) < 0.3) {
+          // 葡萄园：一行矮矮的桩与叶
+          for (let j = 0; j < 4; j++) { const xx = xf * W.w + (j - 1.5) * 2.6 * u; P2.moveTo(xx + 0.9 * u, y); P2.ellipse(xx, y - 0.9 * u, 0.9 * u, 1.1 * u, 0, 0, TAU); }
+          continue;
+        }
+        const x = xf * W.w, th = 1.6 * u;
+        P2.rect(x - 0.35 * u, y - th, 0.7 * u, th + 0.5);
+        P2.moveTo(x + r, y - th - r * 0.7); P2.ellipse(x, y - th - r * 0.7, r, r * 0.78, 0, 0, TAU);
+        P2.moveTo(x + r * 0.5 + r * 0.7, y - th - r * 1.15); P2.ellipse(x + r * 0.5, y - th - r * 1.15, r * 0.7, r * 0.6, 0, 0, TAU);
+      }
+    }));
+    // 远山上的点点微光
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.fillStyle = 'rgb(255,236,170)';
     for (let i = 0; i < 40; i++) {
       const xf = lerp(0.58, 1, rt(i * 3 + 2500)), y = gY(0, xf) + rt(i * 3 + 2501) * 8 * u, tw = 0.5 + 0.5 * Math.sin(W.t * (0.8 + rt(i * 3 + 2502) * 1.6) + i);
-      ctx.globalAlpha = k * tw * 0.8; ctx.fillStyle = 'rgb(255,236,170)';
-      ctx.fillRect(xf * W.w - 0.9 * u, y - 0.9 * u, 1.8 * u, 1.8 * u);
+      ctx.globalAlpha = k * tw * 0.6;
+      ctx.fillRect(xf * W.w - 0.8 * u, y - 0.8 * u, 1.6 * u, 1.6 * u);
     }
-    glowSp(ctx, SP.gold, 0.84 * W.w, gY(0, 0.84), M() * 0.3, k * (0.18 + 0.25 * nightK()));
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
   }
@@ -1516,23 +1575,66 @@
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
   }
-  // 耶和华眷顾他们（4:31）：一片温暖的光自上而下，落在低头下拜的百姓身上
+  // 耶和华眷顾他们（4:31）：一片温暖的光自上而下，落在低头下拜的百姓身上；地上一片暖光（白昼里也看得见）
   function drawVisit(ctx) {
     const k = W.lv.msVisit;
     if (k < 0.01) return;
     SP || sprites();
-    const u = SU(), x0 = 0.6 * W.w, x1 = 0.8 * W.w, gy = gY(2, 0.7);
+    const u = SU(), x0 = 0.592 * W.w, x1 = 0.772 * W.w, xc = (x0 + x1) / 2, bw = x1 - x0, gy = gY(2, 0.68), dl = W.daylight;
+    const br = 0.88 + 0.12 * Math.sin(W.t * 0.7);
     ctx.globalCompositeOperation = 'lighter';
-    ctx.globalAlpha = k * (0.3 + 0.15 * Math.sin(W.t * 0.7));
-    ctx.drawImage(SP.beam, x0, -10, x1 - x0, gy + 20);
-    glowSp(ctx, SP.gold, 0.7 * W.w, gy - 10 * u, (x1 - x0) * 0.8, k * 0.42);
+    ctx.globalAlpha = k * (0.26 + 0.14 * dl) * br;
+    ctx.drawImage(SP.beam, x0, -10, bw, gy + 20);
+    ctx.globalAlpha = k * (0.1 + 0.06 * dl) * br;
+    ctx.drawImage(SP.beam, xc - bw * 0.22, -10, bw * 0.44, gy + 20);
+    glowSp(ctx, SP.gold, xc, gy - 14 * u, bw * 0.5, k * (0.3 + 0.1 * dl));
+    // 百姓脚下的一片暖光
+    ctx.save(); ctx.translate(xc, gy + 8 * u); ctx.scale(1, 0.24);
+    glowSp(ctx, SP.gold, 0, 0, bw * 0.72, k * (0.45 + 0.25 * dl));
+    glowSp(ctx, SP.warm, 0, 0, bw * 0.45, k * (0.26 + 0.16 * dl));
+    ctx.restore();
     ctx.fillStyle = 'rgb(255,240,200)';
     for (let i = 0; i < 40; i++) {
       const ph = U.fract(W.t * (0.05 + 0.04 * rt(i * 3 + 3000)) + rt(i * 3 + 3001));
       const x = lerp(x0, x1, rt(i * 3 + 3002)) + Math.sin(ph * 5 + i) * 8 * u, y = lerp(W.h * 0.1, gy, ph);
-      ctx.globalAlpha = k * Math.sin(ph * Math.PI) * 0.7;
-      ctx.fillRect(x - 0.9 * u, y - 0.9 * u, 1.8 * u, 1.8 * u);
+      ctx.globalAlpha = k * Math.sin(ph * Math.PI) * 0.8;
+      ctx.fillRect(x - 1.1 * u, y - 1.1 * u, 2.2 * u, 2.2 * u);
     }
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 1;
+  }
+  // 摩西在米甸、在神的山时：埃及退到远处——夜与黄昏里是一层暗紫的暮霭（只压暗），
+  // 白昼里是淡淡的一层蓝灰（空气的远意）；左右与上沿都是柔的
+  const AWAY = {};
+  function awaySprite(slot, rgb) {
+    const key = rgb.map(v => Math.round(v / 6)).join(',');
+    let A = AWAY[slot];
+    if (A && A.key === key) return A.c;
+    if (!A) A = AWAY[slot] = { c: cnv(128, 64), key: '' };
+    const g = A.c.getContext('2d');
+    g.globalCompositeOperation = 'source-over';
+    g.clearRect(0, 0, 128, 64);
+    const hz = g.createLinearGradient(0, 0, 128, 0), col = a => U.rgba(rgb[0], rgb[1], rgb[2], a);
+    hz.addColorStop(0, col(0)); hz.addColorStop(0.3, col(1)); hz.addColorStop(0.7, col(1)); hz.addColorStop(1, col(0));
+    g.fillStyle = hz; g.fillRect(0, 0, 128, 64);
+    g.globalCompositeOperation = 'destination-in';
+    const vt = g.createLinearGradient(0, 0, 0, 64);
+    vt.addColorStop(0, 'rgba(0,0,0,0)'); vt.addColorStop(0.22, 'rgba(0,0,0,0.8)'); vt.addColorStop(0.45, 'rgba(0,0,0,1)'); vt.addColorStop(1, 'rgba(0,0,0,1)');
+    g.fillStyle = vt; g.fillRect(0, 0, 128, 64);
+    g.globalCompositeOperation = 'source-over';
+    A.key = key;
+    return A.c;
+  }
+  function drawAway(ctx) {
+    const k = W.lv.msAway;
+    if (k < 0.01) return;
+    const dl = W.daylight;
+    const xl = 0.3 * W.w, xr = (HU(-0.95) + 0.03) * W.w, yt = W.horizonY + 0.004 * W.h, hh = W.h - yt + 2;
+    // source-atop：只落在已画出的地、城、人上（这层画布在天之上是透明的，不可把天也染了）
+    const km = k * 0.46 * (1 - 0.72 * dl), kv = k * 0.12 * dl;
+    ctx.globalCompositeOperation = 'source-atop';
+    if (km > 0.005) { ctx.globalAlpha = km; ctx.drawImage(awaySprite('m', [30, 26, 54]), xl, yt, xr - xl, hh); }
+    if (kv > 0.005) { ctx.globalAlpha = kv; ctx.drawImage(awaySprite('v', [196, 208, 224]), xl, yt, xr - xl, hh); }
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
   }
@@ -1545,7 +1647,14 @@
   function beam(b, xf, o) {
     o = o || {};
     if (!fxAdd(b, { type: 'beam', dur: o.dur || 7, xf, w: (o.w || 70) * SU(), k: o.k || 1, white: !!o.white })) return;
-    if (o.ring !== false) fx().ring(xf * W.w, surfY(xf) - 16 * LS(2), o.white ? [226, 232, 255] : [255, 236, 190], M() * (o.r || 0.3), 2.2, 2);
+    // 光落下处一圈淡淡的环（小：不像镜头上的光圈）
+    if (o.ring !== false) fx().ring(xf * W.w, surfY(xf) - 16 * LS(2), o.white ? [226, 232, 255] : [255, 236, 190], M() * Math.min(0.16, o.r || 0.13), 2.2, 2);
+  }
+  // 地上某处的一点闪光（鞋放下、杖变作蛇、蛇变回杖）
+  function spot(b, xf, dy, c, o) {
+    o = o || {};
+    if (!fxAdd(b, { type: 'spot', dur: o.dur || 2.4, xf, dy: dy || 0, c: c || [255, 236, 200], big: o.big || 1 })) return;
+    if (o.ring) fx().ring(xf * W.w, surfY(xf) - (dy || 0), c || [255, 236, 200], M() * 0.07, 1.6, 1.4);
   }
   const glint = (b, id, c, frac, dur) => fxAdd(b, { type: 'glint', dur: dur || 3.2, id, c: c || [236, 242, 255], frac: frac == null ? 0.45 : frac });
   // 三颗星：亚伯拉罕、以撒、雅各（2:24；3:6）
@@ -1556,7 +1665,7 @@
   // 自天而降的火星：耶和华的使者从荆棘里火焰中显现（3:2）
   function spark(b, dur) { fxAdd(b, { type: 'spark', dur: dur || 2.2 }); }
   // 火一涌（呼叫之时）
-  function flare(b) { if (b.instant) return; flareT = W.t; const p = getP('bush'); if (p) fx().ring(p.x * W.w, surfY(p.x) - 14 * LS(2), [255, 214, 150], M() * 0.22, 1.8, 2.2); }
+  function flare(b) { if (b.instant) return; flareT = W.t; const p = getP('bush'); if (p) fx().ring(p.x * W.w, surfY(p.x) - 24 * LS(2), [255, 214, 150], M() * 0.13, 1.8, 2.2); }
   // 自摩西到法老宫的一道光（3:10 我要打发你去见法老）
   function send(b) { fxAdd(b, { type: 'send', dur: 4.2 }); }
 
@@ -1566,7 +1675,7 @@
   function nameCanvas(size) {
     const key = Math.round(size) + ':' + (document.fonts && document.fonts.check ? (document.fonts.check('40px "GS Brush"') ? 1 : 0) : 1);
     if (NMC && key === nmKey) return NMC;
-    const n = Array.from(NAME).length, pad = size * 0.7, gap = size * 1.12;
+    const n = Array.from(NAME).length, pad = size * 0.7, gap = size * 1.08;      // 与微尘聚成的字（fx.nameStr）同一字距，两层对齐
     const c = cnv(gap * n + pad * 2, size * 1.4 + pad * 2), g = c.getContext('2d');
     g.font = '400 ' + Math.round(size) + 'px "GS Brush", "Kaiti SC", "STKaiti", "KaiTi", "Noto Serif CJK SC", serif';
     g.textAlign = 'center'; g.textBaseline = 'middle';
@@ -1588,7 +1697,7 @@
   }
   function fireName(b) {
     if (b.instant) return;
-    fxAdd(b, { type: 'fireName', dur: 15 });
+    fxAdd(b, { type: 'fireName', dur: 13.8 });
     const pl = namePlace(), p = getP('bush');
     const bx = p ? p.x * W.w : W.w * 0.88, by = p ? surfY(p.x) - 20 * LS(2) : W.h * 0.6;
     fx().nameStr(NAME, pl.cx, pl.cy, pl.size, [255, 214, 150], () => [bx + rand(-12, 12) * SU(), by + rand(-16, 6) * SU()], { hold: 9.5 });
@@ -1682,14 +1791,26 @@
           break;
         }
         case 'fireName': {
-          const pl = namePlace(), c = nameCanvas(pl.size);
-          const env = smoothstep(0.08, 0.2, q) * (1 - smoothstep(0.75, 1, q));
-          if (env < 0.005) break;
+          // 与微尘同起同落：微尘聚成（约 1.7 秒）、停留、散去（约 11.2 秒起）；字先淡去，火的暖光留到最后
+          const pl = namePlace(), c = nameCanvas(pl.size), te = e.t;
+          const envT = smoothstep(1.3, 2.9, te) * (1 - smoothstep(10.2, 12.4, te));
+          const envG = smoothstep(0.9, 2.6, te) * (1 - smoothstep(11.2, 13.8, te));
+          if (envG < 0.005) break;
           const fl = 0.86 + 0.08 * Math.sin(W.t * 7.3) + 0.06 * Math.sin(W.t * 13.1);
           ctx.globalCompositeOperation = 'lighter';
-          glowSp(ctx, SP.fire, pl.cx, pl.cy, c.width * 0.62, env * 0.3);
-          ctx.globalAlpha = env * fl;
-          ctx.drawImage(c, pl.cx - c.width / 2, pl.cy - c.height / 2);
+          glowSp(ctx, SP.fire, pl.cx, pl.cy, c.width * 0.62, envG * 0.3);
+          glowSp(ctx, SP.gold, pl.cx, pl.cy, c.width * 0.3, envG * (0.12 + 0.12 * (1 - envT)));
+          if (envT > 0.005) { ctx.globalAlpha = Math.pow(envT, 1.4) * fl; ctx.drawImage(c, pl.cx - c.width / 2, pl.cy - c.height / 2); }
+          ctx.globalCompositeOperation = 'source-over';
+          break;
+        }
+        case 'spot': {
+          const env = Math.sin(q * Math.PI), x = e.xf * W.w, y = surfY(e.xf) - e.dy, L = 9 * u * e.big;
+          ctx.globalCompositeOperation = 'lighter';
+          glowSp(ctx, SP.gold, x, y, L * 2.2, env * 0.6);
+          ctx.globalAlpha = env * 0.95; ctx.fillStyle = U.rgb(e.c[0], e.c[1], e.c[2]);
+          ctx.fillRect(x - L, y - 0.5, L * 2, 1); ctx.fillRect(x - 0.5, y - L, 1, L * 2);
+          glowSp(ctx, SP.white, x, y, L * 1.2, env * 0.7);
           ctx.globalCompositeOperation = 'source-over';
           break;
         }
@@ -1761,6 +1882,7 @@
         return;
       }
       if (pass === 'air') {
+        drawAway(ctx);
         drawBushLight(ctx);
         drawCry(ctx);
         drawVisit(ctx);
@@ -1846,7 +1968,7 @@
   function setup() {
     const lv = { deep: 1, light: 1, gather: 1, dayNight: 1, vault: 1, clouds: 0.25, land: 1, grass: 0.3, herbs: 0.24, trees: 0, lights: 1, moon: 1, stars: 1, life: 1,
       good: 0, given: 1, sabbath: 0.15, bare: 0.55, bloom: 0.25,
-      msEgypt: 1, msNile: 1, msDark: 0, msHoreb: 0, msHoly: 0, msCry: 0, msPromise: 0, msWith: 0, msVisit: 0 };
+      msEgypt: 1, msNile: 1, msDark: 0, msHoreb: 0, msHoly: 0, msCry: 0, msPromise: 0, msWith: 0, msVisit: 0, msAway: 0 };
     for (const k in lv) if (!W.hasLevel || W.hasLevel(k)) W.set(k, lv[k], true);
     origins();
     W.freeClock = false;
@@ -1864,9 +1986,11 @@
     midianProps();
     const c = C();
     c.clear({ fade: false });
-    crowd('israel', { n: 9, x0: 0.69, x1: 0.785, label: '以色列人', from: 'none' });
-    herd('goats', { kind: 'goat', n: 3, x0: 0.745, x1: 0.785, label: '山羊', from: 'none' });
-    herd('flockJ', { kind: 'sheep', n: 7, x0: 0.9, x1: 0.95, label: '叶忒罗的羊群', from: 'none' });
+    crowd('israel', { n: 9, x0: 0.69, x1: 0.76, label: '以色列人', from: 'none' });
+    herd('goats', { kind: 'goat', n: 3, x0: 0.732, x1: 0.758, label: '山羊', from: 'none', mill: false });
+    // 羊群站得靠后（近地纵深里靠近地的轮廓线），人站在它们前面
+    const fl = herd('flockJ', { kind: 'sheep', n: 7, x0: 0.9, x1: 0.95, label: '叶忒罗的羊群', from: 'none' });
+    if (fl) fl.forEach((a, i) => { a.v = 0.005 + 0.03 * rt(i + 70); a.mill = false; });     // 不自己乱走：在神的山下安静地卧着
     add('jethro', { label: '叶忒罗', sex: 'm', age: 'elder', x: X.tent - 0.03, facing: -1, robe: ROBE.jethro, glow: 0.2, pose: 'sit', from: 'none' });
     avoid([0.52, 0.8], [0.8, 1]);
   }
@@ -1907,25 +2031,25 @@
     { text: '摩西牧养他岳父米甸祭司叶忒罗的羊群；一日领羊群往野外去，<br>到了神的山，就是何烈山。', ref: '出埃及记 3:1', hold: 7 },
   ];
   const V6 = [
-    { text: '耶和华的使者从荆棘里火焰中向摩西显现。<br>摩西观看，不料，荆棘被火烧着，却没有烧毁。', ref: '出埃及记 3:2', hold: 9.5 },
+    { text: '耶和华的使者从荆棘里火焰中向摩西显现。<br>摩西观看，不料，荆棘被火烧着，却没有烧毁。', ref: '出埃及记 3:2', hold: 8 },
     { text: '摩西说：「我要过去看这大异象，这荆棘为何没有烧坏呢？」', ref: '出埃及记 3:3', hold: 6.5 },
   ];
   const V7 = [
     { text: '耶和华神见他过去要看，就从荆棘里呼叫说：「摩西！摩西！」<br>他说：「我在这里。」', ref: '出埃及记 3:4', hold: 7.5 },
   ];
   const V8 = [
-    { text: '神说：「不要近前来。当把你脚上的鞋脱下来，因为你所站之地是圣地」；<br>又说：「我是你父亲的神，是亚伯拉罕的神，以撒的神，雅各的神。」', ref: '出埃及记 3:5–6', hold: 9 },
-    { text: '摩西蒙上脸，因为怕看神。', ref: '出埃及记 3:6', hold: 5 },
+    { text: '神说：「不要近前来。当把你脚上的鞋脱下来，因为你所站之地是圣地」；', ref: '出埃及记 3:5', hold: 6.5 },
+    { text: '又说：「我是你父亲的神，是亚伯拉罕的神，以撒的神，雅各的神。」<br>摩西蒙上脸，因为怕看神。', ref: '出埃及记 3:6', hold: 7.5 },
   ];
   const V9 = [
-    { text: '耶和华说：「我的百姓在埃及所受的困苦，我实在看见了……」', ref: '出埃及记 3:7', hold: 5.5 },
-    { text: '「我下来是要救他们脱离埃及人的手，领他们出了那地，到美好、宽阔、流奶与蜜之地……<br>故此，我要打发你去见法老，使你可以将我的百姓以色列人从埃及领出来。」', ref: '出埃及记 3:8–10', hold: 8 },
+    { text: '耶和华说：「我的百姓在埃及所受的困苦，我实在看见了……<br>我下来是要救他们脱离埃及人的手……到美好、宽阔、流奶与蜜之地……」', ref: '出埃及记 3:7–8', hold: 7.5 },
+    { text: '「故此，我要打发你去见法老，使你可以将我的百姓以色列人从埃及领出来。」', ref: '出埃及记 3:10', hold: 6 },
     { text: '摩西对神说：「我是什么人，竟能去见法老，将以色列人从埃及领出来呢？」', ref: '出埃及记 3:11', hold: 6 },
     { text: '神说：「我必与你同在。你将百姓从埃及领出来之后，你们必在这山上事奉我；<br>这就是我打发你去的证据。」', ref: '出埃及记 3:12', hold: 7 },
   ];
   const V10 = [
     { text: '摩西对神说：「我到以色列人那里……他们若问我说：『他叫什么名字？』<br>我要对他们说什么呢？」', ref: '出埃及记 3:13', hold: 6.5 },
-    { text: '神对摩西说：「我是自有永有的」；又说：「你要对以色列人这样说：<br>『那自有的打发我到你们这里来。』」', ref: '出埃及记 3:14', hold: 8.5 },
+    { text: '神对摩西说：「我是自有永有的」；又说：「你要对以色列人这样说：<br>『那自有的打发我到你们这里来。』」', ref: '出埃及记 3:14', hold: 8 },
     { text: '神又对摩西说：「……耶和华是我的名，直到永远；<br>这也是我的纪念，直到万代。」', ref: '出埃及记 3:15', hold: 6.5 },
   ];
   const V11 = [
@@ -1943,15 +2067,18 @@
   const V13 = [
     { text: '耶和华对亚伦说：「你往旷野去迎接摩西。」他就去，在神的山遇见摩西，和他亲嘴。', ref: '出埃及记 4:27', hold: 7 },
     { text: '摩西将耶和华打发他所说的言语和嘱咐他所行的神迹都告诉了亚伦。<br>摩西、亚伦就去招聚以色列的众长老。', ref: '出埃及记 4:28–29', hold: 7.5 },
-    { text: '亚伦将耶和华对摩西所说的一切话述说了一遍，又在百姓眼前行了那些神迹，<br>百姓就信了。以色列人听见耶和华眷顾他们，鉴察他们的困苦，就低头下拜。', ref: '出埃及记 4:30–31', hold: 9.5 },
+    { text: '亚伦将耶和华对摩西所说的一切话述说了一遍，又在百姓眼前行了那些神迹，<br>百姓就信了。', ref: '出埃及记 4:30–31', hold: 6.5 },
+    { text: '以色列人听见耶和华眷顾他们，鉴察他们的困苦，就低头下拜。', ref: '出埃及记 4:31', hold: 5.5 },
   ];
 
-  // 话语：神在一、二章里没有开口——所言说的，是经上明说神所行的事（神厚待收生婆、神听见他们的哀声），
-  // 或这段经文里的一句；从何烈山起，是神自己的话
+  // 话语：神在一、二章里没有开口——第一句是神在雅各下埃及时亲口的应许（创世记 46:3「我必使你在那里成为大族」，在这里应验）；
+  // 其余是经上明说神所行的事（神厚待收生婆、神听见他们的哀声），或别处经上一句神的作为、与这段经文相应：
+  // 诗篇 18:16「把我从大水中拉上来」应 2:10「因我把他从水里拉出来」；诗篇 146:9「耶和华保护寄居的」应 2:22 革舜之名。
+  // 从何烈山起，是神自己的话。
   const STAGES = [
-    // ── 1 · 他们越发多起来（1:8–14）──────────────────────────
+    // ── 1 · 我必使你在那里成为大族（1:8–14）─────────────────────
     {
-      kind: 'act', utter: '他们越发多起来，越发蔓延', cmd: 'while (苦害) { 以色列.count++ }  # 越发多起来', ref: '1:12',
+      kind: 'promise', utter: '我必使你在那里成为大族', cmd: 'while (苦害) { 以色列.count++ }  # 越发多起来，越发蔓延', ref: '创世记 46:3',
       verse: V1,
       apply(c) {
         const L = starts(V1);
@@ -1975,8 +2102,8 @@
           [L[1] + 3, () => { face('task2', -1); pose('task1', 'point'); }],
           [L[1] + 5.5, () => pose('task1', 'stand')],
           [L[2], b => {
-            crowd('israel2', { n: 7, x0: 0.694, x1: 0.786, label: '以色列人', from: fromOf(b) });
-            if (!b.instant) for (let i = 0; i < 5; i++) { const xf = lerp(0.7, 0.78, i / 4); fx().sparkle(xf * W.w, gY(2, xf) - 14 * LS(2), 10, [255, 232, 190], 8, 'near'); }
+            crowd('israel2', { n: 7, x0: 0.692, x1: 0.76, label: '以色列人', from: fromOf(b) });
+            if (!b.instant) for (let i = 0; i < 5; i++) { const xf = lerp(0.7, 0.76, i / 4); fx().sparkle(xf * W.w, gY(2, xf) - 14 * LS(2), 10, [255, 232, 190], 8, 'near'); }
             sfx(b, 'crowd', { soft: true });
           }],
           [L[3], b => { crowdPose('israel', 'bow'); pose('task2', 'point'); sfx(b, 'build'); }],
@@ -1993,9 +2120,9 @@
         const L = starts(V2);
         T(c, [
           [0, b => {
-            W.goTo(0.76, 8, b.instant);
+            W.goTo(0.66, 8, b.instant);
             prop('pithom', null, { work: 0 }); prop('raamses', null, { work: 0 });
-            crowdWalk('israel', 0.69, 0.785, { speed: 0.028, pose: 'sit' });
+            crowdWalk('israel', 0.688, 0.76, { speed: 0.028, pose: 'sit' });
             crowdPose('israel2', 'stand');
             walk('task1', 0.596, { speed: 0.03 }); walk('task2', 0.604, { speed: 0.03 });
           }],
@@ -2008,27 +2135,33 @@
           [5.5, () => { pose('shiphrah', 'bow'); pose('puah', 'bow'); face('pharaoh', 1); pose('pharaoh', 'point'); }],
           [L[1], () => {
             pose('pharaoh', 'stand');
-            walk('shiphrah', 0.722, { speed: 0.03 }); walk('puah', 0.744, { speed: 0.03 });
+            walk('shiphrah', 0.72, { speed: 0.03 }); walk('puah', 0.742, { speed: 0.03 });
           }],
           [L[1] + 3, () => { glow('shiphrah', 0.55); glow('puah', 0.55); }],
+          // 黄昏：神便叫她们成立家室——歌珊的小屋一家一家亮起灯来
           [L[2], b => {
-            W.goTo(0.86, 6, b.instant);
-            beam(b, 0.733, { dur: 7, w: 90 });
+            W.goTo(0.745, 6, b.instant);
+            beam(b, 0.724, { dur: 7, w: 90 });
             prop('hut0', null, { lit: 1 }); prop('hut2', null, { lit: 1 });
-            add('mom1', { label: '希伯来妇人', sex: 'f', age: 'adult', x: X.huts[1] + 0.008, facing: 1, robe: ROBE.mother, glow: 0.2, carry: 'baby', v: 0.42, from: fromOf(b) });
+            add('mom1', { label: '希伯来妇人', sex: 'f', age: 'adult', x: X.huts[1] + 0.008, facing: 1, robe: ROBE.mother, glow: 0.45, carry: 'baby', v: 0.42, from: fromOf(b) });
             if (!b.instant) for (const i of [0, 2]) { const xf = X.huts[i]; fx().sparkle(xf * W.w, gY(2, xf) - 8 * LS(2), 16, [255, 226, 170], 8, 'near'); }
             sfx(b, 'harp');
           }],
           [L[2] + 2.5, b => {
             prop('hut1', null, { lit: 1 }); prop('hut3', null, { lit: 1 }); prop('hut4', null, { lit: 1 });
-            add('mom2', { label: '希伯来妇人', sex: 'f', age: 'adult', x: X.huts[3] + 0.01, facing: -1, robe: [150, 120, 96], glow: 0.2, carry: 'baby', from: fromOf(b) });
+            add('mom2', { label: '希伯来妇人', sex: 'f', age: 'adult', x: X.huts[3] + 0.01, facing: -1, robe: [150, 120, 96], glow: 0.45, carry: 'baby', from: fromOf(b) });
             if (!b.instant) for (const i of [1, 3, 4]) { const xf = X.huts[i]; fx().sparkle(xf * W.w, gY(2, xf) - 8 * LS(2), 12, [255, 226, 170], 8, 'near'); }
           }],
+          // 暮色渐深：法老的命令（1:22）——冷黑自上游顺流而下，河面的光尽都熄了；母亲们把孩子搂紧，灯一盏一盏低下去
           [L[3], b => {
+            W.goTo(0.765, 7, b.instant);
             face('pharaoh', -1); pose('pharaoh', 'point');
             W.set('msDark', 1, b.instant);
             sfx(b, 'wind', { soft: true, low: true });
           }],
+          [L[3] + 1, () => { pose('mom1', 'bow'); face('mom1', 1); }],
+          [L[3] + 1.6, () => pose('mom2', 'bow')],
+          ...[0, 1, 2, 3, 4].map(i => [L[3] + 1.2 + i * 0.7, () => prop('hut' + i, null, { lit: 0.4 })]),
           [L[3] + 4.5, () => pose('pharaoh', 'stand')],
         ]);
       },
@@ -2036,7 +2169,7 @@
 
     // ── 3 · 蒲草箱与法老的女儿（2:1–10）────────────────────────
     {
-      kind: 'name', utter: '她给孩子起名叫摩西', cmd: 'mv 孩子 ./蒲草箱 && rename 孩子 摩西  # 从水里拉出来', ref: '2:10', tint: [206, 228, 255],
+      kind: 'act', utter: '把我从大水中拉上来', cmd: 'pull 孩子 --from 大水 && rename 孩子 摩西  # 从水里拉出来', ref: '诗篇 18:16', tint: [206, 228, 255],
       verse: V3,
       apply(c) {
         const L = starts(V3);
@@ -2096,7 +2229,7 @@
 
     // ── 4 · 逃往米甸（2:11–22）────────────────────────────────
     {
-      kind: 'act', utter: '摩西躲避法老，逃往米甸地居住', cmd: 'nohup 摩西 &> /米甸/井旁  # 他左右观看', ref: '2:15',
+      kind: 'act', utter: '耶和华保护寄居的', cmd: 'nohup 摩西 &> /米甸/井旁  # 我在外邦作了寄居的', ref: '诗篇 146:9',
       verse: V4,
       apply(c) {
         const L = starts(V4);
@@ -2112,7 +2245,7 @@
             add('task2', { label: '督工的', sex: 'm', age: 'adult', x: 0.608, facing: 1, robe: ROBE.task, accent: [70, 60, 50], glow: 0.05, prop: 'staff', from: fromOf(b) });
             add('heb', { label: '希伯来人', sex: 'm', age: 'adult', x: 0.652, facing: 1, robe: ROBE.heb, glow: 0.1, pose: 'carry', from: fromOf(b) });
             crowdWalk('israel', 0.614, 0.646, { speed: 0.03, pose: 'carry' });
-            crowdWalk('israel2', 0.694, 0.785, { speed: 0.03, pose: 'carry' });
+            crowdWalk('israel2', 0.692, 0.76, { speed: 0.03, pose: 'carry' });
             prop('pithom', null, { work: 1 }); prop('raamses', null, { work: 1 });
           }],
           [3.5, () => { pose('task1', 'raise'); pose('heb', 'fall'); }],
@@ -2124,29 +2257,32 @@
           [L[1] + 4.4, b => { rm('task1'); prop('mound', 'mound', { x: 0.666 }); pose('heb', 'stand'); if (!b.instant) fx().dust(0.666 * W.w, fieldY(0.666, 0.12), 20, [214, 182, 134], 10 * SU()); }],
           [L[1] + 4.6, b => { add('pharaoh', { label: '法老', sex: 'm', age: 'adult', x: X.pharaoh, facing: 1, robe: ROBE.pharaoh, accent: GOLD, glow: 0.18, from: fromOf(b) }); }],
           [L[1] + 5.4, () => { face('pharaoh', 1); pose('pharaoh', 'point'); }],
-          [L[1] + 6.2, () => walk('moses', X.well + 0.009, { speed: 0.05, pose: 'sit' })],
+          // 摩西逃往米甸：过了旷野的边界，埃及便退到远处的暮霭里
+          [L[1] + 6.2, b => { walk('moses', X.well - 0.013, { speed: 0.05, pose: 'sit' }); W.set('msAway', 1, b.instant); }],
           [L[1] + 8.5, () => pose('pharaoh', 'stand')],
+          // 井旁：女儿们在井右，群羊在她们后面更右；井与摩西不被遮住
           [L[2], b => {
             W.goTo(0.62, 6, b.instant);
             const f = fromOf(b);
-            DAUS.forEach((id, i) => add(id, { label: '米甸祭司的女儿', sex: 'f', age: 'adult', x: X.tent - 0.02 + i * 0.006, facing: -1, robe: DAUGHTERS[i], glow: 0.1, prop: i % 2 ? 'jar' : null, scale: 0.94, from: f }));
-            add('zipporah', { label: '西坡拉', sex: 'f', age: 'adult', x: X.tent - 0.026, facing: -1, robe: ROBE.zipporah, accent: [236, 214, 170], glow: 0.25, prop: 'jar', from: f });
-            spread(['zipporah'].concat(DAUS), 0.814, 0.852, { speed: 0.03, seed: 4 });
-            crowdWalk('flockJ', 0.818, 0.856, { speed: 0.03 });
+            DAUS.forEach((id, i) => add(id, { label: '米甸祭司的女儿', sex: 'f', age: 'adult', x: X.tent - 0.02 + i * 0.006, facing: -1, robe: DAUGHTERS[i], glow: 0.1, prop: i % 2 ? 'jar' : null, scale: 0.94, v: 0.05, from: f }));
+            add('zipporah', { label: '西坡拉', sex: 'f', age: 'adult', x: X.tent - 0.026, facing: -1, robe: ROBE.zipporah, accent: [236, 214, 170], glow: 0.25, prop: 'jar', v: 0.05, from: f });
+            spread(['zipporah'].concat(DAUS), 0.826, 0.862, { speed: 0.03, seed: 4 });
+            crowdWalk('flockJ', 0.9, 0.95, { speed: 0.03 });
           }],
-          [L[2] + 2.5, b => {
+          [L[2] + 1.4, b => {
             const f = fromOf(b);
-            add('shep1', { label: '牧羊的人', sex: 'm', age: 'adult', x: 0.92, facing: -1, robe: ROBE.shep, glow: 0.05, prop: 'staff', from: f });
-            add('shep2', { label: '牧羊的人', sex: 'm', age: 'adult', x: 0.935, facing: -1, robe: [100, 88, 70], glow: 0.05, prop: 'staff', from: f });
-            walk('shep1', 0.836, { speed: 0.04, pose: 'point' }); walk('shep2', 0.85, { speed: 0.04 });
-            spread(['zipporah'].concat(DAUS), 0.862, 0.9, { speed: 0.035, seed: 6 });
+            add('shep1', { label: '牧羊的人', sex: 'm', age: 'adult', x: 1.03, facing: -1, robe: ROBE.shep, glow: 0.05, prop: 'staff', v: 0.08, from: f });
+            add('shep2', { label: '牧羊的人', sex: 'm', age: 'adult', x: 1.045, facing: -1, robe: [100, 88, 70], glow: 0.05, prop: 'staff', v: 0.08, from: f });
+            walk('shep1', 0.83, { speed: 0.07, pose: 'point' }); walk('shep2', 0.845, { speed: 0.07 });
+            spread(['zipporah'].concat(DAUS), 0.856, 0.892, { speed: 0.04, seed: 6 });
           }],
-          [L[2] + 4.2, () => { walk('moses', 0.815, { speed: 0.03, pose: 'raise' }); }],
-          [L[2] + 5.4, () => { walk('shep1', 1.06, { speed: 0.05 }); walk('shep2', 1.07, { speed: 0.05 }); }],
-          [L[2] + 6.3, b => {
-            pose('moses', 'carry'); prop('well', null, { fill: 1 });
-            spread(['zipporah'].concat(DAUS), 0.826, 0.862, { speed: 0.03, seed: 8 });
-            crowdWalk('flockJ', 0.812, 0.842, { speed: 0.025, pose: 'graze' });
+          [L[2] + 3.4, () => { walk('moses', X.well - 0.01, { speed: 0.03, pose: 'raise' }); }],
+          [L[2] + 4.2, () => { walk('shep1', 1.06, { speed: 0.06 }); walk('shep2', 1.07, { speed: 0.06 }); }],
+          // 摩西打水；群羊到槽边喝水（槽在井右）；女儿们站在槽后
+          [L[2] + 4.8, b => {
+            pose('moses', 'carry'); face('moses', 1); prop('well', null, { fill: 1 });
+            crowdWalk('flockJ', 0.818, 0.848, { speed: 0.04, pose: 'graze' });
+            spread(['zipporah'].concat(DAUS), 0.858, 0.9, { speed: 0.03, seed: 8 });
             sfx(b, 'splash'); sfx(b, 'bleat', { soft: true });
           }],
           [L[3], b => {
@@ -2154,10 +2290,11 @@
             rm('shep1'); rm('shep2');
             add('moses', { robe: ROBE.shepherd, accent: [214, 200, 170] });
             pose('moses', 'stand');
-            walk('zipporah', 0.823, { speed: 0.02 });
-            spread(DAUS, X.tent - 0.04, X.tent - 0.005, { speed: 0.028, seed: 9 });
+            spread(DAUS, 0.9, 0.944, { speed: 0.028, seed: 9 });
           }],
-          [L[3] + 3, b => { face('zipporah', -1); face('moses', 1); hold('zipporah', null); carry('zipporah', 'baby'); if (!b.instant) { const p = figPt('zipporah', 0.55); if (p) fx().sparkle(p[0], p[1], 12, [255, 232, 190], 6, 'near'); } }],
+          // 饮完了羊：群羊回到帐棚那边，西坡拉走到摩西跟前
+          [L[3] + 2, () => { crowdWalk('flockJ', 0.975, 1.03, { speed: 0.02 }); walk('zipporah', 0.822, { speed: 0.02 }); }],
+          [L[3] + 4.2, b => { face('zipporah', -1); face('moses', 1); hold('zipporah', null); carry('zipporah', 'baby'); if (!b.instant) { const p = figPt('zipporah', 0.55); if (p) fx().sparkle(p[0], p[1], 12, [255, 232, 190], 6, 'near'); } }],
         ]);
       },
     },
@@ -2171,13 +2308,14 @@
         T(c, [
           [0, b => {
             W.goTo(0.95, 7, b.instant);
+            W.set('msAway', 0.5, b.instant);          // 哀声自埃及升起：暮霭稍退，看得见砖场与歌珊
             DAUS.forEach(id => rm(id));
             rm('heb'); rm('task2');
             unprop('mound');
             prop('pithom', null, { work: 0 }); prop('raamses', null, { work: 0 });
             prop('well', null, { fill: 0 });
             crowdWalk('israel', 0.616, 0.668, { speed: 0.03, pose: 'kneel' });
-            crowdWalk('israel2', 0.69, 0.78, { speed: 0.03, pose: 'kneel' });
+            crowdWalk('israel2', 0.692, 0.758, { speed: 0.03, pose: 'kneel' });
             pose('pharaoh', 'lie');
             walk('zipporah', X.tent - 0.045, { speed: 0.02 });
             carry('zipporah', null);
@@ -2186,16 +2324,18 @@
           [4, b => {
             add('gershom', { label: '革舜', sex: 'm', age: 'child', x: X.tent - 0.036, facing: -1, robe: ROBE.gershom, glow: 0.2, from: fromOf(b) });
           }],
-          [L[1], b => { fathers(b, 10); beam(b, 0.68, { dur: 8, w: 110, white: true, r: 0.4 }); sfx(b, 'harp'); }],
+          [L[1], b => { fathers(b, 10); beam(b, 0.68, { dur: 8, w: 110, white: true, r: 0.14 }); sfx(b, 'harp'); }],
           [L[1] + 5, b => { W.set('msCry', 0, b.instant); guide(b, [0.7, 0.14], [X.horeb - 0.005, 0.56], 5.5); }],
           [L[2] - 2.5, b => { W.goTo(0.34, 5, b.instant); }],
           [L[2] + 4, b => { W.goTo(0.52, 5, b.instant); }],
           [L[2], b => {
-            // 神的山，何烈山：光落下之处，山自旷野中升起
+            // 神的山，何烈山：光落下之处，山自旷野中升起；埃及又退到远处
             W.set('msHoreb', 1, b.instant);
+            W.set('msAway', 1, b.instant);
+            unprop('well');
             add('moses', { age: 'elder', prop: 'staff', beard: true });
             walk('moses', HU(-0.98), { speed: 0.02 });
-            crowdWalk('flockJ', 0.772, 0.8, { speed: 0.02 });
+            crowdWalk('flockJ', 0.764, 0.79, { speed: 0.02 });
             crowdPose('israel', 'carry'); crowdPose('israel2', 'carry');
             sfx(b, 'wind', { soft: true });
           }],
@@ -2211,7 +2351,11 @@
       apply(c) {
         const L = starts(V6);
         T(c, [
-          [0, b => { W.goTo(0.735, 7, b.instant); onMount('moses'); walk('moses', HU(STAND_U), { speed: 0.008 }); face('moses', 1); avoid([0.52, 0.77], [0.77, 1]); }],
+          [0, b => {
+            W.goTo(0.765, 7, b.instant); onMount('moses'); walk('moses', HU(STAND_U), { speed: 0.008 }); face('moses', 1); avoid([0.52, 0.76], [0.76, 1]);
+            // 天黑了：埃及的人都坐下歇息（远处，在暮霭里）
+            crowdPose('israel', 'sit'); crowdPose('israel2', 'sit'); crowdMill('israel', false); crowdMill('israel2', false);
+          }],
           [1, b => spark(b, 2.2)],
           [3, b => {
             prop('bush', null, { fire: 1 });
@@ -2232,7 +2376,7 @@
       verse: V7,
       apply(c) {
         T(c, [
-          [0, b => { W.goTo(0.775, 7, b.instant); flare(b); sfx(b, 'fire', { soft: true }); pose('moses', 'stand'); face('moses', 1); }],
+          [0, b => { W.goTo(0.8, 7, b.instant); flare(b); sfx(b, 'fire', { soft: true }); pose('moses', 'stand'); face('moses', 1); crowdPose('flockJ', 'lie'); }],
           [1.6, b => flare(b)],
           [3.5, () => pose('moses', 'gaze')],
           [5.8, () => pose('moses', 'raise')],
@@ -2248,16 +2392,18 @@
       apply(c) {
         const L = starts(V8);
         T(c, [
-          [0, b => { W.goTo(0.82, 8, b.instant); walk('moses', HU(NEAR_U - 0.03), { speed: 0.006 }); }],
+          [0, b => { W.goTo(0.84, 8, b.instant); walk('moses', HU(NEAR_U - 0.03), { speed: 0.006 }); }],
           [2.5, b => {
             pose('moses', 'kneel');
-            prop('sandals', 'sandals', { x: HU(NEAR_U - 0.07), label: '鞋' });
+            prop('sandals', 'sandals', { x: HU(SANDAL_U), label: '鞋' });
             W.set('msHoly', 1, b.instant);
-            if (!b.instant) { const p = getP('bush'); if (p) fx().ring(p.x * W.w, surfY(p.x), [255, 230, 170], M() * 0.18, 2.4, 1.6); }
+            spot(b, HU(SANDAL_U), 3 * LS(2), [255, 232, 180], { dur: 2.6 });
+            if (!b.instant) { const p = getP('bush'); if (p) fx().ring(p.x * W.w, surfY(p.x), [255, 230, 170], M() * 0.14, 2.4, 1.6); }
             sfx(b, 'harp');
           }],
-          [5, b => fathers(b, 9)],
-          [L[1], () => prostrate('moses')],
+          // 「我是你父亲的神，是亚伯拉罕的神，以撒的神，雅各的神」：三颗星；摩西蒙上脸
+          [L[1] + 0.3, b => fathers(b, 9)],
+          [L[1] + 2.4, () => prostrate('moses')],
         ]);
       },
     },
@@ -2270,13 +2416,15 @@
         const L = starts(V9);
         T(c, [
           [0, b => { W.goTo(0.9, 7, b.instant); arise('moses', 'kneel'); W.set('msCry', 0.7, b.instant); }],
-          [L[1], b => { W.set('msPromise', 1, b.instant); W.set('msCry', 0, b.instant); sfx(b, 'harp'); }],
-          [L[1] + 4.5, b => send(b)],
+          // 「到美好、宽阔、流奶与蜜之地」：远方的地泛起晨光
+          [3.2, b => { W.set('msPromise', 1, b.instant); sfx(b, 'harp'); }],
+          [L[1], b => W.set('msCry', 0, b.instant)],
+          [L[1] + 1.5, b => send(b)],
           [L[2], () => prostrate('moses')],
           [L[3], b => {
             W.set('msWith', 1, b.instant);
             arise('moses', 'kneel');
-            const f = fig('moses'); if (f) beam(b, f.nx, { dur: 7, w: 60, r: 0.2 });
+            const f = fig('moses'); if (f) beam(b, f.nx, { dur: 7, w: 60, r: 0.12 });
             sfx(b, 'angel', { soft: true });
           }],
           [L[3] + 4, b => W.set('msPromise', 0.3, b.instant)],
@@ -2302,28 +2450,29 @@
       },
     },
 
-    // ── 11 · 丢在地上（4:1–7）────────────────────────────────
+    // ── 11 · 丢在地上（4:1–7）── 在岩台的平地上：杖变作蛇，摩西跑开；拿住尾巴，又变为杖 ──
     {
       kind: 'cmd', utter: '丢在地上', cmd: 'cast 杖 → 蛇 && grab --tail 蛇 → 杖', ref: '4:3', tint: [236, 230, 190],
       verse: V11,
       apply(c) {
         const L = starts(V11);
         T(c, [
-          [0, b => { W.goTo(0.15, 8, b.instant); arise('moses', 'stand'); face('moses', 1); }],
+          [0, b => { W.goTo(0.15, 8, b.instant); arise('moses', 'stand'); walk('moses', HU(SERP_U - 0.2), { speed: 0.006 }); }],
+          [3, () => face('moses', 1)],
           [L[1] - 2.5, b => { pose('moses', 'point'); glint(b, 'moses', [255, 240, 210], 0.62); }],
           [L[1], b => {
             pose('moses', 'stand');
             hold('moses', null);
-            prop('serpent', 'serpent', { x: HU(NEAR_U + 0.06), morph: 1, label: '杖' });
-            if (!b.instant) fx().dust(HU(NEAR_U + 0.06) * W.w, surfY(HU(NEAR_U + 0.06)), 14, [200, 160, 130], 6 * SU());
+            prop('serpent', 'serpent', { x: HU(SERP_U), morph: 1, label: '杖' });
+            spot(b, HU(SERP_U), 5 * LS(2), [236, 244, 210], { ring: true });
+            if (!b.instant) fx().dust(HU(SERP_U) * W.w, surfY(HU(SERP_U)), 14, [200, 160, 130], 6 * SU());
             sfx(b, 'wind', { soft: true });
           }],
-          [L[1] + 1, () => { walk('moses', HU(NEAR_U - 0.2), { speed: 0.03 }); }],
-          [L[1] + 2, () => prop('serpent', null, { tx: HU(NEAR_U + 0.02), spd: 0.004 })],
+          [L[1] + 0.6, () => { walk('moses', HU(-0.95), { speed: 0.07 }); }],
           [L[1] + 3.2, () => face('moses', 1)],
-          [L[2] + 1, () => walk('moses', HU(NEAR_U - 0.06), { speed: 0.01, pose: 'kneel' })],
-          [L[2] + 3.5, () => prop('serpent', null, { morph: 0 })],
-          [L[2] + 5, b => { unprop('serpent'); hold('moses', 'staff'); pose('moses', 'stand'); glint(b, 'moses', [255, 236, 200], 0.5); }],
+          [L[2] + 1, () => walk('moses', HU(SERP_U - 0.19), { speed: 0.012, pose: 'kneel' })],
+          [L[2] + 4.6, b => { prop('serpent', null, { morph: 0 }); spot(b, HU(SERP_U - 0.12), 4 * LS(2), [255, 236, 200], { ring: true }); }],
+          [L[2] + 5.8, b => { unprop('serpent'); hold('moses', 'staff'); pose('moses', 'stand'); glint(b, 'moses', [255, 236, 200], 0.5); }],
           [L[3] + 2, b => glint(b, 'moses', [250, 252, 255], 0.55, 4.2)],
         ]);
       },
@@ -2344,20 +2493,21 @@
             prop('bush', null, { fire: 0.3 });
             W.set('msHoly', 0.3, b.instant);
             unprop('sandals');
-            walk('moses', HU(-0.8), { speed: 0.012 });
+            walk('moses', HU(-0.97), { speed: 0.012 });
             pose('jethro', 'stand');
-            walk('jethro', 0.825, { speed: 0.022 });
-            crowdWalk('flockJ', 0.83, 0.88, { speed: 0.02 });
+            walk('jethro', 0.81, { speed: 0.022 });
+            crowdWalk('flockJ', 0.905, 0.955, { speed: 0.02 });
           }],
-          [L[2] + 3.5, () => { pose('jethro', 'raise'); face('moses', 1); }],
+          [L[2] + 3.5, () => { pose('jethro', 'raise'); face('jethro', -1); face('moses', 1); }],
           [L[3], b => {
             pose('jethro', 'stand');
+            W.set('msAway', 0.55, b.instant);          // 回埃及地去：埃及近了些
             animal('donkey', 'donkey', X.tent - 0.05, { facing: -1, from: fromOf(b), label: '驴' });
             ride('zipporah', 'donkey');
             carry('zipporah', 'baby');
-            walk('donkey', 0.808, { speed: 0.025 });
-            walk('gershom', 0.795, { speed: 0.025 });
-            walk('moses', HU(-0.93), { speed: 0.012 });
+            walk('donkey', 0.788, { speed: 0.025 });
+            walk('gershom', 0.775, { speed: 0.025 });
+            walk('moses', HU(-0.985), { speed: 0.012 });
             face('jethro', -1);
           }],
         ]);
@@ -2373,35 +2523,37 @@
         T(c, [
           [0, b => {
             W.goTo(0.3, 6, b.instant);
+            W.set('msAway', 0, b.instant);            // 摩西回到埃及：埃及又在眼前
             walk('jethro', X.tent - 0.03, { speed: 0.02, pose: 'sit' });
             add('aaron', { label: '亚伦', sex: 'm', age: 'elder', x: 0.7, facing: 1, robe: ROBE.aaron, accent: [220, 210, 190], glow: 0.35, from: fromOf(b) });
-            walk('aaron', 0.768, { speed: 0.03 });
-            walk('moses', 0.778, { speed: 0.012 });
-            walk('donkey', 0.8, { speed: 0.015 }); walk('gershom', 0.789, { speed: 0.015 });
+            walk('aaron', 0.748, { speed: 0.03 });
+            walk('moses', 0.76, { speed: 0.012 });
+            walk('donkey', 0.784, { speed: 0.015 }); walk('gershom', 0.772, { speed: 0.015 });
+            crowdPose('israel', 'carry'); crowdPose('israel2', 'carry'); crowdMill('israel', true); crowdMill('israel2', true);
           }],
-          [3.2, () => embrace('aaron', 'moses', { at: 0.774 })],
+          [3.2, () => embrace('aaron', 'moses', { at: 0.754 })],
           [L[1], () => { pose('moses', 'point'); pose('aaron', 'stand'); }],
-          [L[1] + 3.2, () => {
+          // 摩西、亚伦就去招聚以色列的众长老
+          [L[1] + 3.2, b => {
             pose('moses', 'stand'); pose('aaron', 'stand');
-            walk('aaron', 0.728, { speed: 0.028 }); walk('moses', 0.742, { speed: 0.028 });
-            walk('donkey', 0.772, { speed: 0.028 }); walk('gershom', 0.758, { speed: 0.028 });
-          }],
-          [L[2], b => {
+            walk('aaron', 0.722, { speed: 0.028 }); walk('moses', 0.736, { speed: 0.028 });
+            walk('donkey', 0.762, { speed: 0.028 }); walk('gershom', 0.749, { speed: 0.028 });
             const f = fromOf(b);
             ELD.forEach((id, i) => add(id, { label: '以色列的长老', sex: 'm', age: 'elder', x: X.huts[i % 5] + 0.006, facing: 1, robe: ELDERS[i], glow: 0.15, from: f }));
-            spread(ELD, 0.664, 0.714, { speed: 0.03, seed: 12 });
-            crowdWalk('israel', 0.612, 0.664, { speed: 0.03 });
-            crowdWalk('israel2', 0.64, 0.7, { speed: 0.03 });
+            spread(ELD, 0.662, 0.706, { speed: 0.03, seed: 12 });
+            crowdWalk('israel', 0.608, 0.66, { speed: 0.03 });
+            crowdWalk('israel2', 0.636, 0.696, { speed: 0.03 });
             sfx(b, 'crowd', { soft: true });
           }],
-          [L[2] + 3, () => { face('aaron', -1); face('moses', -1); pose('aaron', 'raise'); crowdFace('israel', 1); crowdFace('israel2', 1); }],
-          [L[2] + 5.5, b => { pose('aaron', 'stand'); pose('moses', 'raise'); glint(b, 'moses', [255, 240, 210], 0.7); }],
-          [L[2] + 7.5, b => {
-            pose('moses', 'stand');
+          // 亚伦述说，又在百姓眼前行了那些神迹
+          [L[2], () => { face('aaron', -1); face('moses', -1); pose('aaron', 'raise'); crowdFace('israel', 1); crowdFace('israel2', 1); }],
+          [L[2] + 2.5, b => { pose('aaron', 'stand'); pose('moses', 'raise'); glint(b, 'moses', [255, 240, 210], 0.7); }],
+          [L[2] + 5, () => pose('moses', 'stand')],
+          // 耶和华眷顾他们……就低头下拜
+          [L[3], b => {
             ELD.forEach(prostrate);
             crowdPose('israel', 'bow'); crowdPose('israel2', 'bow');
             W.set('msVisit', 1, b.instant);
-            if (!b.instant) fx().ring(0.68 * W.w, gY(2, 0.68) - 20 * LS(2), [255, 236, 190], M() * 0.45, 3, 2);
             sfx(b, 'harp');
           }],
         ]);

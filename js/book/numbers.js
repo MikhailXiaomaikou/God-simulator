@@ -666,7 +666,7 @@
     const lift = p.lift;
     // lift > 0：收上去（离开帐幕，高过远山）；lift < 0：降到会幕门口（12:5）
     const base = lift >= 0 ? lerp(baseRest, top + (baseRest - top) * 0.28, lift) : lerp(baseRest, posY(2, p.x, TABV) - 2 * s, -lift);
-    return { s, base, top: lift >= 0 ? top - lift * W.h * 0.04 : top + (-lift) * (baseRest - top) * 0.25, w: Math.min(44 * s, (port() ? 0.07 : 0.045) * W.w), tw: G.tr - G.tl, tc: (G.tl + G.tr) / 2 - G.x };
+    return { s, base, top: lift >= 0 ? top - lift * W.h * 0.04 : top + (-lift) * (baseRest - top) * 0.25, w: Math.min(44 * s, 0.045 * W.w), tw: G.tr - G.tl, tc: (G.tl + G.tr) / 2 - G.x };
   }
   // 云团的颜色随天光（夕照里是暖的，阴处是灰的）：按颜色缓存
   function puffC(rgb, shade) {
@@ -693,18 +693,18 @@
     const nk = nightK(), dayK = 1 - nk * 0.92, w = g.w * (1 + 0.12 * W.lv.nmDwell);
     // 日间：云的柱，下端轻薄（看得见后面的中丘），上头铺开；歇着时一层云彩遮盖帐幕（9:15）
     if (dayK > 0.02) {
-      const al0 = a * dayK, pf = cloudPuffs(), pa = 0.45 + 0.2 * W.daylight;
+      const al0 = a * dayK, pf = cloudPuffs(), pa = 0.45 + 0.2 * W.daylight, pr = port() ? 1.6 : 1;   // 竖屏上柱子细：云团放大，连成一气
       ctx.globalCompositeOperation = 'lighter';
       ctx.globalAlpha = al0 * 0.06;
       ctx.drawImage(SP.colW, x - w * 1.5, g.top - H * 0.05, w * 3, H * 1.05 + 4);
       ctx.globalCompositeOperation = 'source-over';
-      const N = clamp(Math.round(H / (w * 0.5)), 12, 30);
+      const N = clamp(Math.round(H / (w * pr * 0.5)), 12, 30);
       for (let i = 0; i < N; i++) {
         const t = U.fract(i / N + W.t * 0.007 + rt(i * 3 + 50) * 0.02);
         const y = g.base - t * H, env = smoothstep(0, 0.04, t) * (1 - smoothstep(0.7, 1, t));
         const low = lerp(0.3, 1, smoothstep(0.05, 0.22, t));
         const spread = smoothstep(0.62, 1, t);
-        const r = w * (0.72 + 0.3 * t + 0.7 * spread) * (0.85 + 0.3 * rt(i * 3 + 51));
+        const r = w * pr * (0.72 + 0.3 * t + 0.7 * spread) * (0.85 + 0.3 * rt(i * 3 + 51));
         const xx = x + Math.sin(t * 7 + i * 0.9 + W.t * 0.18) * w * 0.16 + (i % 2 ? 1 : -1) * spread * w * 0.9;
         const al = al0 * env * low;
         if (al < 0.01) continue;
@@ -2990,7 +2990,7 @@
       ],
       apply(c) {
         // 六座逃城：约旦河东三座（左：中丘上），迦南地三座（右：河那边、中丘的迦南、远山）（35:14）
-        const REF = [[0.53, 1, 0.35, 1.3], [0.655, 1, 0.02, 1.3], [0.77, 1, 0.15, 1.3], [0.955, 2, 0.28, 0.8], [0.83, 1, 0.2, 1.3], [0.93, 0, 0, 1.7]];
+        const REF = [[0.53, 1, 0.35, 1.3], [0.605, 1, 0.04, 1.3], [0.77, 1, 0.15, 1.3], [0.955, 2, 0.28, 0.8], [0.83, 1, 0.2, 1.3], [0.93, 0, 0, 1.7]];
         T(c, [
           [0.2, b => { W.goTo(0.74, 26, b.instant); W.set('nmPath', 1, b.instant); folkFace(0.2); sfx(b, 'stars', { soft: true }); }],
           [8, b => { W.set('nmBorder', 1, b.instant); folkFace(0.9); sfx(b, 'harp', { soft: true }); }],

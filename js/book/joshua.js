@@ -54,12 +54,12 @@
     // 约旦河：上游（近地的地脊）→ 下游（画面底）
     jT: 0.588, jB: 0.548,
     // 河西：吉甲
-    tentW: [0.64, 0.672, 0.703, 0.733], ark: 0.69, arkV: 0.3, stones: 0.662, stonesV: 0.5, gilgalJ: 0.705,
+    tentW: [0.618, 0.648, 0.677, 0.703], ark: 0.668, arkV: 0.26, stones: 0.636, stonesV: 0.74, gilgalJ: 0.685,
     field0: 0.93, field1: 0.985,
-    // 耶利哥
-    city: 0.872, cityHW: 0.088, outside: 0.748,
+    // 耶利哥（城与绕城的圈都在画面之内：圈的右端 ≤ 0.95 宽）
+    city: 0.8, cityHW: 0.078, outside: 0.915,
     // 中丘 / 远山
-    ai: 0.603, shiloh: 0.8, hebron: 0.955, hazor: 0.925,
+    ai: 0.655, shiloh: 0.8, hebron: 0.955, hazor: 0.925,
     // 示剑
     oak: 0.705, stele: 0.742, grave: 0.8,
   };
@@ -68,13 +68,13 @@
     officer: [138, 118, 92], guard: [88, 66, 60], eleazar: [240, 236, 222], caleb: [146, 116, 72],
     gib: [150, 138, 118], arm: [120, 96, 78], rear: [112, 100, 92], elder: [168, 150, 124],
   };
-  const GOLD = [232, 192, 98], SCARLET = [206, 30, 40];
+  const GOLD = [232, 192, 98];
 
   // ── 本卷的状态（只在 setup / apply / 情节里改动，重演时一样）───────
   let S = fresh();
   function fresh() {
     return { camp: 'east', ark: 'none', arkX: X.ark, arkV: X.arkV, march: false, horns: false, sword: false, spear: false,
-      rope: false, carry12: false, gold: false, lots: [], lotDim: false, rings: 0, rings7: 0, crowns: false };
+      rope: false, carry12: false, gold: false, lots: [], lotDim: false, rings: 0, rings7: 0, crowns: false, hostL: 0 };
   }
 
   // ════════════════════════════════════════════════════════════
@@ -128,6 +128,26 @@
   function uncrowd(gid, now) { if (hasCrowd(gid)) C().removeCrowd(gid, now ? { fade: false } : undefined); }
   function crowdFace(gid, d) { const c = C(); if (!c.crowds || !c.crowds.get) return; const g = c.crowds.get(gid); if (g) g.members.forEach(m => { m.facing = d; if (W.replaying) m.fd = d; }); }
   function members(gid) { const c = C(); const g = c.crowds && c.crowds.get ? c.crowds.get(gid) : null; return g ? g.members : []; }
+  // 纵深 v 的缓动（人物模块里 v 是瞬间的）：一群人或一个人走向画面的前 / 后；重演时直接到位
+  const VE = new Set();
+  function vTo(id, v) {
+    const list = hasCrowd(id) ? members(id) : (fig(id) ? [fig(id)] : []);
+    const n = list.length;
+    list.forEach((m, i) => {
+      const t = Array.isArray(v) ? lerp(v[0], v[1], n > 1 ? U.fract(i * 0.618 + 0.21) : 0.5) : v;
+      if (W.replaying) { m.v = t; m._jv = null; VE.delete(m); } else { m._jv = t; VE.add(m); }
+    });
+  }
+  function easeV(dt) {
+    if (!VE.size) return;
+    const k = 1 - Math.exp(-2.2 * dt * (W.fast || 1));
+    for (const m of VE) {
+      if (m._jv == null || m.dying) { VE.delete(m); continue; }
+      if (W.replaying || Math.abs(m._jv - m.v) < 0.002) { m.v = m._jv; m._jv = null; VE.delete(m); continue; }
+      m.v += (m._jv - m.v) * k;
+    }
+  }
+  function snapV() { for (const m of VE) { if (m._jv != null) m.v = m._jv; m._jv = null; } VE.clear(); }
   function sfx(b, name, o) {
     if (b && b.instant) return;
     const a = au();
@@ -220,7 +240,7 @@
   }
   const getP = id => P.get(id) || null;
   let sorted = [], sortedN = -1;
-  const ORDER = { lot: -6, field: -5, levi: -4, town: -3, grove: -3, tab: -2, ai: -2, hazor: -2, refuge: -1, stones: 1, cairn: 1, tent: 2, glint: 2.5, palm: 3, city: 4, oak: 5, stele: 6, altar: 6 };
+  const ORDER = { lot: -6, field: -5, levi: -4, town: -3, grove: -3, tab: -2, ai: -2, hazor: -2, refuge: -1, stones: 1, cairn: 1, pfire: 1.5, tent: 2, glint: 2.5, palm: 3, city: 4, oak: 5, stele: 6, altar: 6 };
   function sortProps() {
     if (sortedN === P.size && sorted.length === P.size && sorted.every(p => P.get(p.id) === p)) return sorted;
     sorted = Array.from(P.values()).sort((a, b) => (ORDER[a.kind] || 0) - (ORDER[b.kind] || 0) || (a.v || 0) - (b.v || 0) || a.x - b.x);
@@ -272,8 +292,8 @@
   // 名字的字（楷书），离屏预绘
   const FONT = '"GS Kai", "Kaiti SC", "STKaiti", "KaiTi", "Songti SC", "Noto Serif CJK SC", serif';
   const TXT = new Map();
-  function textSprite(str, px, rgb) {
-    const dpr = Math.min(2, W.dpr || 1), key = str + '|' + px + '|' + dpr + '|' + rgb.join(',');
+  function textSprite(str, px, rgb, halo) {
+    const dpr = Math.min(2, W.dpr || 1), key = str + '|' + px + '|' + dpr + '|' + rgb.join(',') + '|' + (halo ? 1 : 0);
     let s = TXT.get(key);
     if (s) return s;
     if (TXT.size > 120) TXT.clear();
@@ -283,6 +303,12 @@
     const tw = Math.ceil(g.measureText(str).width) + Math.ceil(18 * dpr);
     c.width = Math.max(4, tw); c.height = Math.ceil(px * 2 * dpr);
     g.font = font; g.textAlign = 'center'; g.textBaseline = 'middle';
+    if (halo) {
+      // 远山上的名字：一圈暗的晕，好在淡的远山上看得清
+      g.shadowColor = 'rgba(10, 8, 6, 0.9)'; g.shadowBlur = 7 * dpr;
+      g.lineJoin = 'round'; g.strokeStyle = 'rgba(16, 12, 10, 0.72)'; g.lineWidth = 3.2 * dpr;
+      g.strokeText(str, c.width / 2, c.height / 2);
+    }
     g.shadowColor = 'rgba(14, 9, 5, 0.85)'; g.shadowBlur = 5 * dpr;
     g.fillStyle = U.rgb(rgb[0], rgb[1], rgb[2]);
     g.fillText(str, c.width / 2, c.height / 2);
@@ -399,7 +425,7 @@
   function drawJordan(ctx) {
     const R = rv(), s = LS(2), fl = W.lv.joFlood;
     const key = R.k + ':' + Math.round(fl * 40);
-    if (RPC.key !== key) { RPC = { key, bank: riverPath(0, 1, 1.55, 5 * s), bed: riverPath(0, 1, 1.02, 0) }; }
+    if (RPC.key !== key) { RPC = { key, bank: riverPath(0, 1, 1.55, 5 * s), bed: riverPath(0, 1, 1.02, 0), gk: '', wk: '' }; }
     // 泥滩与芦苇的岸
     ctx.globalAlpha = 0.55;
     ctx.fillStyle = css([132, 116, 84], 2);
@@ -444,18 +470,24 @@
     else { if (fill > 0.004) segs.push([0, fill]); if (dry < 0.996) segs.push([dry, 1]); }
     const night = W.night > 0.5;
     const top = W.shade([150, 190, 206], 0.4, 0.05), bot = W.shade([40, 94, 118], 0, 0.02);
-    const gr = ctx.createLinearGradient(0, R.y0, 0, W.h);
-    gr.addColorStop(0, U.rgb(top[0], top[1], top[2])); gr.addColorStop(1, U.rgb(bot[0], bot[1], bot[2]));
-    for (const sg of segs) {
+    const gk = R.k + top.map(Math.round).join(',') + bot.map(Math.round).join(',');
+    if (RPC.gk !== gk) {
+      const gr = ctx.createLinearGradient(0, R.y0, 0, W.h);
+      gr.addColorStop(0, U.rgb(top[0], top[1], top[2])); gr.addColorStop(1, U.rgb(bot[0], bot[1], bot[2]));
+      RPC.gk = gk; RPC.gr = gr;
+    }
+    const wk = key + ':' + segs.map(q => q[0].toFixed(3) + '-' + q[1].toFixed(3)).join('/');
+    if (RPC.wk !== wk) { RPC.wk = wk; RPC.water = segs.map(sg => [riverPath(sg[0], sg[1], 1.4, 2 * s), riverPath(sg[0], sg[1], 1, 0)]); }
+    for (const [over, body] of RPC.water) {
       // 涨过两岸的浅水
       if (fl > 0.02) {
         ctx.globalAlpha = 0.45 * fl;
         ctx.fillStyle = css([120, 150, 150], 2);
-        ctx.fill(riverPath(sg[0], sg[1], 1.4, 2 * s));
+        ctx.fill(over);
       }
       ctx.globalAlpha = 0.93;
-      ctx.fillStyle = gr;
-      ctx.fill(riverPath(sg[0], sg[1], 1, 0));
+      ctx.fillStyle = RPC.gr;
+      ctx.fill(body);
     }
     ctx.globalAlpha = 1;
     // 天光的倒影
@@ -513,113 +545,155 @@
   }
 
   // ── 立起成垒的水（3:16）：上游的水在远处停住，堆成一道发光的水垒 ──
+  //    水垒的脚盖过涨满的两岸；顶上一道亮的浪脊；背后是一条满溢、加宽的上游河面，直伸到中丘的地脊
+  let HC = { key: '' };
+  function heapGrad(ctx, base, crest, hwF, d, nk) {
+    const ex = 0.1 + 0.25 * nk;
+    const c0 = W.shade([176, 228, 242], 0.08, ex + 0.14), c1 = W.shade([40, 124, 158], 0.05, ex), c2 = W.shade([10, 52, 76], 0, ex * 0.6);
+    const key = [Math.round(HC.cx), Math.round(base), Math.round(crest), Math.round(hwF), d, c0.map(Math.round).join(','), c2.map(Math.round).join(',')].join('|');
+    if (HC.key === key) return HC;
+    const g = ctx.createLinearGradient(0, crest, 0, base);
+    g.addColorStop(0, U.rgb(c0[0], c0[1], c0[2]));
+    g.addColorStop(0.2, U.rgb(c1[0], c1[1], c1[2]));
+    g.addColorStop(1, U.rgb(c2[0], c2[1], c2[2]));
+    const cx = HC.cx;
+    const sg = ctx.createLinearGradient(cx - d * hwF, 0, cx + d * hwF * 0.3, 0);
+    sg.addColorStop(0, 'rgba(4,20,34,0.5)'); sg.addColorStop(1, 'rgba(4,20,34,0)');
+    const my0 = gY(1, X.jT + 0.004);
+    const ug = ctx.createLinearGradient(0, my0, 0, crest + 2);
+    const u0 = W.shade([92, 150, 178], 0.4, ex), u1 = W.shade([168, 220, 236], 0.2, ex + 0.1);
+    ug.addColorStop(0, U.rgba(u0[0], u0[1], u0[2], 0)); ug.addColorStop(0.4, U.rgba(u0[0], u0[1], u0[2], 0.85)); ug.addColorStop(1, U.rgb(u1[0], u1[1], u1[2]));
+    HC = { key, g, sg, ug, cx };
+    return HC;
+  }
   function drawHeap(ctx) {
     const h = W.lv.joHeap;
     if (h < 0.01) return;
     SP || sprites();
     const p = rPt(0.01), cx = p[0], base = p[1] + 1.5, s = LS(2), ph = PH(2);
     const e = easeOut(h), nk = nightK(), lit = 0.5 + 0.5 * W.daylight;
-    const maxH = Math.max(ph * 1.3, base - W.waterlineY(1) + 0.012 * W.h);
-    const H = maxH * e, hw = (ph * (0.62 + 0.3 * e) + rHW(0.02, 1.4) * 1.4) * (phone() ? 1.25 : 1);
-    // 远处中丘上约旦河的上游：一线满溢的水
-    const mx = (X.jT + 0.01) * W.w, my0 = gY(1, X.jT + 0.01), my1 = W.waterlineY(1);
-    if (my1 > my0 + 1) {
-      ctx.globalAlpha = 0.75 * h;
-      ctx.strokeStyle = css([170, 214, 230], 1, 1, 0.1);
-      ctx.lineWidth = Math.max(1.2, 2.2 * s);
-      ctx.beginPath(); ctx.moveTo(mx + 3 * s, my0 + 1); ctx.quadraticCurveTo(mx - 2 * s, (my0 + my1) / 2, mx, my1); ctx.stroke();
+    const wl1 = W.waterlineY(1);
+    const top = Math.min(base - ph * 1.3, wl1 - 0.006 * W.h);
+    const H = (base - top) * e, crest = base - H;
+    const bank = rHW(0.03, 1.42) * 1.55 + 5 * s;
+    const hwF = Math.max(bank * 2.6, ph * 1.55) * (phone() ? 1.15 : 1);   // 脚：盖过两岸
+    const hwT = hwF * (0.48 + 0.1 * e);                                   // 顶：较窄
+    const d = litX() >= cx ? 1 : -1;
+    HC.cx = cx;
+    const G = heapGrad(ctx, base, crest, hwF, d, nk);
+    // 上游：中丘上一条满溢、加宽的河面，自地脊一直到水垒的顶
+    const ua = h * smoothstep(0.35, 0.95, e);
+    const mx = (X.jT + 0.004) * W.w, my0 = gY(1, X.jT + 0.004) + 1;
+    if (ua > 0.01 && crest > my0 + 2) {
+      const wt = ph * 0.3, wb = hwT * 1.02;
+      ctx.globalAlpha = ua * 0.95;
+      ctx.fillStyle = G.ug;
+      ctx.beginPath();
+      ctx.moveTo(mx - wt, my0);
+      ctx.quadraticCurveTo(mx - wt * 1.4, lerp(my0, crest, 0.6), cx - wb, crest + 2);
+      ctx.lineTo(cx + wb, crest + 2);
+      ctx.quadraticCurveTo(mx + wt * 1.4, lerp(my0, crest, 0.6), mx + wt, my0);
+      ctx.closePath(); ctx.fill();
+      // 满到岸边：两道亮的水边与几道向前涌的波光
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.strokeStyle = U.rgba(214, 240, 252, (0.35 * lit + 0.15 * nk) * ua);
+      ctx.lineWidth = Math.max(0.8, 1.1 * s);
+      ctx.beginPath();
+      ctx.moveTo(mx - wt, my0); ctx.quadraticCurveTo(mx - wt * 1.4, lerp(my0, crest, 0.6), cx - wb, crest + 2);
+      ctx.moveTo(mx + wt, my0); ctx.quadraticCurveTo(mx + wt * 1.4, lerp(my0, crest, 0.6), cx + wb, crest + 2);
+      ctx.stroke();
+      for (let i = 0; i < 4; i++) {
+        const f = U.fract(W.t * 0.12 + i / 4), yy = lerp(my0, crest, f), ww = lerp(wt, wb, f) * 0.7;
+        ctx.globalAlpha = ua * Math.sin(f * Math.PI) * (0.3 * lit + 0.12 * nk);
+        ctx.beginPath(); ctx.moveTo(mx + (cx - mx) * f - ww, yy); ctx.lineTo(mx + (cx - mx) * f + ww, yy); ctx.stroke();
+      }
+      ctx.globalCompositeOperation = 'source-over';
       ctx.globalAlpha = 1;
     }
     // 背后的光：水垒透出的天光
     ctx.globalCompositeOperation = 'lighter';
-    glowSp(ctx, SP.water, cx, base - H * 0.6, hw * 2.2 + H * 0.5, h * (0.12 + 0.3 * nk));
+    glowSp(ctx, SP.water, cx, base - H * 0.55, hwF * 1.6 + H * 0.4, h * (0.12 + 0.3 * nk));
     ctx.globalCompositeOperation = 'source-over';
-    // 形：陡直的两侧，顶上几团堆起的水——像一道凝住的浪
-    const wob = W.t * 0.9;
-    const N = 22, topPts = [];
+    // 形：脚向两边铺开，两侧陡起，顶上一道几乎平的浪脊（像一道凝住的浪，背后连着上游）
+    const wob = W.t * 0.9, N = 18, topPts = [];
     for (let i = 0; i <= N; i++) {
-      const k = (i / N) * 2 - 1, lobe = 0.035 * Math.cos(k * 6.5 + 0.6) + 0.012 * Math.sin(k * 11 + wob) * e;
-      topPts.push([cx + k * hw * (0.96 - 0.12 * k * k), base - H * (1 - 0.2 * Math.pow(Math.abs(k), 3.2) + lobe)]);
+      const k = (i / N) * 2 - 1, lobe = 0.028 * Math.cos(k * 7 + 0.6) + 0.01 * Math.sin(k * 11 + wob) * e;
+      topPts.push([cx + k * hwT, crest + H * (0.05 * k * k + lobe)]);
     }
     const body = () => {
       ctx.beginPath();
-      ctx.moveTo(cx - hw * 1.08, base);
-      ctx.bezierCurveTo(cx - hw * 1.1, base - H * 0.4, cx - hw * 1.06, base - H * 0.66, topPts[0][0], topPts[0][1]);
+      ctx.moveTo(cx - hwF, base + 2 * s);
+      ctx.bezierCurveTo(cx - hwF * 0.7, base - H * 0.06, cx - hwT * 1.14, base - H * 0.42, topPts[0][0], topPts[0][1]);
       for (let i = 1; i <= N; i++) ctx.lineTo(topPts[i][0], topPts[i][1]);
-      ctx.bezierCurveTo(cx + hw * 1.06, base - H * 0.66, cx + hw * 1.1, base - H * 0.4, cx + hw * 1.08, base);
+      ctx.bezierCurveTo(cx + hwT * 1.14, base - H * 0.42, cx + hwF * 0.7, base - H * 0.06, cx + hwF, base + 2 * s);
       ctx.closePath();
     };
-    const ex = 0.1 + 0.25 * nk;
-    const c0 = W.shade([168, 222, 238], 0.08, ex + 0.12), c1 = W.shade([34, 116, 150], 0.05, ex), c2 = W.shade([8, 46, 70], 0, ex * 0.6);
-    const g = ctx.createLinearGradient(0, base - H, 0, base);
-    g.addColorStop(0, U.rgb(c0[0], c0[1], c0[2]));
-    g.addColorStop(0.22, U.rgb(c1[0], c1[1], c1[2]));
-    g.addColorStop(1, U.rgb(c2[0], c2[1], c2[2]));
-    ctx.fillStyle = g;
+    ctx.globalAlpha = 0.94;
+    ctx.fillStyle = G.g;
     body(); ctx.fill();
+    ctx.globalAlpha = 1;
     ctx.save();
     body(); ctx.clip();
     // 背光的一侧更深：水的厚度
-    const d = litX() >= cx ? 1 : -1;
-    const sg = ctx.createLinearGradient(cx - d * hw * 1.1, 0, cx + d * hw * 0.4, 0);
-    sg.addColorStop(0, 'rgba(4,20,34,0.45)'); sg.addColorStop(1, 'rgba(4,20,34,0)');
-    ctx.fillStyle = sg;
-    ctx.fillRect(cx - hw * 1.2, base - H * 1.2, hw * 2.4, H * 1.2);
+    ctx.fillStyle = G.sg;
+    ctx.fillRect(cx - hwF * 1.1, crest - 4, hwF * 2.2, H + 8);
     ctx.globalCompositeOperation = 'lighter';
+    // 顶面：一道斜向后方的亮面，接上上游的河面
+    ctx.fillStyle = U.rgba(214, 244, 255, 0.3 * h * lit + 0.12 * nk);
+    ctx.beginPath(); ctx.ellipse(cx, crest + H * 0.05, hwT * 1.02, Math.max(2, H * 0.07), 0, 0, TAU); ctx.fill();
     // 迎光的一侧：玻璃似的一道亮面
-    const hx = cx + d * hw * 0.5;
-    const hg = ctx.createLinearGradient(hx - hw * 0.32, 0, hx + hw * 0.32, 0);
-    hg.addColorStop(0, 'rgba(210,240,255,0)'); hg.addColorStop(0.5, U.rgba(210, 242, 255, 0.28 * h * lit + 0.12 * nk)); hg.addColorStop(1, 'rgba(210,240,255,0)');
-    ctx.fillStyle = hg;
-    ctx.fillRect(hx - hw * 0.32, base - H * 1.1, hw * 0.64, H * 1.1);
+    const hx = cx + d * hwT * 0.55;
+    ctx.fillStyle = U.rgba(210, 242, 255, 0.12 * h * lit + 0.05 * nk);
+    ctx.beginPath(); ctx.moveTo(hx - hwT * 0.2, crest); ctx.lineTo(hx + hwT * 0.22, crest); ctx.lineTo(hx + d * hwF * 0.35 + hwT * 0.3, base); ctx.lineTo(hx + d * hwF * 0.2 - hwT * 0.2, base); ctx.closePath(); ctx.fill();
     // 水中的光：几道缓缓上涌、起伏的亮带，与游动的光斑
-    ctx.lineWidth = Math.max(1, 1.6 * s);
+    ctx.lineWidth = Math.max(1, 1.5 * s);
     for (let i = 0; i < 4; i++) {
-      const f = U.fract(W.t * 0.05 + i / 4), yy = base - H * (0.1 + 0.8 * f), a = Math.sin(f * Math.PI);
-      ctx.strokeStyle = U.rgba(190, 236, 255, 0.16 * a * h * lit + 0.07 * a * nk);
+      const f = U.fract(W.t * 0.05 + i / 4), yy = base - H * (0.08 + 0.84 * f), a = Math.sin(f * Math.PI);
+      const wq = lerp(hwF * 0.9, hwT, f);
+      ctx.strokeStyle = U.rgba(190, 236, 255, 0.15 * a * h * lit + 0.07 * a * nk);
       ctx.beginPath();
-      for (let j = 0; j <= 12; j++) {
-        const k = (j / 12) * 2 - 1, xx = cx + k * hw * 1.1, w2 = Math.sin(k * 5 + W.t * 0.8 + i * 2) * H * 0.025;
-        const y2 = yy - (1 - k * k) * H * 0.05 + w2;
+      for (let j = 0; j <= 10; j++) {
+        const k = (j / 10) * 2 - 1, xx = cx + k * wq, y2 = yy - (1 - k * k) * H * 0.04 + Math.sin(k * 5 + W.t * 0.8 + i * 2) * H * 0.02;
         if (j) ctx.lineTo(xx, y2); else ctx.moveTo(xx, y2);
       }
       ctx.stroke();
     }
-    SP || sprites();
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 9; i++) {
       const u = rt(i * 5 + 520), v = U.fract(rt(i * 5 + 521) + W.t * (0.015 + 0.02 * rt(i * 5 + 522)));
-      const x = cx + (u * 2 - 1) * hw * 0.85, y = base - H * (0.08 + 0.82 * v), r = hw * (0.18 + 0.16 * rt(i * 5 + 523));
-      glowSp(ctx, SP.water, x, y, r, (0.16 + 0.12 * Math.sin(W.t * 1.3 + i * 2.2)) * h * lit + 0.05 * nk);
+      const x = cx + (u * 2 - 1) * lerp(hwF * 0.8, hwT * 0.8, v), y = base - H * (0.06 + 0.84 * v), r = hwT * (0.26 + 0.2 * rt(i * 5 + 523));
+      glowSp(ctx, SP.water, x, y, r, (0.15 + 0.1 * Math.sin(W.t * 1.3 + i * 2.2)) * h * lit + 0.05 * nk);
     }
     ctx.restore();
-    // 顶上的浪花：一道白的边与翻起的沫
+    // 浪脊：一道白的边与翻起的沫
     ctx.globalCompositeOperation = 'lighter';
-    ctx.strokeStyle = U.rgba(248, 252, 255, 0.75 * h * lit + 0.25 * nk);
-    ctx.lineWidth = Math.max(1.4, 2.6 * s);
+    ctx.strokeStyle = U.rgba(248, 252, 255, 0.72 * h * lit + 0.25 * nk);
+    ctx.lineWidth = Math.max(1.3, 2.2 * s);
     ctx.lineCap = 'round'; ctx.lineJoin = 'round';
     ctx.beginPath();
-    for (let i = 1; i < N; i++) { const q = topPts[i]; if (i === 1) ctx.moveTo(q[0], q[1] + 1); else ctx.lineTo(q[0], q[1] + 1); }
+    for (let i = 0; i <= N; i++) { const q = topPts[i]; if (i === 0) ctx.moveTo(q[0], q[1] + 1); else ctx.lineTo(q[0], q[1] + 1); }
     ctx.stroke();
-    ctx.fillStyle = U.rgba(250, 252, 255, 0.8 * h * lit + 0.2 * nk);
+    ctx.fillStyle = U.rgba(250, 252, 255, 0.75 * h * lit + 0.2 * nk);
     ctx.beginPath();
-    for (let i = 1; i < N; i++) {
-      const q = topPts[i], jy = Math.sin(W.t * 3.4 + i * 2.1) * 1.3 * s, r = (1 + rt(i + 90) * 1.6) * s;
+    for (let i = 0; i <= N; i += 1) {
+      const q = topPts[i], jy = Math.sin(W.t * 3.4 + i * 2.1) * 1.2 * s, r = (0.9 + rt(i + 90) * 1.4) * s;
       ctx.moveTo(q[0] + r, q[1] + jy); ctx.arc(q[0], q[1] + jy, r, 0, TAU);
     }
     ctx.fill();
-    for (let i = 0; i < 20; i++) {
-      const ph2 = U.fract(W.t * 0.45 + rt(i * 3 + 300)), q = topPts[1 + Math.floor(rt(i * 3 + 301) * (N - 1))];
-      const x = q[0] + Math.sin(i) * ph2 * 7 * s, y = q[1] - ph2 * 13 * s;
-      ctx.globalAlpha = h * (1 - ph2) * 0.6;
-      ctx.fillRect(x, y, 1.6 * s, 1.6 * s);
+    SP || sprites();
+    for (let i = 0; i < 14; i++) {
+      const ph2 = U.fract(W.t * 0.4 + rt(i * 3 + 300)), q = topPts[Math.floor(rt(i * 3 + 301) * N)];
+      const x = q[0] + Math.sin(i * 1.7) * ph2 * 9 * s, y = q[1] - ph2 * 14 * s;
+      glowSp(ctx, SP.white, x, y, (2.2 + 2 * ph2) * s, h * (1 - ph2) * 0.55);
     }
     ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = 'source-over';
-    // 水垒脚下：湿的河床与一线白沫
-    ctx.fillStyle = U.rgba(20, 44, 56, 0.35 * h);
-    ctx.beginPath(); ctx.ellipse(cx, base + 1.5 * s, hw * 1.2, 3.2 * s, 0, 0, TAU); ctx.fill();
+    // 水垒脚下：盖过两岸的一片浅水、湿的河床与一线白沫
+    ctx.fillStyle = U.rgba(20, 44, 56, 0.32 * h);
+    ctx.beginPath(); ctx.ellipse(cx, base + 2 * s, hwF * 1.12, 3.6 * s, 0, 0, TAU); ctx.fill();
+    ctx.fillStyle = U.rgba(96, 150, 170, 0.35 * h);
+    ctx.beginPath(); ctx.ellipse(cx, base + 1 * s, hwF * 1.02, 2.4 * s, 0, 0, TAU); ctx.fill();
     ctx.fillStyle = U.rgba(236, 244, 248, 0.55 * h * lit + 0.15 * nk);
-    ctx.beginPath(); ctx.ellipse(cx, base, hw * 1.05, 1.8 * s, 0, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(cx, base, hwF * 0.98, 1.5 * s, 0, 0, TAU); ctx.fill();
   }
 
   // ════════════════════════════════════════════════════════════
@@ -628,258 +702,487 @@
   const CM = (() => {
     const r = U.mulberry32(4471);
     const N = 12, seg = [];
-    for (let i = 0; i < N; i++) seg.push({ h: 0.94 + 0.1 * r(), tower: i === 0 || i === N - 1 || i === 4 || i === 6, jit: r() });
+    for (let i = 0; i < N; i++) seg.push({ h: 0.95 + 0.1 * r(), tower: i === 0 || i === N - 1 || i === 4 || i === 6, jit: r() });
+    // 城里平顶的房屋：后排在土丘高处（较高），前排紧贴在城墙之后
     const houses = [];
-    for (let i = 0; i < 12; i++) houses.push({ ox: -0.84 + 1.68 * (i + 0.5) / 12 + (r() - 0.5) * 0.07, w: 0.1 + 0.07 * r(), h: 1.12 + 0.55 * r(), win: r() < 0.75, tw: r() * 6, dome: r() < 0.18, br: r() });
+    for (let i = 0; i < 15; i++) {
+      const tier = i % 2;
+      houses.push({ ox: -0.88 + 1.76 * (i + 0.5) / 15 + (r() - 0.5) * 0.05, w: 0.1 + 0.08 * r(), h: (tier ? 1.0 : 0.84) + 0.34 * r(), tier, win: r() < 0.8, tw: r() * 6, slot: r() });
+    }
     const rub = [];
-    for (let i = 0; i < 60; i++) rub.push([r(), r(), r()]);
-    return { N, seg, houses, rub, gate: 5, rahab: 1, palace: { ox: 0.16, w: 0.2, h: 2.05 } };
+    for (let i = 0; i < 120; i++) rub.push([r(), r(), r(), r()]);
+    return { N, seg, houses, rub, gate: 5, rahab: 1, palace: { ox: 0.22, w: 0.27, h: 1.5 } };
   })();
+  // 城的尺度：土丘（tell）、斜坡（glacis）、石砌的护墙（revetment）、其上的泥砖城墙
   function cityG(p) {
-    const ph = PH(2), cx = p.x * W.w, hw = X.cityHW * W.w;
-    return { ph, cx, hw, wallH: 0.92 * ph, moundH: 0.24 * ph, s: LS(2) };
+    const ph = PH(2), cx = p.x * W.w, hw = X.cityHW * W.w, wallH = 0.98 * ph;
+    return { ph, cx, hw, wallH, revH: 0.3 * wallH, glH: 0.2 * wallH, moundH: 0.26 * ph, s: LS(2) };
   }
-  function cityBase(G, x) {
-    const u = (x - G.cx) / (G.hw * 1.3);
+  function cityBase(G, x) {              // 土丘顶面（护墙的脚）
+    const u = (x - G.cx) / (G.hw * 1.32);
     const k = Math.abs(u) >= 1 ? 0 : Math.pow(Math.cos(u * Math.PI / 2), 0.55);
     return gY(2, x / W.w) + 1 - G.moundH * k;
   }
+  const wallFoot = (G, x) => cityBase(G, x) - G.revH;     // 泥砖城墙的脚（护墙顶）
   const segX = (G, i) => G.cx + G.hw * (-1 + (2 * i) / CM.N);
   // 各段城墙的倒塌（自城门向两边）；喇合那一段不倒
   function segFall(p, i) {
     if (i === CM.rahab) return 0;
     const d = Math.abs(i - CM.gate) / 7;
-    return clamp(p.fall * 1.7 - d * 0.7, 0, 1);
+    return clamp(p.fall * 2.2 - d * 1.2, 0, 1);
   }
   function rahabWin(p) {       // 喇合的窗（像素）
     const G = cityG(p), x0 = segX(G, CM.rahab), x1 = segX(G, CM.rahab + 1), xm = (x0 + x1) / 2;
-    const b = cityBase(G, xm);
-    return { x: xm + (x1 - x0) * 0.08, y: b - G.wallH * 0.78, roof: b - G.wallH * 1.5, base: b, w: x1 - x0 };
+    const b = wallFoot(G, xm);
+    return { x: xm + (x1 - x0) * 0.1, y: b - G.wallH * 0.86, roof: b - G.wallH * 1.55, base: b, w: x1 - x0 };
   }
-  function drawCity(ctx, p) {
-    const G = cityG(p), s = G.s, l = 2, cx = G.cx, hw = G.hw;
+  // 城里的房屋（墙倒之后塌下一半；火后只剩残垣）
+  function cityHouses(G, p) {
+    const fallK = clamp(p.fall * 1.25, 0, 1), cave = Math.min(0.92, 0.64 * fallK + 0.2 * p.fire + 0.4 * p.ruin);
+    const one = (ox, w, h, tier, i) => {
+      const hx = G.cx + ox * G.hw, ww = w * G.hw;
+      const g0 = wallFoot(G, hx) - G.wallH * (tier ? 0.34 : 0.04) * (1 - 0.6 * fallK);
+      const hh = h * G.wallH * (1 - cave * (0.84 + 0.12 * Math.sin(ox * 9 + i)));
+      return { hx, g0, hh, ww, broken: fallK > 0.15, j: 0.5 + 0.5 * Math.sin(ox * 13 + i) };
+    };
+    const HB = CM.houses.map((q, i) => one(q.ox, q.w, q.h, q.tier, i));
+    const PB = one(CM.palace.ox, CM.palace.w, CM.palace.h, 1, 20);
+    return { HB, PB, fallK, cave };
+  }
+  // 一段倒下的墙：自脚下向前（向观者）翻倒，两边的也向外斜；落地后碎成砖块，滑下斜坡
+  const KF = 0.56;
+  function slabQuad(G, i, f) {
+    const sg = CM.seg[i], xa = segX(G, i), xb = segX(G, i + 1), tw = sg.tower ? 0.12 * (xb - xa) : 0;
+    const xA = xa - tw, xB = xb + tw, fA = wallFoot(G, xA), fB = wallFoot(G, xB);
+    let H0 = G.wallH * sg.h * (sg.tower ? 1.32 : 1);
+    if (i === CM.gate) H0 = G.wallH * 1.06;
+    const side = i < CM.gate ? -1 : i > CM.gate ? 1 : 0, dist = Math.abs(i - CM.gate) / 6;
+    const fk = clamp((f - 0.1) / 0.75, 0, 1), a = fk * fk * Math.PI / 2;
+    const lat = side * (0.05 + 0.16 * dist) * H0 * Math.sin(a);
+    const sl = smoothstep(0.8, 1, f) * G.glH * 0.8;
+    const tr = f < 0.1 ? Math.sin(W.t * 41 + i * 3) * 1.3 * G.s * (f / 0.1) : 0;
+    const bat = 0.03 * H0;
+    const dy = -H0 * Math.cos(a) + KF * H0 * Math.sin(a);
+    return { xA, xB, fA, fB, H0, a, side, lat, sl, tr, bat, dy,
+      pts: [[xA + lat * 0.12 + tr, fA + sl * 0.6], [xA + bat + lat + tr, fA + dy + sl], [xB - bat + lat + tr, fB + dy + sl], [xB + lat * 0.12 + tr, fB + sl * 0.6]] };
+  }
+  function polyFill(ctx, pts) { ctx.moveTo(pts[0][0], pts[0][1]); for (let k = 1; k < pts.length; k++) ctx.lineTo(pts[k][0], pts[k][1]); ctx.closePath(); }
+  // 碎砖：一段墙落地之后的样子（在护墙前的斜坡上）
+  function rubbleOf(G, i, k, out) {
+    const q0 = slabQuad(G, i, 1), xA = q0.xA, xB = q0.xB, n = 6, sw = xB - xA;
+    for (let j = 0; j < n; j++) {
+      const r = CM.rub[(i * n + j) % CM.rub.length];
+      const u = (j + 0.2 + 0.6 * r[0]) / n, x = lerp(xA, xB, u) + q0.lat * (0.5 + 0.6 * r[1]) + (r[3] - 0.5) * sw * 0.3;
+      const y = lerp(q0.fA, q0.fB, u) + G.revH * (0.3 + 0.5 * r[2]) + (j % 3 === 0 ? G.glH * (0.6 + 0.8 * r[3]) : 0);
+      const w = sw * (0.2 + 0.2 * r[1]) * (0.5 + 0.5 * k), h = w * (0.45 + 0.25 * r[2]);
+      out.push([x, y, w, h, r[3]]);
+    }
+  }
+  // 倒下的墙在护墙上与斜坡上堆成的一道砖土堆
+  function heapPath(ctx, G, i, k) {
+    const Q = slabQuad(G, i, 1), sw = Q.xB - Q.xA, sp = sw * 0.18, n = 6;
+    const x0 = Q.xA - sp + Q.lat * 0.3, x1 = Q.xB + sp + Q.lat * 0.3;
+    ctx.moveTo(x0, cityBase(G, x0) + G.glH * 0.7);
+    for (let j = 0; j <= n; j++) {
+      const u = j / n, x = lerp(x0, x1, u), r = CM.rub[(i * 11 + j) % CM.rub.length];
+      const top = wallFoot(G, x) - Q.H0 * 0.1 * (0.5 + r[1]) * k + G.revH * 0.15 * (1 - Math.sin(u * Math.PI));
+      ctx.lineTo(x, lerp(cityBase(G, x) + G.glH * 0.5, top, k));
+    }
+    ctx.lineTo(x1, cityBase(G, x1) + G.glH * 0.7);
+    ctx.closePath();
+  }
+  function drawCityBody(ctx, p, G, A) {
+    const s = G.s, l = 2, cx = G.cx, hw = G.hw;
     const ruin = p.ruin, burn = p.fire, nk = nightK(), lx = litX() >= cx ? 1 : -1;
-    const A = p.a;
     // 土丘
-    const soil = U.mixRGB([150, 124, 88], [104, 128, 70], ruin);
+    const soil = U.mixRGB([152, 126, 90], [104, 128, 70], ruin);
     ctx.globalAlpha = A;
     ctx.fillStyle = css(soil, l);
     ctx.beginPath();
-    const x0m = cx - hw * 1.32, x1m = cx + hw * 1.32;
+    const x0m = cx - hw * 1.36, x1m = cx + hw * 1.36;
     ctx.moveTo(x0m, gY(2, x0m / W.w) + 3);
-    for (let i = 0; i <= 24; i++) { const x = lerp(x0m, x1m, i / 24); ctx.lineTo(x, cityBase(G, x) - (ruin * G.wallH * 0.28) * Math.max(0, 1 - Math.pow((x - cx) / (hw * 1.05), 2))); }
+    for (let i = 0; i <= 26; i++) { const x = lerp(x0m, x1m, i / 26); ctx.lineTo(x, cityBase(G, x) - (ruin * G.wallH * 0.3) * Math.max(0, 1 - Math.pow((x - cx) / (hw * 1.05), 2))); }
     ctx.lineTo(x1m, gY(2, x1m / W.w) + 3);
     ctx.closePath(); ctx.fill();
-    // 废墟：先塌、再被土与草掩埋（ruin → 1 时只剩一座青草的土丘）
     const standA = A * (1 - smoothstep(0.62, 1, ruin));
     if (standA < 0.01) { ctx.globalAlpha = 1; return; }
     ctx.globalAlpha = standA;
-    // 城里的房屋与高台（墙倒之后露出；火中变暗、坍塌）
-    const hc = U.mixRGB([200, 172, 132], [96, 76, 60], burn * 0.8);
-    const hs = U.mixRGB([150, 124, 94], [60, 48, 40], burn * 0.8);
-    const fallK = clamp(p.fall * 1.25, 0, 1), broken = fallK > 0.15;
-    // 墙倒之后，城里的房屋也塌下一半；火后只剩残垣
-    const cave = Math.min(0.9, 0.58 * fallK + 0.22 * burn + 0.45 * ruin);
-    const box = (ox, w, h, dome) => {
-      const hx = cx + ox * hw, ww = w * hw, hh = h * G.wallH * (1 - cave * (0.75 + 0.25 * Math.sin(ox * 9))), g0 = cityBase(G, hx) - G.wallH * 0.2 * (1 - fallK);
-      if (broken) {
-        const j = 0.5 + 0.5 * Math.sin(ox * 13);
-        ctx.moveTo(hx - ww / 2, g0); ctx.lineTo(hx - ww / 2, g0 - hh * (0.7 + 0.3 * j)); ctx.lineTo(hx - ww * 0.12, g0 - hh);
-        ctx.lineTo(hx + ww * 0.08, g0 - hh * 0.72); ctx.lineTo(hx + ww / 2, g0 - hh * (0.9 - 0.4 * j)); ctx.lineTo(hx + ww / 2, g0); ctx.closePath();
-      } else {
-        ctx.rect(hx - ww / 2, g0 - hh, ww, hh);
-        if (dome) { ctx.moveTo(hx + ww * 0.36, g0 - hh); ctx.ellipse(hx, g0 - hh, ww * 0.36, ww * 0.32, 0, 0, Math.PI, true); }
-      }
-      return [hx, g0, hh, ww];
+    // 城里的房屋与高台：平顶，迎光一面亮、背光一面暗，窄窄的窗
+    const H = cityHouses(G, p);
+    const hc = U.mixRGB([206, 180, 138], [96, 76, 60], burn * 0.8), hs = U.mixRGB([150, 124, 94], [60, 48, 40], burn * 0.8);
+    const order = H.HB.map((b, i) => [b, CM.houses[i].tier]).sort((a, b) => b[1] - a[1]);
+    const boxPath = b => {
+      const { hx, g0, hh, ww } = b;
+      if (b.broken) {
+        const j = b.j;
+        ctx.moveTo(hx - ww / 2, g0); ctx.lineTo(hx - ww / 2, g0 - hh * (0.82 + 0.18 * j)); ctx.lineTo(hx - ww * 0.15, g0 - hh);
+        ctx.lineTo(hx + ww * 0.1, g0 - hh * 0.86); ctx.lineTo(hx + ww * 0.3, g0 - hh * 0.93); ctx.lineTo(hx + ww / 2, g0 - hh * (0.9 - 0.2 * j)); ctx.lineTo(hx + ww / 2, g0); ctx.closePath();
+      } else ctx.rect(hx - ww / 2, g0 - hh, ww, hh);
     };
-    ctx.fillStyle = css(hc, l);
-    ctx.beginPath();
-    const pal = CM.palace;
-    const PB = box(pal.ox, pal.w, pal.h, false);
-    const HB = CM.houses.map(h => box(h.ox, h.w, h.h, h.dome));
-    ctx.fill();
-    ctx.fillStyle = css(hs, l, 0.85);
-    ctx.beginPath();
-    for (const q of HB.concat([PB])) ctx.rect(lx > 0 ? q[0] - q[3] / 2 : q[0] + q[3] * 0.2, q[1] - q[2], q[3] * 0.3, q[2]);
-    ctx.fill();
-    // 高台的垛口
-    if (!broken) {
-      ctx.fillStyle = css(hc, l);
+    for (const tier of [1, 0]) {
+      ctx.fillStyle = css(tier ? U.mixRGB(hc, [180, 160, 130], 0.25) : hc, l, 1, tier ? 0 : 0.03);
       ctx.beginPath();
-      for (let k = 0; k < 4; k++) { const mx = PB[0] - PB[3] / 2 + (k + 0.5) * PB[3] / 4; ctx.rect(mx - PB[3] * 0.07, PB[1] - PB[2] - 3 * s, PB[3] * 0.14, 3 * s); }
+      for (const [b, t] of order) if (t === tier) boxPath(b);
+      if (tier) boxPath(H.PB);
       ctx.fill();
     }
-    // 夜里的窗
-    if (nk > 0.05 && !broken && burn < 0.3) {
-      ctx.globalCompositeOperation = 'lighter';
-      ctx.fillStyle = 'rgb(255,178,96)';
-      const ws = Math.max(1, 2.2 * s);
-      CM.houses.forEach((h, i) => {
-        if (!h.win) return;
-        const q = HB[i];
-        ctx.globalAlpha = standA * nk * (1 - burn) * (0.55 + 0.35 * Math.sin(W.t * 0.8 + h.tw));
-        ctx.fillRect(q[0] - ws / 2, q[1] - q[2] * 0.62, ws, ws * 1.4);
-      });
-      ctx.globalCompositeOperation = 'source-over';
-      ctx.globalAlpha = standA;
+    // 背光的一面、屋顶的边、窗
+    ctx.fillStyle = css(hs, l, 0.8);
+    ctx.beginPath();
+    for (const b of H.HB.concat([H.PB])) ctx.rect(lx > 0 ? b.hx - b.ww / 2 : b.hx + b.ww * 0.2, b.g0 - b.hh, b.ww * 0.3, b.hh);
+    ctx.fill();
+    if (!H.fallK) {
+      ctx.fillStyle = css([236, 216, 180], l, 0.5 * dayA(), 0.15);
+      ctx.beginPath();
+      for (const b of H.HB.concat([H.PB])) ctx.rect(b.hx - b.ww / 2 - 0.5 * s, b.g0 - b.hh - 1.2 * s, b.ww + 1 * s, 1.2 * s);
+      ctx.fill();
+      ctx.fillStyle = css([40, 30, 24], l, 0.85);
+      ctx.beginPath();
+      H.HB.forEach((b, i) => { const q = CM.houses[i]; const ww = Math.max(1, 0.12 * b.ww); ctx.rect(b.hx + (q.slot - 0.5) * b.ww * 0.5 - ww / 2, b.g0 - b.hh * 0.7, ww, Math.max(2, b.hh * 0.2)); });
+      for (let k = 0; k < 3; k++) ctx.rect(H.PB.hx - H.PB.ww * 0.3 + k * H.PB.ww * 0.25, H.PB.g0 - H.PB.hh * 0.8, Math.max(1, 0.06 * H.PB.ww), H.PB.hh * 0.14);
+      ctx.fill();
     }
-    // 城墙
-    const wallC = U.mixRGB([184, 150, 108], [96, 76, 58], burn * 0.6), stoneC = U.mixRGB([150, 136, 116], [80, 70, 60], burn * 0.6);
-    const rubC = U.mixRGB([160, 136, 104], [84, 70, 56], burn * 0.5);
-    const rims = [];
+    // 斜坡（抹了灰的土坡）与石砌的护墙
+    const gx0 = cx - hw * 1.14, gx1 = cx + hw * 1.14, NG = 24;
+    ctx.fillStyle = css(U.mixRGB([212, 194, 158], [120, 130, 84], ruin), l, 1, 0.02);
+    ctx.beginPath();
+    for (let i = 0; i <= NG; i++) { const x = lerp(gx0, gx1, i / NG), e = Math.min(1, Math.min(i, NG - i) / 3); const y = cityBase(G, x) + 0.5; if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); }
+    for (let i = NG; i >= 0; i--) { const x = lerp(gx0, gx1, i / NG), e = Math.min(1, Math.min(i, NG - i) / 3); ctx.lineTo(x, cityBase(G, x) + G.glH * e); }
+    ctx.closePath(); ctx.fill();
+    const rx0 = cx - hw * 1.07, rx1 = cx + hw * 1.07;
+    const stoneC = U.mixRGB([160, 148, 126], [80, 70, 60], burn * 0.6);
+    ctx.fillStyle = css(stoneC, l);
+    ctx.beginPath();
+    ctx.moveTo(rx0, cityBase(G, rx0) + 1);
+    for (let i = 0; i <= NG; i++) { const x = lerp(rx0 + hw * 0.025, rx1 - hw * 0.025, i / NG); ctx.lineTo(x, wallFoot(G, x)); }
+    ctx.lineTo(rx1, cityBase(G, rx1) + 1);
+    for (let i = NG; i >= 0; i--) { const x = lerp(rx0, rx1, i / NG); ctx.lineTo(x, cityBase(G, x) + 1); }
+    ctx.closePath(); ctx.fill();
+    // 护墙的石缝
+    ctx.strokeStyle = css([96, 86, 72], l, 0.4); ctx.lineWidth = Math.max(0.5, 0.6 * s);
+    ctx.beginPath();
+    const sw = Math.max(4, 7 * s);
+    for (let row = 1; row <= 2; row++) {
+      for (let x = rx0 + (row % 2) * sw * 0.5; x < rx1 - 1; x += sw) {
+        const y = lerp(cityBase(G, x), wallFoot(G, x), row / 3);
+        ctx.moveTo(x, y); ctx.lineTo(Math.min(rx1, x + sw), lerp(cityBase(G, x + sw), wallFoot(G, x + sw), row / 3));
+        ctx.moveTo(x, y); ctx.lineTo(x, lerp(cityBase(G, x), wallFoot(G, x), (row - 1) / 3));
+      }
+    }
+    ctx.stroke();
+    // 城墙：泥砖，微向内收；城楼略高，平顶，窄窗
+    const wallC = U.mixRGB([196, 158, 112], [96, 76, 58], burn * 0.6), topC = U.mixRGB([226, 196, 150], [110, 90, 70], burn * 0.6);
+    const rubC = U.mixRGB([176, 144, 106], [84, 70, 56], burn * 0.5);
+    const rims = [], rubble = [], slabs = [];
     for (let i = 0; i < CM.N; i++) {
-      const sg = CM.seg[i], xa = segX(G, i), xb = segX(G, i + 1), f = segFall(p, i);
-      const tw = sg.tower ? 0.1 * (xb - xa) : 0;
-      const xA = xa - tw, xB = xb + tw;
-      const ba = cityBase(G, xA), bb = cityBase(G, xB);
       if (i === CM.rahab) continue;                        // 喇合的房子另画
-      let H0 = G.wallH * sg.h * (sg.tower ? 1.34 : 1);
-      if (i === CM.gate) H0 = G.wallH * 1.06;
-      const stand = 1 - f;
-      const shake = f > 0 && f < 1 ? Math.sin(W.t * 37 + i * 3) * 1.4 * s * Math.sin(f * Math.PI) : 0;
-      const H = H0 * stand;
-      if (H > 0.5) {
-        const lean = f * f * 0.25 * (i < CM.gate ? -1 : 1) * H0;   // 倒时微微外倾
-        ctx.fillStyle = css(wallC, l, 1, 0.05 + 0.1 * nk);
+      const f = segFall(p, i);
+      if (f >= 0.999) { rubbleOf(G, i, 1, rubble); continue; }
+      const Q = slabQuad(G, i, f);
+      if (f > 0.85) rubbleOf(G, i, (f - 0.85) / 0.15, rubble);
+      slabs.push([i, f, Q]);
+    }
+    // 站着的与正在倒的（先画已倒得多的，站着的在后面盖住它们的脚）
+    slabs.sort((a, b) => (b[1] - a[1]) || ((CM.seg[a[0]].tower ? 1 : 0) - (CM.seg[b[0]].tower ? 1 : 0)));
+    // 正在倒的墙在前面的斜坡上投下的影
+    ctx.fillStyle = css([30, 22, 16], l, 0.3);
+    ctx.beginPath();
+    for (const [i, f, Q] of slabs) {
+      if (f <= 0.1 || f >= 0.9) continue;
+      const k = Math.sin(Q.a), xm = (Q.xA + Q.xB) / 2 + Q.lat * 0.6, ym = (Q.fA + Q.fB) / 2 + KF * Q.H0 * 0.55 + Q.sl;
+      ctx.moveTo(xm + (Q.xB - Q.xA) * 0.6, ym); ctx.ellipse(xm, ym, (Q.xB - Q.xA) * 0.6, KF * Q.H0 * 0.45 * k, 0, 0, TAU);
+    }
+    ctx.globalAlpha = standA;
+    ctx.fill();
+    for (const [i, f, Q] of slabs) {
+      const sg = CM.seg[i], face = Math.sin(Q.a) ** 2, fadeA = f > 0.85 ? 1 - (f - 0.85) / 0.15 : 1;
+      const u = ((Q.xA + Q.xB) / 2 - cx) / hw, tone = 1 + 0.06 * lx * u;
+      const col = U.mixRGB(wallC, topC, face).map(c => c * tone);
+      ctx.globalAlpha = standA * fadeA;
+      ctx.fillStyle = css(col, l, 1, 0.05 + 0.1 * nk);
+      ctx.beginPath(); polyFill(ctx, Q.pts); ctx.fill();
+      if (f <= 0.001) {
+        // 砖的层缝
+        const c = Math.max(2.4, 0.11 * G.wallH), hgt = Q.H0;
+        ctx.strokeStyle = css([120, 92, 66], l, 0.2); ctx.lineWidth = Math.max(0.4, 0.5 * s);
         ctx.beginPath();
-        ctx.moveTo(xA, ba); ctx.lineTo(xA + shake + lean, ba - H); ctx.lineTo(xB + shake + lean, bb - H); ctx.lineTo(xB, bb); ctx.closePath();
-        ctx.fill();
-        // 石基
-        ctx.fillStyle = css(stoneC, l);
-        const sh = Math.min(H, G.wallH * 0.24);
-        ctx.beginPath(); ctx.moveTo(xA, ba); ctx.lineTo(xA, ba - sh); ctx.lineTo(xB, bb - sh); ctx.lineTo(xB, bb); ctx.closePath(); ctx.fill();
-        // 垛口
-        if (f < 0.15) {
-          ctx.fillStyle = css(wallC, l);
+        for (let yy = c; yy < hgt - c * 0.5; yy += c) {
+          const k = yy / hgt, xl = Q.xA + Q.bat * k, xr = Q.xB - Q.bat * k;
+          ctx.moveTo(xl, lerp(Q.fA, Q.fA - hgt, k)); ctx.lineTo(xr, lerp(Q.fB, Q.fB - hgt, k));
+          const off = (Math.round(yy / c) % 2) * c;
+          for (let xx = xl + off + c; xx < xr - c * 0.5; xx += c * 2.2) { const yb = lerp(Q.fA, Q.fB, (xx - Q.xA) / (Q.xB - Q.xA)) - yy; ctx.moveTo(xx, yb); ctx.lineTo(xx, yb + c); }
+        }
+        ctx.stroke();
+        // 背光的一侧（城楼）与窄窗
+        if (sg.tower) {
+          ctx.fillStyle = css([80, 62, 46], l, 0.3);
+          const bw = (Q.xB - Q.xA) * 0.26;
+          ctx.beginPath(); ctx.moveTo(lx > 0 ? Q.xA : Q.xB - bw, lx > 0 ? Q.fA : Q.fB); ctx.lineTo(lx > 0 ? Q.xA + Q.bat : Q.xB - bw, (lx > 0 ? Q.fA : Q.fB) - Q.H0);
+          ctx.lineTo(lx > 0 ? Q.xA + bw : Q.xB - Q.bat, (lx > 0 ? Q.fA : Q.fB) - Q.H0); ctx.lineTo(lx > 0 ? Q.xA + bw : Q.xB, lx > 0 ? Q.fA : Q.fB); ctx.closePath(); ctx.fill();
+          ctx.fillStyle = css([30, 22, 18], l, 0.9);
           ctx.beginPath();
-          const n = sg.tower ? 3 : 4, mw = (xB - xA) / (n * 2);
-          for (let k = 0; k < n; k++) { const mx = xA + mw * (2 * k + 0.5) + shake + lean; const my = lerp(ba, bb, (mx - xA) / (xB - xA)) - H; ctx.rect(mx, my - 3.2 * s, mw, 3.2 * s); }
+          const mx = (Q.xA + Q.xB) / 2, my = (Q.fA + Q.fB) / 2 - Q.H0, sw2 = Math.max(1, 0.07 * (Q.xB - Q.xA));
+          ctx.rect(mx - (Q.xB - Q.xA) * 0.18 - sw2 / 2, my + Q.H0 * 0.22, sw2, Q.H0 * 0.2); ctx.rect(mx + (Q.xB - Q.xA) * 0.18 - sw2 / 2, my + Q.H0 * 0.22, sw2, Q.H0 * 0.2);
           ctx.fill();
+          ctx.fillStyle = css(topC, l, 1, 0.08);
+          ctx.fillRect(Q.xA + Q.bat - 1.2 * s, my - 1.6 * s, Q.xB - Q.xA - 2 * Q.bat + 2.4 * s, 1.6 * s);
         }
-        rims.push([xA + shake + lean, ba - H, xB + shake + lean, bb - H]);
-        // 城门（拱门、门扇）
-        if (i === CM.gate && f < 0.6) {
-          const gx = (xA + xB) / 2, gw = (xB - xA) * 0.34, gh = G.wallH * 0.62 * (1 - f);
-          const gb = (ba + bb) / 2;
-          ctx.fillStyle = css([26, 20, 16], l);
-          ctx.beginPath(); ctx.moveTo(gx - gw, gb); ctx.lineTo(gx - gw, gb - gh * 0.7); ctx.quadraticCurveTo(gx, gb - gh * 1.15, gx + gw, gb - gh * 0.7); ctx.lineTo(gx + gw, gb); ctx.closePath(); ctx.fill();
-          const shut = 1 - p.open;
-          if (shut > 0.02) {
-            ctx.fillStyle = css([112, 80, 52], l);
-            ctx.beginPath();
-            ctx.rect(gx - gw, gb - gh * 0.7, gw * shut, gh * 0.7);
-            ctx.rect(gx + gw - gw * shut, gb - gh * 0.7, gw * shut, gh * 0.7);
-            ctx.fill();
-            ctx.strokeStyle = css([64, 46, 32], l, 0.8); ctx.lineWidth = Math.max(0.5, 0.7 * s);
-            ctx.beginPath(); ctx.moveTo(gx - gw * (1 - shut), gb - gh * 0.7); ctx.lineTo(gx - gw * (1 - shut), gb); ctx.stroke();
-          }
-          // 城门两旁的火把（夜里）
-          if (nk > 0.1 && burn < 0.3) { flame(ctx, gx - gw * 1.5, gb - gh * 0.9, 5 * s, standA * nk * 0.9, 11); flame(ctx, gx + gw * 1.5, gb - gh * 0.9, 5 * s, standA * nk * 0.9, 17); ctx.globalAlpha = standA; }
+        // 城门：一道方的门洞（门扇另画）
+        if (i === CM.gate) {
+          const gx = (Q.xA + Q.xB) / 2, gw = (Q.xB - Q.xA) * 0.2, gb = (cityBase(G, Q.xA) + cityBase(G, Q.xB)) / 2 + 1, gh = (G.wallH + G.revH) * 0.62;
+          ctx.fillStyle = css([24, 18, 14], l);
+          ctx.fillRect(gx - gw, gb - gh, gw * 2, gh);
+          ctx.fillStyle = css(topC, l, 1, 0.05);
+          ctx.fillRect(gx - gw * 1.2, gb - gh - 1.6 * s, gw * 2.4, 1.6 * s);
         }
+        rims.push([Q.pts[1], Q.pts[2]]);
+      } else {
+        // 倒下时：迎天的一面（原来的墙面）亮起来
+        ctx.strokeStyle = css([255, 232, 190], l, 0.5 * face * dayA(), 0.3); ctx.lineWidth = Math.max(0.6, 1 * s);
+        ctx.beginPath(); ctx.moveTo(Q.pts[1][0], Q.pts[1][1]); ctx.lineTo(Q.pts[2][0], Q.pts[2][1]); ctx.stroke();
       }
-      // 倒下的砖石
-      if (f > 0.01) {
-        ctx.fillStyle = css(rubC, l);
-        ctx.beginPath();
-        const rw = (xB - xA) * 0.62, rh = G.wallH * 0.32 * f;
-        for (let k = 0; k < 5; k++) {
-          const q = CM.rub[(i * 5 + k) % CM.rub.length];
-          const rx = lerp(xA, xB, 0.1 + 0.8 * q[0]), ry = lerp(ba, bb, (rx - xA) / (xB - xA)) + 2 * s;
-          const r1 = rw * (0.28 + 0.2 * q[1]), r2 = rh * (0.55 + 0.45 * q[2]);
-          ctx.moveTo(rx + r1, ry); ctx.ellipse(rx, ry, r1, r2, 0, Math.PI, TAU);
-        }
-        ctx.fill();
-        ctx.fillStyle = css([220, 200, 166], l, 0.35 * dayA() * f, 0.15);
-        ctx.beginPath();
-        for (let k = 0; k < 5; k += 2) {
-          const q = CM.rub[(i * 5 + k) % CM.rub.length];
-          const rx = lerp(xA, xB, 0.1 + 0.8 * q[0]) + lx * rw * 0.1, ry = lerp(ba, bb, (rx - xA) / (xB - xA)) - rh * 0.5 * q[2];
-          ctx.moveTo(rx + rw * 0.12, ry); ctx.ellipse(rx, ry, rw * 0.12, rh * 0.2, 0, 0, TAU);
-        }
-        ctx.fill();
+    }
+    ctx.globalAlpha = standA;
+    // 碎砖与残垣（留在护墙上的一截断墙）：一道砖土堆，其上散着砖块
+    if (rubble.length) {
+      ctx.fillStyle = css(U.mixRGB(rubC, [150, 120, 88], 0.4), l);
+      ctx.beginPath();
+      for (let i = 0; i < CM.N; i++) { const f = segFall(p, i); if (i !== CM.rahab && f >= 0.85) heapPath(ctx, G, i, clamp((f - 0.85) / 0.15, 0, 1)); }
+      ctx.fill();
+      ctx.fillStyle = css(rubC, l);
+      ctx.beginPath();
+      for (let i = 0; i < CM.N; i++) {
+        if (i === CM.rahab || segFall(p, i) < 0.85) continue;
+        const Q = slabQuad(G, i, 0), k = (segFall(p, i) - 0.85) / 0.15, st = Q.H0 * 0.16 * Math.min(1, k * 1.5);
+        const n = 5;
+        ctx.moveTo(Q.xA, Q.fA);
+        for (let j = 0; j <= n; j++) { const u = j / n; ctx.lineTo(lerp(Q.xA, Q.xB, u), lerp(Q.fA, Q.fB, u) - st * (0.4 + 0.6 * CM.rub[(i * 7 + j) % CM.rub.length][1])); }
+        ctx.lineTo(Q.xB, Q.fB); ctx.closePath();
       }
+      for (const r of rubble) {
+        const [x, y, w, h, t] = r;
+        ctx.moveTo(x - w * 0.5, y); ctx.lineTo(x - w * 0.42, y - h * 0.8); ctx.lineTo(x - w * 0.05 + t * w * 0.2, y - h); ctx.lineTo(x + w * 0.45, y - h * 0.7); ctx.lineTo(x + w * 0.52, y); ctx.closePath();
+      }
+      ctx.fill();
+      ctx.fillStyle = css([232, 204, 160], l, 0.45 * dayA() + 0.1, 0.15);
+      ctx.beginPath();
+      for (const r of rubble) { const [x, y, w, h, t] = r; ctx.moveTo(x - w * 0.4, y - h * 0.78); ctx.lineTo(x - w * 0.05 + t * w * 0.2, y - h); ctx.lineTo(x + w * 0.42, y - h * 0.7); ctx.lineTo(x, y - h * 0.62); ctx.closePath(); }
+      ctx.fill();
     }
     // 迎光的墙头
     if (rims.length) {
       ctx.strokeStyle = css([255, 232, 190], l, 0.45 * dayA(), 0.3); ctx.lineWidth = Math.max(0.6, 1 * s);
       ctx.beginPath();
-      for (const q of rims) { ctx.moveTo(q[0], q[1]); ctx.lineTo(q[2], q[3]); }
+      for (const q of rims) { ctx.moveTo(q[0][0], q[0][1]); ctx.lineTo(q[1][0], q[1][1]); }
       ctx.stroke();
     }
     drawRahabHouse(ctx, p, G, standA, wallC, stoneC);
     ctx.globalAlpha = 1;
-    // 火（6:24）
-    if (burn > 0.01) {
+  }
+  // ── 静止的城预绘在离屏的画布上（尺寸、光、倒塌 / 火 / 废墟的程度为键）──
+  const BK = { key: '', c: null, x0: 0, y0: 0, w: 0, h: 0 };
+  function lightKey(G) {
+    const c = W.shade([200, 200, 200], 0, 0);
+    return Math.round(c[0] / 4) + ',' + Math.round(c[1] / 4) + ',' + Math.round(c[2] / 4) + ',' + Math.round(nightK() * 12) + ',' + Math.round(W.daylight * 16) + ',' + (litX() >= G.cx ? 1 : 0);
+  }
+  function bakeCity(p, G, key) {
+    const x0 = Math.floor(G.cx - G.hw * 1.7), x1 = Math.ceil(G.cx + G.hw * 1.7);
+    const y0 = Math.floor(cityBase(G, G.cx) - G.revH - G.wallH * 2.9 - 6);
+    const y1 = Math.ceil(Math.max(gY(2, x0 / W.w), gY(2, x1 / W.w), cityBase(G, G.cx) + G.glH) + G.wallH * 0.9);
+    const dpr = Math.min(2, W.dpr || 1), w = Math.max(4, x1 - x0), h = Math.max(4, y1 - y0);
+    try {
+      if (!BK.c) BK.c = document.createElement('canvas');
+      const cw = Math.ceil(w * dpr), ch = Math.ceil(h * dpr);
+      if (BK.c.width !== cw || BK.c.height !== ch) { BK.c.width = cw; BK.c.height = ch; }
+      const g = BK.c.getContext('2d');
+      g.setTransform(1, 0, 0, 1, 0, 0);
+      g.clearRect(0, 0, cw, ch);
+      g.setTransform(dpr, 0, 0, dpr, -x0 * dpr, -y0 * dpr);
+      drawCityBody(g, p, G, 1);
+      Object.assign(BK, { key, x0, y0, w, h });
+    } catch (e) { BK.key = ''; BK.c = null; }
+  }
+  function drawCity(ctx, p) {
+    const G = cityG(p), A = p.a;
+    // 墙倒时，黎明的暖光从城后透出
+    const rim = tweening('rim') ? tv('rim', 0) : 0;
+    if (rim > 0.01) {
       SP || sprites();
       ctx.globalCompositeOperation = 'lighter';
-      glowSp(ctx, SP.ember, cx, cityBase(G, cx) - G.wallH * 0.9, hw * (1.1 + 0.4 * burn), burn * standA * (0.5 + 0.2 * Math.sin(W.t * 5)));
+      glowSp(ctx, SP.warm, G.cx, wallFoot(G, G.cx) - G.wallH * 0.8, G.hw * 2.2, rim * 0.55 * A);
       ctx.globalCompositeOperation = 'source-over';
-      for (let i = 0; i < HB.length; i += 2) { const q = HB[i]; flame(ctx, q[0], q[1] - q[2] * 0.55, 8 * s * (0.5 + burn), burn * standA * 0.9, i * 3.1); }
-      flame(ctx, PB[0], PB[1] - PB[2] * 0.6, 12 * s * (0.5 + burn), burn * standA, 5.5);
+    }
+    const still = p.fall <= 0.0005 || p.fall >= 0.9995;
+    if (still) {
+      // 结构（尺寸、倒塌、火、废墟）变了立即重绘；只是天光变了，每 0.3 秒才重绘一次
+      const sk = [W.w, W.h, W.dpr, p.fall > 0.5 ? 1 : 0, Math.round(p.fire * 12), Math.round(p.ruin * 24)].join('|'), lk = lightKey(G);
+      if (BK.sk !== sk || (BK.lk !== lk && !(Math.abs(W.t - (BK.t || 0)) < 0.3))) { bakeCity(p, G, sk + '#' + lk); BK.sk = BK.key ? sk : ''; BK.lk = lk; BK.t = W.t; }
+    }
+    if (still && BK.c && BK.key) {
+      ctx.globalAlpha = A;
+      ctx.drawImage(BK.c, BK.x0, BK.y0, BK.w, BK.h);
       ctx.globalAlpha = 1;
+    } else drawCityBody(ctx, p, G, A);
+    drawCityLive(ctx, p, G);
+  }
+  // 会动的部分：门扇、火把、夜里的窗、喇合的灯与朱红线绳、火、烟、尘
+  function drawCityLive(ctx, p, G) {
+    const s = G.s, l = 2, cx = G.cx, A = p.a, nk = nightK(), burn = p.fire;
+    const standA = A * (1 - smoothstep(0.62, 1, p.ruin));
+    if (standA > 0.01) {
+      const H = cityHouses(G, p);
+      // 城门的门扇（6:1 关得严紧）与两旁的火把
+      const gf = segFall(p, CM.gate);
+      if (gf < 0.1) {
+        const Q = slabQuad(G, CM.gate, 0), gx = (Q.xA + Q.xB) / 2, gw = (Q.xB - Q.xA) * 0.2, gb = (cityBase(G, Q.xA) + cityBase(G, Q.xB)) / 2 + 1, gh = (G.wallH + G.revH) * 0.62;
+        const shut = 1 - p.open;
+        ctx.globalAlpha = standA;
+        if (shut > 0.02) {
+          ctx.fillStyle = css([118, 84, 54], l);
+          ctx.fillRect(gx - gw, gb - gh, gw * shut, gh);
+          ctx.fillRect(gx + gw - gw * shut, gb - gh, gw * shut, gh);
+          ctx.strokeStyle = css([64, 46, 32], l, 0.8); ctx.lineWidth = Math.max(0.5, 0.7 * s);
+          ctx.beginPath(); ctx.moveTo(gx - gw * (1 - shut), gb - gh); ctx.lineTo(gx - gw * (1 - shut), gb); ctx.moveTo(gx - gw, gb - gh * 0.5); ctx.lineTo(gx + gw, gb - gh * 0.5); ctx.stroke();
+        }
+        if (nk > 0.1 && burn < 0.3) { flame(ctx, gx - gw * 1.9, gb - gh * 0.95, 5 * s, standA * nk * 0.9, 11); flame(ctx, gx + gw * 1.9, gb - gh * 0.95, 5 * s, standA * nk * 0.9, 17); }
+        ctx.globalAlpha = 1;
+      }
+      // 夜里的窗
+      if (nk > 0.05 && H.fallK < 0.15 && burn < 0.3) {
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.fillStyle = 'rgb(255,178,96)';
+        CM.houses.forEach((q, i) => {
+          if (!q.win) return;
+          const b = H.HB[i], ww = Math.max(1, 0.12 * b.ww);
+          ctx.globalAlpha = standA * nk * (1 - burn) * (0.55 + 0.35 * Math.sin(W.t * 0.8 + q.tw));
+          ctx.fillRect(b.hx + (q.slot - 0.5) * b.ww * 0.5 - ww / 2, b.g0 - b.hh * 0.7, ww, Math.max(2, b.hh * 0.2));
+        });
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.globalAlpha = 1;
+      }
+      drawRahabLive(ctx, p, G, standA);
+      // 火（6:24）
+      if (burn > 0.01) {
+        SP || sprites();
+        ctx.globalCompositeOperation = 'lighter';
+        glowSp(ctx, SP.ember, cx, wallFoot(G, cx) - G.wallH * 0.8, G.hw * (1.1 + 0.4 * burn), burn * standA * (0.5 + 0.2 * Math.sin(W.t * 5)));
+        ctx.globalCompositeOperation = 'source-over';
+        for (let i = 0; i < H.HB.length; i += 2) { const b = H.HB[i]; flame(ctx, b.hx, b.g0 - b.hh * 0.55, 8 * s * (0.5 + burn), burn * standA * 0.9, i * 3.1); }
+        flame(ctx, H.PB.hx, H.PB.g0 - H.PB.hh * 0.6, 12 * s * (0.5 + burn), burn * standA, 5.5);
+        ctx.globalAlpha = 1;
+      }
     }
     if (p.smoke > 0.01) {
-      for (let i = 0; i < 3; i++) smoke(ctx, cx + (i - 1) * hw * 0.45, cityBase(G, cx) - G.wallH * 1.2, p.smoke * standA, W.h * 0.3, 10 * s, i * 2.3, true);
+      for (let i = 0; i < 3; i++) smoke(ctx, cx + (i - 1) * G.hw * 0.45, wallFoot(G, cx) - G.wallH * 1.2, p.smoke * A, W.h * 0.3, 10 * s, i * 2.3, true);
     }
-    // 城墙塌陷时腾起的尘土
-    if (tweening('dustc')) {
-      SP || sprites();
-      const k = tv('dustc', 1), day = 0.35 + 0.65 * W.daylight;
-      for (let i = 0; i < 16; i++) {
-        const u = (i + 0.5) / 16, x = cx + (u * 2 - 1) * hw * 1.05, b0 = cityBase(G, x);
-        const lag = Math.abs(u - (CM.gate + 0.5) / CM.N) * 0.5, kk = clamp((k - lag) / (1 - lag * 0.6), 0, 1);
-        if (kk <= 0) continue;
-        const r = G.wallH * (0.6 + 1.7 * kk) * (0.8 + 0.4 * rt(i + 610)), y = b0 - G.wallH * (0.3 + 1.3 * kk) * (0.7 + 0.5 * rt(i + 620));
-        ctx.globalAlpha = Math.sin(Math.min(1, kk * 1.3) * Math.PI) * 0.75 * day;
-        ctx.drawImage(SP.dust, x - r + Math.sin(i * 1.7) * kk * G.wallH * 0.4, y - r, r * 2, r * 2);
-      }
-      ctx.globalAlpha = 1;
-    }
+    drawPuffs(ctx);
   }
-  // 喇合的房子：在城墙上，高出一截；窗外系着朱红线绳（2:15，2:21）
+  // 喇合的房子：在城墙上，高出一截；窗有框（2:15）；房顶的矮墙与麻秸（2:6）
   function drawRahabHouse(ctx, p, G, A, wallC, stoneC) {
     const s = G.s, l = 2, R = rahabWin(p), x0 = segX(G, CM.rahab), x1 = segX(G, CM.rahab + 1);
-    const b0 = cityBase(G, x0), b1 = cityBase(G, x1), H = G.wallH * 1.5;
+    const b0 = wallFoot(G, x0), b1 = wallFoot(G, x1), H = G.wallH * 1.55;
     ctx.globalAlpha = A;
-    ctx.fillStyle = css(U.mixRGB(wallC, [196, 162, 120], 0.35), l);
-    ctx.beginPath(); ctx.moveTo(x0, b0); ctx.lineTo(x0, b0 - H); ctx.lineTo(x1, b1 - H); ctx.lineTo(x1, b1); ctx.closePath(); ctx.fill();
-    ctx.fillStyle = css(stoneC, l);
-    ctx.beginPath(); ctx.moveTo(x0, b0); ctx.lineTo(x0, b0 - G.wallH * 0.24); ctx.lineTo(x1, b1 - G.wallH * 0.24); ctx.lineTo(x1, b1); ctx.closePath(); ctx.fill();
-    // 房顶的矮墙与麻秸（2:6）
-    ctx.fillStyle = css([196, 170, 120], l);
-    ctx.beginPath(); ctx.rect(x0 + (x1 - x0) * 0.12, b0 - H - 2.4 * s, (x1 - x0) * 0.5, 2.4 * s); ctx.fill();
-    if ((p.lit || 0) > 0.02) { lamp(ctx, (x0 + x1) / 2, b0 - H - G.wallH * 0.3, G.wallH * 1.6, A * p.lit, 9); ctx.globalAlpha = A; }
+    ctx.fillStyle = css(U.mixRGB(wallC, [210, 176, 130], 0.4), l, 1, 0.03);
+    ctx.beginPath(); ctx.moveTo(x0, b0); ctx.lineTo(x0 + 0.5 * s, b0 - H); ctx.lineTo(x1 - 0.5 * s, b1 - H); ctx.lineTo(x1, b1); ctx.closePath(); ctx.fill();
+    // 房顶的矮墙与一束束麻秸
+    ctx.fillStyle = css([204, 178, 128], l);
+    ctx.beginPath(); ctx.rect(x0, b0 - H - 2.2 * s, x1 - x0, 2.2 * s); ctx.fill();
+    ctx.fillStyle = css([214, 190, 120], l, 0.9);
+    ctx.beginPath();
+    for (let k = 0; k < 3; k++) { const bx = x0 + (x1 - x0) * (0.2 + k * 0.2); ctx.ellipse(bx, b0 - H - 2.6 * s, 2.2 * s, 1.2 * s, 0, Math.PI, TAU); }
+    ctx.fill();
     // 背光的一侧
     const lx = litX() >= R.x ? 1 : -1;
-    ctx.fillStyle = css([90, 70, 52], l, 0.35);
+    ctx.fillStyle = css([90, 70, 52], l, 0.32);
     ctx.fillRect(lx > 0 ? x0 : x1 - (x1 - x0) * 0.22, b0 - H, (x1 - x0) * 0.22, H);
-    // 窗
-    const ww = (x1 - x0) * 0.2, wh = G.wallH * 0.22;
+    // 窗：暗的洞，浅色的框（楣与台）
+    const ww = (x1 - x0) * 0.24, wh = G.wallH * 0.26;
     ctx.fillStyle = css([24, 18, 14], l);
     ctx.fillRect(R.x - ww / 2, R.y - wh, ww, wh);
-    const lk = nightK() * 0.9 + (p.lit || 0);
+    ctx.fillStyle = css([236, 214, 170], l, 1, 0.08);
+    ctx.fillRect(R.x - ww / 2 - 1.2 * s, R.y - wh - 1.4 * s, ww + 2.4 * s, 1.4 * s);
+    ctx.fillRect(R.x - ww / 2 - 1.6 * s, R.y, ww + 3.2 * s, 1.5 * s);
+    ctx.globalAlpha = 1;
+  }
+  function drawRahabLive(ctx, p, G, A) {
+    const s = G.s, R = rahabWin(p), ww = (R.w) * 0.24, wh = G.wallH * 0.26;
+    SP || sprites();
+    // 窗里的灯：夜里、或喇合在家时
+    const lk = Math.min(1, nightK() * 0.85 + (p.lit || 0));
     if (lk > 0.03) {
       ctx.globalCompositeOperation = 'lighter';
-      ctx.globalAlpha = A * Math.min(1, lk) * 0.7;
+      ctx.globalAlpha = A * lk * 0.75;
       ctx.fillStyle = 'rgb(255,170,90)';
       ctx.fillRect(R.x - ww / 2, R.y - wh, ww, wh);
       ctx.globalCompositeOperation = 'source-over';
-      lamp(ctx, R.x, R.y - wh / 2, ww * 3.2, A * Math.min(1, lk), 3);
-      ctx.globalAlpha = A;
+      lamp(ctx, R.x, R.y - wh / 2, ww * 3.4 + (p.lit || 0) * G.wallH * 0.8, A * lk, 3);
     }
-    // 朱红线绳
+    // 朱红线绳：细、深红，从窗台垂下，微微摇动；台上一个小结
     const cord = p.cord;
     if (cord > 0.005) {
-      const len = (R.base - R.y) * 0.92 * cord, sw = Math.sin(W.t * 1.1) * 1.2 * s;
-      ctx.strokeStyle = U.rgb(SCARLET[0], SCARLET[1], SCARLET[2]);
-      ctx.globalAlpha = A * Math.min(1, cord * 4) * (0.75 + 0.25 * dayA());
-      ctx.lineWidth = Math.max(1.6, 2.6 * s);
+      const len = (R.base - R.y) * 0.78 * cord, sw = Math.sin(W.t * 1.1) * 0.9 * s + Math.sin(W.t * 2.3 + 1) * 0.3 * s;
+      const ax = R.x + ww * 0.28, ay = R.y + 0.6 * s;
+      const a = A * Math.min(1, cord * 4);
+      ctx.globalAlpha = a;
+      ctx.strokeStyle = css([150, 18, 30], 2, 1, 0.12 + 0.2 * nightK());
+      ctx.lineWidth = Math.max(1, 1.25 * s);
       ctx.lineCap = 'round';
-      ctx.beginPath(); ctx.moveTo(R.x - ww * 0.2, R.y); ctx.quadraticCurveTo(R.x - ww * 0.2 + sw, R.y + len * 0.5, R.x - ww * 0.1 + sw * 1.6, R.y + len); ctx.stroke();
-      SP || sprites();
+      ctx.beginPath(); ctx.moveTo(ax, ay); ctx.bezierCurveTo(ax + 2.2 * s, ay + len * 0.3, ax + 1.2 * s + sw * 0.6, ay + len * 0.7, ax + 0.6 * s + sw, ay + len); ctx.stroke();
+      ctx.fillStyle = css([170, 24, 36], 2, 1, 0.15 + 0.2 * nightK());
+      ctx.beginPath(); ctx.arc(ax, ay, Math.max(1, 1.3 * s), 0, TAU); ctx.fill();
       ctx.globalCompositeOperation = 'lighter';
-      glowSp(ctx, SP.red, R.x - ww * 0.15, R.y + len * 0.5, Math.max(6, len * 0.55), A * Math.min(1, cord * 3) * (0.16 + 0.3 * nightK()));
+      ctx.strokeStyle = U.rgba(255, 150, 150, 0.22 * a * (0.4 + 0.6 * dayA()));
+      ctx.lineWidth = Math.max(0.5, 0.5 * s);
+      ctx.beginPath(); ctx.moveTo(ax + 0.4 * s, ay + len * 0.1); ctx.bezierCurveTo(ax + 2.4 * s, ay + len * 0.32, ax + 1.4 * s + sw * 0.6, ay + len * 0.55, ax + 1.1 * s + sw * 0.8, ay + len * 0.7); ctx.stroke();
       ctx.globalCompositeOperation = 'source-over';
+      ctx.globalAlpha = 1;
+    }
+  }
+  // 城墙倒塌时腾起的尘（圆的、柔的，向外向上翻滚；只关乎画面）
+  const PUFF = [];
+  const segPrev = new Array(12).fill(0);
+  let lastFall = -1;
+  function spawnPuffs(dt) {
+    for (let i = PUFF.length - 1; i >= 0; i--) { PUFF[i].t += dt * (W.fast || 1); if (PUFF[i].t >= PUFF[i].dur) PUFF.splice(i, 1); }
+    const c = getP('jericho');
+    if (!c) { lastFall = -1; return; }
+    const natural = lastFall >= 0 && Math.abs(c.fall - lastFall) < 0.05 && !W.replaying;
+    lastFall = c.fall;
+    for (let i = 0; i < CM.N; i++) {
+      const f = segFall(c, i), was = segPrev[i];
+      segPrev[i] = f;
+      if (!natural || !(was < 0.8 && f >= 0.8)) continue;
+      const G = cityG(c), Q = slabQuad(G, i, 1), n = phone() ? 4 : 6;
+      for (let k = 0; k < n; k++) {
+        const u = (k + Math.random()) / n, x = lerp(Q.xA, Q.xB, u) + Q.lat * 0.5, y = lerp(Q.fA, Q.fB, u) + KF * Q.H0 * 0.6;
+        PUFF.push({ x: x / W.w, y: y / W.h, vx: (Q.side || (Math.random() - 0.5)) * (0.2 + Math.random() * 0.5) * G.wallH / W.w, vy: -(0.5 + Math.random() * 0.7) * G.wallH / W.h,
+          r0: G.wallH * (0.22 + 0.15 * Math.random()), r1: G.wallH * (0.7 + 0.6 * Math.random()), t: 0, dur: 2.6 + Math.random() * 1.6 });
+      }
+    }
+  }
+  function shockAt(b, x, y, r) {
+    if (b.instant) return;
+    PUFF.push({ type: 'shock', x: x / W.w, y: y / W.h, r1: r / M(), t: 0, dur: 1.8 });
+  }
+  function drawPuffs(ctx) {
+    if (!PUFF.length) return;
+    SP || sprites();
+    const day = 0.35 + 0.65 * W.daylight;
+    for (const q of PUFF) {
+      const k = clamp(q.t / q.dur, 0, 1), e = 1 - Math.pow(1 - k, 2.2);
+      if (q.type === 'shock') {
+        // 地面上一圈扁扁的震波
+        const rx = q.r1 * M() * e, x = q.x * W.w, y = q.y * W.h;
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.strokeStyle = U.rgba(255, 226, 180, 0.5 * (1 - k));
+        ctx.lineWidth = Math.max(1, 3 * (1 - k) * SU());
+        ctx.beginPath(); ctx.ellipse(x, y, rx, rx * 0.16, 0, 0, TAU); ctx.stroke();
+        ctx.globalCompositeOperation = 'source-over';
+        continue;
+      }
+      const r = lerp(q.r0, q.r1, e), x = (q.x + q.vx * e) * W.w, y = (q.y + q.vy * e) * W.h;
+      const a = Math.min(1, k * 6) * Math.pow(1 - k, 1.4) * 0.48 * day;
+      glowSp(ctx, SP.dust, x, y, r, a);
     }
     ctx.globalAlpha = 1;
   }
@@ -1012,14 +1315,15 @@
       ctx.strokeStyle = css([150, 112, 56], 2); ctx.lineWidth = Math.max(1, 1.5 * s); ctx.lineCap = 'round';
       ctx.beginPath(); ctx.moveTo(x - q.span * 0.62 - 3 * s, b + 1 * s); ctx.lineTo(x + q.span * 0.62 + 3 * s, b + 1 * s); ctx.stroke();
     }
-    // 柜身
-    ctx.fillStyle = css(GOLD, 2, 1, 0.18);
+    // 柜身（夜里也是金的：自己发光，不是一个暗的箱子）
+    const em = 0.18 + 0.55 * nightK();
+    ctx.fillStyle = css(GOLD, 2, 1, em);
     ctx.fillRect(x - w, b - h, w * 2, h);
-    ctx.fillStyle = css([176, 132, 58], 2, 1, 0.08);
+    ctx.fillStyle = css([176, 132, 58], 2, 1, em * 0.6);
     ctx.fillRect(x - w, b - h * 0.42, w * 2, h * 0.14);
     ctx.fillRect(x - w, b - 1.2 * s, w * 2, 1.2 * s);
     // 施恩座与两个基路伯（翅膀相对）
-    ctx.fillStyle = css([246, 214, 128], 2, 1, 0.25);
+    ctx.fillStyle = css([246, 214, 128], 2, 1, 0.25 + 0.55 * nightK());
     ctx.fillRect(x - w * 1.06, b - h - 1.6 * s, w * 2.12, 1.6 * s);
     ctx.beginPath();
     for (const d of [-1, 1]) {
@@ -1031,6 +1335,15 @@
       ctx.closePath();
     }
     ctx.fill();
+    // 夜里：施恩座与基路伯的金边微微发亮
+    if (nightK() > 0.05) {
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.strokeStyle = U.rgba(255, 214, 130, 0.55 * nightK() * q.a);
+      ctx.lineWidth = Math.max(0.6, 0.8 * s);
+      ctx.stroke();
+      ctx.strokeRect(x - w, b - h, w * 2, h);
+      ctx.globalCompositeOperation = 'source-over';
+    }
     // 迎光的边
     const lx = litX() >= x ? 1 : -1;
     ctx.strokeStyle = U.rgba(255, 242, 200, 0.55 * dayA() + 0.3 * nightK());
@@ -1040,29 +1353,75 @@
   }
 
   // ── 石头：吉甲的十二块（4:20）、河中的石堆（4:9）、亚割谷的石堆（7:26）──
+  // 石堆预绘（尺寸、光、亮度、块数为键；天光只变时每 0.3 秒重绘一次）
+  const STB = new Map();
   function drawStones(ctx, p) {
-    const l = 2, ph = PH(2), cx = p.x * W.w, n = Math.round(p.grow * 12);
+    const n = Math.round(p.grow * 12);
     if (n < 1) return;
-    const rx = ph * 1.05, ry = ph * 0.22, cy = fieldY(p.x, p.v);
-    const pts = [];
-    for (let i = 0; i < 12; i++) { const a = (i / 12) * TAU + 0.26; pts.push([cx + Math.cos(a) * rx, cy + Math.sin(a) * ry, i, Math.sin(a)]); }
-    pts.sort((a, b) => a[1] - b[1]);
-    SP || sprites();
+    const ph = PH(2) * (p.size || 1) * (1 + 0.35 * (p.v || 0)), cx = p.x * W.w, cy = fieldY(p.x, p.v) + 1;
     if (p.lit > 0.01) {
+      SP || sprites();
       ctx.globalCompositeOperation = 'lighter';
-      glowSp(ctx, SP.gold, cx, cy - ph * 0.1, rx * 1.7, p.lit * p.a * (0.3 + 0.3 * nightK()));
+      glowSp(ctx, SP.gold, cx, cy - ph * 0.12, ph * 1.3, p.lit * p.a * (0.3 + 0.3 * nightK()));
       ctx.globalCompositeOperation = 'source-over';
     }
+    let B = STB.get(p.id);
+    const sk = [W.w, W.h, W.dpr, n, Math.round(p.lit * 10), Math.round(cx), Math.round(cy)].join('|'), lk = lightKey({ cx });
+    if (!B || B.sk !== sk || (B.lk !== lk && !(Math.abs(W.t - B.t) < 0.3))) {
+      const x0 = Math.floor(cx - ph * 0.75), y0 = Math.floor(cy - ph * 0.6), w = Math.ceil(ph * 1.5), h = Math.ceil(ph * 0.75);
+      const dpr = Math.min(2, W.dpr || 1);
+      B = B || { c: document.createElement('canvas') };
+      try {
+        B.c.width = Math.max(4, Math.ceil(w * dpr)); B.c.height = Math.max(4, Math.ceil(h * dpr));
+        const g = B.c.getContext('2d');
+        g.setTransform(dpr, 0, 0, dpr, -x0 * dpr, -y0 * dpr);
+        stonesBody(g, p, n, ph, cx, cy);
+        Object.assign(B, { sk, lk, t: W.t, x0, y0, w, h });
+        STB.set(p.id, B);
+      } catch (e) { STB.delete(p.id); return; }
+    }
     ctx.globalAlpha = p.a;
-    for (const q of pts) {
-      if (q[2] >= n) continue;
-      const k = 0.85 + 0.3 * q[3], w = ph * 0.1 * k * (0.85 + 0.3 * rt(q[2] + p.seed)), h = ph * 0.3 * k * (0.8 + 0.4 * rt(q[2] + p.seed + 7));
-      ctx.fillStyle = css([148, 140, 128], l);
-      ctx.beginPath();
-      ctx.moveTo(q[0] - w, q[1]); ctx.lineTo(q[0] - w * 0.9, q[1] - h * 0.8); ctx.quadraticCurveTo(q[0], q[1] - h * 1.12, q[0] + w * 0.9, q[1] - h * 0.8); ctx.lineTo(q[0] + w, q[1]); ctx.closePath();
-      ctx.fill();
-      ctx.fillStyle = css([226, 216, 196], l, 0.4 * dayA() + 0.4 * p.lit, 0.2);
-      ctx.fillRect(q[0] + (litX() >= q[0] ? 0.3 : -0.8) * w, q[1] - h * 0.85, w * 0.5, h * 0.7);
+    ctx.drawImage(B.c, B.x0, B.y0, B.w, B.h);
+    ctx.globalAlpha = 1;
+  }
+  function stonesBody(ctx, p, n, ph, cx, cy) {
+    const l = 2;
+    // 十二块河里的圆石，垒成一个矮矮的石堆（下五、四、二、一）；宽过于高，大小不一
+    if (!p.model) {
+      const r = U.mulberry32(p.seed + 77), st = [], rows = [5, 4, 2, 1];
+      rows.forEach((cnt, row) => {
+        for (let j = 0; j < cnt; j++) {
+          const w = 0.18 + 0.1 * r(), h = Math.min(w * 0.8, 0.12 + 0.08 * r());
+          const x = ((j + 0.5) / cnt - 0.5) * (1.02 - row * 0.24) + (r() - 0.5) * 0.04, y = -row * 0.1 - (row === 3 ? 0.02 : 0);
+          const nv = 5 + Math.floor(r() * 3), pts = [];
+          for (let v = 0; v < nv; v++) {
+            const ang = (v / nv) * TAU + (r() - 0.5) * 0.5, rr = 0.85 + 0.3 * r();
+            let py = Math.sin(ang) * h / 2 * rr;
+            if (py > 0) py *= 0.55;
+            pts.push([Math.cos(ang) * w / 2 * rr, py]);
+          }
+          st.push({ x, y, w, h, pts, row, tone: 0.9 + 0.2 * r() });
+        }
+      });
+      p.model = st;
+    }
+    const d = litX() >= cx ? 1 : -1;
+    // 地上的影
+    ctx.fillStyle = css([40, 34, 28], l, 0.35);
+    ctx.beginPath(); ctx.ellipse(cx, cy + ph * 0.02, ph * 0.6, ph * 0.07, 0, 0, TAU); ctx.fill();
+    for (let i = p.model.length - 1; i >= 0; i--) {
+      if (i >= n) continue;
+      const q = p.model[i], x0 = cx + q.x * ph, y0 = cy + q.y * ph - q.h * ph * 0.35;
+      const path = () => { ctx.beginPath(); q.pts.forEach((v, k) => (k ? ctx.lineTo(x0 + v[0] * ph, y0 + v[1] * ph) : ctx.moveTo(x0 + v[0] * ph, y0 + v[1] * ph))); ctx.closePath(); };
+      ctx.fillStyle = css([188 * q.tone, 172 * q.tone, 142 * q.tone], l, 1, 0.04 + 0.12 * p.lit);
+      path(); ctx.fill();
+      // 背光的下半与迎光的顶面
+      ctx.save(); path(); ctx.clip();
+      ctx.fillStyle = css([92, 80, 64], l, 0.45);
+      ctx.beginPath(); ctx.ellipse(x0 - d * q.w * ph * 0.3, y0 + q.h * ph * 0.25, q.w * ph * 0.5, q.h * ph * 0.45, 0, 0, TAU); ctx.fill();
+      ctx.fillStyle = css([240, 226, 196], l, 0.55 * dayA() + 0.35 * p.lit, 0.2);
+      ctx.beginPath(); ctx.ellipse(x0 + d * q.w * ph * 0.12, y0 - q.h * ph * 0.32, q.w * ph * 0.34, q.h * ph * 0.2, 0, 0, TAU); ctx.fill();
+      ctx.restore();
     }
     ctx.globalAlpha = 1;
   }
@@ -1104,6 +1463,46 @@
     glowSp(ctx, SP.gold, x + ph * 0.05, y - 1, ph * 0.22, k * 0.8 * pulse);
     ctx.globalCompositeOperation = 'source-over';
   }
+  // 逾越节的火（5:10）：地上一圈石头，一堆小火；人围着火跪坐
+  function drawPFire(ctx, p) {
+    const k = p.a * p.fire;
+    if (k < 0.01) return;
+    SP || sprites();
+    const x = p.x * W.w, y = fieldY(p.x, p.v), s = LS(2) * (1 + 0.35 * (p.v || 0));
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = 1;
+    glowSp(ctx, SP.warm, x, y, 30 * s, k * (0.22 + 0.4 * nightK()));
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = p.a;
+    ctx.fillStyle = css([84, 74, 64], 2, 1, 0.15 * k);
+    ctx.beginPath();
+    for (let i = 0; i < 8; i++) { const a = (i / 8) * TAU, sx = x + Math.cos(a) * 5.5 * s, sy = y + Math.sin(a) * 1.7 * s; ctx.moveTo(sx + 1.5 * s, sy); ctx.ellipse(sx, sy, 1.5 * s, 1.05 * s, 0, 0, TAU); }
+    ctx.fill();
+    flame(ctx, x, y, 9 * s, k, p.seed);
+    ctx.globalAlpha = 1;
+  }
+  // 火光照在围坐的人身上（画在人之后，淡淡的暖色）；元帅的光照在约书亚身上
+  function drawFireLight(ctx) {
+    const nk = nightK();
+    if (nk < 0.05) return;
+    SP || sprites();
+    ctx.globalCompositeOperation = 'lighter';
+    const cf = fig('commander'), jp = figPt('joshua', 0.35);
+    if (cf && cf.alpha > 0.02 && jp) glowSp(ctx, SP.pale, jp[0], jp[1], PH(2) * 0.9, cf.alpha * nk * 0.32);
+    // 房顶上的喇合：窗里的灯照亮她（2:8）
+    const rf = fig('rahab'), city = getP('jericho');
+    if (rf && rf.alpha > 0.02 && city && city.lit > 0.02) {
+      const rp = figPt('rahab', 0.45);
+      if (rp) { glowSp(ctx, SP.warm, rp[0], rp[1], PH(2) * 0.95, rf.alpha * city.lit * nk * 0.55); glowSp(ctx, SP.gold, rp[0], rp[1] - PH(2) * 0.3, PH(2) * 0.4, rf.alpha * city.lit * nk * 0.35); }
+    }
+    for (const p of P.values()) {
+      if (p.kind !== 'pfire' || p.a * p.fire < 0.02) continue;
+      const x = p.x * W.w, y = fieldY(p.x, p.v), ph = PH(2);
+      glowSp(ctx, SP.warm, x, y - ph * 0.35, ph * 1.5, p.a * p.fire * nk * 0.3 * (0.9 + 0.1 * Math.sin(W.t * 7 + p.seed)));
+    }
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 1;
+  }
   // 大麦田（3:15 收割的日子；5:11 那地的出产）
   function drawField(ctx, p) {
     const k = p.a;
@@ -1137,48 +1536,61 @@
     ctx.globalAlpha = 1;
   }
   // 吗哪：清晨地上如芫荽子的白点（出 16:31）——到吉甲吃了那地的出产，第二日就止住了（5:12）
+  let MANNA = null;
   function drawManna(ctx) {
     const k = W.lv.joManna;
     if (k < 0.01) return;
     const s = LS(2), day = 0.4 + 0.6 * W.daylight;
+    const key = W.w + 'x' + W.h;
+    if (!MANNA || MANNA.k !== key) {
+      const pts = [];
+      for (let i = 0; i < 140; i++) {
+        const xf = lerp(0.4, 0.78, rt(i * 3 + 1200)), v = 0.08 + 0.9 * rt(i * 3 + 1201);
+        if (Math.abs(xf - riverAtV(v)) < 0.03 + 0.025 * v) continue;
+        if (xf > X.city - X.cityHW * 1.3 && v < 0.2) continue;
+        pts.push([xf * W.w, fieldY(xf, v), (0.5 + 0.6 * v) * s, i]);
+      }
+      MANNA = { k: key, pts };
+    }
     ctx.fillStyle = U.rgba(248, 244, 232, 0.8 * k * day);
     ctx.beginPath();
-    for (let i = 0; i < 140; i++) {
-      const xf = lerp(0.4, 0.78, rt(i * 3 + 1200)), v = 0.08 + 0.9 * rt(i * 3 + 1201);
-      if (Math.abs(xf - riverAtV(v)) < 0.03 + 0.025 * v) continue;
-      if (xf > X.city - X.cityHW * 1.3 && v < 0.2) continue;
-      const x = xf * W.w, y = fieldY(xf, v), r = (0.5 + 0.6 * v) * s * (0.8 + 0.4 * Math.sin(W.t * 2 + i));
-      ctx.moveTo(x + r, y); ctx.arc(x, y, r, 0, TAU);
-    }
+    for (const q of MANNA.pts) { const r = q[2] * (0.8 + 0.4 * Math.sin(W.t * 2 + q[3])); ctx.moveTo(q[0] + r, q[1]); ctx.arc(q[0], q[1], r, 0, TAU); }
     ctx.fill();
   }
 
   // ── 艾城（中丘上）：伏兵夺了城，放火焚烧，城中烟气冲天（8:19–20）──
   function drawAi(ctx, p) {
-    const l = 1, ph = PH(1), x = p.x * W.w, y = gY(1, p.x) + 1, w = ph * 1.5, A = p.a * (1 - p.ruin * 0.7);
+    const l = 1, ph = PH(1), x = p.x * W.w, y = gY(1, p.x) + 1, w = ph * 1.9, A = p.a * (1 - p.ruin * 0.7);
     if (A < 0.01) return;
     ctx.globalAlpha = A;
-    ctx.fillStyle = css([176, 150, 114], l);
+    ctx.fillStyle = css([184, 156, 118], l);
     ctx.beginPath();
-    ctx.moveTo(x - w, y); ctx.lineTo(x - w, y - ph * 0.55); ctx.lineTo(x - w * 0.55, y - ph * 0.55); ctx.lineTo(x - w * 0.55, y - ph * 0.72);
-    ctx.lineTo(x - w * 0.35, y - ph * 0.72); ctx.lineTo(x - w * 0.35, y - ph * 0.55);
-    ctx.lineTo(x + w * 0.3, y - ph * 0.55); ctx.lineTo(x + w * 0.3, y - ph * 0.8); ctx.lineTo(x + w * 0.55, y - ph * 0.8); ctx.lineTo(x + w * 0.55, y - ph * 0.55);
-    ctx.lineTo(x + w, y - ph * 0.55); ctx.lineTo(x + w, y); ctx.closePath();
+    ctx.moveTo(x - w, y); ctx.lineTo(x - w, y - ph * 0.62); ctx.lineTo(x - w * 0.62, y - ph * 0.62); ctx.lineTo(x - w * 0.62, y - ph * 0.84);
+    ctx.lineTo(x - w * 0.4, y - ph * 0.84); ctx.lineTo(x - w * 0.4, y - ph * 0.62);
+    ctx.lineTo(x + w * 0.3, y - ph * 0.62); ctx.lineTo(x + w * 0.3, y - ph * 0.92); ctx.lineTo(x + w * 0.56, y - ph * 0.92); ctx.lineTo(x + w * 0.56, y - ph * 0.62);
+    ctx.lineTo(x + w, y - ph * 0.62); ctx.lineTo(x + w, y); ctx.closePath();
     ctx.fill();
-    ctx.fillStyle = css([140, 116, 88], l);
-    ctx.beginPath(); ctx.rect(x - w * 0.2, y - ph * 0.95, w * 0.26, ph * 0.4); ctx.rect(x + w * 0.62, y - ph * 0.7, w * 0.22, ph * 0.18); ctx.fill();
+    ctx.fillStyle = css([146, 120, 90], l);
+    ctx.beginPath(); ctx.rect(x - w * 0.2, y - ph * 1.08, w * 0.28, ph * 0.46); ctx.rect(x + w * 0.62, y - ph * 0.8, w * 0.24, ph * 0.18); ctx.fill();
     ctx.fillStyle = css([30, 22, 18], l);
-    ctx.fillRect(x - w * 0.1, y - ph * 0.3, w * 0.14, ph * 0.3);
+    ctx.fillRect(x - w * 0.1, y - ph * 0.34, w * 0.14, ph * 0.34);
     if (nightK() > 0.1 && p.fire < 0.2) lamp(ctx, x, y - ph * 0.4, ph * 1.4, A * nightK() * 0.6, 7);
     ctx.globalAlpha = 1;
+    // 城中烟气冲天（8:20）：大火与一道高高的烟柱
     if (p.fire > 0.01) {
       SP || sprites();
+      const k = p.fire * A;
       ctx.globalCompositeOperation = 'lighter';
-      glowSp(ctx, SP.ember, x, y - ph * 0.5, w * 1.8, p.fire * A * 0.6);
+      glowSp(ctx, SP.ember, x, y - ph * 0.6, w * 2.4, k * (0.55 + 0.25 * nightK()));
+      glowSp(ctx, SP.warm, x, y - ph * 0.9, w * 1.3, k * 0.5);
       ctx.globalCompositeOperation = 'source-over';
-      flame(ctx, x - w * 0.4, y - ph * 0.5, ph * 0.5, p.fire * A, 2); flame(ctx, x + w * 0.35, y - ph * 0.6, ph * 0.6, p.fire * A, 5);
+      flame(ctx, x - w * 0.55, y - ph * 0.5, ph * 0.8, k, 2); flame(ctx, x - w * 0.05, y - ph * 0.9, ph * 1.25, k, 5);
+      flame(ctx, x + w * 0.42, y - ph * 0.7, ph * 1.0, k, 8); flame(ctx, x + w * 0.8, y - ph * 0.45, ph * 0.7, k, 3.3);
     }
-    if (p.smoke > 0.01) smoke(ctx, x, y - ph * 0.7, p.smoke * A, W.h * 0.32, ph * 0.45, 3.3, true);
+    if (p.smoke > 0.01) {
+      smoke(ctx, x, y - ph * 1.1, p.smoke * A, W.h * 0.46, ph * 0.75, 3.3, true);
+      smoke(ctx, x + w * 0.3, y - ph * 0.9, p.smoke * A * 0.8, W.h * 0.36, ph * 0.55, 1.1, true);
+    }
   }
   // ── 夏琐（远山）：约书亚又用火焚烧夏琐（11:11）──
   function drawHazor(ctx, p) {
@@ -1396,12 +1808,12 @@
   // ── 支派的地业：地上一片柔光与名字（13–19 章）───────────────
   const LOTS = {
     reuben: ['吕便', 2, 0.43, 0.62, [236, 150, 130]],
-    gad: ['迦得', 2, 0.487, 0.34, [226, 196, 128]],
+    gad: ['迦得', 2, 0.465, 0.34, [226, 196, 128]],
     manE: ['玛拿西', 2, 0.532, 0.06, [170, 206, 150]],
     judah: ['犹大', 2, 0.905, 0.5, [240, 206, 120]],
     simeon: ['西缅', 2, 0.966, 0.8, [226, 176, 150]],
-    benjamin: ['便雅悯', 2, 0.7, 0.62, [200, 214, 240]],
-    dan: ['但', 2, 0.79, 0.86, [190, 170, 224]],
+    benjamin: ['便雅悯', 2, 0.7, 0.86, [200, 214, 240]],
+    dan: ['但', 2, 0.845, 0.95, [190, 170, 224]],
     ephraim: ['以法莲', 1, 0.628, 0, [168, 220, 170]],
     manW: ['玛拿西', 1, 0.735, 0, [170, 206, 150]],
     issachar: ['以萨迦', 1, 0.85, 0, [210, 200, 150]],
@@ -1427,10 +1839,14 @@
     const k = p.a * p.grow;
     if (k < 0.02) return;
     const [x, y] = lotXY(p), ph = PH(p.layer);
-    const px = Math.round(clamp((p.layer === 2 ? 15 : p.layer === 1 ? 13 : 12) * (phone() ? 0.78 : 1) * Math.max(0.85, Math.min(1.2, W.unit)), 10, 19));
-    const t = textSprite(p.name, px, U.mixRGB(p.rgb || [255, 230, 180], [255, 248, 232], 0.45));
+    const far = p.layer === 0;
+    const px = Math.round(clamp((p.layer === 2 ? 15 : p.layer === 1 ? 13.5 : 13.5) * (phone() ? 0.8 : 1) * Math.max(0.85, Math.min(1.2, W.unit)), far ? 13 : 10, 19));
+    const t = textSprite(p.name, px, U.mixRGB(p.rgb || [255, 230, 180], [255, 248, 232], 0.45), far);
     const lift = p.layer === 2 ? ph * 0.25 + px * 0.6 : ph * 0.9 + px * 0.5;
-    ctx.globalAlpha = k * (S.lotDim ? 0.55 : 0.92);
+    // 刚拈出时亮约六秒，然后退为淡淡的一层（按住时仍可看见经文）
+    const fresh = smoothstep(0, 0.3, tv('lotf_' + p.id, 0));
+    const base = S.lotDim ? 0.3 : 0.45;
+    ctx.globalAlpha = k * (base + (0.95 - base) * fresh);
     ctx.drawImage(t.c, x - t.w / 2, y - lift - t.h / 2, t.w, t.h);
     ctx.globalAlpha = 1;
   }
@@ -1550,7 +1966,7 @@
   const DS = 0.021;
   function ellG() {
     const ph = PH(2);
-    return { cx: X.city * W.w, rx: (X.cityHW + 0.032) * W.w + ph * 0.3, vc: 0.2, vr: 0.3 };
+    return { cx: X.city * W.w, rx: (X.cityHW + 0.028) * W.w + ph * 0.2, vc: 0.2, vr: 0.3 };
   }
   // 圈上的一点：s 以圈计（0 = 左端，0.25 = 正前方，0.5 = 右端，0.75 = 城后）
   function ellPt(s, dv) {
@@ -1576,17 +1992,23 @@
       return [q.x, q.y];
     });
   }
-  // 队伍在 s 处站定（到位、面向、纵深，皆确定）
-  function marchStop(sHead) {
+  // 第七日，第七次绕完：队伍分站在城的两侧（城墙两端之外），面向城，谁也不挡住城墙
+  //   [哪一侧, 离圈端的距离（人高为单位，正 = 向外）, 纵深 v]
+  const FLANK = {
+    mA1: [1, 0.55, 0.04], mA2: [1, 0.2, 0.09], mA3: [1, 0.6, 0.15], mA4: [1, 0.15, 0.21], mH1: [1, 0.5, 0.27], mH2: [1, 0.05, 0.32], mH3: [1, 0.45, 0.38], mH4: [1, 0.0, 0.44],
+    mH5: [-1, 0.0, 0.08], mH6: [-1, 0.45, 0.14], mH7: [-1, 0.05, 0.21], p1: [-1, -0.22, 0.3], p2: [-1, -0.22, 0.36], p3: [-1, 0.36, 0.3], p4: [-1, 0.36, 0.36],
+    mR1: [-1, 0.62, 0.43], mR2: [-1, 0.2, 0.5], mR3: [-1, 0.78, 0.56],
+  };
+  function marchFlank() {
+    const E = ellG(), ph = PH(2);
     for (const m of MARCH) {
-      const id = m[0], f = fig(id);
-      if (!f) continue;
+      const id = m[0], f = fig(id), q = FLANK[id];
+      if (!f || !q) continue;
       attach(id, null);
-      const q = ellPt(sHead - MOFF[id] * DS, MDV[id] || 0);
-      f.v = clamp(q.v, 0, 1);
+      f.v = q[2];
       f.targetAlpha = 1;
-      place(id, q.x / W.w);
-      face(id, 1);
+      place(id, (E.cx + q[0] * (E.rx + q[1] * ph)) / W.w);
+      face(id, -q[0]);
     }
   }
   function addMarchers(b, withHorns) {
@@ -1623,6 +2045,7 @@
       case 'altar': drawAltar(ctx, p); break;
       case 'lot': drawLot(ctx, p); break;
       case 'refuge': drawRefuge(ctx, p); break;
+      case 'pfire': drawPFire(ctx, p); break;
     }
   }
   // 应许之地上的金光（1:3–4）
@@ -1661,10 +2084,20 @@
   // 圣地（5:15）：约书亚与元帅脚下的一圈金光
   function drawHoly(ctx) {
     const k = W.lv.joHoly;
-    if (k < 0.01) return;
-    const p = figPt('joshua', 0), q = figPt('commander', 0);
-    if (!p) return;
+    const p = figPt('joshua', 0), q = figPt('commander', 0), cf = fig('commander');
     SP || sprites();
+    // 元帅身上的光落在地上（也照见俯伏的约书亚）
+    if (q && cf && cf.alpha > 0.02) {
+      const ph = PH(2), tx = p ? (p[0] + q[0]) / 2 : q[0];
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.globalAlpha = cf.alpha * (0.35 + 0.4 * nightK());
+      ctx.drawImage(SP.white, tx - ph * 2, q[1] - ph * 0.32, ph * 4, ph * 0.64);
+      ctx.globalAlpha = cf.alpha * (0.25 + 0.3 * nightK());
+      ctx.drawImage(SP.gold, q[0] - ph * 1.1, q[1] - ph * 1.6, ph * 2.2, ph * 2.2);
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.globalAlpha = 1;
+    }
+    if (k < 0.01 || !p) return;
     const x = q ? (p[0] + q[0]) / 2 : p[0], y = p[1], ph = PH(2);
     ctx.globalCompositeOperation = 'lighter';
     ctx.globalAlpha = k * 0.5;
@@ -1766,18 +2199,34 @@
     const f = fig('joshua');
     if (!f || !f._vis) return;
     SP || sprites();
-    const h = f._h, d = f.fd >= 0 ? 1 : -1, hx = f._x + 0.28 * h * d, hy = f._y - 0.74 * h;
-    const bx = hx - 0.34 * h * d, by = hy + 0.2 * h, tx = hx + 0.5 * h * d, ty = hy - 0.32 * h;
+    // 短枪：长长的一杆，举向艾城（8:18）
+    const h = f._h, d = f.fd >= 0 ? 1 : -1, hx = f._x + 0.3 * h * d, hy = f._y - 0.8 * h;
+    const bx = hx - 0.42 * h * d, by = hy + 0.26 * h, tx = hx + 0.62 * h * d, ty = hy - 0.42 * h;
     ctx.globalAlpha = f.alpha;
-    ctx.strokeStyle = css([110, 84, 56], 2);
+    ctx.strokeStyle = css([126, 96, 62], 2, 1, 0.15);
     ctx.lineCap = 'round';
-    ctx.lineWidth = Math.max(1, 0.032 * h);
+    ctx.lineWidth = Math.max(1.2, 0.036 * h);
     ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(tx, ty); ctx.stroke();
-    ctx.fillStyle = css([226, 226, 220], 2, 1, 0.3);
+    ctx.fillStyle = css([236, 232, 222], 2, 1, 0.4);
     const ux = (tx - bx), uy = (ty - by), L = Math.hypot(ux, uy) || 1, nx = -uy / L, ny = ux / L;
-    ctx.beginPath(); ctx.moveTo(tx + ux / L * 0.12 * h, ty + uy / L * 0.12 * h); ctx.lineTo(tx + nx * 0.035 * h, ty + ny * 0.035 * h); ctx.lineTo(tx - nx * 0.035 * h, ty - ny * 0.035 * h); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(tx + ux / L * 0.14 * h, ty + uy / L * 0.14 * h); ctx.lineTo(tx + nx * 0.04 * h, ty + ny * 0.04 * h); ctx.lineTo(tx - nx * 0.04 * h, ty - ny * 0.04 * h); ctx.closePath(); ctx.fill();
+    const px = tx + ux / L * 0.07 * h, py = ty + uy / L * 0.07 * h;
     ctx.globalCompositeOperation = 'lighter';
-    glowSp(ctx, SP.white, tx, ty, h * 0.3, f.alpha * (0.4 + 0.2 * Math.sin(W.t * 3)));
+    glowSp(ctx, SP.gold, px, py, h * 0.45, f.alpha * (0.5 + 0.2 * Math.sin(W.t * 3)));
+    // 一道细细的金光自枪尖划向艾城
+    const ai = getP('ai');
+    if (ai && ai.a > 0.1) {
+      const ax = ai.x * W.w, ay = gY(1, ai.x) - PH(1) * 0.6, cxq = (px + ax) / 2, cyq = Math.min(py, ay) - Math.abs(px - ax) * 0.35;
+      ctx.strokeStyle = U.rgba(255, 224, 150, 0.22 * f.alpha);
+      ctx.lineWidth = Math.max(0.6, 0.012 * h);
+      ctx.setLineDash([3, 5]);
+      ctx.beginPath(); ctx.moveTo(px, py); ctx.quadraticCurveTo(cxq, cyq, ax, ay); ctx.stroke();
+      ctx.setLineDash([]);
+      for (let j = 0; j < 3; j++) {
+        const t = U.fract(W.t * 0.45 + j / 3), gx = qb(px, cxq, ax, t), gy = qb(py, cyq, ay, t);
+        glowSp(ctx, SP.gold, gx, gy, h * (0.22 - 0.08 * t), f.alpha * Math.sin(t * Math.PI) * 0.85);
+      }
+    }
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
   }
@@ -1808,7 +2257,22 @@
     }
     ctx.stroke();
   }
-  // 日头停留，月亮止住（10:12–13）
+  // 日头停留，月亮止住（10:12–13）：日头在天当中，柔和的光芒一动不动，只有光晕缓缓呼吸
+  let RAY = null;
+  function raySprite() {
+    if (RAY) return RAY;
+    const c = cnv(48, 256), g = c.getContext('2d');
+    const hz = g.createLinearGradient(0, 0, 48, 0);
+    hz.addColorStop(0, 'rgba(255,240,200,0)'); hz.addColorStop(0.5, 'rgba(255,244,214,1)'); hz.addColorStop(1, 'rgba(255,240,200,0)');
+    g.fillStyle = hz;
+    g.beginPath(); g.moveTo(22, 256); g.lineTo(0, 0); g.lineTo(48, 0); g.lineTo(26, 256); g.closePath(); g.fill();
+    g.globalCompositeOperation = 'destination-in';
+    const vt = g.createLinearGradient(0, 0, 0, 256);
+    vt.addColorStop(0, 'rgba(0,0,0,0)'); vt.addColorStop(0.55, 'rgba(0,0,0,0.55)'); vt.addColorStop(1, 'rgba(0,0,0,1)');
+    g.fillStyle = vt; g.fillRect(0, 0, 48, 256);
+    RAY = c;
+    return c;
+  }
   function drawStill(ctx) {
     const ks = W.lv.joSun, km = W.lv.joMoon;
     if (ks < 0.01 && km < 0.01) return;
@@ -1816,16 +2280,18 @@
     const R = M();
     ctx.globalCompositeOperation = 'lighter';
     if (ks > 0.01) {
-      const x = W.sun.x, y = W.sun.y;
-      glowSp(ctx, SP.gold, x, y, R * 0.34, ks * 0.4);
-      ctx.strokeStyle = U.rgba(255, 238, 196, 0.5 * ks);
-      ctx.lineWidth = Math.max(1, R * 0.003);
-      for (let i = 0; i < 3; i++) { const r = R * (0.06 + i * 0.035) * (1 + 0.02 * Math.sin(W.t * 0.7 + i)); ctx.globalAlpha = ks * (0.6 - i * 0.15); ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.stroke(); }
-      ctx.globalAlpha = ks * 0.35;
-      ctx.lineWidth = Math.max(1, R * 0.004);
-      ctx.beginPath();
-      for (let i = 0; i < 16; i++) { const a = (i / 16) * TAU + W.t * 0.02, r0 = R * 0.08, r1 = R * (0.16 + 0.05 * (i % 2)); ctx.moveTo(x + Math.cos(a) * r0, y + Math.sin(a) * r0); ctx.lineTo(x + Math.cos(a) * r1, y + Math.sin(a) * r1); }
-      ctx.stroke();
+      const x = W.sun.x, y = W.sun.y, br = 1 + 0.05 * Math.sin(W.t * 0.45);
+      glowSp(ctx, SP.gold, x, y, R * 0.36 * br, ks * 0.42);
+      glowSp(ctx, SP.white, x, y, R * 0.12 * br, ks * 0.35);
+      const rs = raySprite();
+      for (let i = 0; i < 14; i++) {
+        const a = (i / 14) * TAU + 0.11 + (rt(i + 4100) - 0.5) * 0.12, len = R * (0.2 + 0.16 * rt(i + 4120)), wid = R * (0.022 + 0.018 * rt(i + 4140));
+        ctx.save();
+        ctx.translate(x, y); ctx.rotate(a + Math.PI / 2);
+        ctx.globalAlpha = ks * (0.2 + 0.1 * rt(i + 4160)) * (0.85 + 0.15 * Math.sin(W.t * 0.3 + i * 1.3));
+        ctx.drawImage(rs, -wid / 2, -len - R * 0.05, wid, len);
+        ctx.restore();
+      }
     }
     if (km > 0.01) {
       const x = 0.87 * W.w, y = W.horizonY - 0.3 * W.h * (W.w < W.h ? 0.55 : 1);
@@ -1838,9 +2304,7 @@
       ctx.fillStyle = 'rgba(190,200,222,0.5)';
       ctx.beginPath(); ctx.arc(x - r * 0.3, y - r * 0.2, r * 0.3, 0, TAU); ctx.arc(x + r * 0.35, y + r * 0.3, r * 0.2, 0, TAU); ctx.fill();
       ctx.globalCompositeOperation = 'lighter';
-      ctx.strokeStyle = U.rgba(220, 230, 255, 0.4 * km);
-      ctx.lineWidth = Math.max(1, R * 0.0025);
-      for (let i = 0; i < 2; i++) { ctx.globalAlpha = km * (0.5 - i * 0.2); ctx.beginPath(); ctx.arc(x, y, r * (2.4 + i * 1.3), 0, TAU); ctx.stroke(); }
+      glowSp(ctx, SP.silver, x, y, r * 4 * (1 + 0.05 * Math.sin(W.t * 0.4 + 1)), km * 0.3);
     }
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
@@ -1860,62 +2324,122 @@
     }
     ctx.stroke();
   }
-  // 北方诸王的众军，多如海边的沙（11:4）；车辆的铜光
-  function drawHost(ctx) {
+  // 北方诸王的众军，多如海边的沙（11:4）：一排排拿枪的人、马与车的剪影，预绘成一条（每次改尺寸时重绘）
+  const HOSTB = { key: '', c: null, x0: 0, y0: 0, w: 0, h: 0, glints: [] };
+  function hostSpan(l) { return l === 1 ? [0.665, 0.985] : [0.56, 0.995]; }
+  function hostY(l, xf, v) { const g = gY(l, xf); return l === 1 ? g + v * Math.max(0, W.waterlineY(1) - g) * 0.8 : g + 0.5; }
+  function bakeHost(l) {
+    const [xa, xb] = hostSpan(l), ph = PH(l) * (l === 1 ? 0.82 : 0.75), s = ph / 30;
+    const key = [W.w, W.h, W.dpr, l, lightKey({ cx: 0 })].join('|');
+    if (HOSTB.key === key && HOSTB.c) return HOSTB;
+    const r = U.mulberry32(9131 + l), items = [];
+    const n = Math.round((l === 1 ? 64 : 110) * (phone() ? 0.6 : 1));
+    for (let i = 0; i < n; i++) {
+      const xf = lerp(xa, xb, (i + r()) / n), v = l === 1 ? 0.05 + 0.6 * r() : 0, kind = r();
+      items.push({ xf, v, t: kind < 0.1 ? 'chariot' : kind < 0.22 ? 'horse' : 'man', sc: 0.85 + 0.3 * r(), f: r() < 0.5 ? -1 : 1, sp: r() < 0.8, sh: r() < 0.35 });
+    }
+    items.sort((a, b) => a.v - b.v);
+    let y0 = 1e9, y1 = -1e9;
+    for (const q of items) { const y = hostY(l, q.xf, q.v); y0 = Math.min(y0, y - ph * 1.5); y1 = Math.max(y1, y + 2); }
+    const x0 = Math.floor(xa * W.w - ph * 2), x1 = Math.ceil(xb * W.w + ph * 2);
+    y0 = Math.floor(y0); y1 = Math.ceil(y1);
+    const dpr = Math.min(2, W.dpr || 1), w = x1 - x0, h = y1 - y0;
+    try {
+      if (!HOSTB.c) HOSTB.c = document.createElement('canvas');
+      HOSTB.c.width = Math.max(4, Math.ceil(w * dpr)); HOSTB.c.height = Math.max(4, Math.ceil(h * dpr));
+      const g = HOSTB.c.getContext('2d');
+      g.setTransform(dpr, 0, 0, dpr, -x0 * dpr, -y0 * dpr);
+      const body = css([54, 44, 40], l), glints = [];
+      g.fillStyle = body; g.strokeStyle = body; g.lineCap = 'round';
+      for (const q of items) {
+        const x = q.xf * W.w, y = hostY(l, q.xf, q.v), k = ph * q.sc * (1 + 0.25 * q.v), d = q.f;
+        g.beginPath();
+        if (q.t === 'man') {
+          g.moveTo(x - k * 0.13, y); g.lineTo(x - k * 0.08, y - k * 0.62); g.lineTo(x + k * 0.08, y - k * 0.62); g.lineTo(x + k * 0.13, y); g.closePath();
+          g.moveTo(x + k * 0.08, y - k * 0.78); g.arc(x, y - k * 0.78, k * 0.085, 0, TAU);
+          g.fill();
+          if (q.sh) { g.beginPath(); g.ellipse(x + d * k * 0.12, y - k * 0.42, k * 0.08, k * 0.14, 0, 0, TAU); g.fill(); }
+          if (q.sp) { g.lineWidth = Math.max(0.6, 0.9 * s); g.beginPath(); g.moveTo(x + d * k * 0.1, y - k * 0.1); g.lineTo(x + d * k * 0.16, y - k * 1.25); g.stroke(); glints.push([x + d * k * 0.16, y - k * 1.25]); }
+        } else if (q.t === 'horse') {
+          g.ellipse(x, y - k * 0.5, k * 0.34, k * 0.13, 0, 0, TAU); g.fill();
+          g.beginPath(); g.moveTo(x + d * k * 0.26, y - k * 0.56); g.lineTo(x + d * k * 0.42, y - k * 0.86); g.lineTo(x + d * k * 0.5, y - k * 0.8); g.lineTo(x + d * k * 0.34, y - k * 0.5); g.closePath(); g.fill();
+          g.lineWidth = Math.max(0.6, 1 * s); g.beginPath();
+          for (const lx of [-0.26, -0.16, 0.16, 0.26]) { g.moveTo(x + lx * k, y - k * 0.45); g.lineTo(x + lx * k + d * k * 0.03, y); }
+          g.stroke();
+        } else {
+          // 车：车厢与轮，前面一匹马
+          g.rect(x - k * 0.22, y - k * 0.62, k * 0.44, k * 0.3); g.fill();
+          g.lineWidth = Math.max(0.6, 1 * s);
+          g.beginPath(); g.arc(x, y - k * 0.2, k * 0.2, 0, TAU); g.stroke();
+          g.beginPath(); g.moveTo(x + d * k * 0.22, y - k * 0.45); g.lineTo(x + d * k * 0.55, y - k * 0.5); g.stroke();
+          const hx = x + d * k * 0.78;
+          g.beginPath(); g.ellipse(hx, y - k * 0.5, k * 0.3, k * 0.12, 0, 0, TAU); g.fill();
+          g.beginPath(); g.moveTo(hx + d * k * 0.22, y - k * 0.55); g.lineTo(hx + d * k * 0.36, y - k * 0.84); g.lineTo(hx + d * k * 0.44, y - k * 0.78); g.lineTo(hx + d * k * 0.3, y - k * 0.48); g.closePath(); g.fill();
+          g.beginPath(); for (const lx of [-0.22, 0.22]) { g.moveTo(hx + lx * k, y - k * 0.45); g.lineTo(hx + lx * k, y); } g.stroke();
+          g.beginPath(); g.moveTo(x - d * k * 0.05, y - k * 0.62); g.lineTo(x - d * k * 0.02, y - k * 1.0); g.stroke();
+          glints.push([x - d * k * 0.02, y - k * 0.98], [x + d * k * 0.2, y - k * 0.6]);
+        }
+      }
+      Object.assign(HOSTB, { key, x0, y0, w, h, glints });
+    } catch (e) { HOSTB.key = ''; HOSTB.c = null; }
+    return HOSTB;
+  }
+  function drawHost(ctx, l) {
     const k = W.lv.joHost;
     if (k < 0.01) return;
-    const u = SU(), flee = 1 - k;
-    ctx.fillStyle = css([40, 32, 30], 0, 0.85 * k);
-    ctx.beginPath();
-    const n = Math.round(420 * (W.quality || 1));
-    for (let i = 0; i < n; i++) {
-      const xf = lerp(0.56, 0.995, rt(i * 2 + 2600)) + flee * 0.05 * rt(i * 2 + 2601), g = gY(0, xf);
-      const y = g - 0.5 - rt(i + 2900) * 2.4 * u, w = 0.9 * u, h = (1.6 + rt(i + 3000)) * u;
-      ctx.rect(xf * W.w, y - h, w, h);
-    }
-    ctx.fill();
+    const B = bakeHost(l);
+    if (!B.c) return;
+    const dx = (1 - k) * 0.05 * W.w;        // 散去时向右（向北）退去
+    ctx.globalAlpha = Math.min(1, k * 1.1) * (l === 1 ? 0.95 : 0.85);
+    ctx.drawImage(B.c, B.x0 + dx, B.y0, B.w, B.h);
+    // 枪尖与车上的铜光
     ctx.globalCompositeOperation = 'lighter';
-    ctx.fillStyle = 'rgb(236,190,120)';
-    for (let i = 0; i < 46; i++) {
-      const xf = lerp(0.57, 0.99, rt(i * 2 + 3100)), g = gY(0, xf);
-      ctx.globalAlpha = k * (0.3 + 0.5 * Math.max(0, Math.sin(W.t * 2 + i * 1.7)));
-      ctx.fillRect(xf * W.w, g - 2.5 * u, 1.6 * u, 1.2 * u);
+    ctx.fillStyle = 'rgb(240,196,124)';
+    const u = Math.max(0.8, PH(l) / 26);
+    for (let i = 0; i < B.glints.length; i += 2) {
+      const q = B.glints[i];
+      ctx.globalAlpha = k * (0.25 + 0.55 * Math.max(0, Math.sin(W.t * 2 + i * 1.7)));
+      ctx.fillRect(q[0] + dx - 0.8 * u, q[1] - 0.8 * u, 1.6 * u, 1.6 * u);
     }
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
   }
-  function drawFires(ctx) {
+  // 用火焚烧他们的车辆（11:9）：中丘上一处处的火与烟
+  function drawFires(ctx, l) {
     const k = W.lv.joFires;
     if (k < 0.01) return;
-    const u = SU();
-    for (let i = 0; i < 12; i++) {
-      const xf = lerp(0.58, 0.97, (i + 0.5) / 12) + (rt(i + 3300) - 0.5) * 0.02, g = gY(0, xf);
-      flame(ctx, xf * W.w, g, (4 + 3 * rt(i + 3320)) * u, k * 0.9, i * 1.9);
-      if (i % 3 === 0) smoke(ctx, xf * W.w, g - 4 * u, k * 0.7, W.h * 0.12, 4 * u, i * 0.7, true);
+    const [xa, xb] = hostSpan(l), ph = PH(l);
+    for (let i = 0; i < 11; i++) {
+      const xf = lerp(xa + 0.01, xb - 0.01, (i + 0.5) / 11) + (rt(i + 3300) - 0.5) * 0.015, v = l === 1 ? 0.1 + 0.5 * rt(i + 3340) : 0;
+      const y = hostY(l, xf, v);
+      flame(ctx, xf * W.w, y, ph * (0.45 + 0.35 * rt(i + 3320)), k * 0.95, i * 1.9);
+      if (i % 3 === 0) smoke(ctx, xf * W.w, y - ph * 0.4, k * 0.75, W.h * 0.2, ph * 0.35, i * 0.7, true);
     }
   }
-  // 三十一个王（12:24）：三十一顶小小的冠，在远山之上排开，然后沉入地里
+  // 三十一个王（12:24）：三十一顶冠，在远山之上排成两行，悬着一会儿，然后沉入地里
   function drawCrowns(ctx) {
     if (!tweening('crowns')) return;
-    const t = tv('crowns', 0) * 1.45;
+    const t = tv('crowns', 0);
     SP || sprites();
-    const u = SU();
+    const u = SU(), r = 8 * u;
     for (let i = 0; i < 31; i++) {
-      const appear = clamp((t * 31 - i * 0.55) / 2, 0, 1), sink = clamp((t - 1.0) / 0.4 - i * 0.012, 0, 1);
+      const appear = clamp((t / 0.3) * 1.4 - (i / 31) * 1.4 + 0.4, 0, 1), sink = clamp((t - 0.76 - (i / 31) * 0.08) / 0.16, 0, 1);
       if (appear <= 0) continue;
-      const xf = lerp(0.54, 0.97, i / 30), g = gY(0, xf);
-      const y0 = W.horizonY - (0.1 + 0.05 * Math.sin(i * 0.9)) * W.h * (phone() ? 0.6 : 1), y = lerp(y0, g - 2, sink * sink);
-      const a = appear * (1 - sink) * 0.9, r = 5 * u;
+      const row = i % 2, xf = lerp(0.55, 0.96, (i + 0.5 * row) / 31), g = gY(0, xf);
+      const y0 = W.horizonY - (0.11 + 0.055 * row + 0.015 * Math.sin(i * 0.9)) * W.h * (phone() ? 0.65 : 1), y = lerp(y0, g - 2, sink * sink);
+      const a = appear * (1 - sink) * 0.92;
       if (a < 0.01) continue;
       const x = xf * W.w;
       ctx.globalCompositeOperation = 'lighter';
-      glowSp(ctx, SP.gold, x, y, r * 3, a * 0.35);
+      glowSp(ctx, SP.gold, x, y, r * 2.6, a * 0.32);
       ctx.globalCompositeOperation = 'source-over';
       ctx.globalAlpha = a;
       ctx.fillStyle = 'rgb(240,206,120)';
       ctx.beginPath();
       ctx.moveTo(x - r, y + r * 0.5); ctx.lineTo(x - r, y - r * 0.2); ctx.lineTo(x - r * 0.5, y + r * 0.1); ctx.lineTo(x, y - r * 0.6);
       ctx.lineTo(x + r * 0.5, y + r * 0.1); ctx.lineTo(x + r, y - r * 0.2); ctx.lineTo(x + r, y + r * 0.5); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = 'rgba(255,244,210,0.8)';
+      ctx.fillRect(x - r, y + r * 0.3, r * 2, r * 0.2);
     }
     ctx.globalAlpha = 1;
   }
@@ -1943,28 +2467,11 @@
     ctx.globalAlpha = 1;
   }
 
-  // 坍塌时的尘土（只关乎画面）
-  let dustT = 0;
-  function collapseDust(dt) {
-    const c = getP('jericho');
-    if (!c || !(c.fall > 0.001 && c.fall < 0.999) || !fx() || W.replaying) return;
-    dustT += dt;
-    if (dustT < 0.12) return;
-    dustT = 0;
-    const G = cityG(c);
-    for (let i = 0; i < CM.N; i++) {
-      const f = segFall(c, i);
-      if (f <= 0 || f >= 1) continue;
-      const x = (segX(G, i) + segX(G, i + 1)) / 2;
-      fx().dust(x, cityBase(G, x), 2, [120, 98, 76], (segX(G, 1) - segX(G, 0)) * 0.6, 'near');
-    }
-  }
-
   const LAYER_OF_PASS = { far: 0, mid: 1, near: 2 };
   const SCENE = {
     init() { sprites(); loadFonts(); },
     resize() {
-      RV = null; RPC.key = ''; LEVI = null; GROVE = null;
+      RV = null; RPC.key = ''; LEVI = null; GROVE = null; MANNA = null;
       if (!isCur()) return;
       const ox = W.w * 0.99, oy = W.ridgeBaseY(2, ox);
       W.setOrigin('grass', ox, oy); W.setOrigin('herbs', ox, oy); W.setOrigin('trees', ox, oy);
@@ -1985,7 +2492,8 @@
       }
       for (let i = FXL.length - 1; i >= 0; i--) { FXL[i].t += f; if (FXL[i].t >= FXL[i].dur) FXL.splice(i, 1); }
       for (const k in TW) if (W.t - TW[k].t0 > TW[k].dur + 1) delete TW[k];
-      collapseDust(dt);
+      spawnPuffs(dt);
+      easeV(dt);
     },
     drawUnder(ctx, pass) {
       if (!isCur()) return;
@@ -1996,12 +2504,13 @@
           drawPromise(ctx); drawBeam(ctx);
           drawHorns(ctx); drawSword(ctx); drawSpear(ctx); drawCarried(ctx); drawRope(ctx);
           for (const p of sortProps()) if (p.kind === 'coffin' && p.a > 0.005) drawCoffin(ctx, p);
-          for (const p of sortProps()) if (p.kind === 'lot' && p.a > 0.01) drawLotName(ctx, p);
+          drawFireLight(ctx);
           drawFX(ctx);
         }
         return;
       }
-      if (l === 0) { drawHail(ctx); drawHost(ctx); }
+      if (l === 0) { drawHail(ctx); }
+      if (l === S.hostL) drawHost(ctx, l);
       if (l === 2) { drawJordan(ctx); drawManna(ctx); drawHoly(ctx); }
       drawLevi(ctx, l);
       drawGroves(ctx, l);
@@ -2011,20 +2520,23 @@
         if (p.kind === 'city') { drawCity(ctx, p); drawRings(ctx); continue; }
         drawKind(ctx, p);
       }
+      // 支派的名字：画在本层的人之前（人走过时盖住名字，不压在人身上）
+      for (const p of list) if (p.kind === 'lot' && p.layer === l && p.a > 0.01) drawLotName(ctx, p);
       if (l === 2) drawHeap(ctx);
-      if (l === 0) drawFires(ctx);
+      if (l === S.hostL) drawFires(ctx, l);
     },
     draw(ctx, pass) {
       // 约柜：在走兽之后、人之前画（抬着时，祭司在两端）
       if (!isCur() || pass !== 'near') return;
       drawArk(ctx);
     },
-    reset() { P.clear(); FXL.length = 0; sortedN = -1; for (const k in TW) delete TW[k]; },
+    reset() { P.clear(); FXL.length = 0; PUFF.length = 0; sortedN = -1; for (const k in TW) delete TW[k]; snapV(); },
     restore() {
       for (const [id, p] of P) { if (p.dying) { P.delete(id); continue; } p.a = p.ta; snap(p); }
       sortedN = -1;
-      FXL.length = 0;
+      FXL.length = 0; PUFF.length = 0;
       for (const k in TW) delete TW[k];
+      snapV();
     },
     pick(x, y, r) {
       if (!isCur()) return null;
@@ -2063,15 +2575,17 @@
   function tentsE(show) { X.tentE.forEach((x, i) => { if (show) prop('tE' + i, 'tent', { x, v: 0, size: i === 1 ? 1.05 : 0.9, label: '以色列人的帐棚' }); else unprop('tE' + i); }); }
   function tentsW(show, o) { X.tentW.forEach((x, i) => { if (show) prop('tW' + i, 'tent', Object.assign({ x, v: 0, size: i === 2 ? 1.05 : 0.92, label: '吉甲的营' }, o || {})); else unprop('tW' + i); }); }
   function palms() {
-    prop('palm1', 'palm', { x: 0.772, v: 0.02, size: 1.1, label: '棕树' });
+    // 耶利哥是棕树城：城右边的一小片棕树
+    prop('palm1', 'palm', { x: 0.908, v: 0.0, size: 1.1, label: '棕树' });
     prop('palm2', 'palm', { x: 0.985, v: 0.05, size: 1.0, flip: -1, label: '棕树' });
-    prop('palm3', 'palm', { x: 0.755, v: 0.1, size: 0.8, label: '棕树' });
+    prop('palm3', 'palm', { x: 0.948, v: 0.1, size: 0.85, label: '棕树' });
   }
   function lot(b, id, delay) {
     const q = LOTS[id];
     if (!q) return;
     prop('lot_' + id, 'lot', { name: q[0], layer: q[1], x: q[2], v: q[3], rgb: q[4], label: q[0] + (id === 'manE' ? '（约旦河东）' : ''), grow: 1, lit: 1 });
     if (!S.lots.includes(id)) S.lots.push(id);
+    tween(b, 'lotf_lot_' + id, 1, 0, 7.5);
     if (!b.instant) {
       const p = getP('lot_' + id);
       if (p) { p.grow = 0; }
@@ -2089,7 +2603,7 @@
   // ════════════════════════════════════════════════════════════
   //  幕后布置：约旦河东，摩押平原上什亭的营，清晨（1:1）
   // ════════════════════════════════════════════════════════════
-  function resetScene() { P.clear(); FXL.length = 0; sorted = []; sortedN = -1; for (const k in TW) delete TW[k]; S = fresh(); RV = null; RPC.key = ''; }
+  function resetScene() { P.clear(); FXL.length = 0; PUFF.length = 0; VE.clear(); sorted = []; sortedN = -1; for (const k in TW) delete TW[k]; S = fresh(); RV = null; RPC.key = ''; BK.key = ''; BK.sk = ''; lastFall = -1; STB.clear(); }
   function setup() {
     const lv = { deep: 1, light: 1, gather: 1, dayNight: 1, vault: 1, clouds: 0.45, land: 1, grass: 1, herbs: 0.85, trees: 0, lights: 1, moon: 1, stars: 1, life: 1, good: 0, given: 1, sabbath: 0.15,
       bare: 0.12, bloom: 0.75, joPromise: 0, joBeam: 0, joManna: 1, joFlood: 0.35, joHeap: 0, joDry: 0, joFill: 0, joHoly: 0, joRings: 0, joRings7: 0, joHorn: 0,
@@ -2129,91 +2643,84 @@
   //  经文（新标点和合本）——每一句话的经文不过四行（约半分钟），故事随经文一同说完
   // ════════════════════════════════════════════════════════════
   const INTRO = [
-    { text: '耶和华的仆人摩西死了以后，耶和华晓谕摩西的帮手，嫩的儿子约书亚，说：', ref: '约书亚记 1:1', hold: 6 },
+    { text: '耶和华的仆人摩西死了以后，<br>耶和华晓谕摩西的帮手，<br>嫩的儿子约书亚，说：', ref: '约书亚记 1:1', hold: 6 },
   ];
   const V1 = [
-    { text: '「我的仆人摩西死了。现在你要起来，和众百姓过这约旦河，<br>往我所要赐给以色列人的地去。」', ref: '约书亚记 1:2', hold: 6.5 },
-    { text: '「……我怎样与摩西同在，也必照样与你同在；<br>我必不撇下你，也不丢弃你。」', ref: '约书亚记 1:5', hold: 6 },
-    { text: '「我岂没有吩咐你吗？你当刚强壮胆！不要惧怕，也不要惊惶；<br>因为你无论往哪里去，耶和华你的神必与你同在。」', ref: '约书亚记 1:9', hold: 7 },
-    { text: '他们回答约书亚说：「你所吩咐我们行的，我们都必行；<br>你所差遣我们去的，我们都必去。」', ref: '约书亚记 1:16', hold: 6 },
+    { text: '「我的仆人摩西死了。<br>现在你要起来，和众百姓过这约旦河，<br>往我所要赐给以色列人的地去。」', ref: '约书亚记 1:2', hold: 7 },
+    { text: '「……我怎样与摩西同在，<br>也必照样与你同在；<br>我必不撇下你，也不丢弃你。」', ref: '约书亚记 1:5', hold: 6 },
+    { text: '「我岂没有吩咐你吗？你当刚强壮胆！<br>不要惧怕，也不要惊惶；<br>因为你无论往哪里去，<br>耶和华你的神必与你同在。」', ref: '约书亚记 1:9', hold: 7.5 },
   ];
   const V2 = [
-    { text: '当下，嫩的儿子约书亚从什亭暗暗打发两个人作探子，吩咐说：「你们去窥探那地和耶利哥。」<br>于是二人去了，来到一个妓女名叫喇合的家里……', ref: '约书亚记 2:1', hold: 7.5 },
-    { text: '二人还没有躺卧，女人就上房顶，到他们那里，对他们说：「我知道耶和华已经把这地赐给你们……<br>耶和华你们的神本是上天下地的神。」', ref: '约书亚记 2:8–11', hold: 7.5 },
-    { text: '于是女人用绳子将二人从窗户里缒下去；<br>因她的房子是在城墙边上，她也住在城墙上。', ref: '约书亚记 2:15', hold: 6 },
-    { text: '女人说：「照你们的话行吧！」于是打发他们去了，<br>又把朱红线绳系在窗户上。', ref: '约书亚记 2:21', hold: 6 },
+    { text: '嫩的儿子约书亚从什亭<br>暗暗打发两个人作探子……<br>来到一个妓女名叫喇合的家里……', ref: '约书亚记 2:1', hold: 7 },
+    { text: '于是女人用绳子将二人从窗户里缒下去；<br>因她的房子是在城墙边上，<br>她也住在城墙上。', ref: '约书亚记 2:15', hold: 6.5 },
+    { text: '女人说：「照你们的话行吧！」<br>于是打发他们去了，<br>又把朱红线绳系在窗户上。', ref: '约书亚记 2:21', hold: 6 },
   ];
   const V3 = [
-    { text: '「等到抬普天下主耶和华约柜的祭司把脚站在约旦河水里，约旦河的水，<br>就是从上往下流的水，必然断绝，立起成垒。」', ref: '约书亚记 3:13', hold: 6.5 },
-    { text: '他们到了约旦河，脚一入水（原来约旦河水在收割的日子涨过两岸），<br>那从上往下流的水便在极远之地、撒拉但旁的亚当城那里停住，立起成垒……', ref: '约书亚记 3:15–16', hold: 7.5 },
-    { text: '……那往亚拉巴的海，就是盐海，下流的水全然断绝。<br>于是百姓在耶利哥的对面过去了。', ref: '约书亚记 3:16', hold: 5.5 },
-    { text: '抬耶和华约柜的祭司在约旦河中的干地上站定，<br>以色列众人都从干地上过去，直到国民尽都过了约旦河。', ref: '约书亚记 3:17', hold: 6.5 },
+    { text: '「等到抬普天下主耶和华约柜的祭司<br>把脚站在约旦河水里，<br>约旦河的水……必然断绝，立起成垒。」', ref: '约书亚记 3:13', hold: 6.5 },
+    { text: '那从上往下流的水便在极远之地……<br>立起成垒；那往亚拉巴的海，就是盐海，<br>下流的水全然断绝。<br>于是百姓在耶利哥的对面过去了。', ref: '约书亚记 3:16', hold: 7.5 },
+    { text: '抬耶和华约柜的祭司<br>在约旦河中的干地上站定，<br>以色列众人都从干地上过去，<br>直到国民尽都过了约旦河。', ref: '约书亚记 3:17', hold: 6.5 },
   ];
   const V4 = [
-    { text: '「你们下约旦河中，过到耶和华你们神的约柜前头，<br>按着以色列人十二支派的数目，每人取一块石头扛在肩上。」', ref: '约书亚记 4:5', hold: 6.5 },
-    { text: '「……这是因为约旦河的水在耶和华的约柜前断绝……<br>这些石头要作以色列人永远的纪念。」', ref: '约书亚记 4:7', hold: 6.5 },
-    { text: '抬耶和华约柜的祭司从约旦河里上来，脚掌刚落旱地，<br>约旦河的水就流到原处，仍旧涨过两岸。', ref: '约书亚记 4:18', hold: 6.5 },
-    { text: '正月初十日，百姓从约旦河里上来，就在吉甲，在耶利哥的东边安营。<br>他们从约旦河中取来的那十二块石头，约书亚就立在吉甲。', ref: '约书亚记 4:19–20', hold: 6.5 },
+    { text: '「……这是因为约旦河的水<br>在耶和华的约柜前断绝……<br>这些石头要作以色列人永远的纪念。」', ref: '约书亚记 4:7', hold: 6 },
+    { text: '抬耶和华约柜的祭司从约旦河里上来，<br>脚掌刚落旱地，<br>约旦河的水就流到原处，仍旧涨过两岸。', ref: '约书亚记 4:18', hold: 6.5 },
+    { text: '……就在吉甲，在耶利哥的东边安营。<br>他们从约旦河中取来的那十二块石头，<br>约书亚就立在吉甲。', ref: '约书亚记 4:19–20', hold: 6.5 },
   ];
   const V5 = [
-    { text: '以色列人在吉甲安营。正月十四日晚上，在耶利哥的平原守逾越节……<br>第二日吗哪就止住了……那一年，他们却吃迦南地的出产。', ref: '约书亚记 5:10–12', hold: 7 },
-    { text: '约书亚靠近耶利哥的时候，举目观看，不料，有一个人手里有拔出来的刀，对面站立。<br>约书亚到他那里，问他说：「你是帮助我们呢，是帮助我们敌人呢？」', ref: '约书亚记 5:13', hold: 7 },
-    { text: '他回答说：「不是的，我来是要作耶和华军队的元帅。」<br>约书亚就俯伏在地下拜，说：「我主有什么话吩咐仆人。」', ref: '约书亚记 5:14', hold: 6.5 },
-    { text: '耶和华军队的元帅对约书亚说：「把你脚上的鞋脱下来，<br>因为你所站的地方是圣的。」约书亚就照着行了。', ref: '约书亚记 5:15', hold: 6 },
+    { text: '以色列人在吉甲安营。<br>正月十四日晚上，<br>在耶利哥的平原守逾越节……<br>第二日吗哪就止住了……', ref: '约书亚记 5:10–12', hold: 6 },
+    { text: '约书亚靠近耶利哥的时候……<br>有一个人手里有拔出来的刀……<br>「我来是要作耶和华军队的元帅。」<br>约书亚就俯伏在地下拜……', ref: '约书亚记 5:13–14', hold: 7 },
+    { text: '耶和华军队的元帅对约书亚说：<br>「把你脚上的鞋脱下来，<br>因为你所站的地方是圣的。」<br>约书亚就照着行了。', ref: '约书亚记 5:15', hold: 6.5 },
   ];
   const V6 = [
-    { text: '耶利哥的城门因以色列人就关得严紧，无人出入。', ref: '约书亚记 6:1', hold: 5 },
-    { text: '耶和华晓谕约书亚说：「看哪，我已经把耶利哥和耶利哥的王，<br>并大能的勇士，都交在你手中。」', ref: '约书亚记 6:2', hold: 6.5 },
-    { text: '约书亚对百姓说完了话，七个祭司拿七个羊角走在耶和华面前吹角；<br>耶和华的约柜在他们后面跟随。', ref: '约书亚记 6:8', hold: 6.5 },
-    { text: '第二日，众人把城绕了一次，就回营里去。六日都是这样行。', ref: '约书亚记 6:14', hold: 6 },
+    { text: '耶利哥的城门因以色列人<br>就关得严紧，无人出入。', ref: '约书亚记 6:1', hold: 5 },
+    { text: '耶和华晓谕约书亚说：<br>「看哪，我已经把耶利哥和耶利哥的王，<br>并大能的勇士，都交在你手中。」', ref: '约书亚记 6:2', hold: 6 },
+    { text: '约书亚对百姓说完了话，<br>七个祭司拿七个羊角<br>走在耶和华面前吹角；<br>耶和华的约柜在他们后面跟随。', ref: '约书亚记 6:8', hold: 6 },
+    { text: '第二日，众人把城绕了一次，<br>就回营里去。六日都是这样行。', ref: '约书亚记 6:14', hold: 5.5 },
   ];
   const V7 = [
-    { text: '第七日清早，黎明的时候，他们起来，照样绕城七次；<br>惟独这日把城绕了七次。', ref: '约书亚记 6:15', hold: 6.5 },
-    { text: '到了第七次，祭司吹角的时候，约书亚吩咐百姓说：<br>「呼喊吧，因为耶和华已经把城交给你们了！」', ref: '约书亚记 6:16', hold: 6.5 },
-    { text: '于是百姓呼喊，祭司也吹角。百姓听见角声，便大声呼喊，城墙就塌陷，<br>百姓便上去进城，各人往前直上，将城夺取……', ref: '约书亚记 6:20', hold: 7 },
-    { text: '约书亚却把妓女喇合与她父家，并她所有的，都救活了……<br>她就住在以色列中，直到今日。', ref: '约书亚记 6:25', hold: 6.5 },
+    { text: '第七日清早，黎明的时候，<br>他们起来，照样绕城七次；<br>惟独这日把城绕了七次。', ref: '约书亚记 6:15', hold: 6 },
+    { text: '到了第七次，祭司吹角的时候，<br>约书亚吩咐百姓说：「呼喊吧，<br>因为耶和华已经把城交给你们了！」', ref: '约书亚记 6:16', hold: 6 },
+    { text: '于是百姓呼喊，祭司也吹角。<br>百姓听见角声，便大声呼喊，<br>城墙就塌陷，百姓便上去进城……', ref: '约书亚记 6:20', hold: 6.5 },
+    { text: '约书亚却把妓女喇合与她父家，<br>并她所有的，都救活了……<br>她就住在以色列中，直到今日。', ref: '约书亚记 6:25', hold: 6 },
   ];
   const V8 = [
-    { text: '以色列人在当灭的物上犯了罪……亚干取了当灭的物；<br>耶和华的怒气就向以色列人发作。', ref: '约书亚记 7:1', hold: 6.5 },
-    { text: '约书亚便撕裂衣服……在耶和华的约柜前俯伏在地，直到晚上……<br>耶和华吩咐约书亚说：「起来！你为何这样俯伏在地呢？」', ref: '约书亚记 7:6–10', hold: 7 },
-    { text: '众人在亚干身上堆成一大堆石头，直存到今日。<br>于是耶和华转意，不发他的烈怒。', ref: '约书亚记 7:26', hold: 6.5 },
-    { text: '约书亚就向城伸出手里的短枪。他一伸手，伏兵就从埋伏的地方急忙起来，<br>夺了城，跑进城去，放火焚烧。', ref: '约书亚记 8:18–19', hold: 6.5 },
+    { text: '以色列人在当灭的物上犯了罪……<br>亚干取了当灭的物；<br>耶和华的怒气就向以色列人发作。', ref: '约书亚记 7:1', hold: 6 },
+    { text: '约书亚便撕裂衣服……<br>在耶和华的约柜前俯伏在地……<br>耶和华吩咐约书亚说：<br>「起来！你为何这样俯伏在地呢？」', ref: '约书亚记 7:6–10', hold: 6.5 },
+    { text: '众人在亚干身上堆成一大堆石头……<br>于是耶和华转意，不发他的烈怒。', ref: '约书亚记 7:26', hold: 5.5 },
+    { text: '约书亚就向城伸出手里的短枪。<br>他一伸手，<br>伏兵就从埋伏的地方急忙起来，<br>夺了城，跑进城去，放火焚烧。', ref: '约书亚记 8:18–19', hold: 6 },
   ];
   const V9 = [
-    { text: '基遍的居民听见约书亚向耶利哥和艾城所行的事，就设诡计，假充使者……<br>于是约书亚与他们讲和，与他们立约，容他们活着……', ref: '约书亚记 9:3–15', hold: 6.5 },
-    { text: '他们在以色列人面前逃跑，正在伯‧和仑下坡的时候，<br>耶和华从天上降大冰雹在他们身上……', ref: '约书亚记 10:11', hold: 6 },
-    { text: '当耶和华将亚摩利人交付以色列人的日子，约书亚就祷告耶和华，在以色列人眼前说：<br>日头啊，你要停在基遍；月亮啊，你要止在亚雅仑谷。', ref: '约书亚记 10:12', hold: 7 },
-    { text: '于是日头停留，月亮止住，直等国民向敌人报仇……<br>日头在天当中停住，不急速下落，约有一日之久。', ref: '约书亚记 10:13', hold: 6.5 },
+    { text: '基遍的居民听见约书亚<br>向耶利哥和艾城所行的事……<br>于是约书亚与他们讲和，<br>与他们立约，容他们活着……', ref: '约书亚记 9:3–15', hold: 6 },
+    { text: '他们在以色列人面前逃跑，<br>正在伯‧和仑下坡的时候，<br>耶和华从天上降大冰雹在他们身上……', ref: '约书亚记 10:11', hold: 6 },
+    { text: '约书亚就祷告耶和华，<br>在以色列人眼前说：<br>日头啊，你要停在基遍；<br>月亮啊，你要止在亚雅仑谷。', ref: '约书亚记 10:12', hold: 6.5 },
+    { text: '于是日头停留，月亮止住……<br>日头在天当中停住，<br>不急速下落，约有一日之久。', ref: '约书亚记 10:13', hold: 6 },
   ];
   const V10 = [
-    { text: '这些王和他们的众军都出来，人数多如海边的沙，并有许多马匹车辆。', ref: '约书亚记 11:4', hold: 6 },
-    { text: '耶和华怎样吩咐他仆人摩西，摩西就照样吩咐约书亚，约书亚也照样行。<br>凡耶和华所吩咐摩西的，约书亚没有一件懈怠不行的。', ref: '约书亚记 11:15', hold: 7 },
-    { text: '这样，约书亚照着耶和华所吩咐摩西的一切话夺了那全地，<br>就按着以色列支派的宗族将地分给他们为业。于是国中太平，没有争战了。', ref: '约书亚记 11:23', hold: 7 },
-    { text: '他们的王：一个是耶利哥王，一个是靠近伯特利的艾城王……<br>共计三十一个王。', ref: '约书亚记 12:9–24', hold: 6 },
+    { text: '这些王和他们的众军都出来，<br>人数多如海边的沙，<br>并有许多马匹车辆。', ref: '约书亚记 11:4', hold: 6.5 },
+    { text: '这样，约书亚照着<br>耶和华所吩咐摩西的一切话<br>夺了那全地……<br>于是国中太平，没有争战了。', ref: '约书亚记 11:23', hold: 6.5 },
+    { text: '他们的王：一个是耶利哥王，<br>一个是靠近伯特利的艾城王……<br>共计三十一个王。', ref: '约书亚记 12:9–24', hold: 6.5 },
   ];
   const V11 = [
-    { text: '约书亚年纪老迈，耶和华对他说：「你年纪老迈了，还有许多未得之地……」', ref: '约书亚记 13:1', hold: 6 },
-    { text: '迦勒对约书亚说：「……看哪，现今我八十五岁了，我还是强壮，像摩西打发我去的那天一样……<br>求你将耶和华那日应许我的这山地给我……」', ref: '约书亚记 14:6–12', hold: 8 },
-    { text: '犹大支派按着宗族拈阄所得之地是在尽南边，<br>到以东的交界，向南直到寻的旷野。', ref: '约书亚记 15:1', hold: 6 },
-    { text: '约瑟的儿子玛拿西、以法莲就得了他们的地业。', ref: '约书亚记 16:4', hold: 5 },
+    { text: '约书亚年纪老迈，<br>耶和华对他说：「你年纪老迈了，<br>还有许多未得之地……」', ref: '约书亚记 13:1', hold: 5.5 },
+    { text: '迦勒对约书亚说：「……<br>现今我八十五岁了，我还是强壮……<br>求你将耶和华那日<br>应许我的这山地给我……」', ref: '约书亚记 14:6–12', hold: 7 },
+    { text: '犹大支派按着宗族拈阄所得之地<br>是在尽南边，到以东的交界，<br>向南直到寻的旷野。', ref: '约书亚记 15:1', hold: 5.5 },
+    { text: '约瑟的儿子玛拿西、以法莲<br>就得了他们的地业。', ref: '约书亚记 16:4', hold: 5 },
   ];
   const V12 = [
-    { text: '西罗非哈没有儿子，只有女儿……她们来到祭司以利亚撒和嫩的儿子约书亚并众首领面前，<br>说：「耶和华曾吩咐摩西在我们弟兄中分给我们产业。」', ref: '约书亚记 17:3–4', hold: 7.5 },
-    { text: '以色列的全会众都聚集在示罗，把会幕设立在那里，<br>那地已经被他们制伏了。', ref: '约书亚记 18:1', hold: 6 },
-    { text: '这就是祭司以利亚撒和嫩的儿子约书亚，并以色列各支派的族长，<br>在示罗会幕门口，耶和华面前，拈阄所分的地业。这样，他们把地分完了。', ref: '约书亚记 19:51', hold: 7.5 },
-    { text: '「你吩咐以色列人说：你们要照着我藉摩西所晓谕你们的，为自己设立逃城，<br>使那无心而误杀人的，可以逃到那里。」', ref: '约书亚记 20:2–3', hold: 6.5 },
+    { text: '西罗非哈没有儿子，只有女儿……<br>她们……说：「耶和华曾吩咐摩西<br>在我们弟兄中分给我们产业。」', ref: '约书亚记 17:3–4', hold: 6 },
+    { text: '以色列的全会众都聚集在示罗，<br>把会幕设立在那里，<br>那地已经被他们制伏了。', ref: '约书亚记 18:1', hold: 5.5 },
+    { text: '……在示罗会幕门口，耶和华面前，<br>拈阄所分的地业。<br>这样，他们把地分完了。', ref: '约书亚记 19:51', hold: 5.5 },
+    { text: '「你吩咐以色列人说：<br>你们要……为自己设立逃城，<br>使那无心而误杀人的，可以逃到那里。」', ref: '约书亚记 20:2–3', hold: 6 },
   ];
   const V13 = [
-    { text: '这样，耶和华将从前向他们列祖起誓所应许的全地赐给以色列人，<br>他们就得了为业，住在其中。', ref: '约书亚记 21:43', hold: 6.5 },
-    { text: '吕便人、迦得人，和玛拿西半支派的人到了靠近约旦河的一带迦南地，<br>就在约旦河那里筑了一座坛；那坛看着高大。', ref: '约书亚记 22:10', hold: 6.5 },
-    { text: '吕便人、迦得人给坛起名叫证坛，<br>意思说：这坛在我们中间证明耶和华是神。', ref: '约书亚记 22:34', hold: 6 },
-    { text: '「我现在要走世人必走的路。你们是一心一意地知道，<br>耶和华你们神所应许赐福与你们的话没有一句落空，都应验在你们身上了。」', ref: '约书亚记 23:14', hold: 7.5 },
+    { text: '这样，耶和华将从前向他们列祖<br>起誓所应许的全地赐给以色列人，<br>他们就得了为业，住在其中。', ref: '约书亚记 21:43', hold: 6 },
+    { text: '吕便人、迦得人，<br>和玛拿西半支派的人……<br>就在约旦河那里筑了一座坛；<br>那坛看着高大。', ref: '约书亚记 22:10', hold: 6 },
+    { text: '「我现在要走世人必走的路……<br>耶和华你们神所应许赐福与你们的话<br>没有一句落空，都应验在你们身上了。」', ref: '约书亚记 23:14', hold: 7 },
   ];
   const V14 = [
-    { text: '「……若是你们以事奉耶和华为不好，今日就可以选择所要事奉的……<br>至于我和我家，我们必定事奉耶和华。」', ref: '约书亚记 24:15', hold: 7 },
-    { text: '当日，约书亚就与百姓立约……<br>又将一块大石头立在橡树下耶和华的圣所旁边。', ref: '约书亚记 24:25–26', hold: 6.5 },
-    { text: '这些事以后，耶和华的仆人嫩的儿子约书亚，正一百一十岁，就死了。', ref: '约书亚记 24:29', hold: 6 },
-    { text: '以色列人从埃及所带来约瑟的骸骨，葬埋在示剑，<br>就是在雅各从前用一百块银子向示剑的父亲、哈抹的子孙所买的那块地里……', ref: '约书亚记 24:32', hold: 7 },
+    { text: '「……今日就可以选择所要事奉的……<br>至于我和我家，<br>我们必定事奉耶和华。」', ref: '约书亚记 24:15', hold: 6 },
+    { text: '当日，约书亚就与百姓立约……<br>又将一块大石头立在橡树下<br>耶和华的圣所旁边。', ref: '约书亚记 24:25–26', hold: 5.5 },
+    { text: '这些事以后，<br>耶和华的仆人嫩的儿子约书亚，<br>正一百一十岁，就死了。', ref: '约书亚记 24:29', hold: 5.5 },
+    { text: '以色列人从埃及所带来约瑟的骸骨，<br>葬埋在示剑……<br>这就作了约瑟子孙的产业。', ref: '约书亚记 24:32', hold: 6 },
   ];
 
   // ════════════════════════════════════════════════════════════
@@ -2237,18 +2744,20 @@
           [2.5, b => { W.set('joPromise', 1, b.instant); sfx(b, 'angel', { soft: true }); }],
           [L[1], () => { pose('joshua', 'stand'); face('joshua', 1); }],
           [L[2], b => { pose('joshua', 'raise'); const p = figPt('joshua', 0.6); if (p) ringAt(b, p[0], p[1], [255, 232, 180], PH(2) * 2.4, 2.2); }],
-          [L[2] + 4.5, b => { pose('joshua', 'stand'); W.set('joBeam', 0.35, b.instant); W.set('joPromise', 0.45, b.instant); }],
-          [L[3], b => {
+          [L[2] + 3.5, b => {
+            // 百姓回答约书亚（1:16）
             walk('officer1', 0.53, { speed: 0.02 }); walk('officer2', 0.43, { speed: 0.018 });
             crowdPose('isrA', 'raise'); crowdPose('isrB', 'raise'); crowdFace('isrA', 1); crowdFace('isrB', 1);
             sfx(b, 'crowd', { soft: true });
           }],
-          [L[3] + 4, () => { crowdPose('isrA', 'stand'); crowdPose('isrB', 'stand'); }],
+          [L[2] + 5.5, b => { pose('joshua', 'stand'); W.set('joBeam', 0.35, b.instant); W.set('joPromise', 0.45, b.instant); }],
+          [L[2] + 7, () => { crowdPose('isrA', 'stand'); crowdPose('isrB', 'stand'); }],
         ]);
       },
     },
 
     // ── 2 · 耶和华你们的神本是上天下地的神（2:1–24）── 探子、喇合、朱红线绳 ──
+    //    （话语是喇合所认的神——经上所记神的本性，kind 'act'）
     {
       kind: 'act', utter: '耶和华你们的神本是上天下地的神', cmd: 'curl 耶利哥 --via 喇合 --hide 麻秸  # 朱红线绳', ref: '2:11', tint: [236, 214, 255],
       verse: V2,
@@ -2260,38 +2769,37 @@
             W.set('joBeam', 0, b.instant); W.set('joPromise', 0, b.instant);
             W.goTo(0.8, 8, b.instant);
             const f = fromOf(b);
-            add('spy1', { label: '探子', sex: 'm', age: 'adult', x: X.josh + 0.016, v: 0.1, facing: -1, robe: ROBE.spy, glow: 0.2, from: f });
-            add('spy2', { label: '探子', sex: 'm', age: 'adult', x: X.josh + 0.03, v: 0.14, facing: -1, robe: ROBE.spy2, glow: 0.2, from: f });
+            add('spy1', { label: '探子', sex: 'm', age: 'adult', x: X.josh + 0.016, v: 0.1, facing: -1, robe: ROBE.spy, glow: 0.25, from: f });
+            add('spy2', { label: '探子', sex: 'm', age: 'adult', x: X.josh + 0.03, v: 0.14, facing: -1, robe: ROBE.spy2, glow: 0.25, from: f });
             face('joshua', 1); pose('joshua', 'point');
           }],
           [2, () => {
             pose('joshua', 'stand');
-            walk('spy1', winX() - 0.012, { speed: 0.035 }); walk('spy2', winX() + 0.004, { speed: 0.034 });
+            walk('spy1', winX() - 0.012, { speed: 0.036 }); walk('spy2', winX() + 0.004, { speed: 0.035 });
           }],
-          [L[1] - 2, b => { W.goTo(0.95, 7, b.instant); }],
-          [L[1] + 1.5, b => {
-            // 二人进了喇合的家；喇合上房顶
+          [6.5, b => { W.goTo(0.95, 7, b.instant); }],
+          [L[1] - 0.3, b => {
+            // 二人进了喇合的家；喇合上房顶（2:6，2:8），窗里点着灯
             rm('spy1'); rm('spy2');
             prop('jericho', null, { lit: 1 });
-            add('rahab', { label: '喇合', sex: 'f', age: 'adult', x: winX(), facing: -1, robe: ROBE.rahab, accent: [226, 70, 64], glow: 0.35, from: fromOf(b) });
+            add('rahab', { label: '喇合', sex: 'f', age: 'adult', x: winX(), facing: -1, robe: ROBE.rahab, accent: [226, 70, 64], glow: 0.6, from: fromOf(b) });
             attach('rahab', () => { const q = R(); return [q.x + q.w * 0.05, q.roof]; });
           }],
-          [L[1] + 3, b => {
+          [L[1] + 0.7, b => {
             // 耶利哥王的人举着火把出城门，往约旦河的渡口追去，城门就关了（2:7）
             const G = cityG(getP('jericho')), gx = ((segX(G, CM.gate) + segX(G, CM.gate + 1)) / 2) / W.w;
             prop('jericho', null, { open: 1 });
             add('guard1', { label: '耶利哥王的人', sex: 'm', age: 'adult', x: gx, v: 0.04, facing: -1, robe: ROBE.guard, glow: 0.05, prop: 'torch', from: fromOf(b) });
             add('guard2', { label: '耶利哥王的人', sex: 'm', age: 'adult', x: gx + 0.012, v: 0.08, facing: -1, robe: ROBE.guard, glow: 0.05, prop: 'torch', from: fromOf(b) });
-            walk('guard1', 0.615, { speed: 0.045 }); walk('guard2', 0.63, { speed: 0.043 });
+            walk('guard1', 0.615, { speed: 0.05 }); walk('guard2', 0.63, { speed: 0.048 });
             sfx(b, 'gate');
           }],
-          [L[1] + 6, b => { prop('jericho', null, { open: 0 }); sfx(b, 'gate', { soft: true }); }],
-          [L[2] - 0.5, () => { rm('guard1'); rm('guard2'); }],
-          [L[2], b => {
+          [L[1] + 2.7, b => { prop('jericho', null, { open: 0 }); sfx(b, 'gate', { soft: true }); }],
+          [L[1] + 3.2, b => {
             // 用绳子从窗户里缒下去（2:15）
             const q = R();
-            for (const [id, dx, robe, dl] of [['spy1', -0.004, ROBE.spy, 0], ['spy2', 0.006, ROBE.spy2, 1.4]]) {
-              add(id, { label: '探子', sex: 'm', age: 'adult', x: q.x / W.w + dx, v: 0, facing: -1, robe, glow: 0.2, from: 'none', pose: 'raise' });
+            for (const [id, dx, robe, dl] of [['spy1', -0.004, ROBE.spy, 0], ['spy2', 0.008, ROBE.spy2, 1.4]]) {
+              add(id, { label: '探子', sex: 'm', age: 'adult', x: q.x / W.w + dx, v: 0, facing: -1, robe, glow: 0.25, from: 'none', pose: 'raise' });
               const f = fig(id);
               if (f && !b.instant) { f.ny = (q.y + (dl ? -2 : 0)) / W.h; f.alpha = 0; f.targetAlpha = 1; }
               fly(id, q.x / W.w + dx, null, { dur: 3.2 + dl, pose: 'stand' });
@@ -2299,17 +2807,18 @@
             S.rope = true;
             sfx(b, 'wind', { soft: true });
           }],
-          [L[2] + 5, b => {
+          [L[1] + 4.5, () => { rm('guard1'); rm('guard2'); }],
+          [L[2] - 0.5, b => {
             S.rope = false;
-            walk('spy1', 1.03, { speed: 0.032 }); walk('spy2', 1.05, { speed: 0.032 });
+            walk('spy1', 1.03, { speed: 0.034 }); walk('spy2', 1.05, { speed: 0.034 });
           }],
-          [L[3], b => {
+          [L[2] + 0.8, b => {
             prop('jericho', null, { cord: 1 });
             sfx(b, 'harp');
             const q = R();
-            sparkAt(b, q.x, q.y + 12, 18, [236, 80, 70], 6);
+            sparkAt(b, q.x, q.y + 6, 14, [236, 90, 80], 5);
           }],
-          [L[3] + 4.5, b => { rm('spy1'); rm('spy2'); attach('rahab', null); rm('rahab'); prop('jericho', null, { lit: 0 }); }],
+          [L[2] + 5, b => { rm('spy1'); rm('spy2'); attach('rahab', null); rm('rahab'); prop('jericho', null, { lit: 0 }); }],
         ]);
       },
     },
@@ -2326,42 +2835,45 @@
             W.goTo(0.29, 7, b.instant);
             W.set('joFlood', 1, b.instant);
             const f = fromOf(b);
-            // 抬约柜的祭司：前两人、后两人
-            add('p1', { label: '抬约柜的祭司', sex: 'm', age: 'adult', x: 0.47, v: 0.26, facing: 1, robe: ROBE.priest, accent: [214, 200, 170], glow: 0.25, from: f });
-            add('p2', { label: '抬约柜的祭司', sex: 'm', age: 'adult', x: 0.47, v: 0.31, facing: 1, robe: ROBE.priest, accent: [214, 200, 170], glow: 0.25, from: f });
-            add('p3', { label: '抬约柜的祭司', sex: 'm', age: 'adult', x: 0.443, v: 0.26, facing: 1, robe: ROBE.priest, accent: [214, 200, 170], glow: 0.25, from: f });
-            add('p4', { label: '抬约柜的祭司', sex: 'm', age: 'adult', x: 0.443, v: 0.31, facing: 1, robe: ROBE.priest, accent: [214, 200, 170], glow: 0.25, from: f });
+            // 抬约柜的祭司：前两人、后两人（站在河的上游一侧，百姓从他们前面过去，约柜不被挡住）
+            add('p1', { label: '抬约柜的祭司', sex: 'm', age: 'adult', x: 0.47, v: 0.18, facing: 1, robe: ROBE.priest, accent: [214, 200, 170], glow: 0.25, from: f });
+            add('p2', { label: '抬约柜的祭司', sex: 'm', age: 'adult', x: 0.47, v: 0.23, facing: 1, robe: ROBE.priest, accent: [214, 200, 170], glow: 0.25, from: f });
+            add('p3', { label: '抬约柜的祭司', sex: 'm', age: 'adult', x: 0.443, v: 0.18, facing: 1, robe: ROBE.priest, accent: [214, 200, 170], glow: 0.25, from: f });
+            add('p4', { label: '抬约柜的祭司', sex: 'm', age: 'adult', x: 0.443, v: 0.23, facing: 1, robe: ROBE.priest, accent: [214, 200, 170], glow: 0.25, from: f });
             S.ark = 'carry';
-            walk('joshua', 0.45, { speed: 0.02 });
-            crowdWalk('isrA', 0.405, 0.46, { speed: 0.02 }); crowdWalk('isrB', 0.4, 0.44, { speed: 0.02 });
+            walk('joshua', 0.45, { speed: 0.02 }); vTo('joshua', 0.42);
+            // 百姓到东岸的前面来，等着过河
+            crowdWalk('isrA', 0.43, 0.52, { speed: 0.02 }); crowdWalk('isrB', 0.41, 0.5, { speed: 0.02 });
+            vTo('isrA', [0.56, 0.74]); vTo('isrB', [0.66, 0.88]);
             rm('officer1'); rm('officer2');
           }],
           [2.5, () => {
-            const e = edge(0.3);
+            const e = edge(0.2);
             walk('p1', e, { speed: 0.022 }); walk('p2', e, { speed: 0.022 });
             walk('p3', e - 0.027, { speed: 0.022 }); walk('p4', e - 0.027, { speed: 0.022 });
           }],
-          [L[1] + 0.5, b => {
-            // 脚一入水
+          [L[1] - 0.6, b => {
+            // 脚一入水（3:15）
             const p = figPt('p1', 0);
             if (p) { ringAt(b, p[0], p[1], [220, 240, 255], PH(2) * 1.6, 1.6); sparkAt(b, p[0], p[1], 16, [220, 240, 255], 8); }
             W.set('joHeap', 1, b.instant); W.set('joDry', 1, b.instant);
             sfx(b, 'wind', { low: true }); sfx(b, 'splash', { size: 2 });
             if (!b.instant) W.shake = Math.max(W.shake || 0, 0.25);
           }],
-          [L[1] + 4, b => { S.arkLit = true; sfx(b, 'angel', { soft: true }); }],
-          [L[2] - 1, () => {
-            const cx = riverAtV(0.3);
+          [L[1] + 1.5, () => {
+            const cx = riverAtV(0.2);
             walk('p1', cx + 0.013, { speed: 0.018 }); walk('p2', cx + 0.013, { speed: 0.018 });
             walk('p3', cx - 0.014, { speed: 0.018 }); walk('p4', cx - 0.014, { speed: 0.018 });
           }],
-          [L[2] + 1, b => {
-            crowdWalk('isrA', 0.625, 0.745, { speed: 0.028 }); crowdWalk('isrB', 0.615, 0.72, { speed: 0.026 });
-            walk('joshua', X.gilgalJ, { speed: 0.026 });
+          [L[1] + 3, b => { S.arkLit = true; sfx(b, 'angel', { soft: true }); }],
+          [L[1] + 4, b => {
+            // 百姓从左岸横过干的河床，到右岸（在祭司的前面）
+            crowdWalk('isrA', 0.61, 0.73, { speed: 0.03 }); crowdWalk('isrB', 0.62, 0.745, { speed: 0.028 });
             tentsE(false);
             avoid([0.38, 0.8]);
           }],
-          [L[3] + 2, b => { crowdFace('isrA', -1); crowdFace('isrB', -1); face('joshua', -1); sfx(b, 'crowd', { soft: true }); }],
+          [L[1] + 5.5, () => { walk('joshua', X.gilgalJ, { speed: 0.026 }); }],
+          [L[2] + 3, b => { crowdFace('isrA', -1); crowdFace('isrB', -1); face('joshua', -1); sfx(b, 'crowd', { soft: true }); }],
         ]);
       },
     },
@@ -2376,81 +2888,90 @@
         T(c, [
           [0, b => {
             S.arkLit = true;
-            crowd('twelve', { n: 12, x0: 0.64, x1: 0.72, layer: 2, v: 0.52, label: '十二个人', from: fromOf(b) });
+            crowd('twelve', { n: 12, x0: 0.61, x1: 0.68, layer: 2, v: 0.5, label: '十二个人', from: fromOf(b) });
           }],
-          [1.2, () => { const q = bed(); crowdWalk('twelve', q[0], q[1], { speed: 0.028 }); }],
-          [4.5, () => crowdPose('twelve', 'bow')],
-          [6, b => {
+          [1.2, () => { const q = bed(); crowdWalk('twelve', q[0], q[1], { speed: 0.03 }); }],
+          [4, () => crowdPose('twelve', 'kneel')],
+          [5.2, b => {
             S.carry12 = true;
-            crowdWalk('twelve', X.stones - 0.03, X.stones + 0.03, { speed: 0.02, pose: 'stand' });
+            crowdWalk('twelve', X.stones - 0.034, X.stones + 0.034, { speed: 0.022, pose: 'stand' });
+            vTo('twelve', [0.62, 0.84]);
             // 约书亚另把十二块石头立在约旦河中（4:9）
             prop('cairnJ', 'cairn', { x: riverAtV(0.42), v: 0.42, size: 0.8, name: 'river', grow: 1, label: '河中的十二块石头' });
             sfx(b, 'stone');
           }],
-          [L[1] + 1.5, b => {
+          [L[1] - 0.3, () => {
+            // 祭司抬着约柜从河里上来
+            walk('p1', X.ark + 0.013, { speed: 0.02 }); walk('p2', X.ark + 0.013, { speed: 0.02 });
+            walk('p3', X.ark - 0.014, { speed: 0.02 }); walk('p4', X.ark - 0.014, { speed: 0.02 });
+          }],
+          [L[1] + 2.5, b => {
             S.carry12 = false;
-            crowdPose('twelve', 'bow');
+            crowdPose('twelve', 'kneel');
             prop('stones', 'stones', { x: X.stones, v: X.stonesV, grow: 1, lit: 1, label: '十二块石头' });
             sfx(b, 'stone');
           }],
-          [L[1] + 3.5, () => crowdPose('twelve', 'stand')],
-          [L[2] - 0.5, () => {
-            // 祭司抬着约柜从河里上来
-            walk('p1', 0.634, { speed: 0.02 }); walk('p2', 0.634, { speed: 0.02 });
-            walk('p3', 0.607, { speed: 0.02 }); walk('p4', 0.607, { speed: 0.02 });
-          }],
-          [L[2] + 2.2, b => {
-            // 脚掌刚落旱地，水就流到原处，仍旧涨过两岸
+          [L[1] + 3.2, b => {
+            // 脚掌刚落旱地，水就流到原处，仍旧涨过两岸（4:18）
             W.set('joHeap', 0, b.instant); W.set('joFill', 1, b.instant); W.set('joFlood', 1, b.instant);
             sfx(b, 'splash', { size: 3 }); sfx(b, 'wind', { low: true });
             if (!b.instant) W.shake = Math.max(W.shake || 0, 0.2);
           }],
-          [L[2] + 6, b => { W.set('joDry', 0, true); W.set('joFill', 0, true); W.set('joFlood', 0.55, b.instant); }],
-          [L[3], b => {
+          [L[1] + 4.5, () => crowdPose('twelve', 'stand')],
+          [L[2] - 0.8, b => { W.set('joDry', 0, true); W.set('joFill', 0, true); W.set('joFlood', 0.55, b.instant); }],
+          [L[2], b => {
             // 在吉甲安营
             tentsW(true);
             uncrowd('twelve');
             S.camp = 'gilgal'; S.arkLit = false;
             S.ark = 'ground'; S.arkX = X.ark; S.arkV = X.arkV;
             BEARERS.forEach(id => rm(id));
-            walk('joshua', X.stones + 0.03, { speed: 0.02, pose: 'point' });
-            crowdWalk('isrA', 0.625, 0.75, { speed: 0.02 }); crowdWalk('isrB', 0.6, 0.64, { speed: 0.02 });
+            walk('joshua', X.stones + 0.03, { speed: 0.02, pose: 'point' }); vTo('joshua', 0.5);
+            crowdWalk('isrA', 0.6, 0.71, { speed: 0.02 }); crowdWalk('isrB', 0.69, 0.76, { speed: 0.02 });
+            vTo('isrA', [0.04, 0.18]); vTo('isrB', [0.46, 0.64]);
             prop('stones', null, { lit: 1 });
             avoid([0.38, 0.8]);
           }],
-          [L[3] + 3.5, () => { pose('joshua', 'stand'); prop('stones', null, { lit: 0.35 }); }],
+          [L[2] + 3.5, () => { pose('joshua', 'stand'); prop('stones', null, { lit: 0.35 }); }],
         ]);
       },
     },
 
-    // ── 5 · 你所站的地方是圣的（5:1–15）── 逾越节、吗哪止住、耶和华军队的元帅 ──
+    // ── 5 · 我今日将埃及的羞辱从你们身上滚去了（5:1–15）── 逾越节、吗哪止住、耶和华军队的元帅 ──
     {
-      kind: 'cmd', utter: '你所站的地方是圣的', cmd: 'rm ./鞋  # 耶和华军队的元帅', ref: '5:15', tint: [255, 230, 190],
+      kind: 'cmd', utter: '我今日将埃及的羞辱从你们身上滚去了', cmd: 'rm -rf ~/埃及的羞辱  # 那地方名叫吉甲', ref: '5:9', tint: [255, 230, 190],
       verse: V5,
       apply(c) {
         const L = starts(V5);
         T(c, [
           [0, b => {
             W.goTo(0.8, 7, b.instant);
-            tentsW(true, { lit: 0.6, fire: 1 });
+            tentsW(true, { lit: 0.6 });
+            // 逾越节的晚上：地上两堆小火，众人围着火跪坐（5:10–11）
+            prop('pf1', 'pfire', { x: 0.622, v: 0.44, fire: 1, label: '逾越节的火' });
+            prop('pf2', 'pfire', { x: 0.686, v: 0.52, fire: 1, label: '逾越节的火' });
             W.set('joManna', 0, b.instant);
             prop('field', null, { grow: 1 });
-            crowdPose('isrA', 'sit'); crowdPose('isrB', 'sit');
+            crowdWalk('isrA', 0.594, 0.662, { speed: 0.02, pose: 'kneel' }); crowdWalk('isrB', 0.652, 0.712, { speed: 0.02, pose: 'kneel' });
+            vTo('isrA', [0.32, 0.6]); vTo('isrB', [0.38, 0.66]);
+            walk('joshua', 0.66, { speed: 0.02 }); vTo('joshua', 0.28);
             sfx(b, 'fire', { soft: true });
           }],
           [L[1] - 1.5, b => {
             W.goTo(0.97, 7, b.instant);
-            walk('joshua', 0.738, { speed: 0.02 });
-            tentsW(true, { lit: 0.25, fire: 0.4 });
+            walk('joshua', 0.713, { speed: 0.02 }); vTo('joshua', 0.32);
+            tentsW(true, { lit: 0.25 });
+            prop('pf1', null, { fire: 0.7 }); prop('pf2', null, { fire: 0.7 });
           }],
-          [L[1] + 2.5, b => {
-            add('commander', { label: '耶和华军队的元帅', sex: 'm', age: 'adult', x: 0.776, v: 0.3, facing: -1, angel: true, glow: 0.9, from: b.instant ? 'none' : 'light', pose: 'point', scale: 1.08 });
+          [L[1] + 1.5, b => {
+            add('commander', { label: '耶和华军队的元帅', sex: 'm', age: 'adult', x: 0.757, v: 0.34, facing: -1, angel: true, glow: 0.9, from: b.instant ? 'none' : 'light', pose: 'point', scale: 1.08 });
             S.sword = true;
+            glow('joshua', 0.6);
             sfx(b, 'angel');
           }],
-          [L[1] + 3.5, () => { face('joshua', 1); pose('joshua', 'point'); }],
-          [L[2], b => { pose('joshua', 'fall'); pose('commander', 'stand'); sfx(b, 'harp', { low: true }); }],
-          [L[3], b => {
+          [L[1] + 2.5, () => { face('joshua', 1); pose('joshua', 'point'); }],
+          [L[1] + 5, b => { pose('joshua', 'fall'); pose('commander', 'stand'); sfx(b, 'harp', { low: true }); }],
+          [L[2], b => {
             pose('joshua', 'kneel');
             W.set('joHoly', 1, b.instant);
             const p = figPt('joshua', 0);
@@ -2470,9 +2991,12 @@
           [0, b => {
             W.goTo(0.3, 6, b.instant);
             rm('commander'); S.sword = false; W.set('joHoly', 0, b.instant);
-            pose('joshua', 'stand'); walk('joshua', 0.738, { speed: 0.02 });
-            tentsW(true, { lit: 0, fire: 0 });
-            crowdPose('isrA', 'stand'); crowdPose('isrB', 'stand');
+            glow('joshua', 0.45);
+            pose('joshua', 'stand'); walk('joshua', 0.7, { speed: 0.02 }); vTo('joshua', 0.3);
+            tentsW(true, { lit: 0 });
+            unprop('pf1'); unprop('pf2');
+            crowdWalk('isrA', 0.6, 0.7, { speed: 0.02 }); crowdWalk('isrB', 0.64, 0.72, { speed: 0.02 });
+            vTo('isrA', [0.04, 0.2]); vTo('isrB', [0.46, 0.64]);
             prop('jericho', null, { open: 0 });
             sfx(b, 'gate');
             avoid([0.38, 1]);
@@ -2485,7 +3009,6 @@
             tween(b, 'march', -0.02, 0.9, 13.8);
           }],
           [L[2], b => { W.set('joHorn', 1, b.instant); sfx(b, 'horn'); }],
-          [L[2] + 3.5, b => { W.set('joHorn', 0, b.instant); }],
           [16.9, b => {
             // 队伍转到城后去了——第一日
             for (const m of MARCH) attach(m[0], null);
@@ -2493,13 +3016,14 @@
             S.ark = 'ground'; S.arkX = X.ark; S.arkV = X.arkV;
             W.set('joRings', 1, b.instant);
             W.goTo(0.7, 11, b.instant);
-            tween(b, 'comet', 1, 6, 10.5);
+            tween(b, 'comet', 1, 6, 9);
           }],
-          [19.1, b => W.set('joRings', 2, b.instant)],
-          [21.2, b => W.set('joRings', 3, b.instant)],
-          [23.3, b => W.set('joRings', 4, b.instant)],
-          [25.4, b => W.set('joRings', 5, b.instant)],
-          [27.5, b => { W.set('joRings', 6, b.instant); sfx(b, 'harp', { soft: true }); }],
+          [L[2] + 3.5, b => { W.set('joHorn', 0, b.instant); }],
+          [18.7, b => W.set('joRings', 2, b.instant)],
+          [20.5, b => W.set('joRings', 3, b.instant)],
+          [22.3, b => W.set('joRings', 4, b.instant)],
+          [24.1, b => W.set('joRings', 5, b.instant)],
+          [25.9, b => { W.set('joRings', 6, b.instant); sfx(b, 'harp', { soft: true }); }],
         ]);
       },
     },
@@ -2518,10 +3042,12 @@
             addMarchers(b, true);
             S.march = true; S.marchS = 0.36;
             for (const m of MARCH) marchAttach(m[0]);
-            tween(b, 'march', 0.05, 0.36, 8.5);
+            tween(b, 'march', 0.05, 0.36, 7.6);
             tween(b, 'comet', 0, 6, 7.2);
-            walk('joshua', 0.735, { speed: 0.02 });
-            add('joshua', { v: 0.55 });
+            // 百姓都到城前来（在城墙之下，谁也不挡住城墙）
+            crowdWalk('isrA', 0.62, 0.79, { speed: 0.03 }); crowdWalk('isrB', 0.81, 0.95, { speed: 0.03 });
+            vTo('isrA', [0.62, 0.86]); vTo('isrB', [0.62, 0.84]);
+            walk('joshua', 0.645, { speed: 0.02 }); vTo('joshua', 0.46);
           }],
           [1.2, b => W.set('joRings7', 1, b.instant)],
           [2.4, b => W.set('joRings7', 2, b.instant)],
@@ -2529,56 +3055,80 @@
           [4.8, b => W.set('joRings7', 4, b.instant)],
           [6.0, b => W.set('joRings7', 5, b.instant)],
           [7.2, b => W.set('joRings7', 6, b.instant)],
-          [8.6, b => {
-            // 第七次
-            marchStop(0.36); S.march = false;
+          [7.6, b => {
+            // 第七次绕完：队伍站定，分站在城的两侧
+            const E = ellG(), ph = PH(2), head = marchHead();
+            for (const m of MARCH) {
+              const id = m[0], f = fig(id), q = FLANK[id];
+              if (!f || !q) continue;
+              attach(id, null);
+              const e = ellPt(head - MOFF[id] * DS, MDV[id] || 0);
+              f.v = clamp(e.v, 0, 1); f.targetAlpha = 1;
+              place(id, e.x / W.w);
+              walk(id, (E.cx + q[0] * (E.rx + q[1] * ph)) / W.w, { speed: 0.05, pose: 'stand' });
+              vTo(id, q[2]);
+            }
+            S.march = false;
             W.set('joRings7', 7, b.instant);
+          }],
+          [L[1] + 3.3, b => {
+            // 祭司吹角（6:16）
+            MARCH.forEach(m => face(m[0], -FLANK[m[0]][0]));
             HORNS.forEach(id => pose(id, 'carry'));
             W.set('joHorn', 1, b.instant); sfx(b, 'horn');
           }],
-          [L[1] + 2.5, b => { face('joshua', -1); pose('joshua', 'raise'); }],
+          [L[1] + 4.3, () => { face('joshua', 1); pose('joshua', 'raise'); crowdFace('isrA', 1); crowdFace('isrB', -1); }],
           [L[2], b => {
             // 百姓大声呼喊
-            crowdPose('isrA', 'raise'); crowdPose('isrB', 'raise'); crowdFace('isrA', 1); crowdFace('isrB', 1);
+            crowdPose('isrA', 'raise'); crowdPose('isrB', 'raise');
             MARCH.forEach(m => { if (m[2] !== 'bear') pose(m[0], 'raise'); });
             sfx(b, 'crowd'); sfx(b, 'horn');
             if (!b.instant) { W.flash = Math.max(W.flash || 0, 0.45); }
           }],
           [L[2] + 0.8, b => {
+            // 城墙就塌陷（6:20）：一段一段向外倒下，惟独系着朱红线绳的那一段仍站着
             prop('jericho', null, { fall: 1 });
-            tween(b, 'dustc', 0, 1, 7);
+            tween(b, 'rim', 1, 0, 6);
+            const c0 = getP('jericho');
+            if (c0) { const G = cityG(c0); shockAt(b, G.cx, cityBase(G, G.cx) + G.glH, G.hw * 1.8); }
             if (!b.instant) W.shake = Math.max(W.shake || 0, 1.1);
             sfx(b, 'thunder', { low: true }); sfx(b, 'stone');
           }],
-          [L[2] + 4, b => {
+          [L[2] + 2.4, b => {
+            const c0 = getP('jericho');
+            if (c0) { const G = cityG(c0); shockAt(b, G.cx, cityBase(G, G.cx) + G.glH * 1.5, G.hw * 2.4); }
+            sfx(b, 'stone');
+          }],
+          [L[2] + 4.2, b => {
             W.set('joHorn', 0, b.instant); W.set('joRings7', 0, b.instant); HORNS.forEach(id => pose(id, 'stand'));
-            // 各人往前直上
-            MARCH.forEach(m => { if (m[2] === 'arm' || m[2] === 'rear') walk(m[0], 0.84 + 0.1 * rt(MOFF[m[0]] * 7), { speed: 0.045 }); });
-            crowdWalk('isrA', 0.8, 0.96, { speed: 0.05 });
+            // 各人往前直上；抬约柜的回到营里
+            MARCH.forEach(m => { if (m[2] === 'arm' || m[2] === 'rear') { walk(m[0], 0.75 + 0.12 * rt(MOFF[m[0]] * 7), { speed: 0.045 }); vTo(m[0], 0.1 + 0.2 * rt(MOFF[m[0]] * 7 + 1)); } });
+            BEARERS.forEach((id, i) => walk(id, X.ark + (i < 2 ? 0.013 : -0.014), { speed: 0.02 }));
+            crowdWalk('isrA', 0.74, 0.88, { speed: 0.05 }); vTo('isrA', [0.08, 0.32]);
             pose('joshua', 'stand');
           }],
           [L[2] + 6.5, b => { prop('jericho', null, { fire: 1, smoke: 1 }); sfx(b, 'fire'); }],
           [L[3], b => {
             // 二人进那妓女的家，将喇合与她的父母、弟兄带出来（6:22–23）
             const q = R(), x = q.x / W.w, f = fromOf(b);
-            add('rahab', { label: '喇合', sex: 'f', age: 'adult', x, v: 0.06, facing: -1, robe: ROBE.rahab, accent: [226, 70, 64], glow: 0.35, from: f });
-            add('rahabF', { label: '喇合的父家', sex: 'm', age: 'elder', x: x + 0.01, v: 0.1, facing: -1, robe: [140, 120, 100], glow: 0.15, from: f });
-            add('rahabM', { label: '喇合的父家', sex: 'f', age: 'elder', x: x + 0.02, v: 0.03, facing: -1, robe: [150, 116, 104], glow: 0.15, from: f });
-            add('rahabB', { label: '喇合的父家', sex: 'm', age: 'child', x: x + 0.005, v: 0.14, facing: -1, robe: [130, 110, 90], glow: 0.15, from: f });
-            add('spy1', { label: '探子', sex: 'm', age: 'adult', x: x - 0.012, v: 0.08, facing: -1, robe: ROBE.spy, glow: 0.2, from: f });
-            add('spy2', { label: '探子', sex: 'm', age: 'adult', x: x + 0.028, v: 0.12, facing: -1, robe: ROBE.spy2, glow: 0.2, from: f });
+            add('rahab', { label: '喇合', sex: 'f', age: 'adult', x, v: 0.06, facing: 1, robe: ROBE.rahab, accent: [226, 70, 64], glow: 0.45, from: f });
+            add('rahabF', { label: '喇合的父家', sex: 'm', age: 'elder', x: x + 0.01, v: 0.1, facing: 1, robe: [140, 120, 100], glow: 0.15, from: f });
+            add('rahabM', { label: '喇合的父家', sex: 'f', age: 'elder', x: x + 0.02, v: 0.03, facing: 1, robe: [150, 116, 104], glow: 0.15, from: f });
+            add('rahabB', { label: '喇合的父家', sex: 'm', age: 'child', x: x + 0.005, v: 0.14, facing: 1, robe: [130, 110, 90], glow: 0.15, from: f });
+            add('spy1', { label: '探子', sex: 'm', age: 'adult', x: x - 0.012, v: 0.08, facing: 1, robe: ROBE.spy, glow: 0.2, from: f });
+            add('spy2', { label: '探子', sex: 'm', age: 'adult', x: x + 0.028, v: 0.12, facing: 1, robe: ROBE.spy2, glow: 0.2, from: f });
             BEARERS.forEach(id => rm(id)); HORNS.forEach(id => rm(id));
             S.ark = 'ground'; S.arkX = X.ark; S.arkV = X.arkV; S.horns = false;
           }],
           [L[3] + 0.8, () => {
-            walk('spy1', X.outside - 0.012, { speed: 0.02 }); walk('rahab', X.outside, { speed: 0.02 });
-            walk('rahabF', X.outside + 0.012, { speed: 0.018 }); walk('rahabM', X.outside + 0.024, { speed: 0.018 });
-            walk('rahabB', X.outside + 0.006, { speed: 0.02 }); walk('spy2', X.outside + 0.036, { speed: 0.02 });
+            // 安置在以色列的营外（城的右边，棕树下）
+            [['spy1', -0.012, 0.44], ['rahab', 0, 0.5], ['rahabF', 0.012, 0.46], ['rahabM', 0.024, 0.54], ['rahabB', 0.006, 0.58], ['spy2', 0.036, 0.5]]
+              .forEach(([id, dx, v]) => { walk(id, X.outside + dx, { speed: 0.03 }); vTo(id, v); });
           }],
-          [L[3] + 3, b => {
+          [L[3] + 3.2, b => {
             MARCH.forEach(m => { if (m[2] === 'arm' || m[2] === 'rear') rm(m[0]); });
-            crowdWalk('isrA', 0.625, 0.73, { speed: 0.04 });
-            crowdPose('isrB', 'stand');
+            crowdWalk('isrA', 0.6, 0.7, { speed: 0.04 }); vTo('isrA', [0.04, 0.2]);
+            crowdWalk('isrB', 0.64, 0.72, { speed: 0.04 }); vTo('isrB', [0.46, 0.64]);
             prop('jericho', null, { fire: 0.6 });
             sfx(b, 'harp', { soft: true });
           }],
@@ -2605,27 +3155,29 @@
             W.goTo(0.76, 7, b.instant);
             add('elder1', { label: '以色列的长老', sex: 'm', age: 'elder', x: X.ark + 0.03, v: 0.34, facing: -1, robe: ROBE.elder, glow: 0.12, from: fromOf(b) });
             add('elder2', { label: '以色列的长老', sex: 'm', age: 'elder', x: X.ark + 0.045, v: 0.4, facing: -1, robe: [150, 140, 120], glow: 0.12, from: fromOf(b) });
-            walk('joshua', X.ark + 0.02, { speed: 0.025, pose: 'fall' });
+            walk('joshua', X.ark + 0.02, { speed: 0.025, pose: 'fall' }); vTo('joshua', 0.3);
           }],
           [L[1] + 1.5, () => { pose('elder1', 'fall'); pose('elder2', 'fall'); }],
-          [L[1] + 5.5, b => { pose('joshua', 'stand'); face('joshua', 1); sfx(b, 'harp', { low: true }); }],
-          [L[1] + 6.5, () => { pose('elder1', 'stand'); pose('elder2', 'stand'); }],
+          [L[1] + 5, b => { pose('joshua', 'stand'); face('joshua', 1); sfx(b, 'harp', { low: true }); }],
+          [L[1] + 6, () => { pose('elder1', 'stand'); pose('elder2', 'stand'); }],
           [L[2], b => {
             W.goTo(0.02, 6, b.instant);
             prop('glint', null, { lit: 0 }); unprop('glint');
-            prop('achor', 'cairn', { x: 0.648, v: 0.86, size: 1.25, grow: 1, label: '亚割谷的石堆' });
+            prop('achor', 'cairn', { x: 0.745, v: 0.93, size: 1.25, grow: 1, label: '亚割谷的石堆' });
             sfx(b, 'stone');
           }],
           [L[2] + 3, () => { rm('elder1'); rm('elder2'); }],
-          [L[3] - 1.2, b => {
+          [L[3] - 1.5, b => {
             W.goTo(0.28, 5, b.instant);
-            // 伏兵在城西（中丘上）
-            crowd('ambush', { n: 7, x0: 0.53, x1: 0.575, layer: 1, pose: 'kneel', label: '伏兵', robe: ROBE.arm, from: fromOf(b) });
-            walk('joshua', 0.64, { speed: 0.03 });
+            // 伏兵在城西（中丘的前沿，浅色的衣）
+            crowd('ambush', { n: 7, x0: 0.69, x1: 0.735, layer: 1, v: 0.75, pose: 'kneel', label: '伏兵', robe: [226, 210, 172], glow: 0.2, from: fromOf(b) });
+            vTo('ambush', [0.6, 0.9]);
+            // 约书亚走到众人前面空旷的地方
+            walk('joshua', 0.622, { speed: 0.035 }); vTo('joshua', 0.62);
           }],
-          [L[3], b => { face('joshua', -1); pose('joshua', 'point'); S.spear = true; sfx(b, 'wind', { soft: true }); }],
-          [L[3] + 1, () => { crowdPose('ambush', 'stand'); crowdWalk('ambush', X.ai - 0.012, X.ai + 0.012, { speed: 0.03, run: true }); }],
-          [L[3] + 3.5, b => { prop('ai', null, { fire: 1, smoke: 1 }); uncrowd('ambush'); sfx(b, 'fire'); }],
+          [L[3], b => { face('joshua', 1); pose('joshua', 'point'); S.spear = true; glow('joshua', 0.6); sfx(b, 'wind', { soft: true }); }],
+          [L[3] + 1.2, () => { crowdPose('ambush', 'stand'); crowdWalk('ambush', X.ai - 0.014, X.ai + 0.014, { speed: 0.03, run: true }); vTo('ambush', [0.05, 0.3]); }],
+          [L[3] + 3.6, b => { prop('ai', null, { fire: 1, smoke: 1 }); uncrowd('ambush'); sfx(b, 'fire'); }],
         ]);
       },
     },
@@ -2639,9 +3191,10 @@
         T(c, [
           [0, b => {
             W.goTo(0.34, 5, b.instant);
-            S.spear = false; pose('joshua', 'stand'); walk('joshua', 0.7, { speed: 0.02 });
-            prop('ai', null, { fire: 0, smoke: 0.3, ruin: 1 });
+            S.spear = false; glow('joshua', 0.45); pose('joshua', 'stand'); walk('joshua', 0.7, { speed: 0.02 }); vTo('joshua', 0.3);
+            prop('ai', null, { fire: 0, smoke: 0.6, ruin: 1 });
             prop('jericho', null, { smoke: 0 });
+            S.hostL = 0;
             const f = fromOf(b);
             // 基遍人：旧口袋、旧鞋、旧衣服，驴驮着破裂的皮酒袋（9:4–5）
             add('gib1', { label: '基遍人', sex: 'm', age: 'elder', x: 1.02, v: 0.3, facing: -1, robe: ROBE.gib, glow: 0.06, prop: 'staff', from: f });
@@ -2651,9 +3204,11 @@
             walk('gib1', 0.745, { speed: 0.03 }); walk('don1', 0.772, { speed: 0.03 }); walk('gib2', 0.79, { speed: 0.03 }); walk('gib3', 0.812, { speed: 0.03 });
             sfx(b, 'donkey');
           }],
-          [4.2, () => { face('joshua', 1); }],
-          [5, () => { pose('gib1', 'bow'); pose('gib2', 'bow'); pose('gib3', 'bow'); }],
-          [L[1] - 1.5, b => {
+          [3.6, () => { face('joshua', 1); }],
+          [4.0, () => pose('gib1', 'bow')],
+          [4.5, () => pose('gib2', 'kneel')],
+          [5.0, () => pose('gib3', 'bow')],
+          [L[1] - 1, b => {
             pose('gib1', 'stand'); pose('gib2', 'stand'); pose('gib3', 'stand');
             const p = figPt('joshua', 0.5);
             if (p) ringAt(b, p[0] + PH(2) * 0.8, p[1], [255, 236, 200], PH(2) * 1.6, 1.8);
@@ -2664,6 +3219,7 @@
             // 五王的军在远山；耶和华从天上降大冰雹
             W.set('joHost', 0.75, b.instant);
             W.set('storm', 0.72, b.instant); W.set('rain', 0.32, b.instant); W.set('joHail', 1, b.instant); W.set('hail', 0.35, b.instant);
+            prop('ai', null, { smoke: 0.2 });
             crowd('army', { n: 8, x0: 0.62, x1: 0.72, layer: 2, v: 0.14, label: '以色列的兵丁', robe: ROBE.arm, prop: 'staff', from: fromOf(b) });
             sfx(b, 'thunder');
           }],
@@ -2672,7 +3228,9 @@
           [L[1] + 6.5, b => { rm('gib1'); rm('gib2'); rm('gib3'); rm('don1'); uncrowd('army'); }],
           [L[2], b => {
             W.set('storm', 0, b.instant); W.set('rain', 0, b.instant); W.set('joHail', 0, b.instant); W.set('hail', 0, b.instant);
-            W.goTo(0.44, 6.5, b.instant);
+            prop('ai', null, { smoke: 0 });
+            // 日头在天当中（稍偏一点，不压在卷名上）
+            W.goTo(0.46, 6.5, b.instant);
             walk('joshua', 0.68, { speed: 0.02, pose: 'raise' });
             crowdFace('isrA', -1); crowdFace('isrB', -1);
           }],
@@ -2691,28 +3249,41 @@
       verse: V10,
       apply(c) {
         const L = starts(V10);
+        const CH = [['hzH1', 'horse', 0.735, 0.5], ['hzC1', 'wagon', 0.765, 0.5], ['hzH2', 'horse', 0.845, 0.3], ['hzC2', 'wagon', 0.875, 0.3], ['hzH3', 'horse', 0.93, 0.62]];
         T(c, [
           [0, b => {
             W.set('joSun', 0, b.instant); W.set('joMoon', 0, b.instant);
             pose('joshua', 'stand'); crowdPose('isrA', 'stand'); crowdPose('isrB', 'stand');
-            W.goTo(0.62, 6, b.instant);
+            W.goTo(0.68, 6, b.instant);
+            // 北方诸王的众军，多如海边的沙，并有许多马匹车辆——在中丘上（11:4）
+            S.hostL = 1;
             W.set('joHost', 1, b.instant);
             prop('hazor', 'hazor', { x: X.hazor, layer: 0, label: '夏琐' });
+            const f = fromOf(b);
+            CH.forEach(([id, kind, x, v]) => animal(id, kind, x, { layer: 1, v, facing: -1, from: f, label: '马匹车辆', pack: false }));
+            follow('hzC1', 'hzH1', 0.03); follow('hzC2', 'hzH2', 0.03);
+            face('joshua', -1);
             sfx(b, 'crowd', { far: true });
           }],
-          [L[1] - 0.5, b => { W.goTo(0.93, 7, b.instant); }],
-          [L[1] + 2, b => { W.set('joFires', 1, b.instant); W.set('joHost', 0, b.instant); sfx(b, 'fire', { far: true }); }],
-          [L[1] + 5, b => { prop('hazor', null, { fire: 1, smoke: 1 }); }],
-          [L[2], b => {
+          [4.8, b => { W.goTo(0.9, 4, b.instant); }],
+          [5.6, b => {
+            // 用火焚烧他们的车辆（11:9）
+            W.set('joFires', 1, b.instant); W.set('joHost', 0, b.instant);
+            CH.forEach(([id]) => { unfollow(id); rm(id); });
+            sfx(b, 'fire', { far: true });
+          }],
+          [7.2, b => { prop('hazor', null, { fire: 1, smoke: 1 }); }],
+          [L[1], b => {
+            // 国中太平
             W.goTo(0.31, 8, b.instant);
             W.set('joFires', 0, b.instant);
             prop('hazor', null, { fire: 0, smoke: 0.4 });
             W.set('bloom', 1, b.instant);
             W.setPop('bird', 40, W.w * 0.75, W.h * 0.35, b.instant);
           }],
-          [L[2] + 4, b => { sfx(b, 'bird'); sfx(b, 'harp', { soft: true }); prop('hazor', null, { smoke: 0 }); }],
-          [L[3], b => { tween(b, 'crowns', 0, 1, 6.5); sfx(b, 'stars', { soft: true }); }],
-          [L[3] + 6, b => { unprop('hazor'); }],
+          [L[1] + 4, b => { sfx(b, 'bird'); sfx(b, 'harp', { soft: true }); prop('hazor', null, { smoke: 0 }); }],
+          [L[1] + 4.5, b => { tween(b, 'crowns', 0, 1, 10.5); sfx(b, 'stars', { soft: true }); }],
+          [L[2] + 4, b => { unprop('hazor'); }],
         ]);
       },
     },
@@ -2731,7 +3302,7 @@
             unprop('achor');
             ['palm1', 'palm2', 'palm3'].forEach(id => prop(id, null, { show: true }));
             add('eleazar', { label: '祭司以利亚撒', sex: 'm', age: 'elder', x: X.ark + 0.022, v: 0.36, facing: -1, robe: ROBE.eleazar, accent: [150, 170, 220], glow: 0.3, from: fromOf(b) });
-            walk('joshua', X.ark - 0.024, { speed: 0.02 });
+            walk('joshua', X.ark - 0.024, { speed: 0.02 }); vTo('joshua', 0.36);
             // 摩西在约旦河东已分给的两个半支派（13:8）
             lot(b, 'reuben'); lot(b, 'gad'); lot(b, 'manE');
             sfx(b, 'chime');
@@ -2743,7 +3314,7 @@
             walk('caleb', X.ark - 0.045, { speed: 0.028 });
           }],
           [L[1] + 3, () => { face('caleb', 1); pose('caleb', 'point'); face('joshua', -1); }],
-          [L[1] + 6.5, b => {
+          [L[1] + 6, b => {
             pose('caleb', 'stand'); pose('joshua', 'raise');
             const p = figPt('caleb', 0.6);
             if (p) ringAt(b, p[0], p[1], [255, 232, 180], PH(2) * 1.6, 1.8);
@@ -2770,12 +3341,15 @@
         T(c, [
           [0, b => {
             W.goTo(0.4, 4, b.instant);
+            S.lotDim = true;
             DAU.forEach(([id, nm], i) => {
               add(id, { label: nm + '（西罗非哈的女儿）', sex: 'f', age: 'adult', x: 0.6 + i * 0.008, v: 0.5 + (i % 2) * 0.08, facing: 1, robe: [[176, 120, 110], [150, 130, 160], [190, 160, 110], [130, 150, 130], [180, 140, 150]][i], glow: 0.18, from: fromOf(b) });
               walk(id, X.ark - 0.05 + i * 0.009, { speed: 0.022 });
             });
           }],
-          [4, () => { DAU.forEach(([id]) => pose(id, 'bow')); face('joshua', -1); face('eleazar', -1); }],
+          [4, () => { pose('d1', 'bow'); pose('d4', 'kneel'); face('joshua', -1); face('eleazar', -1); }],
+          [4.4, () => { pose('d2', 'kneel'); pose('d5', 'kneel'); }],
+          [4.8, () => pose('d3', 'bow')],
           [6, b => {
             pose('joshua', 'raise');
             const p = getP('lot_manW');
@@ -2789,6 +3363,7 @@
             tentsW(false);
             S.camp = 'shiloh';
             crowdWalk('isrA', 0.7, 0.88, { speed: 0.025 }); crowdWalk('isrB', 0.66, 0.8, { speed: 0.025 });
+            vTo('isrA', [0.04, 0.2]); vTo('isrB', [0.3, 0.5]);
             walk('joshua', X.shiloh - 0.02, { speed: 0.025 }); walk('eleazar', X.shiloh + 0.006, { speed: 0.025 });
             DAU.forEach(([id], i) => walk(id, 0.64 + i * 0.01, { speed: 0.022 }));
             sfx(b, 'angel', { soft: true });
@@ -2811,7 +3386,7 @@
       verse: V13,
       apply(c) {
         const L = starts(V13);
-        const TOWNS = [['tw1', 1, 0.58], ['tw2', 1, 0.67], ['tw3', 1, 0.9], ['tw4', 0, 0.62], ['tw5', 0, 0.74], ['tw6', 0, 0.86], ['tw7', 0, 0.97]];
+        const TOWNS = [['tw1', 1, 0.58], ['tw2', 1, 0.712], ['tw3', 1, 0.9], ['tw4', 0, 0.62], ['tw5', 0, 0.74], ['tw6', 0, 0.86], ['tw7', 0, 0.97]];
         T(c, [
           [0, b => {
             W.goTo(0.46, 5, b.instant);
@@ -2826,28 +3401,29 @@
           }],
           [L[1] + 0.5, () => crowdWalk('east', 0.615, 0.65, { speed: 0.028 })],
           [L[1] + 2.5, b => { prop('witness', 'altar', { x: 0.627, v: 0.1, size: 1.25, grow: 1, label: '证坛' }); sfx(b, 'build'); }],
-          [L[2], b => {
+          [L[1] + 4.5, b => {
             prop('witness', null, { lit: 1 });
             const p = getP('witness');
             if (p) nameHere(b, '证坛', p.x * W.w, baseOf(p) - PH(2) * 1.1, [255, 234, 196], { size: 0.036 });
             crowdWalk('east', 0.42, 0.5, { speed: 0.028 });
           }],
-          [L[3] - 1, b => {
+          [L[2] - 1, b => {
             W.goTo(0.7, 9, b.instant);
             uncrowd('east');
-            crowd('elders', { n: 7, x0: X.shiloh - 0.06, x1: X.shiloh + 0.07, layer: 2, v: 0.46, label: '以色列的长老', robe: ROBE.elder, pose: 'sit', from: fromOf(b) });
+            crowd('elders', { n: 7, x0: X.shiloh - 0.06, x1: X.shiloh + 0.07, layer: 2, v: 0.46, label: '以色列的长老', robe: ROBE.elder, pose: 'kneel', from: fromOf(b) });
+            vTo('elders', [0.38, 0.6]);
             rm('eleazar');
-            walk('joshua', X.shiloh, { speed: 0.02 });
+            walk('joshua', X.shiloh, { speed: 0.02 }); vTo('joshua', 0.22);
           }],
-          [L[3] + 1, b => { face('joshua', 1); pose('joshua', 'raise'); crowdFace('elders', -1); }],
-          [L[3] + 6, () => pose('joshua', 'stand')],
+          [L[2] + 1, b => { face('joshua', 1); pose('joshua', 'raise'); crowdFace('elders', -1); }],
+          [L[2] + 6, () => pose('joshua', 'stand')],
         ]);
       },
     },
 
     // ── 14 · 我赐给你们地土，非你们所修治的（24:1–33）── 示剑；约瑟的骸骨 ──
     {
-      kind: 'promise', utter: '我赐给你们地土，非你们所修治的', cmd: 'deploy 葡萄园 橄榄园 --prebuilt  # 至于我和我家', ref: '24:13', tint: [255, 230, 176], hold: 3.2,
+      kind: 'bless', utter: '我赐给你们地土，非你们所修治的', cmd: 'deploy 葡萄园 橄榄园 --prebuilt  # 至于我和我家', ref: '24:13', tint: [255, 230, 176], hold: 3.2,
       verse: V14,
       apply(c) {
         const L = starts(V14);
@@ -2863,7 +3439,8 @@
             prop('oak', 'oak', { x: X.oak, v: 0, size: 1.25, grow: 1, label: '示剑的橡树' });
             S.camp = 'shechem';
             crowdWalk('isrA', 0.76, 0.96, { speed: 0.025 }); crowdWalk('isrB', 0.8, 0.95, { speed: 0.025 });
-            walk('joshua', X.oak - 0.005, { speed: 0.02 });
+            vTo('isrA', [0.06, 0.3]); vTo('isrB', [0.36, 0.6]);
+            walk('joshua', X.oak - 0.005, { speed: 0.02 }); vTo('joshua', 0.12);
             HOUSE.forEach(([id, sex, age, dx]) => {
               add(id, { label: '约书亚的家', sex, age, x: X.oak - 0.045 - dx, v: 0.34 + dx * 2, facing: 1, robe: [[150, 120, 110], [120, 110, 96], [170, 150, 120]][HOUSE.findIndex(h => h[0] === id)], glow: 0.18, from: fromOf(b) });
             });
@@ -2887,7 +3464,7 @@
             HOUSE.forEach(([id]) => pose(id, 'weep'));
             sfx(b, 'weep', { soft: true });
           }],
-          [L[2] + 2.6, () => { rm('joshua'); crowdPose('isrA', 'bow'); crowdPose('isrB', 'bow'); }],
+          [L[2] + 2.6, () => { rm('joshua'); crowdPose('isrA', 'kneel'); crowdPose('isrB', 'kneel'); }],
           [L[3] - 0.5, b => {
             // 约瑟的骸骨：从埃及带上来的棺（创 50:25–26）
             prop('coffin', 'coffin', { x: 0.68, v: 0.5, grow: 1, lit: 0.6, label: '约瑟的骸骨' });
@@ -2898,12 +3475,13 @@
             });
             HOUSE.forEach(([id]) => pose(id, 'stand'));
           }],
-          [L[3] + 5.2, b => {
+          [L[3] + 5, b => {
             prop('coffin', null, { grow: 0, bury: 1, lit: 1 });
-            CB.forEach(id => pose(id, 'bow'));
+            pose('cb1', 'bow'); pose('cb2', 'kneel');
             sfx(b, 'harp', { low: true });
           }],
-          [L[3] + 8, b => {
+          [L[3] + 5.5, () => { pose('cb3', 'kneel'); pose('cb4', 'bow'); }],
+          [L[3] + 7, b => {
             W.goTo(0.86, 22, b.instant);
             prop('coffin', null, { lit: 0.5 });
             crowdPose('isrA', 'stand'); crowdPose('isrB', 'stand');
@@ -2942,6 +3520,8 @@
       '带兵器的': { text: '带兵器的走在吹角的祭司前面，后队随着约柜行。祭司一面走一面吹。', ref: '约书亚记 6:9' },
       '后队': { text: '带兵器的走在吹角的祭司前面，后队随着约柜行。祭司一面走一面吹。', ref: '约书亚记 6:9' },
       '棕树': { text: '以色列人在吉甲安营。正月十四日晚上，在耶利哥的平原守逾越节。', ref: '约书亚记 5:10' },
+      '逾越节的火': { text: '以色列人在吉甲安营。正月十四日晚上，在耶利哥的平原守逾越节。', ref: '约书亚记 5:10' },
+      '马匹车辆': { text: '这些王和他们的众军都出来，人数多如海边的沙，并有许多马匹车辆。', ref: '约书亚记 11:4' },
       '艾城': { text: '艾城的人回头一看，不料，城中烟气冲天，他们就无力向左向右逃跑。', ref: '约书亚记 8:20' },
       '亚割谷的石堆': { text: '众人在亚干身上堆成一大堆石头，直存到今日。于是耶和华转意，不发他的烈怒。因此那地方名叫亚割谷，直到今日。', ref: '约书亚记 7:26' },
       '基遍人': { text: '他们回答说：「仆人从极远之地而来，是因听见耶和华你神的名声和他在埃及所行的一切事。」', ref: '约书亚记 9:9' },

@@ -67,6 +67,7 @@
     etWatch: ['exp', 0.35],     // 保护以色列的，也不打盹：众星看守
     etHidden: ['exp', 0.3],     // 隐藏的光（「从别处」）
     etBanner: ['exp', 0.6],     // 王宫的旗
+    etHLamp: ['exp', 0.6],      // 哈曼家里的灯（5:10–14：他与细利斯在灯前）
   };
   for (const k in LVL) W.defineLevel(k, LVL[k][0], LVL[k][1]);
 
@@ -79,11 +80,12 @@
     hh: 0.556, gal: 0.59, palmN: [0.985],
     city: [0.506, 0.523, 0.611, 0.84, 0.86, 0.88, 0.902, 0.924, 0.946, 0.968, 0.99], palmM: [0.536, 0.832, 0.935],
   };
+  // 竖屏：御园收窄为两间（三根柱），王宫加宽，朝门靠右；人与宫都放大些（见 PSK、BK）
   const XP = {
-    g0: 0.45, g1: 0.588, pillars: [0.462, 0.5, 0.538, 0.576], cyp: [0.44, 0.598], couch: 0.519,
-    court0: 0.607, hall0: 0.658, hall1: 0.862, throne: 0.822, stand: 0.634, tip: 0.76, queen: 0.851, chest: 0.681,
-    table: 0.733, seatH: 0.7, seatK: 0.765,
-    gate: 0.914, seat: 0.958, st0: 0.935, st1: 0.995, rill0: 0.44, rill1: 0.655,
+    g0: 0.452, g1: 0.548, pillars: [0.462, 0.5, 0.538], cyp: [0.443], couch: 0.519,
+    court0: 0.562, hall0: 0.602, hall1: 0.856, throne: 0.813, stand: 0.584, tip: 0.762, queen: 0.838, chest: 0.63,
+    table: 0.72, seatH: 0.694, seatK: 0.748,
+    gate: 0.93, seat: 0.972, st0: 0.9, st1: 0.995, rill0: 0.43, rill1: 0.62,
     hh: 0.555, gal: 0.595, palmN: [],
     city: [0.515, 0.622, 0.648, 0.674, 0.702, 0.73, 0.758, 0.786, 0.814, 0.842, 0.87, 0.898, 0.926, 0.954, 0.982], palmM: [0.532, 0.716, 0.9],
   };
@@ -93,11 +95,14 @@
   // ── 衣袍 ───────────────────────────────────────────────────
   const ROBE = {
     king: [128, 40, 76], vashti: [150, 72, 112], esther: [184, 138, 156], estherR: [104, 58, 138],
-    mordecai: [80, 96, 128], sack: [70, 62, 54], royal: [58, 96, 172], haman: [158, 44, 46],
+    mordecai: [80, 96, 128], sack: [56, 51, 46], royal: [58, 96, 172], haman: [96, 40, 44],
     hegai: [212, 196, 152], hathach: [196, 176, 138], harbonah: [176, 156, 122], memucan: [104, 86, 128],
     guard1: [112, 86, 70], guard2: [96, 82, 94], scribe: [200, 184, 146], zeresh: [150, 70, 70], poor: [120, 108, 94],
   };
   const GOLDA = [236, 198, 110], WHITE_A = [238, 236, 228];
+  // 哈曼：深酒红的袍、青铜色的头巾（与王的紫红金冠、末底改的朝服一眼分开）
+  const HAMAN_A = [140, 104, 62], HAMAN_D = [44, 36, 32];
+  const hamanLook = o => Object.assign({ label: '哈曼', sex: 'm', age: 'adult', robe: ROBE.haman, hair: 'cloth', accent: HAMAN_A, beard: true }, o || {});
   const NOBLE = [[118, 98, 150], [150, 108, 78], [88, 120, 112], [160, 120, 88], [110, 88, 120], [140, 72, 72], [96, 110, 140]];
   const WOMEN = [[172, 120, 140], [150, 110, 152], [192, 150, 128], [140, 122, 162], [180, 132, 120]];
   const MAIDEN = [[214, 182, 192], [200, 172, 204], [222, 192, 170], [190, 172, 204], [212, 198, 182], [204, 162, 172]];
@@ -126,10 +131,16 @@
   const hsh = n => { const s = Math.sin(n * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); };
   const mix = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
   const rgba = (c, a) => 'rgba(' + (c[0] | 0) + ',' + (c[1] | 0) + ',' + (c[2] | 0) + ',' + clamp(a, 0, 1).toFixed(3) + ')';
-  // 近地人物的尺度（人高 44）、近地建筑的尺度（竖屏稍小，好放得下）、中丘的尺度
-  const PK = () => (34 * W.layerScale(2) * (W.w < 600 ? 1.4 : 1) * 1.3) / 44;
-  const BK = () => PK() * (port() ? 0.8 : 1);
+  // 近地人物的尺度（人高 44；与人物模块相同）、中丘的尺度
+  const PK0 = () => (34 * W.layerScale(2) * (W.w < 600 ? 1.4 : 1) * 1.3) / 44;
   const PKm = () => (34 * W.layerScale(1) * (W.w < 600 ? 1.4 : 1) * 1.2) / 44;
+  // 竖屏（手机）上：人放大 1.25 倍，宫也随之放大——好让故事在小屏上看得清（见 fitCast）
+  const PSK = () => (port() ? 1.25 : 1);
+  const MSK = () => (port() ? 1.4 : 1.1);            // 中丘（哈曼的家）上的人也放大些（手机上更多）
+  const PK = () => PK0() * PSK();                    // 近地的器物（宝座、床榻、匣……）随人
+  const BK = () => PK0() * (port() ? 1.31 : 1);      // 近地的建筑
+  // 殿台的顶面把纵深压扁（TV）：站在台上的人（v ≤ VSTREET）都在台面之上；v 更大的人在台前的街上
+  const TV = 0.42, VSTREET = 0.25;
 
   // 人物（皆经人物模块）
   const C = () => cast();
@@ -160,7 +171,23 @@
     return ms;
   }
   function cwalk(gid, x0, x1, o) { if (hasCrowd(gid)) C().crowdWalk(gid, x0, x1, o); }
-  function cpose(gid, p) { if (hasCrowd(gid)) C().crowdPose(gid, p); }
+  // 一群人换姿势：正走着的走到了再换（与瞬间重演一致：重演时先走到）
+  function cpose(gid, p) {
+    if (!hasCrowd(gid)) return;
+    const still = [];
+    for (const m of cmembers(gid)) {
+      if (m.tx != null && !W.replaying) { m.afterWalk = p; continue; }
+      if (m.tx != null) {
+        m.nx = m.tx; m.tx = null;
+        if (m.faceEnd != null) { const d = m.faceEnd; m.faceEnd = null; m.facing = d === 1 || d === -1 ? d : d >= m.nx ? 1 : -1; m.fd = m.facing; }
+      }
+      still.push(m);
+    }
+    if (!still.length) return;
+    const c = C(), tmp = '__etPose';
+    c.crowds.set(tmp, { members: still, o: {} });
+    try { c.crowdPose(tmp, p); } finally { c.crowds.delete(tmp); }
+  }
   function crm(gid, now) { if (hasCrowd(gid)) C().removeCrowd(gid, now ? { fade: false } : undefined); }
   function cmembers(gid) { const g = hasCrowd(gid) && C().crowds.get(gid); return g ? g.members : []; }
   // 一群人都转向某边（正走着的，走到了再转——与瞬间重演一致）
@@ -189,16 +216,89 @@
   // 一群人各站在给定的位置（避开王的榻等）
   function placeCrowd(gid, xs) { cmembers(gid).forEach((m, i) => { if (i < xs.length) { m.nx = xs[i]; m.tx = null; } }); }
   function slots(x0, x1, n, avoidX, gap) {
-    const out = [], N = n + 2;
-    for (let i = 0; i < N && out.length < n; i++) {
-      const x = lerp(x0, x1, (i + 0.5) / N);
-      if (avoidX != null && Math.abs(x - avoidX) < gap) continue;
-      out.push(x);
+    // 总能给出 n 个位置：避开的一段占去了几个，就把间距排密一些
+    for (let N = n + 2; N <= n + 16; N++) {
+      const out = [];
+      for (let i = 0; i < N && out.length < n; i++) {
+        const x = lerp(x0, x1, (i + 0.5) / N);
+        if (avoidX != null && Math.abs(x - avoidX) < gap) continue;
+        out.push(x);
+      }
+      if (out.length >= n) return out;
     }
+    const out = [];
+    for (let i = 0; i < n; i++) out.push(lerp(x0, x1, (i + 0.5) / n));
     return out;
   }
   // 地上的走兽绕开主要人物与布景所在的几段
   function avoid(...rs) { W.beastAvoid = rs.map(r => [clamp(Math.min(r[0], r[1]), 0, 1), clamp(Math.max(r[0], r[1]), 0, 1)]); }
+  // 人群按确定的位置走去（人物模块的 crowdWalk 各人的去处带随机）
+  function cgo(gid, xs, o) {
+    if (!hasCrowd(gid) || !xs.length) return;
+    cwalk(gid, xs[0], xs[xs.length - 1], o);
+    cmembers(gid).forEach((m, i) => {
+      const x = xs[Math.min(i, xs.length - 1)];
+      if (m.tx == null) m.nx = x;
+      else { m.tx = x; m.facing = x >= m.nx ? 1 : -1; }
+    });
+  }
+  // 一群人建成后：定位（确定的）与朝向
+  function lay(gid, xs, dir) { placeCrowd(gid, xs); if (dir != null) cface(gid, dir); }
+
+  // ════════════════════════════════════════════════════════════
+  //  殿台：王宫与御园同在一座平的台上（书珊城的宫：地势向朝门升高，台面取最高处）
+  //  台上站着的人（纵深 v ≤ VSTREET）都站在台面上；v 更大的在台前的街上
+  // ════════════════════════════════════════════════════════════
+  let TG = null;
+  function terrace() {
+    const key = (W.frame || 0) + '|' + W.w + '|' + W.h;
+    if (TG && TG.key === key) return TG;
+    const P_ = X(), k = BK();
+    let yF = Infinity;
+    for (let i = 0; i <= 16; i++) yF = Math.min(yF, gY(2, lerp(P_.g0, P_.hall1, i / 16)));
+    const fh = Math.max(1, W.h - yF);
+    TG = { key, k, yF, fh, a: P_.g0 - (10 * k) / W.w, b: P_.hall1 + (8 * k) / W.w, sw: 0.016, TD: VSTREET * fh * 0.8 * TV + 2 * k };
+    return TG;
+  }
+  // 纵深 v 的人在 xf 处脚下的高度（台上 / 台前的地上；台的两端缓缓过渡）
+  function standY(xf, v) {
+    const T = terrace(), g = gY(2, xf), yG = g + v * Math.max(0, W.h - g) * 0.8;
+    if (v > VSTREET) return yG;
+    const yT = T.yF + v * T.fh * 0.8 * TV;
+    if (xf >= T.a && xf <= T.b) return yT;
+    const d = xf < T.a ? T.a - xf : xf - T.b;
+    if (d >= T.sw) return yG;
+    return lerp(yG, yT, smoothstep(0, 1, 1 - d / T.sw));
+  }
+  const FY = xf => standY(xf, 0);            // 台面（器物、柱、墙脚）
+  // 每一帧：按台面调整人的纵深（v），并补回因此而变的身量；竖屏放大近地的人，中丘的人也放大些。
+  // 情节改了一个人的 v（走进台前的街上、回到朝门），这里让他在一秒左右里走过去，而不是一跳（只是画法；情节的状态不变）
+  function fitCast(dt) {
+    const c = C();
+    if (!c || !c.people || !c.crowds) return;
+    const psk = PSK(), msk = MSK(), inst = W.replaying || !(dt > 0);
+    const fit = f => {
+      if (f._etS !== f.scale) f._etSB = f.scale || 1;
+      if (f.mount) {                                       // 骑着的：纵深随坐骑（人物模块每帧设定）
+        f._etV = f.v; f._etB = f._etT = f.v || 0;
+      } else {
+        if (f._etV !== f.v) { f._etT = f.v || 0; if (f._etB == null) f._etB = f._etT; }
+        if (f._etB == null) f._etB = f._etT = f.v || 0;
+        if (inst) f._etB = f._etT; else { const d = f._etT - f._etB; f._etB += Math.sign(d) * Math.min(Math.abs(d), 0.4 * dt); }
+      }
+      const base = f._etB;
+      let v = f.mount ? f.v || 0 : base, comp = 1;
+      if (!f.mount && (f.layer == null || f.layer === 2) && !f.attach && !f.fly && f.ny == null && isFinite(f.nx)) {
+        const g = gY(2, f.nx), fh = Math.max(1, W.h - g);
+        v = (standY(f.nx, base) - g) / (fh * 0.8);
+        comp = (1 + 0.35 * base) / Math.max(0.3, 1 + 0.35 * v);
+      }
+      const s = (f._etSB || 1) * comp * (f.layer === 1 ? msk : f.layer === 0 ? 1 : psk);
+      f.v = v; f._etV = v; f.scale = s; f._etS = s;
+    };
+    for (const f of c.people.values()) fit(f);
+    for (const g of c.crowds.values()) for (const m of g.members) fit(m);
+  }
 
   // 旁白、音效（瞬间重演时不念、不响）
   function say(b, lines) { if (!b.instant && GS.ui) GS.ui.narrate(lines, { replace: false }); }
@@ -216,7 +316,7 @@
   // 由人物模块的数据推出脚下与身高（不依赖上一帧画在哪里：近地的布景在人之前画）
   function modelOf(f) {
     const l = f.layer == null ? 2 : f.layer;
-    const h = 44 * (l === 2 ? PK() : PKm()) * (AGE_H[f.age] || 1) * (f.scale || 1) * (1 + 0.35 * (f.v || 0));
+    const h = 44 * (l === 2 ? PK0() : PKm()) * (AGE_H[f.age] || 1) * (f.scale || 1) * (1 + 0.35 * (f.v || 0));
     if (f.attach) { const r = U.safe('esther.attach', () => f.attach()); if (r && isFinite(r[0]) && isFinite(r[1])) return { x: r[0], y: r[1], h }; }
     const g = gY(l, f.nx), fh = l === 2 ? Math.max(0, W.h - g) : Math.max(0, W.waterlineY(l) - g);
     return { x: f.nx * W.w, y: f.ny != null ? f.ny * W.h : g + (f.v || 0) * fh * 0.8, h };
@@ -320,17 +420,20 @@
       g.fillStyle = vt; g.fillRect(0, 0, 64, 256);
       SP.beam = b;
       SP.amber = radial([255, 190, 100], 1, 0.4);
-      // 金杖头上的光芒：十六道长短相间的光
+      // 金杖头上的光：八道细而柔的光（不像镜头的星芒），中间一团暖光
       const st = cnv(256, 256), q = st.getContext('2d');
       q.translate(128, 128);
-      for (let i = 0; i < 16; i++) {
-        const a = (i / 16) * TAU + (i % 2) * 0.07, L = i % 2 ? 78 : 124, w = i % 2 ? 2.4 : 4.2;
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * TAU + 0.2, L = i % 2 ? 78 : 124, w = i % 2 ? 1.3 : 2.1;
         const gr = q.createLinearGradient(0, 0, Math.cos(a) * L, Math.sin(a) * L);
-        gr.addColorStop(0, 'rgba(255,238,196,0.95)'); gr.addColorStop(0.35, 'rgba(255,226,160,0.45)'); gr.addColorStop(1, 'rgba(255,214,140,0)');
+        gr.addColorStop(0, 'rgba(255,240,204,0.9)'); gr.addColorStop(0.3, 'rgba(255,228,168,0.35)'); gr.addColorStop(1, 'rgba(255,214,140,0)');
         q.fillStyle = gr;
         q.beginPath(); q.moveTo(-Math.sin(a) * w, Math.cos(a) * w); q.lineTo(Math.cos(a) * L, Math.sin(a) * L); q.lineTo(Math.sin(a) * w, -Math.cos(a) * w); q.closePath(); q.fill();
       }
-      SP.star = st;
+      const core = q.createRadialGradient(0, 0, 0, 0, 0, 44);
+      core.addColorStop(0, 'rgba(255,244,214,0.75)'); core.addColorStop(0.4, 'rgba(255,226,160,0.22)'); core.addColorStop(1, 'rgba(255,214,140,0)');
+      q.fillStyle = core; q.fillRect(-44, -44, 88, 88);
+      SP.rays = st;
     } catch (e) { SP = null; }
     return SP;
   }
@@ -364,9 +467,9 @@
     TXT.set(key, s);
     return s;
   }
-  function drawText(ctx, str, x, y, px, rgb, a, sc) {
+  function drawText(ctx, str, x, y, px, rgb, a, sc, halo) {
     if (a < 0.01) return;
-    const s = textSprite(str, px, rgb);
+    const s = textSprite(str, px, rgb, halo == null ? null : Math.round(halo * 10) / 10);
     if (!s) return;
     const k = sc || 1;
     ctx.globalAlpha = Math.min(1, a);
@@ -407,7 +510,7 @@
   const GOLD = [236, 194, 100], TILE = [[184, 74, 62], [240, 234, 222], [228, 188, 92], [58, 50, 52]];
   const CYP = [46, 82, 58];
   function cypress(ctx, xf, H, k, seed) {
-    const x = xf * W.w, y = gY(2, xf) + 2 * k, w = H * 0.13;
+    const x = xf * W.w, y = FY(xf) + 2 * k, w = H * 0.13;
     const d = litX() >= x ? 1 : -1, sway = Math.sin(W.t * 0.7 + seed) * 0.8 * k;
     ctx.fillStyle = css([70, 52, 40], 2);
     ctx.fillRect(x - 0.9 * k, y - 5 * k, 1.8 * k, 5 * k);
@@ -459,34 +562,31 @@
     ctx.fillRect(x - w / 2 + seat * 0.1, y - seat * 1.08, w - seat * 0.2, seat * 0.1);
     ctx.globalAlpha = 1;
   }
-  function drawGarden(ctx) {
-    const P_ = X(), k = BK(), pk = PK();
-    const hang = W.lv.etHang, feast = W.lv.etFeast;
+  function gardenTops() {
+    const P_ = X(), k = BK(), PH = 64 * k;
+    return P_.pillars.map(xf => [xf * W.w, FY(xf) + 1 * k - PH]);
+  }
+  // 静的：红白黄黑的铺石地、白玉石柱（存在离屏的画布上）
+  function drawGardenStatic(ctx) {
+    const P_ = X(), k = BK(), T = terrace();
     const d = litX() >= P_.couch * W.w ? 1 : -1;
-    // 铺石地
     const N = 20, x0 = P_.g0, x1 = P_.g1;
     ctx.fillStyle = css([204, 188, 158], 2);
-    ctx.beginPath();
-    for (let i = 0; i <= N; i++) { const xf = lerp(x0, x1, i / N), y = gY(2, xf) - 0.8 * k; if (i) ctx.lineTo(xf * W.w, y); else ctx.moveTo(xf * W.w, y); }
-    for (let i = N; i >= 0; i--) { const xf = lerp(x0, x1, i / N); ctx.lineTo(xf * W.w, gY(2, xf) + 5.5 * k); }
-    ctx.closePath(); ctx.fill();
-    const cw = ((x1 - x0) * W.w) / N;
+    ctx.fillRect(x0 * W.w, T.yF - 0.8 * k, (x1 - x0) * W.w, T.TD + 0.8 * k);
+    const cw = ((x1 - x0) * W.w) / N, nr = Math.max(2, Math.floor((T.TD - 0.3 * k) / (2.5 * k)));
     for (let c = 0; c < 4; c++) {
       ctx.fillStyle = css(TILE[c], 2, 0.85);
       ctx.beginPath();
-      for (let r = 0; r < 2; r++) for (let i = 0; i < N; i++) {
+      for (let r = 0; r < nr; r++) for (let i = 0; i < N; i++) {
         if ((i + r * 2) % 4 !== c) continue;
-        const xf = lerp(x0, x1, (i + 0.5) / N), y = gY(2, xf) + (0.3 + r * 2.5) * k;
+        const xf = lerp(x0, x1, (i + 0.5) / N), y = T.yF + (0.3 + r * 2.5) * k;
         ctx.rect(xf * W.w - cw * 0.42, y, cw * 0.84, 2 * k);
       }
       ctx.fill();
     }
-    // 柏树
-    P_.cyp.forEach((xf, i) => cypress(ctx, xf, (i ? 74 : 82) * k, k, i * 2.3));
-    // 白玉石柱与银环
-    const PH = 64 * k, PW = 4.4 * k, tops = [];
+    const PH = 64 * k, PW = 4.4 * k;
     for (const xf of P_.pillars) {
-      const x = xf * W.w, y = gY(2, xf) + 1 * k;
+      const x = xf * W.w, y = FY(xf) + 1 * k;
       ctx.fillStyle = css(MARBLE, 2);
       ctx.fillRect(x - PW * 0.85, y - 3 * k, PW * 1.7, 3 * k);
       ctx.fillRect(x - PW / 2, y - PH, PW, PH);
@@ -495,19 +595,26 @@
       ctx.fillRect(d > 0 ? x - PW / 2 : x + PW * 0.1, y - PH, PW * 0.4, PH);
       ctx.strokeStyle = css([255, 252, 240], 2, 0.5 * dayA(), 0.3); ctx.lineWidth = Math.max(0.5, 0.8 * k);
       ctx.beginPath(); ctx.moveTo(x + d * PW / 2, y - PH); ctx.lineTo(x + d * PW / 2, y - 3 * k); ctx.stroke();
-      tops.push([x, y - PH]);
     }
+  }
+  // 动的：柏树（随风）、床榻与金器皿、帐子、银环、灯
+  function drawGardenLive(ctx) {
+    const P_ = X(), k = BK(), pk = PK();
+    const hang = W.lv.etHang, feast = W.lv.etFeast;
+    const x0 = P_.g0, x1 = P_.g1;
+    P_.cyp.forEach((xf, i) => cypress(ctx, xf, (i ? 74 : 82) * k, k, i * 2.3));
+    const tops = gardenTops();
     // 床榻与金器皿（筵席）
     if (feast > 0.01) {
       for (let i = 0; i < tops.length - 1; i++) {
-        const xf = (P_.pillars[i] + P_.pillars[i + 1]) / 2, x = xf * W.w, y = gY(2, xf) + 1.2 * pk;
+        const xf = (P_.pillars[i] + P_.pillars[i + 1]) / 2, x = xf * W.w, y = FY(xf) + 1.2 * pk;
         const king = Math.abs(xf - P_.couch) < 0.005;
         couch(ctx, x, y, (king ? 15 : 13) * pk, 11 * pk, i % 2 ? SILVER : GOLD, king, 1, feast);
       }
       // 矮几上的金器皿：一闪一闪
       ctx.globalAlpha = feast;
       for (let i = 0; i < 6; i++) {
-        const xf = lerp(x0 + 0.01, x1 - 0.01, (i + 0.5) / 6), x = xf * W.w, y = gY(2, xf) + 2.5 * pk;
+        const xf = lerp(x0 + 0.01, x1 - 0.01, (i + 0.5) / 6), x = xf * W.w, y = FY(xf) + 2.5 * pk;
         ctx.fillStyle = css([150, 110, 70], 2);
         ctx.fillRect(x - 3 * pk, y - 3.5 * pk, 6 * pk, 1 * pk);
         ctx.fillStyle = css(GOLD, 2, 1, 0.15);
@@ -551,7 +658,7 @@
       for (const [i, s] of [[0, -1], [tops.length - 1, 1]]) {
         const t = tops[i], y = t[1] + 5 * k, sw = Math.sin(W.t * 0.9 + i) * 1 * k * wind;
         ctx.globalAlpha = Math.min(1, hang * 1.2) * 0.9;
-        ctx.fillStyle = css(HANG[(i + 1) % 3], 2, 1, 0.06);
+        ctx.fillStyle = css(HANG[tops.length > 3 ? (i + 1) % 3 : 2], 2, 1, 0.06);
         ctx.beginPath();
         ctx.moveTo(t[0], y); ctx.lineTo(t[0] + s * 5 * k, y);
         ctx.quadraticCurveTo(t[0] + s * 3 * k + sw, y + 22 * k * hang, t[0] + s * 1.2 * k + sw, y + 40 * k * hang);
@@ -575,8 +682,9 @@
   }
   // 陇沟的水：一道窄窄的石渠自御园流过；「王的心在耶和华手中，好像陇沟的水随意流转」
   let rillPh = 0;
+  const RILLV = () => (port() ? 0.2 : 0.27);
   function drawRill(ctx) {
-    const P_ = X(), k = BK(), v = port() ? 0.16 : 0.22, N = 14;
+    const P_ = X(), k = BK(), v = RILLV(), N = 14;
     const r0 = P_.rill0, r1 = P_.rill1;
     const pts = [];
     for (let i = 0; i <= N; i++) { const xf = lerp(r0, r1, i / N); pts.push([xf * W.w, fieldY(xf, v)]); }
@@ -590,27 +698,39 @@
     band(2.3 * k, css([176, 164, 138], 2), 0.85);
     band(1.4 * k, css([46, 88, 124], 2, 1, 0.05), 1);
     band(0.5 * k, css([120, 170, 200], 2, 1, 0.1), 0.35);
-    // 水面的光：随水流动；金杖伸出后泛金
+    const at = uu => { const f = clamp(uu, 0, 1) * N, i = Math.min(N - 1, Math.floor(f)), t = f - i; return [lerp(pts[i][0], pts[i + 1][0], t), lerp(pts[i][1], pts[i + 1][1], t)]; };
+    // 水面的光：随水流动（流向由 etRill 定）；金杖伸出后泛金
     const gold = clamp(W.lv.etGold * 0.8 + Math.max(0, W.lv.etRill) * 0.25, 0, 1);
     const col = mix([220, 236, 250], [255, 214, 120], gold);
     ctx.fillStyle = rgba(W.shade(col, 0, 0.3), 1);
     const n = 9;
-    ctx.globalAlpha = 0.5 + 0.4 * gold;
+    ctx.globalAlpha = 0.55 + 0.4 * gold;
     ctx.beginPath();
     for (let j = 0; j < n; j++) {
-      const u = U.fract(j / n + rillPh + hsh(j) * 0.05);
-      const f = u * N, i = Math.min(N - 1, Math.floor(f)), t = f - i;
-      const x = lerp(pts[i][0], pts[i + 1][0], t), y = lerp(pts[i][1], pts[i + 1][1], t);
-      const L = (3 + 2 * hsh(j * 3)) * k;
-      ctx.rect(x - L / 2, y - 0.35 * k, L, 0.7 * k);
+      const p = at(U.fract(j / n + rillPh + hsh(j) * 0.05));
+      const L = (5 + 3 * hsh(j * 3)) * k;
+      ctx.rect(p[0] - L / 2, p[1] - 0.5 * k, L, 1 * k);
     }
     ctx.fill();
-    if (gold > 0.2 && SP) {
+    if (SP) {
       ctx.globalCompositeOperation = 'lighter';
-      for (let j = 0; j < 3; j++) {
-        const u = U.fract(j / 3 + rillPh * 1.0);
-        const f = u * N, i = Math.min(N - 1, Math.floor(f)), t = f - i;
-        glowAt(ctx, SP.gold, lerp(pts[i][0], pts[i + 1][0], t), lerp(pts[i][1], pts[i + 1][1], t), 7 * k, gold * 0.5);
+      if (gold > 0.2) for (let j = 0; j < 3; j++) { const p = at(U.fract(j / 3 + rillPh)); glowAt(ctx, SP.gold, p[0], p[1], 7 * k, gold * 0.5); }
+      // 陇沟的水转向的那一刻：一道金光带着尾巴顺着沟流向王宫，到了台脚亮一下
+      for (const e of FXL) {
+        if (e.type !== 'pulse') continue;
+        const t = e.t - (e.delay || 0);
+        if (t < 0) continue;
+        const p = clamp(t / e.dur, 0, 1), head = smoothstep(0, 0.8, p), fade = 1 - smoothstep(0.85, 1, p);
+        for (let j = 0; j < 12; j++) {
+          const uu = head - j * 0.022;
+          if (uu < 0) break;
+          const q = at(uu);
+          glowAt(ctx, SP.gold, q[0], q[1], (9 - j * 0.55) * k, (1 - j / 12) * 0.9 * fade);
+        }
+        const hq = at(head);
+        ctx.globalAlpha = 0.9 * fade; ctx.fillStyle = 'rgb(255,246,214)';
+        ctx.fillRect(hq[0] - 3 * k, hq[1] - 0.8 * k, 6 * k, 1.6 * k);
+        if (p > 0.75) { const q = smoothstep(0.75, 1, p), end = at(1); glowAt(ctx, SP.gold, end[0], end[1] - 2 * k, (10 + 16 * q) * k, 0.7 * Math.sin(Math.PI * q)); }
       }
       ctx.globalCompositeOperation = 'source-over';
     }
@@ -624,11 +744,63 @@
   const PURPLE = [110, 50, 110];
   const HALL_H = 114, BEAM = 8;
   function hallGeom() {
-    const P_ = X(), k = BK();
-    let gMin = Infinity, gMax = -Infinity;
-    for (let i = 0; i <= 8; i++) { const g = gY(2, lerp(P_.court0, P_.hall1, i / 8)); gMin = Math.min(gMin, g); gMax = Math.max(gMax, g); }
-    const top = gMin - (HALL_H + BEAM) * k;
-    return { k, top, gMin, gMax, x0: P_.hall0 * W.w, x1: P_.hall1 * W.w, c0: P_.court0 * W.w };
+    const P_ = X(), k = BK(), yF = terrace().yF;
+    const top = yF - (HALL_H + BEAM) * k;
+    return { k, top, gMin: yF, gMax: yF, yF, x0: P_.hall0 * W.w, x1: P_.hall1 * W.w, c0: P_.court0 * W.w };
+  }
+  // 殿台：平的台面（浅色的铺石）、向前的一面（石层与一道琉璃砖）、内院门前向下的台阶
+  const FACE = [192, 176, 146], TOPS = [212, 200, 176];
+  function drawTerrace(ctx) {
+    const T = terrace(), P_ = X(), k = T.k, x0 = T.a * W.w, x1 = T.b * W.w, yF = T.yF, TD = T.TD;
+    const N = 28, top = yF + TD;
+    const bot = x => Math.max(top, gY(2, x / W.w) + TD + 1.5 * k);
+    const face = () => {
+      ctx.beginPath(); ctx.moveTo(x0, top); ctx.lineTo(x1, top);
+      for (let i = N; i >= 0; i--) { const x = lerp(x0, x1, i / N); ctx.lineTo(x, bot(x)); }
+      ctx.closePath();
+    };
+    ctx.fillStyle = css(FACE, 2);
+    face(); ctx.fill();
+    ctx.save(); face(); ctx.clip();
+    // 石层
+    ctx.strokeStyle = css([120, 104, 84], 2, 0.4); ctx.lineWidth = Math.max(0.4, 0.5 * k);
+    ctx.beginPath();
+    let row = 0;
+    for (let y = top + 5.2 * k; y < top + 80 * k; y += 5.2 * k, row++) {
+      ctx.moveTo(x0, y); ctx.lineTo(x1, y);
+      const step = 11 * k, off = (row % 2) * step * 0.5;
+      for (let x = x0 + off; x < x1; x += step) { ctx.moveTo(x, y - 5.2 * k); ctx.lineTo(x, y); }
+    }
+    ctx.stroke();
+    // 一道琉璃砖（蓝）与其下的暗影
+    ctx.fillStyle = css(GLAZE, 2, 0.9, 0.04);
+    ctx.fillRect(x0, top + 1.2 * k, x1 - x0, 2.6 * k);
+    ctx.fillStyle = css([40, 30, 26], 2, 0.28);
+    ctx.fillRect(x0, top, x1 - x0, 1.2 * k);
+    ctx.restore();
+    // 左端的侧面（背光）
+    ctx.fillStyle = css([90, 78, 64], 2, 0.35);
+    ctx.fillRect(x0, top, 2.2 * k, bot(x0) - top);
+    // 内院门前的台阶：自台面向前（向下）铺下来
+    const sx = (P_.court0 - (port() ? 0.016 : 0.012)) * W.w, sb = bot(sx), n = Math.max(2, Math.round((sb - top) / (3.2 * k)));
+    if (sb - top > 3 * k) {
+      for (let i = 0; i < n; i++) {
+        const y0 = lerp(top - 0.5 * k, sb, i / n), y1 = lerp(top - 0.5 * k, sb, (i + 1) / n), hw = (7 + 3.2 * (i + 1) / n) * k;
+        ctx.fillStyle = css(i % 2 ? [214, 202, 178] : [228, 218, 196], 2);
+        ctx.fillRect(sx - hw, y0, hw * 2, y1 - y0 + 0.3);
+        ctx.fillStyle = css([110, 96, 80], 2, 0.35);
+        ctx.fillRect(sx - hw, y1 - 0.7 * k, hw * 2, 0.7 * k);
+      }
+      ctx.fillStyle = css(STONE, 2);
+      for (const s of [-1, 1]) ctx.fillRect(sx + s * (10.2 * k) - 1.2 * k, top - 1 * k, 2.4 * k, sb - top + 1 * k);
+    }
+    // 台面
+    ctx.fillStyle = css(TOPS, 2);
+    ctx.fillRect(x0, yF - 0.6 * k, x1 - x0, TD + 0.6 * k);
+    ctx.fillStyle = css([150, 138, 118], 2, 0.35);
+    for (let i = 1; i < 3; i++) ctx.fillRect(x0, yF + (TD * i) / 3, x1 - x0, Math.max(0.4, 0.4 * k));
+    ctx.strokeStyle = css([255, 250, 236], 2, 0.55 * dayA(), 0.3); ctx.lineWidth = Math.max(0.5, 0.8 * k);
+    ctx.beginPath(); ctx.moveTo(x0, top); ctx.lineTo(x1, top); ctx.stroke();
   }
   // 牛首的柱头、钟形的柱础
   function column(ctx, x, yb, ytop, k, d) {
@@ -726,44 +898,37 @@
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
   }
-  function wallPoly(ctx, xa, xb, ytop, k, extra) {
-    const N = 8;
-    ctx.beginPath();
-    ctx.moveTo(xa, ytop); ctx.lineTo(xb, ytop);
-    for (let i = N; i >= 0; i--) { const x = lerp(xa, xb, i / N); ctx.lineTo(x, gY(2, x / W.w) + (extra || 1) * k); }
-    ctx.closePath();
+  // 殿的墙：平的台面之上（墙脚在 yF 之下一点）
+  function wallRect(ctx, xa, xb, ytop, k, extra) {
+    const yF = terrace().yF;
+    ctx.beginPath(); ctx.rect(xa, ytop, xb - xa, yF + (extra || 1) * k - ytop);
   }
-  function drawPalace(ctx) {
-    const P_ = X(), G = hallGeom(), k = G.k, pk = PK();
-    const { x0, x1, c0, top } = G;
-    const d = litX() >= (x0 + x1) / 2 ? 1 : -1;
-    const nk = nightK();
-    const gold = W.lv.etGold, wrath = W.lv.etWrath;
-    const wallTop = top + BEAM * k;
-    // ── 大殿的里面：琉璃砖墙（上暗下明），砖缝、后墙的两道门、墙脚 ──
-    const Hh = G.gMin - wallTop;
+  const lampKOf = () => Math.max(nightK() * 0.9, W.lv.etBanquet * 0.7, W.lv.etKingLamp, W.lv.etLamps * 0.8);
+  const COLF = [0.07, 0.35, 0.61, 0.955];
+  const DOORF = [0.2, 0.47];
+  // ── 静的部分（墙、砖、门、狮子、内院的矮墙）：画一次，存在离屏的画布上；光线变了再重画 ──
+  function drawPalaceBack(ctx) {
+    const P_ = X(), G = hallGeom(), k = G.k;
+    const { x0, x1, c0, top, yF } = G;
+    const gold = W.lv.etGold;
+    const wallTop = top + BEAM * k, Hh = yF - wallTop;
+    // 大殿的里面：琉璃砖墙（上暗下明），砖缝只在墙上
     const inner = mix(mix(GLAZE, [34, 40, 70], 0.28), [150, 110, 50], gold * 0.3);
     ctx.fillStyle = css(inner, 2);
-    wallPoly(ctx, x0, x1, wallTop, k, 1); ctx.fill();
+    wallRect(ctx, x0, x1, wallTop, k, 1); ctx.fill();
+    ctx.save();
+    wallRect(ctx, x0, x1, wallTop, k, 0); ctx.clip();
     ctx.strokeStyle = css(mix(inner, [10, 14, 28], 0.4), 2, 0.35);
     ctx.lineWidth = Math.max(0.4, 0.5 * k);
     ctx.beginPath();
-    for (let yy = wallTop + Hh * 0.62; yy < G.gMax; yy += 5.5 * k) { ctx.moveTo(x0, yy); ctx.lineTo(x1, yy); }
+    for (let yy = wallTop + Hh * 0.62; yy < yF; yy += 5.5 * k) { ctx.moveTo(x0, yy); ctx.lineTo(x1, yy); }
     ctx.stroke();
-    // 后墙的门：白日里暗，夜里透出灯光
-    const lampK = Math.max(nk * 0.9, W.lv.etBanquet * 0.7, W.lv.etKingLamp, W.lv.etLamps * 0.8);
-    for (const f of [0.2, 0.47]) {
-      const dx = lerp(x0, x1, f), dy = gY(2, dx / W.w) + 1 * k, dw = 8 * k, dh = Hh * 0.36;
+    ctx.restore();
+    // 后墙的门（暗；夜里的灯光另画）
+    for (const f of DOORF) {
+      const dx = lerp(x0, x1, f), dy = yF + 1 * k, dw = 8 * k, dh = Hh * 0.36;
       ctx.fillStyle = css([18, 16, 22], 2);
       ctx.beginPath(); ctx.moveTo(dx - dw / 2, dy); ctx.lineTo(dx - dw / 2, dy - dh); ctx.quadraticCurveTo(dx, dy - dh - 5 * k, dx + dw / 2, dy - dh); ctx.lineTo(dx + dw / 2, dy); ctx.closePath(); ctx.fill();
-      if (lampK > 0.02) {
-        ctx.globalCompositeOperation = 'lighter';
-        ctx.globalAlpha = Math.min(1, lampK) * 0.75;
-        ctx.fillStyle = 'rgb(255,168,84)';
-        ctx.fill();
-        ctx.globalCompositeOperation = 'source-over';
-        ctx.globalAlpha = 1;
-      }
       ctx.fillStyle = css(STONE, 2, 0.9);
       ctx.fillRect(dx - dw / 2 - 1.2 * k, dy - dh - 5.5 * k, dw + 2.4 * k, 1.4 * k);
     }
@@ -784,50 +949,91 @@
     ctx.fillRect(x0, wallTop + 2 * k, x1 - x0, 6 * k);
     rosettes(ctx, x0 + 2 * k, x1 - 2 * k, wallTop + 5 * k, k, 0.9);
     ctx.fillStyle = css([222, 212, 190], 2, 0.9);
-    wallPoly(ctx, x0, x1, G.gMin - 6 * k, k, 1); ctx.fill();
+    wallRect(ctx, x0, x1, yF - 6 * k, k, 1); ctx.fill();
     ctx.fillStyle = css(TURQ, 2, 0.85, 0.05);
-    ctx.fillRect(x0, G.gMin - 7.2 * k, x1 - x0, 1.2 * k);
-    // 夜里殿中的灯照在墙上；王的忿怒（红）；金杖的光（金）
-    if (SP) {
-      ctx.globalCompositeOperation = 'lighter';
-      if (lampK > 0.02) {
-        glowAt(ctx, SP.warm, lerp(x0, x1, 0.2), G.gMin - 28 * k, 62 * k, lampK * 0.6);
-        glowAt(ctx, SP.warm, lerp(x0, x1, 0.83), G.gMin - 28 * k, 62 * k, lampK * 0.6);
-        glowAt(ctx, SP.warm, lerp(x0, x1, 0.5), G.gMin - 10 * k, 80 * k, lampK * 0.35, 0.45);
-      }
-      if (gold > 0.02) glowAt(ctx, SP.amber, lerp(x0, x1, 0.62), G.gMin - 36 * k, 96 * k, gold * 0.4, 0.75);
-      ctx.globalCompositeOperation = 'source-over';
-      if (wrath > 0.02) glowAt(ctx, SP.red, lerp(x0, x1, 0.72), G.gMin - 35 * k, 70 * k, wrath * 0.35 * (S.kingSeat === 'throne' || S.kingSeat === 'banquet' ? 1 : 0.4));
-      ctx.globalAlpha = 1;
-    }
-    // ── 内院：矮墙、门口的两根柱与旗 ──
-    const cTop = G.gMin - 20 * k;
+    ctx.fillRect(x0, yF - 7.2 * k, x1 - x0, 1.2 * k);
+    // 内院：矮墙、门口的两根柱
+    const cTop = yF - 20 * k;
     ctx.fillStyle = css(mix(GLAZE, [60, 60, 70], 0.25), 2);
-    wallPoly(ctx, c0, x0, cTop, k, 1); ctx.fill();
+    wallRect(ctx, c0, x0, cTop, k, 1); ctx.fill();
     ctx.fillStyle = css(STONE, 2);
     ctx.fillRect(c0, cTop - 2 * k, x0 - c0, 2.4 * k);
     rosettes(ctx, c0 + 3 * k, x0 - 2 * k, cTop + 4 * k, k, 0.8);
     lions(ctx, c0 + 6 * k, x0 - 4 * k, cTop + 11 * k, k * 0.8, 0.75);
-    // 地面：浅色的铺石
-    ctx.fillStyle = css([214, 204, 182], 2);
-    ctx.beginPath();
-    const NF = 10;
-    for (let i = 0; i <= NF; i++) { const x = lerp(c0 - 4 * k, x1 + 4 * k, i / NF); const y = gY(2, x / W.w) - 0.6 * k; if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); }
-    for (let i = NF; i >= 0; i--) { const x = lerp(c0 - 4 * k, x1 + 4 * k, i / NF); ctx.lineTo(x, gY(2, x / W.w) + 4.5 * k); }
-    ctx.closePath(); ctx.fill();
-    // 门口的两根柱与旗（王宫的旗）
     const gp = [c0 + 2 * k, c0 + 9 * k];
+    ctx.fillStyle = css(STONE, 2);
     for (const x of gp) {
-      const y = gY(2, x / W.w) + 1 * k;
-      ctx.fillStyle = css(STONE, 2);
+      const y = yF + 1 * k;
       ctx.fillRect(x - 1.6 * k, y - 34 * k, 3.2 * k, 34 * k);
       ctx.fillRect(x - 2.6 * k, y - 36 * k, 5.2 * k, 2.2 * k);
     }
-    ctx.fillStyle = css(STONE, 2);
-    ctx.fillRect(gp[0] - 2.6 * k, gY(2, gp[0] / W.w) - 38 * k, gp[1] - gp[0] + 5.2 * k, 3 * k);
+    ctx.fillRect(gp[0] - 2.6 * k, yF - 38 * k, gp[1] - gp[0] + 5.2 * k, 3 * k);
+  }
+  // 柱、香柏木的梁、垛口、殿中的两座灯台（静的，在宝座之前）
+  function drawPalaceFront(ctx) {
+    const G = hallGeom(), k = G.k;
+    const { x0, x1, top, yF } = G;
+    const d = litX() >= (x0 + x1) / 2 ? 1 : -1;
+    const wallTop = top + BEAM * k;
+    for (const f of COLF) { const x = lerp(x0, x1, f); column(ctx, x, yF + 1 * k, wallTop, k, d); }
+    ctx.fillStyle = css(CEDAR, 2);
+    ctx.fillRect(x0 - 9 * k, top, x1 - x0 + 18 * k, BEAM * k);
+    ctx.fillStyle = css(GLAZE, 2, 0.95);
+    ctx.fillRect(x0 - 9 * k, top + 2.2 * k, x1 - x0 + 18 * k, 2.6 * k);
+    ctx.fillStyle = css(YEL, 2, 0.9, 0.1);
+    for (let i = 0; i < 30; i++) { const x = lerp(x0 - 7 * k, x1 + 7 * k, (i + 0.5) / 30); ctx.fillRect(x - 0.6 * k, top + 3 * k, 1.2 * k, 1 * k); }
+    merlons(ctx, x0 - 9 * k, x1 + 9 * k, top, k, css(STONE, 2));
+    ctx.strokeStyle = css([255, 246, 222], 2, 0.5 * dayA(), 0.3); ctx.lineWidth = Math.max(0.5, 0.9 * k);
+    ctx.beginPath(); ctx.moveTo(x0 - 9 * k, top); ctx.lineTo(x1 + 9 * k, top); ctx.stroke();
+    for (const f of [0.2, 0.83]) {
+      const x = lerp(x0, x1, f), y = yF + 1 * k;
+      ctx.fillStyle = css([150, 118, 70], 2);
+      ctx.fillRect(x - 0.6 * k, y - 26 * k, 1.2 * k, 26 * k);
+      ctx.fillRect(x - 2.6 * k, y - 27 * k, 5.2 * k, 1.4 * k);
+      ctx.fillRect(x - 2.4 * k, y - 1.2 * k, 4.8 * k, 1.2 * k);
+    }
+  }
+  // ── 动的部分：门里的灯、墙上的光（灯、金、怒）、金杖伸出时殿里暗下来、旗 ──
+  function drawPalaceLive(ctx) {
+    const G = hallGeom(), k = G.k;
+    const { x0, x1, c0, top, yF } = G;
+    const gold = W.lv.etGold, wrath = W.lv.etWrath, sc = W.lv.etScepter;
+    const wallTop = top + BEAM * k, Hh = yF - wallTop;
+    const lampK = lampKOf();
+    // 金杖伸出时：殿里暗下来，好让那一道金光最亮
+    if (sc > 0.01) {
+      ctx.globalAlpha = Math.min(1, sc) * 0.62;
+      ctx.fillStyle = 'rgb(14,16,34)';
+      ctx.fillRect(x0, wallTop, x1 - x0, Hh + 1 * k);
+      ctx.globalAlpha = 1;
+    }
+    if (lampK > 0.02) {
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.globalAlpha = Math.min(1, lampK) * 0.75;
+      ctx.fillStyle = 'rgb(255,168,84)';
+      for (const f of DOORF) {
+        const dx = lerp(x0, x1, f), dy = yF + 1 * k, dw = 8 * k, dh = Hh * 0.36;
+        ctx.beginPath(); ctx.moveTo(dx - dw / 2, dy); ctx.lineTo(dx - dw / 2, dy - dh); ctx.quadraticCurveTo(dx, dy - dh - 5 * k, dx + dw / 2, dy - dh); ctx.lineTo(dx + dw / 2, dy); ctx.closePath(); ctx.fill();
+      }
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.globalAlpha = 1;
+    }
+    if (SP) {
+      ctx.globalCompositeOperation = 'lighter';
+      if (lampK > 0.02) {
+        glowAt(ctx, SP.warm, lerp(x0, x1, 0.2), yF - 28 * k, 62 * k, lampK * 0.6);
+        glowAt(ctx, SP.warm, lerp(x0, x1, 0.83), yF - 28 * k, 62 * k, lampK * 0.6);
+        glowAt(ctx, SP.warm, lerp(x0, x1, 0.5), yF - 10 * k, 80 * k, lampK * 0.35, 0.45);
+      }
+      if (gold > 0.02) glowAt(ctx, SP.amber, lerp(x0, x1, 0.62), yF - 36 * k, 96 * k, gold * 0.4 * (1 - 0.6 * sc), 0.75);
+      ctx.globalCompositeOperation = 'source-over';
+      if (wrath > 0.02) glowAt(ctx, SP.red, lerp(x0, x1, 0.72), yF - 35 * k, 70 * k, wrath * 0.35 * (S.kingSeat === 'throne' || S.kingSeat === 'banquet' ? 1 : 0.4));
+      ctx.globalAlpha = 1;
+    }
+    // 王宫的旗（在内院门口）
     const ban = W.lv.etBanner;
     if (ban > 0.01) {
-      const fxp = c0 - 3 * k, fy0 = gY(2, fxp / W.w) + 1 * k, H = 58 * k;
+      const fxp = c0 - 3 * k, fy0 = yF + 1 * k, H = 58 * k;
       ctx.strokeStyle = css([110, 86, 60], 2); ctx.lineWidth = Math.max(0.6, 0.9 * k);
       ctx.beginPath(); ctx.moveTo(fxp, fy0); ctx.lineTo(fxp, fy0 - H); ctx.stroke();
       const wv = Math.sin(W.t * 2 + 1) * 1.6 * k, dir = (W.wind || 0) >= 0 ? 1 : -1, bw = 11 * k * ban, bh = 9 * k;
@@ -843,50 +1049,86 @@
       ctx.beginPath(); ctx.ellipse(ex, ey, 1.4 * k, 2 * k, 0, 0, TAU); ctx.fill();
       ctx.beginPath(); ctx.moveTo(ex - 4 * k, ey - 1.5 * k); ctx.lineTo(ex, ey); ctx.lineTo(ex + 4 * k, ey - 1.5 * k); ctx.lineTo(ex, ey - 0.6 * k); ctx.closePath(); ctx.fill();
     }
-    // ── 宝座、历史书的匣、筵席（在柱子之前画的，都在殿里）──
-    drawThrone(ctx);
-    drawChest(ctx);
-    drawBanquet(ctx);
-    // ── 柱（宝座在第三与第四根之间）──
-    const CF = [0.07, 0.35, 0.61, 0.955];
-    for (const f of CF) {
-      const x = lerp(x0, x1, f);
-      column(ctx, x, gY(2, x / W.w) + 1 * k, wallTop, k, d);
+  }
+  // 柱前的：金杖伸出时柱也暗些；梁上的一串灯、灯台上的火、夜里殿前台面上的一片灯光
+  function drawPalaceTop(ctx) {
+    const G = hallGeom(), k = G.k;
+    const { x0, x1, c0, top, yF } = G;
+    const sc = W.lv.etScepter, lampK = lampKOf(), nk = nightK();
+    if (sc > 0.01) {
+      // 只压在殿的正面（墙、柱、梁）上，不压到天
+      ctx.globalAlpha = Math.min(1, sc) * 0.38;
+      ctx.fillStyle = 'rgb(14,16,34)';
+      ctx.fillRect(x0, top, x1 - x0, yF + 1 * k - top);
+      ctx.fillRect(x0 - 9 * k, top, 9 * k, BEAM * k); ctx.fillRect(x1, top, 9 * k, BEAM * k);
+      ctx.globalAlpha = 1;
     }
-    // ── 香柏木的梁、垛口 ──
-    ctx.fillStyle = css(CEDAR, 2);
-    ctx.fillRect(x0 - 9 * k, top, x1 - x0 + 18 * k, BEAM * k);
-    ctx.fillStyle = css(GLAZE, 2, 0.95);
-    ctx.fillRect(x0 - 9 * k, top + 2.2 * k, x1 - x0 + 18 * k, 2.6 * k);
-    ctx.fillStyle = css(YEL, 2, 0.9, 0.1);
-    for (let i = 0; i < 30; i++) { const x = lerp(x0 - 7 * k, x1 + 7 * k, (i + 0.5) / 30); ctx.fillRect(x - 0.6 * k, top + 3 * k, 1.2 * k, 1 * k); }
-    merlons(ctx, x0 - 9 * k, x1 + 9 * k, top, k, css(STONE, 2));
-    ctx.strokeStyle = css([255, 246, 222], 2, 0.5 * dayA(), 0.3); ctx.lineWidth = Math.max(0.5, 0.9 * k);
-    ctx.beginPath(); ctx.moveTo(x0 - 9 * k, top); ctx.lineTo(x1 + 9 * k, top); ctx.stroke();
-    // 普珥日与光荣之夜：梁上一串灯
     lampString(ctx, x0 - 7 * k, x1 + 7 * k, top + BEAM * k - 0.5 * k, k, W.lv.etLamps);
-    // 殿中的两座灯台
-    for (const f of [0.2, 0.83]) {
-      const x = lerp(x0, x1, f), y = gY(2, x / W.w) + 1 * k;
-      ctx.fillStyle = css([150, 118, 70], 2);
-      ctx.fillRect(x - 0.6 * k, y - 26 * k, 1.2 * k, 26 * k);
-      ctx.fillRect(x - 2.6 * k, y - 27 * k, 5.2 * k, 1.4 * k);
-      ctx.fillRect(x - 2.4 * k, y - 1.2 * k, 4.8 * k, 1.2 * k);
-      if (lampK > 0.02) flame(ctx, x, y - 27 * k, 4 * k, Math.min(1, lampK), f * 9);
-    }
-    // 夜里殿前地上的一片灯光
+    if (lampK > 0.02) for (const f of [0.2, 0.83]) { const x = lerp(x0, x1, f); flame(ctx, x, yF + 1 * k - 27 * k, 4 * k, Math.min(1, lampK), f * 9); }
     if (lampK > 0.02 && SP) {
       ctx.globalCompositeOperation = 'lighter';
-      glowAt(ctx, SP.warm, lerp(c0, x1, 0.55), G.gMin + 2 * k, (x1 - c0) * 0.7, lampK * 0.22 * nk, 0.3);
+      glowAt(ctx, SP.warm, lerp(c0, x1, 0.55), yF + 2 * k, (x1 - c0) * 0.7, lampK * 0.22 * nk, 0.3);
       ctx.globalCompositeOperation = 'source-over';
       ctx.globalAlpha = 1;
     }
   }
+  // ── 离屏的画布：静的布景按光线（量化后）缓存 ──
+  const CACHE = {};
+  let cacheOK = true;
+  function lightKey() {
+    const a = W.ambient || [0, 0, 0];
+    return [W.w, W.h, port() ? 1 : 0, Math.round(W.daylight * 40), a[0] >> 2, a[1] >> 2, a[2] >> 2, Math.round((W.lv.storm || 0) * 10),
+      [X().couch, (X().hall0 + X().hall1) / 2, X().gate].map(xf => (litX() >= xf * W.w ? 1 : 0)).join(''), Math.round(W.lv.etGold * 12), Math.round(terrace().yF)].join('|');
+  }
+  function cached(ctx, name, box, key, draw) {
+    if (!cacheOK) { draw(ctx); return; }
+    try {
+      const dpr = Math.min(2, W.dpr || 1), w = Math.max(1, Math.ceil(box.w * dpr)), h = Math.max(1, Math.ceil(box.h * dpr));
+      let c = CACHE[name];
+      if (!c || c.key !== key) {
+        if (!c || c.cv.width !== w || c.cv.height !== h) { c = { cv: cnv(w, h) }; CACHE[name] = c; }
+        const g = c.cv.getContext('2d');
+        g.setTransform(1, 0, 0, 1, 0, 0);
+        g.clearRect(0, 0, w, h);
+        g.setTransform(dpr, 0, 0, dpr, -box.x * dpr, -box.y * dpr);
+        g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
+        draw(g);
+        c.key = key;
+      }
+      ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+      ctx.drawImage(c.cv, box.x, box.y, w / dpr, h / dpr);
+    } catch (e) { cacheOK = false; draw(ctx); }
+  }
+  function nearBox() {
+    const P_ = X(), T = terrace(), k = T.k, G = hallGeom();
+    const xa = Math.floor(T.a * W.w - 20 * k), xb = Math.ceil(Math.min(W.w + 2, (P_.gate * W.w) + 40 * k));
+    const ya = Math.floor(Math.min(G.top - 12 * k, gY(2, P_.gate) - 90 * k)), yb = Math.ceil(W.h);
+    return { x: xa, y: ya, w: xb - xa, h: yb - ya };
+  }
+  function frontBox() {
+    const G = hallGeom(), k = G.k;
+    const xa = Math.floor(G.x0 - 14 * k), xb = Math.ceil(G.x1 + 14 * k), ya = Math.floor(G.top - 10 * k), yb = Math.ceil(G.yF + 4 * k);
+    return { x: xa, y: ya, w: xb - xa, h: yb - ya };
+  }
+  function drawNear(ctx) {
+    const key = lightKey();
+    cached(ctx, 'back', nearBox(), key, g => {
+      U.safe('esther.terrace', () => drawTerrace(g));
+      U.safe('esther.gardenS', () => drawGardenStatic(g));
+      U.safe('esther.palaceB', () => drawPalaceBack(g));
+      U.safe('esther.gateS', () => drawGateStatic(g));
+    });
+    U.safe('esther.garden', () => drawGardenLive(ctx));
+    U.safe('esther.palaceL', () => drawPalaceLive(ctx));
+    U.safe('esther.throne', () => { drawThrone(ctx); drawChest(ctx); drawBanquet(ctx); });
+    cached(ctx, 'front', frontBox(), key, g => U.safe('esther.palaceF', () => drawPalaceFront(g)));
+    U.safe('esther.palaceT', () => drawPalaceTop(ctx));
+  }
   // 宝座：两层的台，高背金座，上有紫与金的华盖
   const DAIS = 5;
-  function throneFoot() { const xf = X().throne, pk = PK(); return [xf * W.w, gY(2, xf) + 1.5 * pk - DAIS * pk]; }
+  function throneFoot() { const xf = X().throne, pk = PK(); return [xf * W.w, FY(xf) + 1.5 * pk - DAIS * pk]; }
   function drawThrone(ctx) {
-    const xf = X().throne, pk = PK(), x = xf * W.w, g = gY(2, xf) + 1.5 * pk, top = g - DAIS * pk;
+    const xf = X().throne, pk = PK(), x = xf * W.w, g = FY(xf) + 1.5 * pk, top = g - DAIS * pk;
     const d = litX() >= x ? 1 : -1;
     // 华盖
     ctx.strokeStyle = css(GOLD, 2, 1, 0.1); ctx.lineWidth = Math.max(0.7, 1.1 * pk);
@@ -925,7 +1167,7 @@
   }
   // 历史书的匣（2:23）：收着书卷，留着一点余烬似的光
   function drawChest(ctx) {
-    const xf = X().chest, pk = PK(), x = xf * W.w, y = gY(2, xf) + 1 * pk;
+    const xf = X().chest, pk = PK(), x = xf * W.w, y = FY(xf) + 1 * pk;
     ctx.fillStyle = css([110, 80, 54], 2);
     ctx.fillRect(x - 5 * pk, y - 7 * pk, 1.2 * pk, 7 * pk); ctx.fillRect(x + 3.8 * pk, y - 7 * pk, 1.2 * pk, 7 * pk);
     ctx.fillRect(x - 6 * pk, y - 8 * pk, 12 * pk, 1.4 * pk);
@@ -948,14 +1190,14 @@
     }
   }
   // 以斯帖所预备的筵席（5:5；7:1）：矮几、两张榻
-  function couchFoot(xf) { const pk = PK(); return [xf * W.w, gY(2, xf) + 1.4 * pk]; }
+  function couchFoot(xf) { const pk = PK(); return [xf * W.w, FY(xf) + 1.4 * pk]; }
   function drawBanquet(ctx) {
     const a = W.lv.etBanquet;
     if (a < 0.01) return;
     const P_ = X(), pk = PK();
-    couch(ctx, P_.seatH * W.w, gY(2, P_.seatH) + 1.4 * pk, 11 * pk, 11 * pk, SILVER, false, 1, a);
-    couch(ctx, P_.seatK * W.w, gY(2, P_.seatK) + 1.4 * pk, 12 * pk, 11 * pk, GOLD, true, -1, a);
-    const x = P_.table * W.w, y = gY(2, P_.table) + 1.4 * pk;
+    couch(ctx, P_.seatH * W.w, FY(P_.seatH) + 1.4 * pk, 11 * pk, 11 * pk, SILVER, false, 1, a);
+    couch(ctx, P_.seatK * W.w, FY(P_.seatK) + 1.4 * pk, 12 * pk, 11 * pk, GOLD, true, -1, a);
+    const x = P_.table * W.w, y = FY(P_.table) + 1.4 * pk;
     ctx.globalAlpha = a;
     ctx.fillStyle = css([150, 108, 70], 2);
     ctx.fillRect(x - 6 * pk, y - 8.5 * pk, 12 * pk, 1.4 * pk);
@@ -972,11 +1214,14 @@
   // ════════════════════════════════════════════════════════════
   //  画：朝门（末底改坐在那里）与门外的宽阔处
   // ════════════════════════════════════════════════════════════
-  function drawGate(ctx) {
-    const P_ = X(), k = BK(), x = P_.gate * W.w;
+  function gateGeom() {
+    const P_ = X(), k = BK() * (port() ? 0.88 : 1), x = P_.gate * W.w;
     const y = Math.max(gY(2, P_.gate - 0.02), gY(2, P_.gate + 0.02)) + 2 * k;
+    return { P_, k, x, y, tw: 15 * k, th: 76 * k, pw: 21 * k, ph: 60 * k };
+  }
+  function drawGateStatic(ctx) {
+    const { P_, k, x, y, tw, th, pw, ph } = gateGeom();
     const d = litX() >= x ? 1 : -1;
-    const tw = 15 * k, th = 76 * k, pw = 21 * k, ph = 60 * k;
     // 中间的门楼
     ctx.fillStyle = css(mix(STONE, [200, 170, 130], 0.3), 2);
     ctx.fillRect(x - pw / 2, y - ph, pw, ph);
@@ -1007,14 +1252,17 @@
     ctx.beginPath();
     for (const s of [-1, 1]) { const cx = x + s * (pw / 2 + tw / 2); ctx.moveTo(cx + d * tw / 2, y - th); ctx.lineTo(cx + d * tw / 2, y); }
     ctx.stroke();
-    // 夜里门洞里的灯
-    const nk = nightK();
-    if (nk > 0.05) { flame(ctx, x - 3.6 * k, y - 18 * k, 3 * k, nk, 2.2); flame(ctx, x + 3.6 * k, y - 18 * k, 3 * k, nk, 5.1); }
-    lampString(ctx, x - pw / 2 - tw, x + pw / 2 + tw, y - th * 0.64 - 1.5 * k, k, W.lv.etLamps);
     // 门外的石凳（末底改坐处）
     const sx = P_.seat * W.w, sy = gY(2, P_.seat) + 1.5 * k;
     ctx.fillStyle = css([188, 172, 146], 2);
     ctx.fillRect(sx - 7 * k, sy - 3.5 * k, 14 * k, 3.5 * k);
+  }
+  // 夜里门洞里的灯；光荣之夜门上的一串灯
+  function drawGateLive(ctx) {
+    const { k, x, y, tw, th, pw } = gateGeom();
+    const nk = nightK();
+    if (nk > 0.05) { flame(ctx, x - 3.6 * k, y - 18 * k, 3 * k, nk, 2.2); flame(ctx, x + 3.6 * k, y - 18 * k, 3 * k, nk, 5.1); }
+    lampString(ctx, x - pw / 2 - tw, x + pw / 2 + tw, y - th * 0.64 - 1.5 * k, k, W.lv.etLamps);
   }
   // 枣椰树
   function palm(ctx, l, xf, H, k, seed) {
@@ -1085,9 +1333,19 @@
     const hx = P_.hh * W.w, hy = gY(1, P_.hh) + 1.5 * s;
     ctx.fillStyle = css([176, 150, 116], l);
     ctx.fillRect(hx + 8 * s, hy - 7 * s, 14 * s, 7 * s);
-    house(ctx, l, hx, hy, 24 * s, 17 * s, [196, 166, 124], { s, door: -0.2, win: 0.26, lamp: lampK * (1 - W.lv.etProvGold * 0.3), blue: false });
+    const hl = W.lv.etHLamp;
+    house(ctx, l, hx, hy, 24 * s, 17 * s, [196, 166, 124], { s, door: -0.2, win: 0.26, lamp: Math.max(hl, lampK * (1 - W.lv.etProvGold * 0.3)), blue: false });
     ctx.fillStyle = css([140, 40, 40], l);
     ctx.fillRect(hx - 0.2 * 24 * s - 1.8 * s, hy - 6.6 * s, 3.6 * s, 6.6 * s);
+    // 哈曼家里的灯：他与细利斯在灯前成了两个剪影（5:10–14）
+    if (hl > 0.02 && SP) {
+      const lx = (P_.hh + 0.014) * W.w, ly = gY(1, P_.hh + 0.014) - 12 * s;
+      ctx.globalCompositeOperation = 'lighter';
+      glowAt(ctx, SP.warm, lx, ly, 44 * s, hl * (0.5 + 0.3 * nk));
+      glowAt(ctx, SP.lamp, lx, ly + 4 * s, 18 * s, hl * 0.7);
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.globalAlpha = 1;
+    }
     drawGallows(ctx);
     for (const q of cityModel().hs) {
       const x = q.xf * W.w, y = gY(l, q.xf) + 1.5 * s;
@@ -1154,7 +1412,7 @@
     if (g < 0.01) return;
     const P_ = X(), s = PKm(), x = P_.gal * W.w, y = gY(1, P_.gal) + 1.5 * s;
     const H = 132 * s * g, w = 20 * s;
-    const col = css([62, 48, 40], 1);
+    const col = css([74, 58, 48], 1);
     ctx.globalAlpha = Math.min(1, g * 1.5);
     ctx.fillStyle = col;
     ctx.fillRect(x - w / 2 - 2 * s, y - H, 4 * s, H);
@@ -1169,11 +1427,22 @@
       ctx.moveTo(x + w / 2, y - H + 12 * s); ctx.lineTo(x + w / 2 - 7 * s, y - H);
       ctx.stroke();
     }
-    // 月下（或夕照里）的一道边
+    // 月下（或夕照里）的一道亮边：两根柱与横梁都描出来，好在暗里看得见
     ctx.globalAlpha = Math.min(1, g * 1.5);
-    ctx.strokeStyle = css([240, 230, 220], 1, 0.3 * (dayA() + nightK() * 0.6), 0.2); ctx.lineWidth = Math.max(0.5, 0.7 * s);
+    ctx.strokeStyle = css([246, 236, 222], 1, 0.2 + 0.45 * (dayA() + nightK() * 0.8), 0.3); ctx.lineWidth = Math.max(0.6, 0.8 * s);
     const d = litX() >= x ? 1 : -1;
-    ctx.beginPath(); ctx.moveTo(x + d * (w / 2 + 1.5 * s), y - H); ctx.lineTo(x + d * (w / 2 + 1.5 * s), y); ctx.stroke();
+    ctx.beginPath();
+    for (const px of [x - w / 2, x + w / 2]) { ctx.moveTo(px + d * 2 * s, y - H); ctx.lineTo(px + d * 2 * s, y); }
+    if (g > 0.6) { ctx.moveTo(x - w / 2 - 4.5 * s, y - H - 3 * s); ctx.lineTo(x + w / 2 + 4.5 * s, y - H - 3 * s); }
+    ctx.stroke();
+    // 立起来的时候：一阵冷光自下而上掠过
+    const rise = 4 * g * (1 - g);
+    if (rise > 0.03 && SP) {
+      ctx.globalCompositeOperation = 'lighter';
+      glowAt(ctx, SP.pale, x, y - H, 26 * s, rise * 0.55);
+      glowAt(ctx, SP.pale, x, y - H * 0.5, 22 * s, rise * 0.3, 2.2);
+      ctx.globalCompositeOperation = 'source-over';
+    }
     // 哈波拿指着它（7:9）：一道冷光
     const lit = W.lv.etGalLit;
     if (lit > 0.02 && SP) {
@@ -1238,15 +1507,26 @@
     const u = W.lv.etLot, e = 1 - Math.pow(1 - clamp(u, 0, 1), 3);
     return -Math.PI / 2 + (3 * TAU + (11 * TAU) / 12) * e;
   }
+  // 日或月正在签轮附近时，轮隐去（不与日月叠在一起）
+  function lotsVeil(cx, cy, r) {
+    let k = 1;
+    const near = (x, y) => smoothstep(r * 1.0, r * 1.45, Math.hypot(x - cx, y - cy));
+    if (W.lv.lights > 0.3 && W.sun.elev > -0.06) k = Math.min(k, lerp(1, near(W.sun.x, W.sun.y), clamp((W.sun.elev + 0.06) * 8, 0, 1)));
+    if (W.lv.moon > 0.3 && W.moon.elev > 0) k = Math.min(k, lerp(1, near(W.moon.x, W.moon.y), clamp(W.moon.elev * 8, 0, 1)));
+    return k;
+  }
   function drawLots(ctx) {
-    const a = W.lv.etLots;
-    if (a < 0.01) return;
     const { cx, cy, r } = ringGeom();
+    const a = W.lv.etLots * lotsVeil(cx, cy, r);
+    if (a < 0.01) return;
     const rot = Math.PI * W.lv.etTurn;
     const landed = smoothstep(0.96, 1, W.lv.etLot);
     const gold = clamp(W.lv.etTurn * 1.2 + W.lv.etPur, 0, 1);
     const day = W.daylight;
     const px = port() ? 11 : Math.round(clamp(13 * SU(), 12, 18));
+    const halo = 0.4 + 0.5 * clamp(day, 0, 1);
+    // 白日里：轮后一片极淡的暗，好让字从亮天上显出来
+    if (SP && day > 0.2) glowAt(ctx, SP.dark, cx, cy, r * 1.45, a * 0.25 * day);
     // 轮：一圈细光与十二个点
     ctx.globalAlpha = a * (0.3 + 0.2 * gold);
     ctx.strokeStyle = rgba(mix([255, 236, 204], [255, 214, 130], gold), 1);
@@ -1270,10 +1550,10 @@
       const an = monthAng(m, rot), x = cx + Math.cos(an) * r, y = cy + Math.sin(an) * r;
       const adar = m === 11;
       const base = 0.62 + (m === near ? 0.38 : 0);
-      if (!adar || landed < 0.99) drawText(ctx, MONTHS[m], x, y, px, [252, 238, 212], a * base * (adar ? 1 - landed : 1));
+      if (!adar || landed < 0.99) drawText(ctx, MONTHS[m], x, y, px, [252, 238, 212], a * base * (adar ? 1 - landed : 1), 1, halo);
       if (adar && landed > 0.01) {
-        drawText(ctx, MONTHS[m], x, y, px, [240, 92, 70], a * landed * (1 - gold), 1.25);
-        drawText(ctx, MONTHS[m], x, y, px, [255, 222, 130], a * landed * gold, 1.25);
+        drawText(ctx, MONTHS[m], x, y, px, [240, 92, 70], a * landed * (1 - gold), 1.25, halo);
+        drawText(ctx, MONTHS[m], x, y, px, [255, 222, 130], a * landed * gold, 1.25, halo);
         if (SP) {
           ctx.globalCompositeOperation = 'lighter';
           glowAt(ctx, gold > 0.5 ? SP.gold : SP.red, x, y, px * 2.2, a * landed * 0.45);
@@ -1299,20 +1579,19 @@
     // 中间的字：普珥（暗红）→ 普珥日（金）
     const cpx = Math.round(px * 1.7);
     if (landed > 0.01 || gold > 0.01) {
-      drawText(ctx, '普珥', cx, cy, cpx, [226, 96, 76], a * Math.max(landed, 0.3) * (1 - gold) * (1 - W.lv.etPur));
-      drawText(ctx, '普珥', cx, cy, cpx, [255, 226, 140], a * gold * (1 - W.lv.etPur));
-      drawText(ctx, '普珥日', cx, cy, cpx, [255, 230, 150], a * W.lv.etPur);
+      drawText(ctx, '普珥', cx, cy, cpx, [226, 96, 76], a * Math.max(landed, 0.3) * (1 - gold) * (1 - W.lv.etPur), 1, halo);
+      drawText(ctx, '普珥', cx, cy, cpx, [255, 226, 140], a * gold * (1 - W.lv.etPur), 1, halo);
+      drawText(ctx, '普珥日', cx, cy, cpx, [255, 230, 150], a * W.lv.etPur, 1, halo);
     }
     // 签落之后：一线暗红垂向王宫（哈曼在那里）
     if (landed > 0.01 && gold < 0.9) {
       const an = monthAng(11, rot), x = cx + Math.cos(an) * r, y = cy + Math.sin(an) * r;
-      const G = hallGeom(), tx = lerp(G.c0, G.x1, 0.3), ty = G.top;
-      const gr = ctx.createLinearGradient(x, y, tx, ty);
-      gr.addColorStop(0, rgba([230, 80, 64], a * landed * (1 - gold) * 0.5));
-      gr.addColorStop(1, rgba([230, 80, 64], 0));
-      ctx.globalAlpha = 1;
-      ctx.strokeStyle = gr; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(x, y + px * 0.6); ctx.lineTo(tx, ty); ctx.stroke();
+      const G = hallGeom(), tx = lerp(G.c0, G.x1, 0.3), ty = G.top, A = a * landed * (1 - gold) * 0.5, n = 8;
+      ctx.strokeStyle = 'rgb(230,80,64)'; ctx.lineWidth = 1;
+      for (let i = 0; i < n; i++) {
+        ctx.globalAlpha = A * (1 - i / n);
+        ctx.beginPath(); ctx.moveTo(lerp(x, tx, i / n), lerp(y + px * 0.6, ty, i / n)); ctx.lineTo(lerp(x, tx, (i + 1) / n), lerp(y + px * 0.6, ty, (i + 1) / n)); ctx.stroke();
+      }
     }
     ctx.globalAlpha = 1;
   }
@@ -1332,27 +1611,31 @@
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
   }
-  // 王的心在耶和华手中，好像陇沟的水：点点的光如水一般，自那隐藏的光缓缓流到王的心（画在人之前）
+  // 王的心在耶和华手中：一缕极淡的光，自那隐藏的光缓缓垂到王的心（几乎看不见；只有几点慢慢流下的光）
   function drawStream(ctx) {
     const a = W.lv.etHidden;
     if (a < 0.01 || !SP) return;
-    const [x, y] = hiddenXY(), u = SU();
-    ctx.globalCompositeOperation = 'lighter';
     const th = a * W.lv.etGold;
-    if (th > 0.02 && S.kingSeat === 'throne') {
-      const c = chestOf('king');
-      if (c) {
-        const mx = x + (c[0] - x) * 0.15 + M() * 0.06, my = (y + c[1]) / 2;
-        for (let i = 0; i < 20; i++) {
-          const q = U.fract(W.t * 0.08 + i / 20), iq = 1 - q;
-          const px = iq * iq * x + 2 * iq * q * mx + q * q * c[0], py = iq * iq * y + 2 * iq * q * my + q * q * c[1];
-          const A = th * Math.sin(Math.PI * q) * 0.85;
-          glowAt(ctx, SP.gold, px, py, 7 * u, A * 0.55);
-          ctx.globalAlpha = Math.min(1, A);
-          ctx.fillStyle = 'rgb(255,238,200)';
-          ctx.fillRect(px - 0.9, py - 0.9, 1.8, 1.8);
-        }
-      }
+    if (th < 0.02 || S.kingSeat !== 'throne') return;
+    const c = chestOf('king');
+    if (!c) return;
+    const [x, y] = hiddenXY(), u = SU();
+    const mx = x + (c[0] - x) * 0.15 + M() * 0.06, my = (y + c[1]) / 2;
+    const at = q => { const iq = 1 - q; return [iq * iq * x + 2 * iq * q * mx + q * q * c[0], iq * iq * y + 2 * iq * q * my + q * q * c[1]]; };
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.strokeStyle = 'rgb(255,232,188)';
+    ctx.lineWidth = Math.max(1.5, 2.6 * u);
+    const n = 24;
+    let p0 = at(0);
+    for (let i = 1; i <= n; i++) {
+      const q = i / n, p1 = at(q);
+      ctx.globalAlpha = Math.min(1, th) * 0.09 * Math.sin(Math.PI * (q - 0.5 / n));
+      ctx.beginPath(); ctx.moveTo(p0[0], p0[1]); ctx.lineTo(p1[0], p1[1]); ctx.stroke();
+      p0 = p1;
+    }
+    for (let i = 0; i < 5; i++) {
+      const q = U.fract(W.t * 0.045 + i / 5), p = at(q), A = th * Math.sin(Math.PI * q);
+      glowAt(ctx, SP.gold, p[0], p[1], 5 * u, A * 0.4);
     }
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
@@ -1399,10 +1682,6 @@
       ctx.moveTo(x - 2.4 * s, y); ctx.lineTo(x - 2.9 * s, y - 5.2 * s);
       for (let i = 0; i < 5; i++) { const px = x - 2.9 * s + (i + 0.5) * 1.16 * s; ctx.lineTo(px, y - 6.4 * s); ctx.lineTo(px + 0.58 * s, y - 5.2 * s); }
       ctx.lineTo(x + 2.4 * s, y); ctx.closePath(); ctx.fill();
-    } else if (kind === 'horse') {
-      ctx.beginPath();
-      ctx.moveTo(x - 1.6 * s, y); ctx.lineTo(x - 1.8 * s, y - 2.4 * s); ctx.lineTo(x - 0.6 * s, y - 1.4 * s); ctx.lineTo(x, y - 3 * s);
-      ctx.lineTo(x + 0.6 * s, y - 1.4 * s); ctx.lineTo(x + 1.8 * s, y - 2.4 * s); ctx.lineTo(x + 1.6 * s, y); ctx.closePath(); ctx.fill();
     } else {
       // 王后的冠 / 末底改的大金冠冕
       const big = kind === 'great' ? 1.35 : 1;
@@ -1418,6 +1697,59 @@
     }
     ctx.globalAlpha = 1;
   }
+  // 戴冠的御马（6:8）：马头上的金冠与金络头——位置按人物模块画马的算法求出
+  function horseHead(f) {
+    const M = f.M;
+    if (!M || M.type !== 'q') return null;
+    const lie = f.lie || 0, g = f.gait || 0, run = f.run || 0, ph = f.ph || 0;
+    const bl = M.bl, bh = M.bh, L0 = M.leg + bh * 0.32;
+    const bob = -(0.04 + 0.12 * run) * g * L0 * Math.abs(Math.cos(ph));
+    const by = lerp(-(M.leg + bh * 0.5), -bh * 0.46, lie) + bob;
+    const pitch = (f.pitch || 0) + (run ? 0.06 * Math.sin(ph * 2) * run : 0);
+    const cp = Math.cos(pitch), spn = Math.sin(pitch);
+    const rx = (x, y) => x * cp - (y - by) * spn, ry = (x, y) => by + x * spn + (y - by) * cp;
+    const al = f.neck == null ? M.up : f.neck;
+    const sx = rx(bl * 0.36, by - bh * 0.05), sy = ry(bl * 0.36, by - bh * 0.05);
+    const nx = sx + Math.cos(al) * M.neck, ny = sy - Math.sin(al) * M.neck;
+    const be = al - (al > 0 ? M.hd : M.hd * 0.35) + (f.headTilt || 0);
+    const fxv = Math.cos(be), fyv = -Math.sin(be), uxv = fyv, uyv = -fxv;
+    const cx = nx + fxv * M.hl * 0.28, cy = ny + fyv * M.hl * 0.28;
+    return { fxv, fyv, uxv, uyv, cx, cy, px: cx - fxv * M.hl * 0.12 + uxv * M.hh * 0.38, py: cy - fyv * M.hl * 0.12 + uyv * M.hh * 0.38,
+      mx: nx + fxv * M.hl * 0.6, my: ny + fyv * M.hl * 0.6, hh: M.hh };
+  }
+  function horseCrest(ctx) {
+    const f = fig('horse');
+    if (!f || !f._vis || f.alpha < 0.05 || !f.isAnimal) return;
+    const H = horseHead(f);
+    if (!H) return;
+    const s = f._h, d = f.fd == null ? f.facing || 1 : f.fd;
+    const P = (x, y) => [f._x + x * s * d, f._y + y * s];
+    const col = rgba(W.shade(GOLD, DEP(f.layer || 2), 0.25), 1);
+    ctx.globalAlpha = Math.min(1, f.alpha);
+    // 金络头：额带、颊带、鼻带
+    ctx.strokeStyle = col; ctx.lineWidth = Math.max(0.7, 0.75 * s); ctx.lineCap = 'round';
+    const a = P(H.px, H.py), b = P(H.cx - H.uxv * H.hh * 0.46, H.cy - H.uyv * H.hh * 0.46);
+    const n0 = P(H.mx + H.uxv * H.hh * 0.3, H.my + H.uyv * H.hh * 0.3), n1 = P(H.mx - H.uxv * H.hh * 0.32, H.my - H.uyv * H.hh * 0.32);
+    ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.moveTo(n0[0], n0[1]); ctx.lineTo(n1[0], n1[1]);
+    const m0 = P(H.cx + H.fxv * 0.2, H.cy + H.fyv * 0.2);
+    ctx.moveTo(a[0], a[1]); ctx.lineTo(m0[0], m0[1]); ctx.lineTo(n0[0], n0[1]);
+    ctx.stroke(); ctx.lineCap = 'butt';
+    // 冠：马头顶上三个小尖
+    const up = [H.uxv * d, H.uyv], fw = [H.fxv * d, H.fyv], k = 1.15 * s, c0 = P(H.px, H.py);
+    const Q = (u, w) => [c0[0] + up[0] * u * k + fw[0] * w * k, c0[1] + up[1] * u * k + fw[1] * w * k];
+    ctx.fillStyle = col;
+    ctx.beginPath();
+    const pts = [Q(0, -1.6), Q(2.2, -1.9), Q(1.2, -0.8), Q(3, 0), Q(1.2, 0.8), Q(2.2, 1.9), Q(0, 1.6)];
+    pts.forEach((p, i) => (i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])));
+    ctx.closePath(); ctx.fill();
+    if (SP) {
+      ctx.globalCompositeOperation = 'lighter';
+      const g = Q(1.4, 0);
+      glowAt(ctx, SP.gold, g[0], g[1], 6 * s, f.alpha * (0.35 + 0.35 * nightK()));
+      ctx.globalCompositeOperation = 'source-over';
+    }
+    ctx.globalAlpha = 1;
+  }
   // 金杖：王坐在宝座上时握着；伸出时指向内院里的王后，一道金光（5:2）
   function scepterGeom() {
     if (S.kingSeat !== 'throne') return null;
@@ -1429,33 +1761,43 @@
     const L = (17 + 5 * ext) * pk;
     return { f, ext, pk, hx, hy, ang, ex: hx + Math.cos(ang) * L, ey: hy + Math.sin(ang) * L };
   }
-  // 金杖的光：画在人之后（人在光前成为剪影）
+  // 金杖的光：画在人之前（人在光前成为剪影）——殿里已暗下来，这一道金线是画面上最亮的
   function drawScepterGlow(ctx) {
     const g = scepterGeom();
     if (!g || g.ext < 0.03 || !SP) return;
-    const { f, ext, pk, ex, ey } = g;
-    ctx.globalCompositeOperation = 'lighter';
-    // 杖头的光芒，缓缓转动
-    const R = (30 + 84 * ext) * pk * (0.94 + 0.06 * Math.sin(W.t * 1.3));
-    ctx.save();
-    ctx.translate(ex, ey); ctx.rotate(W.t * 0.06);
-    ctx.globalAlpha = Math.min(1, 0.55 * ext);
-    ctx.drawImage(SP.star, -R, -R, R * 2, R * 2);
-    ctx.restore();
-    glowAt(ctx, SP.gold, ex, ey, 34 * pk * ext, ext * 0.7);
-    // 金光：自杖头伸向王后
+    const { ext, pk, ex, ey } = g;
+    const yF = terrace().yF, u = SU();
     const e = has('esther') ? chestOf('esther') : null;
     const tx = e ? e[0] : X().stand * W.w, ty = e ? e[1] : ey;
-    const gr = ctx.createLinearGradient(ex, ey, tx, ty);
-    gr.addColorStop(0, 'rgba(255,232,170,' + (0.8 * ext).toFixed(3) + ')');
-    gr.addColorStop(1, 'rgba(255,214,130,' + (0.3 * ext).toFixed(3) + ')');
-    ctx.globalAlpha = 1;
-    ctx.strokeStyle = gr; ctx.lineWidth = Math.max(1.2, 3 * pk * ext); ctx.lineCap = 'round';
-    ctx.beginPath(); ctx.moveTo(ex, ey); ctx.lineTo(tx, ty); ctx.stroke();
+    ctx.globalCompositeOperation = 'lighter';
+    // 台面上一片暖金：自王后到宝座
+    const fx0 = Math.min(tx, ex) - 10 * pk, fx1 = Math.max(throneFoot()[0], ex) + 6 * pk;
+    glowAt(ctx, SP.amber, (fx0 + fx1) / 2, yF + 2 * pk, (fx1 - fx0) * 0.62, ext * 0.5, 0.16);
+    // 王后身后的光：她成了光前的剪影
+    if (e) { const f = fig('esther'); glowAt(ctx, SP.gold, e[0], e[1] - 4 * pk, 60 * ((f && f._h) || 44) / 44, ext * 0.42); }
+    // 杖头的光：细而柔，止于台面之上
+    ctx.save();
+    ctx.beginPath(); ctx.rect(0, 0, W.w, yF); ctx.clip();
+    const R = Math.min(50, 22 + 28 * ext) * pk * (0.95 + 0.05 * Math.sin(W.t * 1.3));
+    ctx.translate(ex, ey); ctx.rotate(W.t * 0.05);
+    ctx.globalAlpha = 0.35 * Math.min(1, ext);
+    ctx.drawImage(SP.rays, -R, -R, R * 2, R * 2);
+    ctx.restore();
+    ctx.globalCompositeOperation = 'lighter';
+    glowAt(ctx, SP.gold, ex, ey, 14 * pk * ext, ext * 0.85);
+    // 金光：自杖头伸向王后（一段一段，由亮而淡）
+    const n = 10;
+    ctx.lineCap = 'round';
+    ctx.lineWidth = Math.max(1.2, 2.4 * pk * ext);
+    for (let i = 0; i < n; i++) {
+      const a0 = i / n, a1 = (i + 1) / n;
+      ctx.globalAlpha = Math.min(1, ext) * (0.85 - 0.5 * a0);
+      ctx.strokeStyle = 'rgb(255,' + Math.round(236 - 20 * a0) + ',' + Math.round(176 - 40 * a0) + ')';
+      ctx.beginPath(); ctx.moveTo(lerp(ex, tx, a0), lerp(ey, ty, a0)); ctx.lineTo(lerp(ex, tx, a1), lerp(ey, ty, a1)); ctx.stroke();
+    }
     ctx.lineCap = 'butt';
-    glowAt(ctx, SP.gold, tx, ty, 30 * pk * ext, ext * 0.55);
-    // 地上：一片金色
-    glowAt(ctx, SP.amber, (ex + tx) / 2, gY(2, f.nx) + 2 * pk, 80 * pk * ext, ext * 0.35, 0.22);
+    glowAt(ctx, SP.gold, tx, ty, 16 * pk * ext, ext * 0.5);
+    glowAt(ctx, SP.gold, (ex + tx) / 2, (ey + ty) / 2, Math.hypot(tx - ex, ty - ey) * 0.5 + 6 * u, ext * 0.18, 0.35);
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
   }
@@ -1540,7 +1882,7 @@
     wrathHaze(ctx, 'haman', W.lv.etHWrath * 0.85);
     wrathHaze(ctx, 'hamanH', W.lv.etHWrath * 0.7);
     // 金光落在王后身上
-    aura(ctx, 'esther', SP && SP.gold, 40, W.lv.etGold * 0.35 + W.lv.etCrownE * 0.08);
+    aura(ctx, 'esther', SP && SP.gold, 40, W.lv.etGold * 0.3 * (1 - 0.7 * W.lv.etScepter) + W.lv.etCrownE * 0.08);
     aura(ctx, 'mordecai', SP && SP.gold, 38, W.lv.etCrownM * 0.3);
     drawStream(ctx);
     drawScepter(ctx);
@@ -1548,7 +1890,7 @@
     crown(ctx, 'vashti', W.lv.etCrownV, 'queen');
     crown(ctx, 'esther', W.lv.etCrownE, 'queen');
     crown(ctx, 'mordecai', W.lv.etCrownM, 'great');
-    crown(ctx, 'horse', has('horse') ? 1 : 0, 'horse');
+    horseCrest(ctx);
     drawScroll(ctx);
     drawFX(ctx, 'air');
   }
@@ -1683,7 +2025,7 @@
   // ════════════════════════════════════════════════════════════
   const SCENE = {
     init() { sprites(); loadFonts(); },
-    resize() { PROV = null; CITY = null; TXT.clear(); },
+    resize() { PROV = null; CITY = null; TG = null; TXT.clear(); for (const n in CACHE) CACHE[n].key = null; },
     update(dt) {
       if (!isCur()) { if (FXL.length) FXL.length = 0; return; }
       const f = dt * (W.fast || 1);
@@ -1693,6 +2035,7 @@
         if (e.t >= (e.delay || 0) + e.dur + (e.type === 'letter' ? 0.8 : 0)) FXL.splice(i, 1);
       }
       rillPh = U.fract(rillPh + f * 0.05 * W.lv.etRill);
+      U.safe('esther.fit', () => fitCast(f));
     },
     drawUnder(ctx, pass) {
       if (!isCur()) return;
@@ -1702,10 +2045,9 @@
       if (pass === 'mid') { drawCity(ctx); drawRiders(ctx); return; }
       if (pass === 'seaNear') { drawReflections(ctx); return; }
       if (pass === 'near') {
-        U.safe('esther.garden', () => drawGarden(ctx));
-        U.safe('esther.palace', () => drawPalace(ctx));
+        drawNear(ctx);
         U.safe('esther.scepter', () => drawScepterGlow(ctx));
-        U.safe('esther.gate', () => drawGate(ctx));
+        U.safe('esther.gate', () => drawGateLive(ctx));
         const k = BK();
         for (const xf of X().palmN) palm(ctx, 2, xf, 62 * k, k, 7);
         U.safe('esther.rill', () => drawRill(ctx));
@@ -1717,25 +2059,35 @@
     draw() {},
     reset() { FXL.length = 0; },
     restore() { FXL.length = 0; },
-    sig() { return { S: JSON.stringify(S) }; },
+    sig() {
+      // 本卷的状态，与各群人的站处、姿势（人群的位置也须与恢复存档一致）
+      const c = C(), cr = {};
+      if (c && c.crowds) for (const [g, grp] of c.crowds) {
+        const ms = grp.members.filter(m => !m.dying);
+        if (g.startsWith('__') || !ms.length) continue;
+        cr[g] = ms.map(m => Math.round((m.tx != null ? m.tx : m.nx) * 100) + (m.tx != null ? m.afterWalk : m.pose)).join(',');
+      }
+      return { S: JSON.stringify(S), crowds: cr };
+    },
     pick(x, y, r) {
       if (!isCur()) return null;
       let best = null;
       const consider = (label, px, py) => { const d = Math.hypot(px - x, py - y); if (d < r && (!best || d < best.d)) best = { label, x: px, y: py, d }; };
       const P_ = X(), k = BK(), pk = PK(), G = hallGeom();
-      consider('御园', P_.couch * W.w, gY(2, P_.couch) - 40 * k);
+      consider('御园', P_.couch * W.w, FY(P_.couch) - 40 * k);
       consider('王宫', lerp(G.x0, G.x1, 0.3), G.top + 20 * k);
-      consider('宝座', P_.throne * W.w, gY(2, P_.throne) - 45 * pk);
-      consider('内院', lerp(G.c0, G.x0, 0.5), G.gMin - 24 * k);
+      consider('宝座', P_.throne * W.w, FY(P_.throne) - 45 * pk);
+      consider('内院', lerp(G.c0, G.x0, 0.5), G.yF - 24 * k);
       consider('朝门', P_.gate * W.w, gY(2, P_.gate) - 60 * k);
-      consider('历史书', P_.chest * W.w, gY(2, P_.chest) - 12 * pk);
-      consider('陇沟的水', lerp(P_.rill0, P_.rill1, 0.4) * W.w, fieldY(lerp(P_.rill0, P_.rill1, 0.4), port() ? 0.16 : 0.22));
+      consider('历史书', P_.chest * W.w, FY(P_.chest) - 12 * pk);
+      consider('陇沟的水', lerp(P_.rill0, P_.rill1, 0.4) * W.w, fieldY(lerp(P_.rill0, P_.rill1, 0.4), RILLV()));
       consider('书珊城', (port() ? 0.8 : 0.92) * W.w, gY(1, port() ? 0.8 : 0.92) - 16 * PKm());
       consider('哈曼的家', P_.hh * W.w, gY(1, P_.hh) - 14 * PKm());
       if (W.lv.etGallows > 0.5) consider('木架', P_.gal * W.w, gY(1, P_.gal) - 100 * PKm());
-      if (W.lv.etBanquet > 0.5) consider('筵席', P_.table * W.w, gY(2, P_.table) - 10 * pk);
+      if (W.lv.etBanquet > 0.5) consider('筵席', P_.table * W.w, FY(P_.table) - 10 * pk);
       if (W.lv.etProv > 0.5) { const p = provModel().pts[80]; if (p) { const q = provXY(p); consider('一百二十七省', q[0], q[1]); } }
-      if (W.lv.etLots > 0.3) { const g = ringGeom(); consider(W.lv.etPur > 0.5 ? '普珥日' : '普珥', g.cx, g.cy); }
+      // 签轮的名字标在轮下（不压在轮中间的「普珥」上）
+      if (W.lv.etLots > 0.3) { const g = ringGeom(); consider(W.lv.etPur > 0.5 ? '普珥日' : '普珥', g.cx, g.cy + g.r * 1.35); }
       return best;
     },
   };
@@ -1752,6 +2104,7 @@
   // 王坐上宝座 / 离开宝座
   function kingToThrone() { attach('king', () => throneFoot()); pose('king', 'seat'); face('king', -1); S.kingSeat = 'throne'; }
   function kingOff() { attach('king', null); S.kingSeat = null; }
+  const VX = () => lerp(X().hall0, X().hall1, 0.3);          // 瓦实提在殿里的位置
   // 坐在榻上（御园王的榻、筵席的两张榻）
   function seatOn(id, xf, dir) { attach(id, () => couchFoot(xf)); pose(id, 'seat'); face(id, dir); }
   function unseat(id) { attach(id, null); }
@@ -1787,11 +2140,12 @@
     c.clear({ fade: false });
     add('king', { label: '亚哈随鲁王', sex: 'm', age: 'adult', x: P_.throne, facing: -1, robe: ROBE.king, glow: 0.4, hair: 'cloth', accent: GOLDA, beard: true, from: 'none' });
     kingToThrone();
-    // 王后瓦实提与众妇女在王宫里（1:9）
-    add('vashti', { label: '瓦实提', sex: 'f', age: 'adult', x: lerp(P_.hall0, P_.hall1, 0.33), facing: 1, robe: ROBE.vashti, glow: 0.3, accent: [236, 214, 170], from: 'none' });
-    crowd('women', { n: port() ? 2 : 3, x0: lerp(P_.hall0, P_.hall1, 0.08), x1: lerp(P_.hall0, P_.hall1, 0.27), label: '众妇女', pose: 'sit', from: 'none' },
-      dressAs(WOMEN, { sex: 'f', v0: 0, v1: 0.06 }));
-    cface('women', 1);
+    // 王后瓦实提与众妇女在王宫里（1:9）：妇女坐在她右边，向着她
+    add('vashti', { label: '瓦实提', sex: 'f', age: 'adult', x: VX(), facing: 1, robe: ROBE.vashti, glow: 0.3, accent: [236, 214, 170], from: 'none' });
+    const nw = port() ? 2 : 3;
+    crowd('women', { n: nw, x0: lerp(P_.hall0, P_.hall1, 0.4), x1: lerp(P_.hall0, P_.hall1, 0.58), label: '众妇女', pose: 'sit', from: 'none' },
+      dressAs(WOMEN, { sex: 'f', v0: 0, v1: 0.02 }));
+    lay('women', slots(lerp(P_.hall0, P_.hall1, 0.38), lerp(P_.hall0, P_.hall1, 0.6), nw), -1);
     avoid([0.44, 1]);
   }
 
@@ -1805,21 +2159,25 @@
     {
       kind: 'act', utter: '国权是耶和华的；他是管理万国的', cmd: 'mount --realm 一百二十七省 --from 印度 --to 古实  # 国权 = 耶和华的', ref: '诗篇 22:28',
       verse: [
-        { text: '亚哈随鲁王在书珊城的宫登基；在位第三年，为他一切首领臣仆设摆筵席，……<br>他把他荣耀之国的丰富和他美好威严的尊贵给他们看了许多日，就是一百八十日。', ref: '以斯帖记 1:2–4', hold: 8.5 },
-        { text: '这日子满了，又为所有住书珊城的大小人民在御园的院子里设摆筵席七日。<br>有白色、绿色、蓝色的帐子，用细麻绳、紫色绳从银环内系在白玉石柱上……', ref: '以斯帖记 1:5–6', hold: 8.5 },
+        { text: '亚哈随鲁王在书珊城的宫登基；<br>在位第三年，为他一切首领臣仆设摆筵席……就是一百八十日。', ref: '以斯帖记 1:2–4', hold: 7 },
+        { text: '这日子满了，又为所有住书珊城的大小人民在御园的院子里设摆筵席七日。<br>有白色、绿色、蓝色的帐子，用细麻绳、紫色绳从银环内系在白玉石柱上……', ref: '以斯帖记 1:5–6', hold: 8 },
         { text: '用金器皿赐酒，器皿各有不同。御酒甚多，足显王的厚意。', ref: '以斯帖记 1:7', hold: 5.5 },
       ],
       apply(c) {
         const P_ = X();
+        // 首领臣仆自朝门进来，停在内院（王宝座的前面），向着王下拜；妇女与瓦实提在殿的另一边
+        const nN = port() ? 4 : 6;
+        const inCourt = slots(P_.court0 + 0.004, P_.hall0 - 0.002, nN), outGate = slots(P_.gate + 0.016, P_.st1, nN);
         T(c, [
           [0, b => {
             W.set('etProv', 1, b.instant); W.set('etBanner', 1, b.instant);
             sfx(b, 'stars'); sfx(b, 'harp', { soft: true });
-            if (!b.instant && fx()) fx().ring(P_.throne * W.w, gY(2, P_.throne) - 30 * PK(), [255, 226, 160], M() * 0.3, 2.4, 2);
+            if (!b.instant && fx()) fx().ring(P_.throne * W.w, FY(P_.throne) - 30 * PK(), [255, 226, 160], M() * 0.3, 2.4, 2);
           }],
           [0.6, () => {
-            crowd('nobles', { n: port() ? 4 : 6, x0: P_.st0, x1: P_.st1, label: '首领臣仆', pose: 'stand' }, dressAs(NOBLE, { sex: 'm', hair: 'cloth', beard: true, v0: 0, v1: 0.1 }));
-            cwalk('nobles', P_.court0 + 0.004, P_.hall0 + 0.012, { speed: 0.045 });
+            crowd('nobles', { n: nN, x0: P_.st0, x1: P_.st1, label: '首领臣仆', pose: 'stand' }, dressAs(NOBLE, { sex: 'm', hair: 'cloth', beard: true, v0: 0.06, v1: 0.2 }));
+            lay('nobles', slots(P_.st0, P_.st1, nN), -1);
+            cgo('nobles', inCourt, { speed: 0.05 });
             cface('nobles', 1);
           }],
           [6.5, b => { cpose('nobles', 'bow'); W.set('etGold', 0.3, b.instant); W.goTo(0.47, 7, b.instant); sfx(b, 'crowd', { soft: true }); }],
@@ -1835,7 +2193,7 @@
           }],
           [11.5, () => {
             cpose('nobles', 'stand');
-            cwalk('nobles', P_.gate - 0.02, P_.st1, { speed: 0.035 });
+            cgo('nobles', outGate, { speed: 0.04 });
             cface('nobles', 1);
             kingOff();
             walk('king', P_.couch, { speed: 0.035 });
@@ -1853,26 +2211,28 @@
 
     // ── 诗 75:7 他使这人降卑，使那人升高：瓦实提不肯来（1:10–22）───────
     {
-      kind: 'judge', utter: '他使这人降卑，使那人升高', cmd: 'demote 瓦实提 && reserve 王后 --for 比她还好的人', ref: '诗篇 75:7',
+      kind: 'act', utter: '他使这人降卑，使那人升高', cmd: 'demote 瓦实提 && reserve 王后 --for 比她还好的人', ref: '诗篇 75:7',
       verse: [
         { text: '第七日，亚哈随鲁王饮酒，心中快乐，……请王后瓦实提头戴王后的冠冕到王面前，<br>使各等臣民看她的美貌，因为她容貌甚美。', ref: '以斯帖记 1:10–11', hold: 7.5 },
         { text: '王后瓦实提却不肯遵太监所传的王命而来，所以王甚发怒，心如火烧。', ref: '以斯帖记 1:12', hold: 6 },
-        { text: '米母干在王和众首领面前回答说：「……王若以为美，就降旨写在波斯和米底亚人的例中，永不更改，<br>不准瓦实提再到王面前，将她王后的位分赐给比她还好的人。」', ref: '以斯帖记 1:16–19', hold: 9 },
+        { text: '米母干在王和众首领面前回答说：「……王若以为美，……<br>不准瓦实提再到王面前，将她王后的位分赐给比她还好的人。」', ref: '以斯帖记 1:16–19', hold: 7.5 },
       ],
       apply(c) {
         const P_ = X();
-        const vx = lerp(P_.hall0, P_.hall1, 0.33);
+        const vx = VX(), nE = port() ? 4 : 7, nS = port() ? 3 : 5;
+        // 七个太监自王的榻前去到瓦实提面前（停在她左边，不遮住她与众妇女），又回来
+        const home = slots(P_.couch + 0.008, P_.g1 + 0.012, nE), before = slots(vx - (port() ? 0.09 : 0.078), vx - 0.02, nE);
         T(c, [
           [0, b => {
             W.goTo(0.66, 8, b.instant);
-            crowd('eunuchs', { n: port() ? 4 : 7, x0: P_.couch + 0.012, x1: P_.g1 + 0.01, label: '七个太监', pose: 'stand' }, dressAs(EUNUCH, { sex: 'm', v0: 0.06, v1: 0.14, seed: 0.5 }));
-            cface('eunuchs', -1);
+            crowd('eunuchs', { n: nE, x0: P_.couch + 0.012, x1: P_.g1 + 0.01, label: '七个太监', pose: 'stand' }, dressAs(EUNUCH, { sex: 'm', v0: 0.04, v1: 0.18, seed: 0.5 }));
+            lay('eunuchs', home, -1);
           }],
-          [2, () => { cwalk('eunuchs', vx - 0.05, vx - 0.012, { speed: 0.045 }); cface('eunuchs', 1); }],
+          [2, () => { cgo('eunuchs', before, { speed: 0.045 }); cface('eunuchs', 1); }],
           [7, b => { face('vashti', 1); pose('vashti', 'stand'); glow('vashti', 0.15); sfx(b, 'gate', { soft: true }); }],
           [8.2, () => { face('vashti', -1); }],
           [8.6, () => { face('vashti', 1); }],
-          [9.2, () => { cwalk('eunuchs', P_.couch + 0.012, P_.g1 + 0.01, { speed: 0.05 }); cface('eunuchs', -1); }],
+          [9.2, () => { cgo('eunuchs', home, { speed: 0.05 }); cface('eunuchs', -1); }],
           [13.4, b => {
             W.set('etWrath', 1, b.instant); cpose('guests', 'bow'); cpose('nobles', 'bow');
             sfx(b, 'fire', { low: true, soft: true });
@@ -1881,8 +2241,8 @@
           [15, () => {
             crm('eunuchs');
             add('memucan', { label: '米母干', sex: 'm', age: 'elder', x: P_.g1 + 0.03, v: 0.2, facing: -1, robe: ROBE.memucan, glow: 0.2, hair: 'cloth', beard: true });
-            crowd('sages', { n: port() ? 3 : 6, x0: P_.g1 + 0.01, x1: P_.court0 + 0.01, label: '七个大臣', pose: 'stand' }, dressAs(SAGE, { sex: 'm', age: 'elder', hair: 'cloth', beard: true, v0: 0.1, v1: 0.2, prop: 'staff' }));
-            cface('sages', -1);
+            crowd('sages', { n: nS, x0: P_.g1, x1: P_.court0 + 0.02, label: '七个大臣', pose: 'stand' }, dressAs(SAGE, { sex: 'm', age: 'elder', hair: 'cloth', beard: true, v0: 0.1, v1: 0.22, prop: 'staff' }));
+            lay('sages', slots(P_.g1 - 0.012, P_.court0 + 0.026, nS), -1);
           }],
           [17.5, () => { walk('memucan', P_.couch + 0.03, { speed: 0.025, pose: 'point' }); }],
           [21.5, b => {
@@ -1939,8 +2299,11 @@
             W.set('etHidden', 0.1, b.instant);
           }],
           [9.2, () => {
-            crowd('maidens', { n: port() ? 3 : 5, x0: P_.st0 + 0.005, x1: P_.st1, label: '众女子', pose: 'stand' }, dressAs(MAIDEN, { sex: 'f', v0: 0.04, v1: 0.14 }));
-            cwalk('maidens', P_.court0 + 0.004, P_.hall0 - 0.004, { speed: 0.03 });
+            const nM = port() ? 3 : 5;
+            crowd('maidens', { n: nM, x0: P_.st0 + 0.005, x1: P_.st1, label: '众女子', pose: 'stand' }, dressAs(MAIDEN, { sex: 'f', v0: 0.04, v1: 0.16 }));
+            lay('maidens', slots(P_.st0 + 0.005, P_.st1, nM), -1);
+            cgo('maidens', slots(P_.court0 + 0.004, P_.hall0 - 0.004, nM, P_.stand, 0.008), { speed: 0.03 });
+            cface('maidens', 1);
             add('hegai', { label: '希该', sex: 'm', age: 'adult', x: P_.court0 + 0.01, facing: 1, robe: ROBE.hegai, glow: 0.2, hair: 'cloth' });
           }],
           [10.2, () => { walk('esther', P_.stand, { speed: 0.05 }); face('mordecai', -1); pose('mordecai', 'gaze'); }],
@@ -2008,29 +2371,32 @@
       ],
       apply(c) {
         const P_ = X();
-        const hx = P_.tip - 0.012;
+        const hx = P_.tip - 0.012;                                  // 哈曼在王前受封
+        const hG = P_.gate - (port() ? 0.012 : 0.006);              // 哈曼走到朝门的门洞里
+        const t0 = walkT(P_.court0, hx, 0.03), tA = t0 + 4.2 + walkT(hx, hG, 0.03);
+        // 朝门的臣仆站在门外的宽阔处（末底改就在他们中间），都向着门洞里的哈曼俯伏；只有末底改站着
+        const nS = port() ? 3 : 4;
+        const sx = slots(hG + 0.02, P_.st1, nS, P_.seat, port() ? 0.018 : 0.016);
         T(c, [
           [0, b => {
             W.goTo(0.52, 8, b.instant);
-            add('haman', { label: '哈曼', sex: 'm', age: 'adult', x: P_.court0 + 0.004, facing: 1, robe: ROBE.haman, glow: 0.25, hair: 'cloth', accent: [214, 170, 86], beard: true });
+            add('haman', hamanLook({ x: P_.court0 + 0.004, facing: 1, glow: 0.25 }));
             walk('haman', hx, { speed: 0.03 });
           }],
-          [walkT(P_.court0, hx, 0.03) + 0.4, b => { pose('haman', 'bow'); face('haman', 1); sfx(b, 'harp', { soft: true }); }],
-          [walkT(P_.court0, hx, 0.03) + 2.2, b => {
+          [t0 + 0.4, b => { pose('haman', 'bow'); face('haman', 1); sfx(b, 'harp', { soft: true }); }],
+          [t0 + 2.2, b => {
             pose('haman', 'raise'); glow('haman', 0.6);
             ringOn(b, 'haman', [255, 190, 150], 0.14, 0.4); sparkleOn(b, 'haman', 16, [255, 196, 150]);
-            crowd('servants', { n: port() ? 3 : 5, x0: P_.gate - 0.05, x1: P_.gate - 0.026, label: '在朝门的臣仆', pose: 'stand' }, dressAs(SERV, { sex: 'm', hair: 'cloth', v0: 0.06, v1: 0.2, seed: 0.2 }));
-            cface('servants', -1);
+            crowd('servants', { n: nS, x0: hG + 0.02, x1: P_.st1, label: '在朝门的臣仆', pose: 'stand' }, dressAs(SERV, { sex: 'm', hair: 'cloth', v0: 0.04, v1: 0.2, seed: 0.2 }));
+            lay('servants', sx, hG);
           }],
-          [walkT(P_.court0, hx, 0.03) + 4.2, () => { pose('haman', 'stand'); walk('haman', P_.seat - 0.034, { speed: 0.028 }); }],
-          [walkT(P_.court0, hx, 0.03) + 6.5, b => { cpose('servants', 'bow'); sfx(b, 'crowd', { soft: true }); }],
-          [walkT(P_.court0, hx, 0.03) + 7.5, () => { pose('mordecai', 'stand'); face('mordecai', -1); glow('mordecai', 0.75); }],
-          [walkT(P_.court0, hx, 0.03) + 4.2 + walkT(hx, P_.seat - 0.034, 0.028) + 0.4, b => {
-            face('haman', 1); W.set('etHWrath', 1, b.instant);
-            sfx(b, 'fire', { low: true });
-          }],
-          [22, b => { W.set('etShadow', 0.45, b.instant); W.set('etHWrath', 0.4, b.instant); walk('haman', hx, { speed: 0.035 }); cpose('servants', 'stand'); }],
-          [26, () => { pose('mordecai', 'sit'); glow('mordecai', 0.45); face('haman', 1); }],
+          [t0 + 4.2, () => { pose('haman', 'stand'); walk('haman', hG, { speed: 0.03 }); }],
+          // 哈曼将到：末底改起来站着，面向他
+          [tA - 1.6, () => { pose('mordecai', 'stand'); face('mordecai', -1); glow('mordecai', 0.75); }],
+          [tA + 0.3, b => { face('haman', 1); cface('servants', hG); cpose('servants', 'bow'); sfx(b, 'crowd', { soft: true }); }],
+          [tA + 2.4, b => { face('haman', 1); W.set('etHWrath', 1, b.instant); sfx(b, 'fire', { low: true }); }],
+          [Math.max(22, tA + 6.5), b => { W.set('etShadow', 0.45, b.instant); W.set('etHWrath', 0.4, b.instant); walk('haman', hx, { speed: 0.035 }); cpose('servants', 'stand'); }],
+          [Math.max(26, tA + 9.5), () => { pose('mordecai', 'sit'); glow('mordecai', 0.45); face('haman', 1); }],
         ]);
       },
     },
@@ -2039,48 +2405,51 @@
     {
       kind: 'act', utter: '签放在怀里，定事由耶和华', cmd: 'roll --lots 普珥 --days --months  # 定事由耶和华', ref: '箴言 16:33',
       verse: [
-        { text: '亚哈随鲁王十二年正月，就是尼散月，人在哈曼面前，按日日月月掣普珥，<br>就是掣签，要定何月何日为吉，择定了十二月，就是亚达月。', ref: '以斯帖记 3:7', hold: 8.5 },
+        { text: '亚哈随鲁王十二年正月，……人在哈曼面前，按日日月月掣普珥，<br>就是掣签，要定何月何日为吉，择定了十二月，就是亚达月。', ref: '以斯帖记 3:7', hold: 8 },
         { text: '于是王从自己手上摘下戒指给犹大人的仇敌亚甲族哈米大他的儿子哈曼。', ref: '以斯帖记 3:10', hold: 6 },
         { text: '驿卒奉王命急忙起行，旨意也传遍书珊城。<br>王同哈曼坐下饮酒，书珊城的民却都慌乱。', ref: '以斯帖记 3:15', hold: 7 },
       ],
       apply(c) {
         const P_ = X();
+        const nC = port() ? 3 : 5;
+        // 先入黄昏（签轮在暮色里才看得清），再掣签
         T(c, [
           [0, b => {
-            W.goTo(0.78, 9, b.instant);
-            W.set('etLot', 0, true); W.set('etLots', 1, b.instant);
+            W.goTo(0.785, 4, b.instant);
+            W.set('etLot', 0, true);
             W.set('etHWrath', 0.2, b.instant);
             pose('haman', 'raise'); face('haman', 1);
-            sfx(b, 'stars', { soft: true });
           }],
-          [1.2, b => { W.set('etLot', 1, b.instant); sfx(b, 'chime'); }],
-          [7.8, b => {
+          [2.4, b => { W.set('etLots', 1, b.instant); sfx(b, 'stars', { soft: true }); }],
+          [4.5, b => { W.set('etLot', 1, b.instant); sfx(b, 'chime'); }],
+          [10.8, b => {
             W.set('etHWrath', 0.7, b.instant);
             sfx(b, 'seal', { low: true });
             if (!b.instant && fx()) { const g = ringGeom(), an = monthAng(11, 0); fx().ring(g.cx + Math.cos(an) * g.r, g.cy + Math.sin(an) * g.r, [255, 120, 90], M() * 0.08, 1.6, 1.2); }
             pose('haman', 'stand');
           }],
-          [10, b => { passTo(b, 'king', 'haman', [255, 226, 150]); sfx(b, 'seal', { soft: true }); }],
-          [11.8, b => { pose('haman', 'bow'); W.set('etLots', 0.35, b.instant); }],
-          [13.5, b => {
+          [13, b => { passTo(b, 'king', 'haman', [255, 226, 150]); sfx(b, 'seal', { soft: true }); }],
+          [14.8, b => { pose('haman', 'bow'); W.set('etLots', 0.35, b.instant); }],
+          [16.5, b => {
             pose('haman', 'stand');
             letters(b, [230, 90, 70], 20); riders(b, [230, 90, 70], 4);
             W.set('etProvRed', 1, b.instant); W.set('etProv', 0.85, b.instant);
             sfx(b, 'wind');
           }],
-          [17, b => {
+          [20, b => {
             W.set('etShadow', 1, b.instant);
-            crowd('citizens', { n: port() ? 3 : 5, x0: P_.st0, x1: P_.st1, label: '书珊城的民', pose: 'stand' }, dressAs(TOWN, { sex: 'mix', v0: 0.12, v1: 0.3, seed: 0.7 }));
+            crowd('citizens', { n: nC, x0: P_.st0, x1: P_.st1, label: '书珊城的民', pose: 'stand' }, dressAs(TOWN, { sex: 'mix', v0: 0.14, v1: 0.34, seed: 0.7 }));
+            lay('citizens', slots(P_.st0, P_.st1, nC, P_.seat, 0.012), -1);
             sfx(b, 'crowd', { soft: true });
           }],
-          [18.5, b => {
-            const ms = cmembers('citizens');
-            ms.forEach((m, i) => { if (i % 2) { m.facing = -m.facing; if (W.replaying) m.fd = m.facing; } });
+          [21.5, b => {
+            // 慌乱：有的转身，有的哀哭（每隔一人转向，确定的）
+            cmembers('citizens').forEach((m, i) => { m.facing = i % 2 ? 1 : -1; if (W.replaying) m.fd = m.facing; });
             cpose('citizens', 'weep');
             walk('haman', P_.seatH, { speed: 0.03 });
             W.set('etBanquet', 0.55, b.instant);
           }],
-          [18.5 + walkT(P_.tip - 0.012, P_.seatH, 0.03) + 0.4, () => { seatOn('haman', P_.seatH, 1); S.hamanSeat = 'banquet'; }],
+          [21.5 + walkT(P_.tip - 0.012, P_.seatH, 0.03) + 0.4, () => { seatOn('haman', P_.seatH, 1); S.hamanSeat = 'banquet'; }],
         ]);
       },
     },
@@ -2090,22 +2459,23 @@
       kind: 'ask', utter: '焉知你得了王后的位分不是为现今的机会吗', cmd: 'if (queen && now) { speak(); }  # 别处 = ?', ref: '4:14',
       verse: [
         { text: '末底改知道所做的这一切事，就撕裂衣服，穿麻衣，蒙灰尘，在城中行走，痛哭哀号。', ref: '以斯帖记 4:1', hold: 7 },
-        { text: '末底改托人回复以斯帖说：「……此时你若闭口不言，犹大人必从别处得解脱，蒙拯救；<br>你和你父家必致灭亡。焉知你得了王后的位分不是为现今的机会吗？」', ref: '以斯帖记 4:13–14', hold: 8.5 },
-        { text: '以斯帖就吩咐人回报末底改说：「你当去招聚书珊城所有的犹大人，为我禁食三昼三夜，不吃不喝；<br>我和我的宫女也要这样禁食。然后我违例进去见王，我若死就死吧！」', ref: '以斯帖记 4:15–16', hold: 9 },
+        { text: '末底改托人回复以斯帖说：「……此时你若闭口不言，犹大人必从别处得解脱，蒙拯救；……<br>焉知你得了王后的位分不是为现今的机会吗？」', ref: '以斯帖记 4:13–14', hold: 8 },
+        { text: '以斯帖就吩咐人回报末底改说：「你当去招聚书珊城所有的犹大人，为我禁食三昼三夜……<br>然后我违例进去见王，我若死就死吧！」', ref: '以斯帖记 4:15–16', hold: 8 },
       ],
       apply(c) {
         const P_ = X();
         T(c, [
           [0, b => {
             W.goTo(0.34, 6, b.instant);
-            W.set('etLots', 0.12, b.instant); W.set('etBanquet', 0, b.instant); W.set('etHWrath', 0, b.instant);
+            W.set('etLots', 0, b.instant); W.set('etBanquet', 0, b.instant); W.set('etHWrath', 0, b.instant);
             unseat('haman'); S.hamanSeat = null;
             walk('haman', P_.g1 - 0.01, { speed: 0.04 });
             crm('citizens'); crm('servants');
           }],
           [0.6, b => {
+            // 麻衣比众人更深更灰：在哭号的人中一眼认出他
             add('mordecai', { robe: ROBE.sack, hair: 'none' });
-            pose('mordecai', 'weep', { weep: true });
+            pose('mordecai', 'weep', { weep: true }); glow('mordecai', 0.35);
             fxAdd(b, { type: 'ash', id: 'mordecai', dur: 3.5 });
             walk('mordecai', P_.st1, { speed: 0.02, pose: 'weep' });
             sfx(b, 'weep');
@@ -2113,8 +2483,15 @@
           [3.2, b => {
             rm('haman');
             W.set('etAsh', 1, b.instant);
-            crowd('jews', { n: port() ? 3 : 5, x0: P_.st0 - 0.01, x1: P_.st1, label: '犹大人', pose: 'kneel' }, dressAs(TOWN.map(r => mix(r, [70, 62, 54], 0.6)), { sex: 'mix', v0: 0.16, v1: 0.34, seed: 0.1 }));
+            // 众犹大人跪在他右前方（街上），他独自在朝门
+            const nJ = port() ? 3 : 5;
+            crowd('jews', { n: nJ, x0: P_.st0 - 0.01, x1: P_.st1, label: '犹大人', pose: 'kneel' }, dressAs(TOWN.map(r => mix(r, [104, 94, 80], 0.55)), { sex: 'mix', v0: 0.26, v1: 0.4, seed: 0.1 }));
+            lay('jews', slots(P_.seat - 0.03, P_.st1 + 0.004, nJ, P_.seat, port() ? 0.02 : 0.018), -1);
           }],
+          [4.3, b => { fxAdd(b, { type: 'ash', id: 'mordecai', dur: 3.5 }); }],
+          [8.3, b => { fxAdd(b, { type: 'ash', id: 'mordecai', dur: 3.5 }); }],
+          [12.3, b => { fxAdd(b, { type: 'ash', id: 'mordecai', dur: 3.5 }); }],
+          [16.3, b => { fxAdd(b, { type: 'ash', id: 'mordecai', dur: 3.5 }); }],
           [3.2 + walkT(P_.seat, P_.st1, 0.02) + 0.2, () => { walk('mordecai', P_.seat - 0.004, { speed: 0.02, pose: 'weep' }); }],
           [5, () => {
             walk('esther', P_.stand + 0.01, { speed: 0.035 });
@@ -2131,8 +2508,9 @@
           [21.5, b => {
             rm('hathach');
             pose('esther', 'pray');
-            crowd('maids', { n: port() ? 2 : 3, x0: P_.court0 + 0.006, x1: P_.stand - 0.006, label: '宫女', pose: 'pray' }, dressAs(MAIDEN, { sex: 'f', v0: 0.04, v1: 0.12, seed: 0.4 }));
-            cface('maids', 1);
+            const nm = port() ? 2 : 3;
+            crowd('maids', { n: nm, x0: P_.court0 + 0.006, x1: P_.stand - 0.006, label: '宫女', pose: 'pray' }, dressAs(MAIDEN, { sex: 'f', v0: 0.04, v1: 0.14, seed: 0.4 }));
+            lay('maids', slots(P_.court0 - 0.004, P_.stand - 0.004, nm), 1);
             pose('mordecai', 'pray'); cpose('jews', 'pray');
             W.goTo(0.93, 8, b.instant);
           }],
@@ -2147,7 +2525,7 @@
       verse: [
         { text: '第三日，以斯帖穿上朝服，进王宫的内院，对殿站立。<br>王在殿里坐在宝座上，对着殿门。', ref: '以斯帖记 5:1', hold: 7 },
         { text: '王见王后以斯帖站在院内，就施恩于她，向她伸出手中的金杖；<br>以斯帖便向前摸杖头。', ref: '以斯帖记 5:2', hold: 7 },
-        { text: '王对她说：「王后以斯帖啊，你要什么？你求什么，就是国的一半也必赐给你。」<br>以斯帖说：「王若以为美，就请王带着哈曼今日赴我所预备的筵席。」', ref: '以斯帖记 5:3–4', hold: 8.5 },
+        { text: '王对她说：「王后以斯帖啊，你要什么？你求什么，就是国的一半也必赐给你。」<br>以斯帖说：「王若以为美，就请王带着哈曼今日赴我所预备的筵席。」', ref: '以斯帖记 5:3–4', hold: 8 },
       ],
       apply(c) {
         const P_ = X();
@@ -2168,6 +2546,7 @@
           [9.2, b => { ringOn(b, 'king', [255, 226, 160], 0.1, 0.3); sfx(b, 'harp', { soft: true }); }],
           [10.2, b => {
             W.set('etScepter', 1, b.instant); W.set('etGold', 1, b.instant); W.set('etRill', 1, b.instant); W.set('etHidden', 0.7, b.instant);
+            fxAdd(b, { type: 'pulse', dur: 3.4, delay: 0.3 });
             sfx(b, 'angel', { soft: true }); sfx(b, 'harp');
             if (!b.instant) W.flash = Math.max(W.flash || 0, 0.18);
           }],
@@ -2181,7 +2560,7 @@
           [23, b => { pose('esther', 'stand'); W.set('etScepter', 0, b.instant); W.set('etGold', 0.35, b.instant); W.set('etHidden', 0.2, b.instant); }],
           [24, b => {
             W.set('etBanquet', 1, b.instant);
-            add('haman', { label: '哈曼', sex: 'm', age: 'adult', x: P_.court0 + 0.004, facing: 1, robe: ROBE.haman, glow: 0.4, hair: 'cloth', accent: [214, 170, 86], beard: true });
+            add('haman', hamanLook({ x: P_.court0 + 0.004, facing: 1, glow: 0.4 }));
             walk('haman', P_.seatH, { speed: 0.04 });
             crm('jews');
             sfx(b, 'harp', { soft: true });
@@ -2196,9 +2575,9 @@
     {
       kind: 'promise', utter: '保护以色列的，也不打盹也不睡觉', cmd: 'while (night) { watch 以色列; }  # sleep: never', ref: '诗篇 121:4',
       verse: [
-        { text: '他的妻细利斯和他一切的朋友对他说：「不如立一个五丈高的木架，明早求王将末底改挂在其上……」<br>哈曼以这话为美，就叫人做了木架。', ref: '以斯帖记 5:14', hold: 8.5 },
+        { text: '他的妻细利斯和他一切的朋友对他说：「不如立一个五丈高的木架，明早求王将末底改挂在其上……」<br>哈曼以这话为美，就叫人做了木架。', ref: '以斯帖记 5:14', hold: 8 },
         { text: '那夜王睡不着觉，就吩咐人取历史来，念给他听。', ref: '以斯帖记 6:1', hold: 5.5 },
-        { text: '正遇见书上写着说：……末底改将这事告诉王后。<br>王说：「末底改行了这事，赐他什么尊荣爵位没有？」伺候王的臣仆回答说：「没有赐他什么。」', ref: '以斯帖记 6:2–3', hold: 9 },
+        { text: '王说：「末底改行了这事，赐他什么尊荣爵位没有？」<br>伺候王的臣仆回答说：「没有赐他什么。」', ref: '以斯帖记 6:3', hold: 7 },
       ],
       apply(c) {
         const P_ = X();
@@ -2216,13 +2595,13 @@
           [hw + 1.6, b => { W.set('etBanquet', 0, b.instant); walk('haman', P_.court0 - 0.005, { speed: 0.065 }); }],
           [hw + 1.6 + walkT(P_.seat, P_.court0, 0.065) - 0.9, () => { rm('haman'); }],
           [hw + 1.6 + walkT(P_.seat, P_.court0, 0.065) + 0.2, b => {
-            add('hamanH', { label: '哈曼', sex: 'm', age: 'adult', layer: 1, x: P_.hh + 0.022, facing: -1, robe: ROBE.haman, glow: 0.2, hair: 'cloth', accent: [214, 170, 86], beard: true });
-            add('zeresh', { label: '细利斯', sex: 'f', age: 'adult', layer: 1, x: P_.hh + 0.004, facing: 1, robe: ROBE.zeresh, glow: 0.1 });
-            W.set('etHWrath', 0.6, b.instant);
+            add('hamanH', hamanLook({ layer: 1, x: P_.hh + 0.024, facing: -1, glow: 0.25 }));
+            add('zeresh', { label: '细利斯', sex: 'f', age: 'adult', layer: 1, x: P_.hh + 0.004, facing: 1, robe: ROBE.zeresh, glow: 0.15 });
+            W.set('etHWrath', 0.6, b.instant); W.set('etHLamp', 1, b.instant);
           }],
           [hw + 1.6 + walkT(P_.seat, P_.court0, 0.065) + 1.4, b => { pose('zeresh', 'point'); W.set('etGallows', 1, b.instant); sfx(b, 'build'); }],
           [hw + 1.6 + walkT(P_.seat, P_.court0, 0.065) + 3.2, b => { W.goTo(0.02, 7, b.instant); sfx(b, 'build', { soft: true }); pose('zeresh', 'stand'); pose('hamanH', 'gaze'); }],
-          [hw + 1.6 + walkT(P_.seat, P_.court0, 0.065) + 7.5, b => { rm('hamanH'); rm('zeresh'); W.set('etHWrath', 0, b.instant); W.set('etShadow', 0.6, b.instant); }],
+          [hw + 1.6 + walkT(P_.seat, P_.court0, 0.065) + 7.5, b => { rm('hamanH'); rm('zeresh'); W.set('etHWrath', 0, b.instant); W.set('etShadow', 0.6, b.instant); W.set('etHLamp', 0, b.instant); }],
           [16.5, b => {
             W.set('etKingLamp', 1, b.instant); W.set('etWatch', 1, b.instant); W.set('etHidden', 0.55, b.instant);
             face('king', 1); sfx(b, 'stars', { soft: true });
@@ -2245,18 +2624,24 @@
       verse: [
         { text: '哈曼就进去。王问他说：「王所喜悦尊荣的人，当如何待他呢？」<br>哈曼心里说：「王所喜悦尊荣的，不是我是谁呢？」', ref: '以斯帖记 6:6', hold: 7.5 },
         { text: '于是哈曼将朝服给末底改穿上，使他骑上马，走遍城里的街市，<br>在他面前宣告说：「王所喜悦尊荣的人，就如此待他。」', ref: '以斯帖记 6:11', hold: 8 },
-        { text: '末底改仍回到朝门，哈曼却忧忧闷闷地蒙着头，急忙回家去了……<br>他的智慧人和他的妻细利斯对他说：「你在末底改面前始而败落……终必在他面前败落。」', ref: '以斯帖记 6:12–13', hold: 8.5 },
+        { text: '末底改仍回到朝门，哈曼却忧忧闷闷地蒙着头，急忙回家去了……<br>他的智慧人和他的妻细利斯对他说：「……终必在他面前败落。」', ref: '以斯帖记 6:12–13', hold: 7.5 },
       ],
       apply(c) {
         const P_ = X();
         const hx = P_.tip - 0.014;
         const t1 = 0.5 + walkT(P_.court0, hx, 0.05);           // 哈曼进到王前
-        const t2 = 7 + walkT(hx, P_.seat - 0.03, 0.055);        // 哈曼到了朝门
-        const hs = P_.seat + 0.026;                              // 御马站处
-        const far = P_.tip + 0.01;                               // 游行最远处（王宫前）
-        const out = walkT(hs, far, 0.042);
-        const back = t2 + 1.6 + out + 2.2;
-        const home = back + walkT(far, hs, 0.045) + 0.3;
+        const hG = P_.seat - 0.03;                              // 哈曼到了朝门
+        const t2 = 7 + walkT(hx, hG, 0.055);
+        // 游行在台前的街上（不进殿）：自朝门前向西，到御园前，又回来；百姓在两旁
+        const PV = 0.36, sp = port() ? 0.05 : 0.042;
+        const hs = port() ? P_.seat - 0.02 : P_.seat;           // 御马站在末底改的座前（街上）
+        const far = port() ? 0.64 : 0.69;                       // 游行最远处（御园前）
+        const tR = t2 + 2;                                      // 骑上马
+        const out = walkT(hs, far, sp);
+        const back = tR + out + 2.2;
+        const home = back + walkT(far, hs, sp) + 0.3;
+        const nC = port() ? 3 : 5;
+        const cx = slots(far - 0.03, P_.gate - 0.01, nC, hs, 0.02);
         T(c, [
           [0, b => {
             W.goTo(0.3, 6, b.instant);
@@ -2265,51 +2650,56 @@
             walk('scribe', P_.chest, { speed: 0.035 });
           }],
           [0.5, () => {
-            add('haman', { label: '哈曼', sex: 'm', age: 'adult', x: P_.court0 + 0.004, facing: 1, robe: ROBE.haman, glow: 0.4, hair: 'cloth', accent: [214, 170, 86], beard: true });
+            add('haman', hamanLook({ x: P_.court0 + 0.004, facing: 1, glow: 0.4, v: 0 }));
             walk('haman', hx, { speed: 0.05 });
           }],
           [2.4, () => { rm('scribe'); }],
           [t1 + 0.3, b => { pose('haman', 'bow'); face('haman', 1); sfx(b, 'harp', { soft: true }); }],
           [t1 + 1.8, b => { pose('haman', 'raise'); W.set('etHWrath', 0.35, b.instant); }],
           [5.8, b => {
-            animal('horse', 'donkey', hs, { label: '御马', col: [226, 220, 208], facing: -1, v: 0.05 });
-            sfx(b, 'donkey', { soft: true });
+            animal('horse', 'horse', hs, { label: '御马', col: [226, 220, 208], facing: -1, v: PV });
+            sfx(b, 'horse', { soft: true });
           }],
-          [7, b => { pose('haman', 'stand'); W.set('etHWrath', 0, b.instant); walk('haman', P_.seat - 0.03, { speed: 0.055 }); }],
+          [7, b => { pose('haman', 'stand'); W.set('etHWrath', 0, b.instant); walk('haman', hG, { speed: 0.055 }); }],
           [t2 + 0.2, b => {
             face('haman', 1);
-            add('mordecai', { robe: ROBE.king, accent: GOLDA, hair: 'cloth' });
-            pose('mordecai', 'stand'); glow('mordecai', 0.8);
+            // 王常穿的朝服（6:8）：王的紫红；头上是白的头巾——与王、哈曼一眼分开
+            add('mordecai', { robe: ROBE.king, accent: WHITE_A, hair: 'cloth', v: PV - 0.03 });
+            pose('mordecai', 'stand'); glow('mordecai', 0.85);
             fxAdd(b, { type: 'rise', id: 'mordecai', dur: 4.5 });
             sfx(b, 'harp');
             crm('jews');
-            crowd('citizens', { n: port() ? 3 : 5, x0: far - 0.01, x1: P_.gate - 0.03, label: '书珊城的民', pose: 'stand' }, dressAs(TOWN, { sex: 'mix', v0: 0.26, v1: 0.42, seed: 0.9 }));
-            cface('citizens', 1);
+            crowd('citizens', { n: nC, x0: far - 0.03, x1: P_.gate - 0.01, label: '书珊城的民', pose: 'stand' }, dressAs(TOWN, { sex: 'mix', seed: 0.9 }));
+            cmembers('citizens').forEach((m, i) => { m.v = i % 2 ? 0.54 : 0.27; });   // 街的两旁：台脚下一排，街前一排
+            lay('citizens', cx, hs);
           }],
-          [t2 + 1.6, () => {
+          [t2 + 0.9, () => { add('haman', { v: PV + 0.02 }); }],
+          [tR, b => {
             ride('mordecai', 'horse');
             face('horse', -1);
-            walk('horse', far, { speed: 0.042 });
-            walk('haman', far - 0.034, { speed: 0.042 });
+            walk('horse', far, { speed: sp });
+            walk('haman', far - 0.034, { speed: sp });
+            sfx(b, 'horse', { soft: true });
           }],
-          [t2 + 1.6 + out + 0.2, b => {
-            pose('haman', 'raise'); face('haman', 1); cpose('citizens', 'raise');
+          [tR + out * 0.5, b => { cpose('citizens', 'raise'); sfx(b, 'crowd', { soft: true }); }],
+          [tR + out + 0.2, b => {
+            pose('haman', 'raise'); face('haman', 1);
             sfx(b, 'crowd'); sparkleOn(b, 'mordecai', 30, [255, 226, 150], 0.3);
           }],
           [back, () => {
             pose('haman', 'stand');
             face('horse', 1);
-            walk('horse', hs, { speed: 0.045 });
-            walk('haman', P_.seat - 0.03, { speed: 0.045 });
+            walk('horse', hs, { speed: sp });
+            walk('haman', hG, { speed: sp });
+            cpose('citizens', 'stand');
           }],
           [home, b => {
             ride('mordecai', null);
-            add('mordecai', { robe: ROBE.mordecai, accent: null, hair: 'cloth' });
+            add('mordecai', { robe: ROBE.mordecai, accent: null, hair: 'cloth', v: 0 });
             place('mordecai', P_.seat);
             pose('mordecai', 'sit'); face('mordecai', -1); glow('mordecai', 0.5);
-            add('haman', { hair: 'cloth', accent: [40, 34, 32] });
+            add('haman', { hair: 'cloth', accent: HAMAN_D, v: 0 });
             pose('haman', 'weep'); face('haman', -1);
-            cpose('citizens', 'stand');
           }],
           [home + 0.9, () => { walk('haman', P_.court0 - 0.005, { speed: 0.075, pose: 'weep' }); rm('horse'); }],
           [home + 3.2, () => { rm('haman'); crm('citizens'); }],
@@ -2319,10 +2709,10 @@
 
     // ── 诗 7:16 他的毒害必临到他自己的头上：第二次筵席（7:1–10）──────────
     {
-      kind: 'judge', utter: '他的毒害必临到他自己的头上', cmd: 'reverse --target 哈曼  # 木架.owner === 木架.builder', ref: '诗篇 7:16',
+      kind: 'judge', utter: '他的毒害必临到他自己的头上', cmd: 'return 毒害 --to 自己的头上  # 诗 7:15 他掘了坑，又挖深了，竟掉在自己所挖的阱里', ref: '诗篇 7:16',
       verse: [
         { text: '王后以斯帖回答说：「我若在王眼前蒙恩，王若以为美，<br>我所愿的，是愿王将我的性命赐给我；我所求的，是求王将我的本族赐给我。……」', ref: '以斯帖记 7:3', hold: 8 },
-        { text: '亚哈随鲁王问王后以斯帖说：「擅敢起意如此行的是谁？这人在哪里呢？」<br>以斯帖说：「仇人敌人就是这恶人哈曼！」哈曼在王和王后面前就甚惊惶。', ref: '以斯帖记 7:5–6', hold: 8.5 },
+        { text: '亚哈随鲁王问王后以斯帖说：「擅敢起意如此行的是谁？这人在哪里呢？」<br>以斯帖说：「仇人敌人就是这恶人哈曼！」哈曼在王和王后面前就甚惊惶。', ref: '以斯帖记 7:5–6', hold: 8 },
         { text: '王说：「把哈曼挂在其上。」<br>于是人将哈曼挂在他为末底改所预备的木架上。王的忿怒这才止息。', ref: '以斯帖记 7:9–10', hold: 7 },
       ],
       apply(c) {
@@ -2333,7 +2723,7 @@
           [0, b => {
             W.goTo(0.64, 6, b.instant);
             W.set('etBanquet', 1, b.instant); W.set('etRead', 0, b.instant);
-            add('haman', { label: '哈曼', sex: 'm', age: 'adult', x: P_.seatH, facing: 1, robe: ROBE.haman, glow: 0.3, hair: 'cloth', accent: [214, 170, 86], beard: true });
+            add('haman', hamanLook({ x: P_.seatH, facing: 1, glow: 0.3, v: 0 }));
             seatOn('haman', P_.seatH, 1); S.hamanSeat = 'banquet';
             kingOff(); walk('king', P_.seatK, { speed: 0.035 });
             walk('esther', P_.table + 0.004, { speed: 0.03 });
@@ -2362,7 +2752,7 @@
           [13 + out + 1.2, () => { walk('king', P_.seatK, { speed: 0.055 }); }],
           [13 + 2 * out + 1.6, b => {
             face('king', -1);
-            add('haman', { accent: [36, 30, 28] });
+            add('haman', { accent: HAMAN_D });
             pose('haman', 'kneel');
             add('harbonah', { label: '哈波拿', sex: 'm', age: 'adult', x: P_.stand, facing: 1, robe: ROBE.harbonah, glow: 0.2, hair: 'cloth' });
             sfx(b, 'gate', { soft: true });
@@ -2395,7 +2785,9 @@
       apply(c) {
         const P_ = X();
         const mIn = walkT(P_.seat, P_.tip - 0.004, 0.045);
-        const mOut = walkT(P_.tip, P_.st0 + 0.012, 0.03);
+        const mOut = walkT(P_.tip, P_.gate, 0.03);
+        // 末底改出来，停在朝门的门洞前（门框住他）；拿着火把欢呼的百姓在台前的草地上（不遮住他）
+        const nC = port() ? 3 : 6, cxs = slots(P_.hall1 + 0.004, P_.st1, nC, P_.gate, port() ? 0.03 : 0.022);
         T(c, [
           [0, b => {
             W.goTo(0.4, 6, b.instant);
@@ -2420,13 +2812,13 @@
             sparkleOn(b, 'mordecai', 36, [255, 230, 160], 0.1);
             glow('mordecai', 0.7);
             face('mordecai', 1);
-            walk('mordecai', P_.st0 + 0.012, { speed: 0.03 });
+            walk('mordecai', P_.gate, { speed: 0.03 });
           }],
           [mIn + 6.4, () => {
-            crowd('citizens', { n: port() ? 3 : 6, x0: P_.st0 + 0.012, x1: P_.st1, label: '书珊城的人民', pose: 'stand' }, dressAs(TOWN, { sex: 'mix', v0: 0.16, v1: 0.34, seed: 0.2, torch: true }));
-            cface('citizens', -1);
+            crowd('citizens', { n: nC, x0: P_.hall1, x1: P_.st1, label: '书珊城的人民', pose: 'stand' }, dressAs(TOWN, { sex: 'mix', v0: 0.27, v1: 0.44, seed: 0.2, torch: true }));
+            lay('citizens', cxs, P_.gate);
           }],
-          [mIn + 5.4 + mOut + 0.3, b => { pose('mordecai', 'raise'); face('mordecai', 1); cpose('citizens', 'raise'); sfx(b, 'crowd'); }],
+          [mIn + 5.4 + mOut + 0.3, b => { pose('mordecai', 'raise'); face('mordecai', -1); cpose('citizens', 'raise'); sfx(b, 'crowd'); }],
           [mIn + 5.4 + mOut + 1.5, b => {
             W.goTo(0.765, 7, b.instant);
             W.set('etLamps', 1, b.instant); W.set('etGlory', 1, b.instant); W.set('etHang', 1, b.instant);
@@ -2449,11 +2841,13 @@
         const P_ = X();
         T(c, [
           [0, b => {
-            W.goTo(0.32, 7, b.instant);
+            // 十三日的黎明之前（签轮在夜里反转，看得清）
+            W.goTo(0.2, 6, b.instant);
             W.set('etLots', 1, b.instant); W.set('etLot', 1, true); W.set('etHidden', 0.4, b.instant);
             crm('citizens');
-            crowd('jews', { n: port() ? 3 : 6, x0: P_.st0 - 0.01, x1: P_.st1, label: '犹大人', pose: 'stand' }, dressAs(TOWN, { sex: 'mix', v0: 0.14, v1: 0.34, seed: 0.35, torch: true }));
-            cface('jews', -1);
+            const nJ = port() ? 3 : 6;
+            crowd('jews', { n: nJ, x0: P_.st0 - 0.01, x1: P_.st1, label: '犹大人', pose: 'stand' }, dressAs(TOWN, { sex: 'mix', v0: 0.16, v1: 0.38, seed: 0.35, torch: true }));
+            lay('jews', slots(P_.gate + 0.004, P_.st1 + 0.004, nJ, P_.seat - 0.006, port() ? 0.018 : 0.014), -1);
             walk('mordecai', P_.seat - 0.006, { speed: 0.02 });
           }],
           [3.2, b => {

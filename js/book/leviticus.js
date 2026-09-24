@@ -199,8 +199,8 @@
     SP.column = b;
     // 柔和的光环（角声、呼叫的声音）：中空，一圈宽宽的光带
     const rc = cnv(128, 128), rg = rc.getContext('2d'), rr = rg.createRadialGradient(64, 64, 0, 64, 64, 64);
-    rr.addColorStop(0, 'rgba(255,230,176,0)'); rr.addColorStop(0.62, 'rgba(255,230,176,0)'); rr.addColorStop(0.84, 'rgba(255,236,190,1)');
-    rr.addColorStop(0.93, 'rgba(255,230,176,0.35)'); rr.addColorStop(1, 'rgba(255,230,176,0)');
+    rr.addColorStop(0, 'rgba(255,230,176,0)'); rr.addColorStop(0.42, 'rgba(255,230,176,0)'); rr.addColorStop(0.66, 'rgba(255,232,182,0.4)');
+    rr.addColorStop(0.84, 'rgba(255,238,196,0.9)'); rr.addColorStop(0.93, 'rgba(255,232,182,0.35)'); rr.addColorStop(1, 'rgba(255,230,176,0)');
     rg.fillStyle = rr; rg.fillRect(0, 0, 128, 128);
     SP.ring = rc;
     // 贴着地面的一道光（竖直方向：上淡、近地最亮、地下很快淡去）
@@ -448,8 +448,13 @@
     if (lamp > 0.02) {
       SP || sprites();
       ctx.globalCompositeOperation = 'lighter';
-      const g = 26 * s, fl = 0.85 + 0.15 * Math.sin(W.t * 6.3 + seed);
-      spr(ctx, SP.warm, x, y - h * 0.45, g, lamp * 0.7 * fl);
+      const g = 40 * s, fl = 0.85 + 0.15 * Math.sin(W.t * 6.3 + seed);
+      spr(ctx, SP.warm, x, y - h * 0.45, g, lamp * 0.85 * fl);
+      spr(ctx, SP.gold, x, y - h * 0.5, 5 * s, lamp * fl);
+      // 灯光照亮棚顶的枝叶的下沿
+      ctx.globalAlpha = lamp * 0.5 * fl;
+      ctx.strokeStyle = 'rgb(255,196,120)'; ctx.lineWidth = Math.max(0.8, 1.4 * s);
+      ctx.beginPath(); ctx.moveTo(x - w * 1.1, top + 1 * s); ctx.lineTo(x + w * 1.1, top + 1 * s); ctx.stroke();
       ctx.globalCompositeOperation = 'source-over';
     }
     ctx.globalAlpha = 1;
@@ -703,11 +708,11 @@
   }
 
   // 田角留下不割的庄稼（23:22）：一小片金黄的麦穗，在灯光里微微发亮
-  const GLEAN_X = 0.474;
+  const GLEAN_X = 0.5;
   function drawGlean(ctx) {
     const k = W.lv.levGlean;
     if (k < 0.01) return;
-    const s = LS(2), x0 = GLEAN_X * W.w, g = gY(2, GLEAN_X), y = g + FORE * 0.55 * Math.max(0, W.h - g) * 0.8;
+    const s = LS(2) * 1.35 * PK(), x0 = GLEAN_X * W.w, g = gY(2, GLEAN_X), y = g + (FORE + 0.1) * Math.max(0, W.h - g) * 0.8;
     const r = U.mulberry32(2322);
     ctx.lineCap = 'round';
     for (let i = 0; i < 16; i++) {
@@ -719,7 +724,18 @@
     }
     SP || sprites();
     ctx.globalCompositeOperation = 'lighter';
-    sprE(ctx, SP.gold, x0, y - 8 * s, 30 * s, 14 * s, k * (0.2 + 0.25 * nightK()));
+    const nk = nightK();
+    // 夜里：麦穗在灯光里发亮
+    if (nk > 0.05) {
+      const r2 = U.mulberry32(2322);
+      ctx.fillStyle = 'rgb(255,214,130)';
+      for (let i = 0; i < 16; i++) {
+        const x = x0 + (i - 7.5) * 1.9 * s + (r2() - 0.5) * 1.4 * s, hh = (9 + r2() * 6) * s * k, sw = Math.sin(W.t * 1.4 + i * 0.7) * 1.2 * s;
+        ctx.globalAlpha = k * nk * 0.75;
+        ctx.beginPath(); ctx.ellipse(x + sw, y - hh - 1.8 * s, 1 * s, 2.6 * s, sw * 0.1, 0, TAU); ctx.fill();
+      }
+    }
+    sprE(ctx, SP.gold, x0, y - 8 * s, 34 * s, 16 * s, k * (0.25 + 0.4 * nk));
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
   }
@@ -1047,7 +1063,7 @@
         // 他们倒下之处：两只香炉落在地上，炉中的火渐渐暗去——只剩缺席
         const env = smoothstep(0, 0.06, q) * Math.pow(1 - q, 0.8);
         for (const pt of e.pts) {
-          const g = gY(2, pt[0]), y = g + pt[1] * Math.max(0, W.h - g) * 0.8, sc = LS(2) * (1 + 0.35 * pt[1]) * PK();
+          const g = gY(2, pt[0]), y = g + pt[1] * Math.max(0, W.h - g) * 0.8, sc = 1.5 * LS(2) * (1 + 0.35 * pt[1]) * PK();
           drawCenser(ctx, pt[0] * W.w, y, sc, env * 0.8, true);
         }
       } else if (e.type === 'oil') {
@@ -1217,12 +1233,12 @@
       } else if (e.type === 'sweep') {
         // 一道宽宽的光沿着地面走过（圣洁、禧年、地是我的）：前头一道光的帷幕，身后留下贴地的光
         const env = 1 - smoothstep(0.7, 1, q), hx = lerp(e.x0, e.x1, U.easeOut(q)), l = e.l == null ? 2 : e.l, sL = LS(l) * PK();
-        const bh = (l === 2 ? 70 : l === 1 ? 44 : 30) * sL, step = 8;
-        const xa = Math.min(e.x0, hx) * W.w, xb = Math.max(e.x0, hx) * W.w;
-        for (let x = xa; x < xb; x += step) {
-          const xf = (x + step / 2) / W.w, d = Math.abs(xf - hx) / Math.max(0.05, Math.abs(e.x1 - e.x0));
-          ctx.globalAlpha = env * 0.55 * Math.max(0.25, 1 - d * 1.5);
-          ctx.drawImage(SP.band, x, gY(l, xf) - bh * 0.8, step + 1, bh);
+        // 走过之处：取预先画好的贴地光带的一段（与圣洁之光同一条光带）
+        const B = holyBand(), sc = B.c.width / W.w;
+        const xa = Math.max(0, Math.min(e.x0, hx) * W.w), xb = Math.min(W.w, Math.max(e.x0, hx) * W.w);
+        if (xb - xa > 2) {
+          ctx.globalAlpha = env * 0.7;
+          ctx.drawImage(B.c, xa * sc, 0, (xb - xa) * sc, B.c.height, xa, B.y0, xb - xa, B.hh);
         }
         const gy = gY(l, hx), H = (l === 2 ? 90 : l === 1 ? 60 : 44) * sL, w = (l === 2 ? 60 : 40) * sL;
         ctx.globalAlpha = env * 0.75;
@@ -1266,9 +1282,10 @@
       for (const pt of e.pts) {
         const px = pt[0] * W.w, py = pt[1] * W.h;
         for (let k = 0; k < 2; k++) {
-          const p = clamp(q * 1.25 - k * 0.22, 0, 1);
+          const p = clamp(q * 1.2 - k * 0.3, 0, 1);
           if (p <= 0 || p >= 1) continue;
-          ring(g, px, py, 12 * s2 + p * e.R * W.w, 0.24, Math.pow(1 - p, 1.4) * (0.55 - 0.15 * k));
+          const R = 12 * s2 + p * e.R * W.w;
+          ring(g, px, py, R, 0.26, Math.pow(1 - p, 1.5) * (k ? 0.22 : 0.42) * smoothstep(0, 0.08, p));
         }
         spr(g, SP.gold, px, py, 30 * s2, (1 - q) * 0.7);
       }
@@ -1585,7 +1602,7 @@
             ['moses', 'aaron'].forEach(id => { face(id, 1); pose(id, 'fall'); });
             ['nadab', 'abihu', 'eleazar', 'ithamar'].forEach(id => { face(id, id === 'nadab' || id === 'abihu' ? 1 : -1); pose(id, 'bow'); });
           }],
-          [13, b => { W.goTo(0.33, 12, b.instant); }],   // 日出
+          [13, b => { W.goTo(0.31, 14, b.instant); }],   // 日出
           [17, () => { W.set('levFire', 1.3); W.set('levGlory', 0.5); }],
           [20.5, () => { allPeople('kneel', 1); pose('moses', 'kneel'); pose('aaron', 'kneel'); }],
         ]);
@@ -1885,7 +1902,7 @@
             crowdMill('campL', true); crowdMill('campR', true);
           }],
           // 田角留给穷人和寄居的：外人与那妇人弯腰拾取
-          [1.4, () => { face('stranger', -1); face('woman', 1); pose('stranger', 'bow'); pose('woman', 'bow'); }],
+          [1.4, () => { face('stranger', 1); face('woman', 1); pose('stranger', 'bow'); pose('woman', 'bow'); }],
           [5.8, () => { pose('stranger', 'stand'); pose('woman', 'stand'); }],
           [7, b => { W.set('levBooths', 1, b.instant); W.set('levGlean', 0); sfx(b, 'build'); sfx(b, 'wind', { soft: true }); }],
           [11, b => { people('raise'); sfx(b, 'crowd'); sfx(b, 'harp'); }],

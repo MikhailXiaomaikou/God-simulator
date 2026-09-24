@@ -57,7 +57,8 @@
     dkDew: ['exp', 0.45],      // 雨后的晴光，嫩草上的露（23:4）
     dkFloor: ['exp', 0.5],     // 亚劳拿的禾场（24:16）
     dkCount: ['lin', 0.35],    // 数点百姓：遍地的小光（24:2–9）
-    dkPlague: ['lin', 0.17],   // 瘟疫的影子，从但直到别是巴（24:15）
+    dkPlague: ['lin', 0.09],   // 瘟疫的影子，从但直到别是巴（24:15）：影子的前锋
+    dkVeil: ['exp', 0.5],      // 影子的浓淡
     dkAltar: ['lin', 0.5],     // 筑坛（24:25）
     dkFire: ['exp', 0.7],      // 燔祭的火
   };
@@ -97,6 +98,7 @@
   //  小工具
   // ════════════════════════════════════════════════════════════
   const MOB = () => W.w < 600;
+  const PS = () => (MOB() ? 1.3 : 1);                                     // 手机上，抬约柜的队伍放大些
   const SU = () => Math.max(0.3, W.unit) * 1.75;                           // 布景的尺度（与人相称）
   const LS = l => W.layerScale(l) * (MOB() ? 1.15 : 1);
   const DEP = l => (W.LAYERS[l] ? W.LAYERS[l].depth : 0);
@@ -153,6 +155,8 @@
   function crowdPose(gid, p) { if (hasCrowd(gid)) C().crowdPose(gid, p); }
   function uncrowd(gid, now) { if (hasCrowd(gid)) C().removeCrowd(gid, now ? { fade: false } : undefined); }
   function members(gid) { const c = C(); const g = c && c.crowds && c.crowds.get ? c.crowds.get(gid) : null; return g ? g.members : []; }
+  // 人群里各人在纵深里的前后（按序号定，重演时一样）
+  function crowdV(gid, v0, v1) { members(gid).forEach((m, i) => { m.v = lerp(v0, v1, rt(i * 7 + gid.length * 31)); }); }
   function crowdFace(gid, d) { members(gid).forEach(m => { m.facing = d; if (W.replaying) m.fd = d; }); }
   function sfx(b, name, o) {
     if (b && b.instant) return;
@@ -203,8 +207,10 @@
   // ── 大卫：同一个人，不同的年岁与衣裳（记在 S 里，重新出场时照样穿戴）──
   function davidOpts(o) {
     const robe = S.dRobe === 'linen' ? ROBE.linen : S.dRobe === 'king' ? (S.dAge === 'elder' ? ROBE.old : ROBE.king) : ROBE.david;
-    return Object.assign({ label: '大卫', sex: 'm', age: S.dAge, robe, glow: 0.55, accent: S.dRobe === 'king' ? [226, 190, 110] : null,
-      beard: true, hair: S.dRobe === 'linen' ? 'short' : 'cloth', prop: S.torch ? 'torch' : null }, o || {});
+    const linen = S.dRobe === 'linen';
+    // 细麻布的以弗得：白袍、金色的腰带；光收敛些，免得在白墙前化成一团白
+    return Object.assign({ label: '大卫', sex: 'm', age: S.dAge, robe, glow: linen ? 0.35 : 0.55, accent: S.dRobe === 'king' ? [226, 190, 110] : linen ? GOLD : null,
+      beard: true, hair: linen ? 'short' : 'cloth', prop: S.torch ? 'torch' : null, scale: linen ? PS() : 1 }, o || {});
   }
   function dress(robe, age) { if (robe) S.dRobe = robe; if (age) S.dAge = age; if (fig('david')) add('david', davidOpts()); }
 
@@ -688,7 +694,7 @@
       add2(ctx, () => glowSp(ctx, SP && SP.gold, (x + cx1) / 2, b - 6 * s, 40 * s, k * bl * (0.25 + 0.25 * nightK())));
     }
     ctx.globalAlpha = 1;
-    if (S.ark === 'obed') drawArk(ctx, X.court * W.w, fieldY(X.court, 0.03), 1, k, false, 0);
+    if (S.ark === 'obed') drawArk(ctx, X.court * W.w, fieldY(X.court, 0.03), PS(), k, false, 0);
   }
   // 约柜：金的柜、施恩座与两个基路伯（翅膀相对）
   function drawArk(ctx, x, b, sc, a, carried, span) {
@@ -1052,27 +1058,36 @@
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
   }
-  // 亚希多弗的计谋：城上一团纠缠的暗线；耶和华定意破坏——金光把它解开（17:14）
+  // 亚希多弗的计谋：城上一团柔软的暗云，几缕细线缠在其中；耶和华定意破坏——金光把它解开、散尽（17:14）
   function drawCounsel(ctx) {
     const k = W.lv.dkCounsel, u = W.lv.dkUnravel;
     if (k < 0.01 || !sprites()) return;
     const cx = W.w * (MOB() ? 0.8 : 0.86), cy = W.h * (MOB() ? 0.52 : 0.45), R = M() * 0.06;
-    glowSp(ctx, SP.dark, cx, cy, R * 2.4 * (1 + u), k * (1 - u) * 0.8);
-    ctx.lineCap = 'round';
-    for (let j = 0; j < 7; j++) {
-      const col = U.mixRGB([34, 26, 40], [255, 222, 150], u);
-      ctx.strokeStyle = U.rgba(col[0], col[1], col[2], k * (0.7 - 0.5 * u) * (u > 0.5 ? 1 - (u - 0.5) * 1.6 : 1));
-      ctx.lineWidth = Math.max(0.8, (1.6 - u) * SU());
-      ctx.beginPath();
-      for (let i = 0; i <= 40; i++) {
-        const a = (i / 40) * TAU * 1.5 + j * 0.9 + W.t * 0.3 * (j % 2 ? 1 : -1);
-        const r = R * (0.45 + 0.4 * Math.sin(a * (2 + j % 3) + j + W.t * 0.4)) * (1 + u * 2.6);
-        const x = cx + Math.cos(a) * r * (1 + u * 0.6), y = cy + Math.sin(a * 1.3) * r * 0.7 - u * R * (0.5 + j * 0.2);
-        if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y);
-      }
-      ctx.stroke();
+    const keep = k * (1 - u);                                   // 解开之后，云与线都归于无
+    // 暗云：几团柔光叠成（随解开而散开、变淡）
+    for (let i = 0; i < 7; i++) {
+      const a = rt(i + 1600) * TAU + W.t * 0.05 * (i % 2 ? 1 : -1), d = R * (0.25 + 0.45 * rt(i + 1610)) * (1 + u * 1.6);
+      glowSp(ctx, SP.dark, cx + Math.cos(a) * d * 1.3, cy + Math.sin(a) * d * 0.6 - u * R * 0.6, R * (1.2 + 0.6 * rt(i + 1620)), keep * 0.34);
     }
-    if (u > 0.01) add2(ctx, () => glowSp(ctx, SP.gold, cx, cy - u * R, R * 2.2, u * (1 - u) * 1.4 * k));
+    // 几缕细线：两端渐隐；解开时变成金色，向上舒展，然后消失
+    ctx.lineCap = 'round';
+    ctx.lineWidth = Math.max(0.6, (1.1 - 0.5 * u) * SU());
+    const col = U.mixRGB([40, 30, 46], [255, 222, 150], Math.min(1, u * 1.4));
+    const N = 22;
+    for (let j = 0; j < 4; j++) {
+      let px = 0, py = 0;
+      for (let i = 0; i <= N; i++) {
+        const t = i / N, a = t * TAU * 1.2 + j * 1.6 + W.t * 0.22 * (j % 2 ? 1 : -1);
+        const r = R * (0.35 + 0.35 * Math.sin(a * (2 + (j % 2)) + j + W.t * 0.3)) * (1 + u * 2.2);
+        const x = cx + Math.cos(a) * r * 1.3, y = cy + Math.sin(a * 1.3) * r * 0.6 - u * R * (0.4 + j * 0.25);
+        if (i) {
+          const al = keep * 0.55 * Math.sin(Math.PI * t) * (u > 0.02 ? 1 - u : 1);
+          if (al > 0.01) { ctx.strokeStyle = U.rgba(col[0], col[1], col[2], al); ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(x, y); ctx.stroke(); }
+        }
+        px = x; py = y;
+      }
+    }
+    if (u > 0.01) add2(ctx, () => glowSp(ctx, SP.gold, cx, cy - u * R, R * 2.4, u * (1 - u) * 1.6 * k));
     ctx.globalAlpha = 1;
   }
   // 数点百姓：遍地亮起的小光（24:2–9）；瘟疫的影子走过之处，光就灭了（24:15）
@@ -1083,16 +1098,20 @@
       TALLY.push({ l, x: l === 0 ? lerp(0.14, 0.99, rt(i * 3 + 1500)) : l === 1 ? lerp(0.5, 0.99, rt(i * 3 + 1500)) : lerp(0.42, 0.99, rt(i * 3 + 1500)), v: rt(i * 3 + 1501) * 0.8, ph: rt(i * 3 + 1502) * TAU });
     }
   })();
-  const plagueFront = () => 1.08 - W.lv.dkPlague * 1.2;
+  // 瘟疫的影子自西（左）向东走过全地，直走到亚劳拿的禾场前（24:15–16）；「够了！」时就停在那里
+  let haltAt = null;          // 一时的：话语出口时影子的前锋（只影响画，不是本卷的状态；世界的程度仍由 dkPlague 决定）
+  const PF0 = 0.18, PF1 = X.floor - 0.04;
+  function plagueP() { const p = W.lv.dkPlague; return haltAt != null ? haltAt * p : p; }
+  const plagueFront = () => lerp(PF0, PF1, 1 - Math.pow(1 - clamp(plagueP(), 0, 1), 2));
   function drawTally(ctx, l) {
     const k = W.lv.dkCount;
     if (k < 0.01 || !sprites()) return;
-    const front = plagueFront(), s = Math.max(0.6, W.unit);
+    const front = plagueFront(), dim = lerp(1, 0.1, clamp(W.lv.dkVeil, 0, 1)), s = Math.max(0.6, W.unit);
     ctx.globalCompositeOperation = 'lighter';
     for (let i = 0; i < TALLY.length; i++) {
       const q = TALLY[i];
       if (q.l !== l) continue;
-      const on = clamp(k * TALLY.length - i * 0.8, 0, 1) * (q.x > front ? 0.12 : 1);
+      const on = clamp(k * TALLY.length - i * 0.8, 0, 1) * (q.x < front ? dim : 1);
       if (on < 0.02) continue;
       const g = gY(l, q.x), y = l === 2 ? g + q.v * (W.h - g) * 0.7 : g + q.v * Math.max(2, W.waterlineY(l) - g) * 0.8;
       const a = on * (0.55 + 0.45 * Math.sin(W.t * 2 + q.ph)) * (l === 0 ? 0.6 : 0.85);
@@ -1103,16 +1122,45 @@
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
   }
-  function drawPlague(ctx) {
-    const p = W.lv.dkPlague;
-    if (p < 0.01) return;
-    const front = plagueFront() * W.w, y0 = W.horizonY - W.h * 0.02;
-    const g = ctx.createLinearGradient(front - W.w * 0.12, 0, front + W.w * 0.05, 0);
-    g.addColorStop(0, 'rgba(40,42,62,0)'); g.addColorStop(1, 'rgba(40,42,62,' + (0.34 * Math.min(1, p * 3)).toFixed(3) + ')');
-    ctx.fillStyle = g;
-    ctx.fillRect(front - W.w * 0.12, y0, W.w * 0.17, W.h - y0);
-    ctx.fillStyle = 'rgba(40,42,62,' + (0.34 * Math.min(1, p * 3)).toFixed(3) + ')';
-    if (front + W.w * 0.05 < W.w) ctx.fillRect(front + W.w * 0.05, y0, W.w - front - W.w * 0.05 + 20, W.h - y0);
+  // 影子：贴着各层地的轮廓，上缘柔和（不压到天与海上），前锋也柔和；在各层的布景之后、人之前画
+  let VEIL = null, VEIL_H = 0;
+  function veilSprite() {
+    const H = Math.max(8, Math.round(W.h));
+    if (VEIL && VEIL_H === H) return VEIL;
+    try {
+      const c = cnv(2, H), g = c.getContext('2d'), fe = Math.min(0.9, (W.h * 0.08) / H);
+      const gr = g.createLinearGradient(0, 0, 0, H);
+      gr.addColorStop(0, 'rgba(62,64,88,0)'); gr.addColorStop(fe, 'rgba(62,64,88,1)'); gr.addColorStop(1, 'rgba(56,58,82,1)');
+      g.fillStyle = gr; g.fillRect(0, 0, 2, H);
+      VEIL = c; VEIL_H = H;
+    } catch (e) { VEIL = null; }
+    return VEIL;
+  }
+  const SPANS = { key: '', v: [] };
+  function landSpanF(l) {
+    const key = W.w + 'x' + W.h;
+    if (SPANS.key !== key) { SPANS.key = key; SPANS.v = [0, 1, 2].map(i => { const r = W.landSpan ? W.landSpan(i) : null; return r ? [r[0] / W.w, r[1] / W.w] : null; }); }
+    return SPANS.v[l];
+  }
+  const VEIL_A = [0.36, 0.5, 0.66];
+  function drawVeil(ctx, l) {
+    const vk = W.lv.dkVeil;
+    if (vk < 0.01 || W.lv.dkPlague < 0.002) return;
+    const src = veilSprite(), sp = landSpanF(l);
+    if (!src || !sp) return;
+    const front = plagueFront(), x0 = Math.round(sp[0] * W.w), x1 = Math.round(Math.min(sp[1], front + 0.03) * W.w);
+    if (x1 <= x0) return;
+    const step = Math.max(3, Math.round(W.w / 200)), A = VEIL_A[l] * clamp(vk, 0, 1), fw = W.w * 0.05;
+    for (let x = x0; x < x1; x += step) {
+      const w = Math.min(step, x1 - x), xm = x + w * 0.5;
+      const top = gY(l, xm / W.w) - 1, bot = l === 2 ? W.h : W.waterlineY(l) + 2, h = bot - top;
+      if (!(h > 1)) continue;
+      const e = clamp((front * W.w - xm) / fw + 0.4, 0, 1) * clamp((xm - x0) / (W.w * 0.025), 0, 1);
+      if (e < 0.01) continue;
+      ctx.globalAlpha = A * e;
+      ctx.drawImage(src, 0, 0, 2, Math.min(src.height, h), x, top, w, h);
+    }
+    ctx.globalAlpha = 1;
   }
   // 雨后的晴光：嫩草上的露（23:4）
   function drawDew(ctx) {
@@ -1223,16 +1271,22 @@
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
   }
-  // 在耶和华面前极力跳舞：金光环绕，微光随他升起（6:14）
+  // 在耶和华面前极力跳舞（6:14）：脚下一片暖光，身边一点金光（收敛，免得把白袍化成一团白）；约柜与他之间一缕淡光
   function drawDance(ctx) {
     if (!S.dance || !sprites()) return;
-    const p = figPt('david', 0.55), q = arkCarried();
-    if (!p) return;
-    const ph = PH(), br = 0.8 + 0.2 * Math.sin(W.t * 5.2);
+    const f = fig('david'), p = figPt('david', 0.55), q = arkCarried();
+    if (!p || !f) return;
+    const ph = PH() * (f.scale || 1), br = 0.8 + 0.2 * Math.sin(W.t * 5.2), gy = fieldY(f.nx, f.v);
     add2(ctx, () => {
-      if (q) glowSp(ctx, SP.gold, (p[0] + q.x) / 2, (p[1] + q.y) / 2, ph * 2.8, 0.28);
-      glowSp(ctx, SP.gold, p[0], p[1], ph * 1.5 * br, 0.4);
-      glowSp(ctx, SP.white, p[0], p[1] - ph * 0.35, ph * 0.5, 0.35 * br);
+      if (q) glowSp(ctx, SP.gold, (p[0] + q.x) / 2, (p[1] + q.y) / 2, ph * 2.2, 0.12);
+      // 脚下的暖光（扁的椭圆）
+      ctx.save();
+      ctx.translate(f.nx * W.w, gy);
+      ctx.scale(1, 0.26);
+      glowSp(ctx, SP.warm, 0, 0, ph * 1.3, 0.55);
+      glowSp(ctx, SP.gold, 0, 0, ph * 0.7, 0.4 * br);
+      ctx.restore();
+      glowSp(ctx, SP.gold, p[0], p[1], ph * 1.1 * br, 0.16);
     });
   }
   function danceMotes(dt) {
@@ -1267,6 +1321,19 @@
     add2(ctx, () => {
       glowSp(ctx, SP.white, x, y, h * 2.6, f.alpha * (0.35 + 0.25 * W.lv.gloom));
       glowSp(ctx, SP.gold, x, y, h * 1.2, f.alpha * 0.4);
+      // 向耶路撒冷伸手（24:16）：从手里向下，一道渐宽渐淡的光落向城
+      const ck = f.alpha * clamp(W.lv.dkVeil, 0, 1) * (f.pose === 'point' && !f.fly && f.poseT >= 1 ? 1 : 0);
+      if (ck > 0.02) {
+        const d = f.fd >= 0 ? 1 : -1, hx = x + d * 0.4 * h, hy = f._y - 0.74 * h;
+        const P = palaceBox(), tx = lerp(X.gate * W.w, P.cx, 0.55), ty = P.roof - 4 * SU();
+        const dx = tx - hx, dy = ty - hy, L = Math.hypot(dx, dy) || 1, nx = -dy / L, ny = dx / L, hw = L * 0.2;
+        const br = 0.85 + 0.15 * Math.sin(W.t * 2.2);
+        const gr = ctx.createLinearGradient(hx, hy, tx, ty);
+        gr.addColorStop(0, U.rgba(255, 246, 226, 0.26 * ck * br)); gr.addColorStop(1, U.rgba(255, 246, 226, 0));
+        ctx.globalAlpha = 1; ctx.fillStyle = gr;
+        ctx.beginPath(); ctx.moveTo(hx + nx * 2, hy + ny * 2); ctx.lineTo(tx + nx * hw, ty + ny * hw); ctx.lineTo(tx - nx * hw, ty - ny * hw); ctx.lineTo(hx - nx * 2, hy - ny * 2); ctx.closePath(); ctx.fill();
+        glowSp(ctx, SP.white, hx, hy, h * 0.32, ck * 0.7);
+      }
     });
     ctx.globalAlpha = 1;
   }
@@ -1359,6 +1426,33 @@
           add2(ctx, () => glowSp(ctx, SP.gold, t.cx, t.base - t.h * 0.5, t.w * (1.2 + k * 2.5), (1 - k) * 0.8));
           break;
         }
+        case 'trail': {         // 约柜的荣光从城门上到帐幕（6:17）
+          const G = gateBox(), t = tentBox(), ez = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+          const x0 = G.cx, y0 = G.base - G.ah * 0.9, x1 = t.cx, y1 = t.base - t.h * 0.45;
+          const pt = u => [lerp(x0, x1, u), lerp(y0, y1, u) - Math.sin(Math.PI * u) * t.h * 1.6];
+          const fade = Math.min(1, e.t / 0.3) * Math.min(1, (e.dur - e.t) / 0.35);
+          add2(ctx, () => {
+            for (let i = 4; i >= 1; i--) {
+              const q = pt(Math.max(0, ez - i * 0.06));
+              glowSp(ctx, SP.gold, q[0], q[1], t.w * 0.5, (0.35 - i * 0.06) * fade);
+            }
+            const q = pt(ez);
+            glowSp(ctx, SP.gold, q[0], q[1], t.w * 0.9, 0.85 * fade);
+            glowSp(ctx, SP.white, q[0], q[1], t.w * 0.3, 0.9 * fade);
+          });
+          break;
+        }
+        case 'halt': {          // 「够了！住手吧！」：影子的前锋上立起一道光，影子停住（24:16）
+          const x = plagueFront() * W.w, g = gY(2, plagueFront()), ph = PH(), fl = env * (0.75 + 0.25 * Math.sin(e.t * 9));
+          add2(ctx, () => {
+            ctx.globalAlpha = fl * 0.85;
+            const bh = Math.min(g, W.h * 0.42);
+            ctx.drawImage(SP.beam, x - ph * 0.55, g - bh, ph * 1.1, bh + ph * 0.3);
+            glowSp(ctx, SP.white, x, g - ph * 0.3, ph * (1.2 + k * 1.5), fl * 0.7);
+            glowSp(ctx, SP.gold, x, g, ph * 2.2, fl * 0.35);
+          });
+          break;
+        }
         case 'dim': {           // 一时的暗（押沙龙死在橡树下，18:14–15，只以光说）
           ctx.fillStyle = U.rgba(6, 6, 12, 0.35 * env);
           ctx.fillRect(-20, -20, W.w + 40, W.h + 40);
@@ -1373,7 +1467,7 @@
   // ════════════════════════════════════════════════════════════
   //  幕后布置：洗革拉的清晨（撒下 1:1）
   // ════════════════════════════════════════════════════════════
-  function resetScene() { FXL.length = 0; S = fresh(); }
+  function resetScene() { FXL.length = 0; S = fresh(); haltAt = null; }
   function setup() {
     const lv = { deep: 1, light: 1, gather: 1, dayNight: 1, vault: 1, clouds: 0.35, land: 1, grass: 1, herbs: 0.85, trees: 0, lights: 1, moon: 1, stars: 1, life: 1, good: 0, given: 1, sabbath: 0.12,
       bare: 0.06, bloom: 0.8, rain: 0, storm: 0, gale: 0, hail: 0, gloom: 0 };
@@ -1386,7 +1480,7 @@
     W.goTo(0.27, 0, true);
     const lx = W.w * 0.8, ly = W.ridgeBaseY(2, lx);
     W.setPop('fish', 90, W.w * 0.15, W.h * 0.8, true);
-    W.setPop('whale', 2, W.w * 0.12, W.h * 0.78, true);
+    W.setPop('whale', 0, W.w * 0.12, W.h * 0.78, true);
     W.setPop('bird', 26, W.w * 0.6, W.h * 0.3, true);
     W.setPop('cattle', 0, lx, ly, true);
     W.setPop('beast', 0, lx, ly, true);
@@ -1396,10 +1490,11 @@
     const c = C();
     c.clear({ fade: false });
     // 大卫与跟随他的人，为扫罗和约拿单哀哭（1:11–12）
-    add('david', davidOpts({ x: X.start, v: 0.22, facing: 1, pose: 'weep', from: 'none' }));
+    add('david', davidOpts({ x: X.start, v: 0.35, facing: 1, pose: 'weep', from: 'none' }));
     add('abigail', { label: '亚比该', sex: 'f', x: X.start - 0.02, v: 0.1, facing: 1, robe: ROBE.abigail, glow: 0.2, pose: 'weep', from: 'none' });
     add('ahinoam', { label: '亚希暖', sex: 'f', x: X.start - 0.036, v: 0.3, facing: 1, robe: ROBE.ahinoam, glow: 0.2, pose: 'weep', from: 'none' });
-    crowd('men', { n: 6, x0: 0.555, x1: 0.6, layer: 2, label: '跟随大卫的人', robe: [112, 96, 80], pose: 'weep', from: 'none', mill: false });
+    crowd('men', { n: 6, x0: 0.53, x1: 0.566, layer: 2, label: '跟随大卫的人', robe: [112, 96, 80], pose: 'weep', from: 'none', mill: false });
+    crowdV('men', 0.18, 0.42);
     avoid([0.5, 0.72], [0.74, 1]);
   }
 
@@ -1411,22 +1506,22 @@
     { text: '大卫作哀歌，吊扫罗和他儿子约拿单……<br>歌中说：以色列啊，你尊荣者在山上被杀！大英雄何竟死亡！', ref: '撒母耳记下 1:17–19', hold: 7.2 },
   ];
   const V1 = [
-    { text: '此后，大卫问耶和华说：「我上犹大的一个城去可以吗？」耶和华说：「可以。」<br>大卫说：「我上哪一个城去呢？」耶和华说：「上希伯仑去。」', ref: '撒母耳记下 2:1', hold: 7.2 },
-    { text: '犹大人来到希伯仑，在那里膏大卫作犹大家的王。', ref: '撒母耳记下 2:4', hold: 5.2 },
-    { text: '扫罗家和大卫家争战许久。大卫家日见强盛；扫罗家日见衰弱。', ref: '撒母耳记下 3:1', hold: 5.8 },
-    { text: '扫罗的儿子约拿单有一个儿子名叫米非波设，是瘸腿的……<br>他乳母抱着他逃跑；因为跑得太急，孩子掉在地上，腿就瘸了。', ref: '撒母耳记下 4:4', hold: 6.7 },
+    { text: '大卫问耶和华说：「我上犹大的一个城去可以吗？」……<br>大卫说：「我上哪一个城去呢？」耶和华说：「上希伯仑去。」', ref: '撒母耳记下 2:1', hold: 7.2 },
+    { text: '犹大人来到希伯仑，在那里膏大卫作犹大家的王。', ref: '撒母耳记下 2:4', hold: 4.6 },
+    { text: '扫罗家和大卫家争战许久。大卫家日见强盛；扫罗家日见衰弱。', ref: '撒母耳记下 3:1', hold: 5.2 },
+    { text: '扫罗的儿子约拿单有一个儿子名叫米非波设，是瘸腿的……<br>他乳母抱着他逃跑；……孩子掉在地上，腿就瘸了。', ref: '撒母耳记下 4:4', hold: 6.7 },
   ];
   const V2 = [
     { text: '于是以色列的长老都来到希伯仑见大卫王，大卫在希伯仑耶和华面前与他们立约，<br>他们就膏大卫作以色列的王。', ref: '撒母耳记下 5:3', hold: 6.7 },
-    { text: '大卫登基的时候年三十岁，在位四十年。', ref: '撒母耳记下 5:4', hold: 4.6 },
+    { text: '大卫登基的时候年三十岁，在位四十年。', ref: '撒母耳记下 5:4', hold: 4.2 },
     { text: '大卫和跟随他的人到了耶路撒冷，要攻打住那地方的耶布斯人……<br>然而大卫攻取锡安的保障，就是大卫的城。', ref: '撒母耳记下 5:6–7', hold: 6.5 },
     { text: '泰尔王希兰将香柏木运到大卫那里，又差遣使者和木匠、石匠给大卫建造宫殿。<br>大卫就知道耶和华坚立他作以色列王……', ref: '撒母耳记下 5:11–12', hold: 6.7 },
   ];
   const V3 = [
     { text: '……这约柜就是坐在二基路伯上万军之耶和华留名的约柜。', ref: '撒母耳记下 6:2', hold: 5.4 },
-    { text: '耶和华的约柜在迦特人俄别‧以东家中三个月；耶和华赐福给俄别‧以东和他的全家。……<br>大卫就去，欢欢喜喜地将神的约柜从俄别‧以东家中抬到大卫的城里。', ref: '撒母耳记下 6:11–12', hold: 7.2 },
+    { text: '耶和华赐福给俄别‧以东和他的全家。……<br>大卫就去，欢欢喜喜地将神的约柜从俄别‧以东家中抬到大卫的城里。', ref: '撒母耳记下 6:11–12', hold: 6.7 },
     { text: '大卫穿着细麻布的以弗得，在耶和华面前极力跳舞。<br>这样，大卫和以色列的全家欢呼吹角，将耶和华的约柜抬上来。', ref: '撒母耳记下 6:14–15', hold: 6.7 },
-    { text: '耶和华的约柜进了大卫城的时候，扫罗的女儿米甲从窗户里观看……<br>众人将耶和华的约柜请进去，安放在所预备的地方，就是在大卫所搭的帐幕里。', ref: '撒母耳记下 6:16–17', hold: 7.2 },
+    { text: '……扫罗的女儿米甲从窗户里观看……<br>众人将耶和华的约柜请进去，安放在所预备的地方，就是在大卫所搭的帐幕里。', ref: '撒母耳记下 6:16–17', hold: 7 },
   ];
   const V4 = [
     { text: '那时，王对先知拿单说：「看哪，我住在香柏木的宫中，神的约柜反在幔子里。」', ref: '撒母耳记下 7:2', hold: 6 },
@@ -1443,43 +1538,43 @@
   const V6 = [
     { text: '过了一年，到列王出战的时候，大卫又差派约押，率领臣仆和以色列众人出战……<br>大卫仍住在耶路撒冷。', ref: '撒母耳记下 11:1', hold: 6 },
     { text: '一日，太阳平西，大卫从床上起来，在王宫的平顶上游行，看见一个妇人沐浴，容貌甚美，<br>大卫就差人打听那妇人是谁。', ref: '撒母耳记下 11:2–3', hold: 6.7 },
-    { text: '次日早晨，大卫写信与约押，交乌利亚随手带去。……<br>城里的人出来和约押打仗；大卫的仆人中有几个被杀的，赫人乌利亚也死了。', ref: '撒母耳记下 11:14–17', hold: 6.7 },
-    { text: '乌利亚的妻听见丈夫乌利亚死了，就为他哀哭。哀哭的日子过了，大卫差人将她接到宫里……<br>但大卫所行的这事，耶和华甚不喜悦。', ref: '撒母耳记下 11:26–27', hold: 7.2 },
+    { text: '次日早晨，大卫写信与约押，交乌利亚随手带去。……<br>大卫的仆人中有几个被杀的，赫人乌利亚也死了。', ref: '撒母耳记下 11:14–17', hold: 6.7 },
+    { text: '乌利亚的妻听见丈夫乌利亚死了，就为他哀哭。……大卫差人将她接到宫里……<br>但大卫所行的这事，耶和华甚不喜悦。', ref: '撒母耳记下 11:26–27', hold: 7.2 },
   ];
   const V7 = [
-    { text: '耶和华差遣拿单去见大卫。拿单到了大卫那里，对他说：「在一座城里有两个人：一个是富户，一个是穷人……<br>富户……却取了那穷人的羊羔，预备给客人吃。」', ref: '撒母耳记下 12:1–4', hold: 7.7 },
+    { text: '耶和华差遣拿单去见大卫。……「在一座城里有两个人：一个是富户，一个是穷人。……<br>却取了那穷人的羊羔，预备给客人吃。」', ref: '撒母耳记下 12:1–4', hold: 7.7 },
     { text: '大卫就甚恼怒那人……拿单对大卫说：「你就是那人！」', ref: '撒母耳记下 12:5–7', hold: 5.2 },
     { text: '大卫对拿单说：「我得罪耶和华了！」<br>拿单说：「耶和华已经除掉你的罪，你必不至于死。」', ref: '撒母耳记下 12:13', hold: 6.3 },
     { text: '……她就生了儿子，给他起名叫所罗门。耶和华也喜爱他，<br>就藉先知拿单赐他一个名字，叫耶底底亚，因为耶和华爱他。', ref: '撒母耳记下 12:24–25', hold: 7.2 },
   ];
   const V8 = [
-    { text: '押沙龙逃到基述王亚米忽的儿子达买那里去了。大卫天天为他儿子悲哀。', ref: '撒母耳记下 13:37', hold: 6 },
+    { text: '押沙龙逃到基述王亚米忽的儿子达买那里去了。大卫天天为他儿子悲哀。', ref: '撒母耳记下 13:37', hold: 5.4 },
     { text: '「我们都是必死的，如同水泼在地上，不能收回。<br>神并不夺取人的性命，乃设法使逃亡的人不致成为赶出、回不来的。」', ref: '撒母耳记下 14:14', hold: 7.2 },
-    { text: '……押沙龙来见王，在王面前俯伏于地，王就与押沙龙亲嘴。', ref: '撒母耳记下 14:33', hold: 5.5 },
+    { text: '……押沙龙来见王，在王面前俯伏于地，王就与押沙龙亲嘴。', ref: '撒母耳记下 14:33', hold: 5 },
     { text: '……这样，押沙龙暗中得了以色列人的心。……<br>有人报告大卫说：「以色列人的心都归向押沙龙了！」', ref: '撒母耳记下 15:6–13', hold: 6.2 },
   ];
   const V9 = [
-    { text: '大卫蒙头赤脚上橄榄山，一面上一面哭。跟随他的人也都蒙头哭着上去。', ref: '撒母耳记下 15:30', hold: 6.3 },
-    { text: '……名叫示每。他一面走一面咒骂……大卫……说：「……由他咒骂吧！……<br>或者耶和华见我遭难，为我今日被这人咒骂，就施恩与我。」', ref: '撒母耳记下 16:5–12', hold: 6.7 },
-    { text: '押沙龙和以色列众人说：「亚基人户筛的计谋比亚希多弗的计谋更好！」<br>这是因耶和华定意破坏亚希多弗的良谋，为要降祸与押沙龙。', ref: '撒母耳记下 17:14', hold: 7 },
+    { text: '大卫蒙头赤脚上橄榄山，一面上一面哭。跟随他的人也都蒙头哭着上去。', ref: '撒母耳记下 15:30', hold: 5.6 },
+    { text: '……名叫示每。他一面走一面咒骂……<br>大卫……说：「……由他咒骂吧！……或者耶和华见我遭难……就施恩与我。」', ref: '撒母耳记下 16:5–12', hold: 7 },
+    { text: '……「亚基人户筛的计谋比亚希多弗的计谋更好！」<br>这是因耶和华定意破坏亚希多弗的良谋，为要降祸与押沙龙。', ref: '撒母耳记下 17:14', hold: 7 },
     { text: '于是大卫和跟随他的人都起来，过约旦河。到了天亮，无一人不过约旦河的。', ref: '撒母耳记下 17:22', hold: 6 },
   ];
   const V10 = [
     { text: '押沙龙骑着骡子，从大橡树密枝底下经过，他的头发被树枝绕住，就悬挂起来，<br>所骑的骡子便离他去了。', ref: '撒母耳记下 18:9', hold: 6.2 },
-    { text: '大卫正坐在城瓮里……王问古示人说：「少年人押沙龙平安不平安？」<br>古示人回答说：「愿我主我王的仇敌，和一切兴起要杀害你的人，都与那少年人一样。」', ref: '撒母耳记下 18:24–32', hold: 7.2 },
+    { text: '王问古示人说：「少年人押沙龙平安不平安？」<br>古示人回答说：「愿我主我王的仇敌……都与那少年人一样。」', ref: '撒母耳记下 18:32', hold: 6.6 },
     { text: '王就心里伤恸，上城门楼去哀哭，一面走一面说：<br>「我儿押沙龙啊！我儿，我儿押沙龙啊！我恨不得替你死，押沙龙啊，我儿！我儿！」', ref: '撒母耳记下 18:33', hold: 7.7 },
     { text: '于是王起来，坐在城门口。众民听说王坐在城门口，就都到王面前。', ref: '撒母耳记下 19:8', hold: 5 },
   ];
   const V11 = [
     { text: '王就回来，到了约旦河……<br>但犹大人从约旦河直到耶路撒冷，都紧紧跟随他们的王。', ref: '撒母耳记下 19:15—20:2', hold: 6 },
-    { text: '大卫年间有饥荒，一连三年，大卫就求问耶和华。', ref: '撒母耳记下 21:1', hold: 5 },
-    { text: '爱雅的女儿利斯巴用麻布在磐石上搭棚，从动手收割的时候直到天降雨在尸身上的时候，<br>日间不容空中的雀鸟落在尸身上，夜间不让田野的走兽前来糟践。', ref: '撒母耳记下 21:10', hold: 8 },
+    { text: '大卫年间有饥荒，一连三年，大卫就求问耶和华。', ref: '撒母耳记下 21:1', hold: 4.5 },
+    { text: '爱雅的女儿利斯巴用麻布在磐石上搭棚……<br>日间不容空中的雀鸟落在尸身上，夜间不让田野的走兽前来糟践。', ref: '撒母耳记下 21:10', hold: 7 },
     { text: '……将扫罗和他儿子约拿单的骸骨葬在便雅悯的洗拉，在扫罗父亲基士的坟墓里……<br>此后神垂听国民所求的。', ref: '撒母耳记下 21:14', hold: 6.7 },
   ];
   const V12 = [
     { text: '当耶和华救大卫脱离一切仇敌和扫罗之手的日子，他向耶和华念这诗，<br>说：耶和华是我的岩石，我的山寨，我的救主……', ref: '撒母耳记下 22:1–2', hold: 6.7 },
     { text: '耶和华从天上打雷；至高者发出声音……<br>他从高天伸手抓住我，把我从大水中拉上来。', ref: '撒母耳记下 22:14–17', hold: 6.7 },
-    { text: '耶和华啊，你是我的灯；耶和华必照明我的黑暗。', ref: '撒母耳记下 22:29', hold: 5.5 },
+    { text: '耶和华啊，你是我的灯；耶和华必照明我的黑暗。', ref: '撒母耳记下 22:29', hold: 5 },
     { text: '以色列的神、以色列的磐石晓谕我说……<br>他必像日出的晨光，如无云的清晨，雨后的晴光，使地发生嫩草。', ref: '撒母耳记下 23:3–4', hold: 7.2 },
   ];
   const V13 = [
@@ -1489,9 +1584,9 @@
     { text: '于是，耶和华降瘟疫与以色列人，自早晨到所定的时候；从但直到别是巴，民间死了七万人。', ref: '撒母耳记下 24:15', hold: 6.7 },
   ];
   const V14 = [
-    { text: '天使向耶路撒冷伸手要灭城的时候，耶和华后悔，就不降这灾了，吩咐灭民的天使说：「够了！住手吧！」<br>那时耶和华的使者在耶布斯人亚劳拿的禾场那里。', ref: '撒母耳记下 24:16', hold: 7.2 },
+    { text: '天使向耶路撒冷伸手要灭城的时候，耶和华后悔，就不降这灾了，<br>吩咐灭民的天使说：「够了！住手吧！」', ref: '撒母耳记下 24:16', hold: 6.6 },
     { text: '大卫看见灭民的天使，就祷告耶和华说：「我犯了罪，行了恶；但这群羊做了什么呢？……」', ref: '撒母耳记下 24:17', hold: 6.3 },
-    { text: '王对亚劳拿说：「不然。我必要按着价值向你买；我不肯用白得之物作燔祭献给耶和华我的神。」<br>大卫就用五十舍客勒银子买了那禾场与牛。', ref: '撒母耳记下 24:24', hold: 6.7 },
+    { text: '王对亚劳拿说：「……我不肯用白得之物作燔祭献给耶和华我的神。」<br>大卫就用五十舍客勒银子买了那禾场与牛。', ref: '撒母耳记下 24:24', hold: 6.7 },
     { text: '大卫在那里为耶和华筑了一座坛，献燔祭和平安祭。<br>如此，耶和华垂听国民所求的，瘟疫在以色列人中就止住了。', ref: '撒母耳记下 24:25', hold: 7.2 },
   ];
 
@@ -1499,7 +1594,7 @@
   //  情节的助手
   // ════════════════════════════════════════════════════════════
   function levites(b, x, o) {
-    LEV.forEach((id, i) => add(id, { label: '抬约柜的人', sex: 'm', x: x + LEV_DX[i], v: LEV_V[i], facing: 1, robe: ROBE.levite, hair: 'cloth', accent: [206, 196, 170], glow: 0.25, from: fromOf(b), pose: (o && o.pose) || 'stand' }));
+    LEV.forEach((id, i) => add(id, { label: '抬约柜的人', sex: 'm', x: x + LEV_DX[i], v: LEV_V[i], facing: 1, robe: ROBE.levite, hair: 'cloth', accent: [206, 196, 170], glow: 0.25, scale: PS(), from: fromOf(b), pose: (o && o.pose) || 'stand' }));
   }
   function levWalk(x, speed, after) { LEV.forEach((id, i) => walk(id, x + LEV_DX[i], { speed, pose: after || 'stand' })); }
   // 大卫在约柜前跳舞：脚随约柜的位置走在前头，一起一落，转身（姿势的变换在 update 里）
@@ -1508,9 +1603,10 @@
       const q = arkCarried();
       const f = fig('david');
       if (!q || !f) return null;
-      const t = W.t, ph = PH();
-      const x = q.x + 0.034 * W.w + Math.sin(t * 2.1) * 0.011 * W.w;
-      const y = fieldY(x / W.w, f.v) - Math.abs(Math.sin(t * 5.2)) * 0.12 * ph;
+      const t = W.t, ph = PH() * (f.scale || 1);
+      // 在约柜前头（最近画面的一个人，背后是青草，不是白墙）
+      const x = q.x + 0.06 * W.w + Math.sin(t * 2.1) * 0.015 * W.w;
+      const y = fieldY(x / W.w, f.v) - Math.abs(Math.sin(t * 5.2)) * 0.2 * ph;
       return [x, y];
     });
   }
@@ -1521,11 +1617,11 @@
     const f = fig('david');
     if (!f) return;
     danceT += dt * (W.fast || 1);
-    if (danceT < 0.55) return;
+    if (danceT < Math.PI / 5.2) return;          // 与一起一落同拍
     danceT = 0;
     danceI = (danceI + 1) % DANCE.length;
     pose('david', DANCE[danceI]);
-    if (danceI % 3 === 0) face('david', f.facing > 0 ? -1 : 1);
+    if (danceI % 2 === 0) face('david', f.facing > 0 ? -1 : 1);   // 每两拍转一次身
   }
   function tentSpot() { const t = tentBox(); return [t.cx - t.w * 0.62, t.base + 1]; }
   function roofSpot() { const P = palaceBox(); return (P.cx - P.w * 0.22) / W.w; }
@@ -1546,19 +1642,21 @@
             pose('david', 'stand'); pose('abigail', 'stand'); pose('ahinoam', 'stand'); crowdPose('men', 'stand');
             face('david', 1);
           }],
+          // 众人都站在希伯仑的东边（城邑本身露出来）；大卫前后留出空处
           [1.5, b => {
             walk('david', X.hebron, { speed: 0.02 });
-            walk('abigail', X.hebron - 0.024, { speed: 0.02 });
-            walk('ahinoam', X.hebron - 0.036, { speed: 0.019 });
-            crowdWalk('men', 0.6, 0.64, { speed: 0.02 });
-            crowd('judah', { n: 6, x0: 0.676, x1: 0.73, layer: 2, label: '犹大人', robe: [130, 112, 88], from: fromOf(b), mill: false });
+            walk('abigail', X.hebron - 0.032, { speed: 0.021 });
+            walk('ahinoam', X.hebron - 0.047, { speed: 0.021 });
+            crowdWalk('men', 0.698, 0.726, { speed: 0.034 });
+            crowd('judah', { n: 6, x0: 0.726, x1: 0.762, layer: 2, label: '犹大人', robe: [130, 112, 88], from: fromOf(b), mill: false });
+            crowdV('judah', 0.3, 0.5);
             crowdFace('judah', -1);
-            add('elderJ', { label: '犹大的长老', sex: 'm', age: 'elder', x: 0.69, v: 0.2, facing: -1, robe: ROBE.elder, glow: 0.2, from: fromOf(b) });
+            add('elderJ', { label: '犹大的长老', sex: 'm', age: 'elder', x: 0.705, v: 0.34, facing: -1, robe: ROBE.elder, glow: 0.2, from: fromOf(b) });
             avoid([0.55, 0.75]);
             sfx(b, 'harp');
           }],
           // 膏大卫作犹大家的王（2:4）
-          [L[1], () => { walk('elderJ', X.hebron + 0.018, { speed: 0.02, pose: 'raise' }); }],
+          [L[1], () => { walk('elderJ', X.hebron + 0.019, { speed: 0.02, pose: 'raise' }); }],
           [L[1] + 1.8, b => {
             pose('david', 'kneel'); face('david', 1);
             fxAdd(b, { type: 'oil', id: 'david', dur: 3.2 });
@@ -1574,11 +1672,12 @@
           // 大卫家日见强盛（3:1）：日子过去，投奔他的人越来越多
           [L[2], b => {
             crowdPose('judah', 'stand'); crowdPose('men', 'stand');
-            W.goTo(0.82, 3, b.instant);
+            walk('elderJ', 0.708, { speed: 0.02 });
+            W.goTo(0.44, 9, b.instant);
             crowd('house', { n: 7, x0: 0.9, x1: 1.02, layer: 2, label: '大卫家的人', from: fromOf(b), mill: false });
-            crowdWalk('house', 0.7, 0.76, { speed: 0.035 });
+            crowdV('house', 0.3, 0.5);
+            crowdWalk('house', 0.752, 0.79, { speed: 0.035 });
           }],
-          [L[2] + 3.4, b => W.goTo(0.34, 3.5, b.instant)],
           // 约拿单的乳母抱着五岁的米非波设逃跑（4:4）
           [L[3], b => {
             add('nurse', { label: '米非波设的乳母', sex: 'f', x: 0.99, v: 0.55, facing: -1, robe: ROBE.nurse, glow: 0.15, carry: 'baby', from: fromOf(b) });
@@ -1600,7 +1699,8 @@
           [0, b => {
             rm('nurse', true);
             crowd('elders', { n: 8, x0: 0.9, x1: 1.02, layer: 2, label: '以色列的长老', robe: ROBE.elder, from: fromOf(b), mill: false });
-            crowdWalk('elders', 0.68, 0.75, { speed: 0.03 });
+            crowdV('elders', 0.28, 0.46);
+            crowdWalk('elders', 0.692, 0.76, { speed: 0.03 });
             walk('david', X.hebron + 0.004, { speed: 0.02 }); face('david', 1);
             avoid([0.55, 0.82]);
           }],
@@ -1649,75 +1749,77 @@
       kind: 'name', utter: '坐在二基路伯上万军之耶和华', cmd: 'sudo mv 约柜 ./大卫城/帐幕 --with 角,欢呼  # 极力跳舞', ref: '6:2', tint: [255, 230, 170],
       verse: V3,
       apply(c) {
-        const L = starts(V3);
+        const L = starts(V3), P = PS();
         T(c, [
           [0, b => {
             uncrowd('elders');
-            W.goTo(0.4, 6, b.instant);
+            W.goTo(0.62, 8, b.instant);                 // 午后渐斜的暖光
             W.set('dkObed', 1, b.instant); W.set('dkBless', 1, b.instant);
             S.ark = 'obed';
             W.set('dkName', 1, b.instant);
+            rm('david');                                // 大卫进城去（再出来时穿着细麻布的以弗得）
             add('obed', { label: '俄别‧以东', sex: 'm', x: X.court + 0.02, v: 0.16, facing: -1, robe: ROBE.obed, glow: 0.3, from: fromOf(b) });
             add('obedW', { label: '俄别‧以东的全家', sex: 'f', x: X.obed - 0.018, v: 0.2, facing: 1, robe: [168, 130, 110], glow: 0.2, from: fromOf(b) });
             add('obedC', { label: '俄别‧以东的全家', sex: 'm', age: 'child', x: X.obed - 0.004, v: 0.32, facing: 1, robe: [180, 150, 110], glow: 0.2, from: fromOf(b) });
-            herd('obedFlock', { kind: 'sheep', n: 4, x0: 0.63, x1: 0.67, label: '羊', v: 0.45, from: fromOf(b) });
-            avoid([0.55, 0.83]);
+            herd('obedFlock', { kind: 'sheep', n: 3, x0: 0.646, x1: 0.672, label: '羊', v: 0.1, from: fromOf(b) });
+            avoid([0.55, 0.86]);
             sfx(b, 'angel');
           }],
-          [3.5, b => W.set('dkName', 0, b.instant)],
-          // 大卫欢欢喜喜地去，带着抬约柜的人、吹角的人、以色列的全家（6:12）
+          [3.5, b => W.set('dkName', 0.5, b.instant)],     // 约柜上一道柔和的光柱，一路随着约柜
+          // 大卫欢欢喜喜地去，带着抬约柜的人、以色列的全家；吹角的人在城门两旁等候（6:12）
           [L[1], b => {
-            S.crown = false; dress('linen');
-            walk('david', 0.66, { speed: 0.028 });
+            S.crown = false; S.dRobe = 'linen';
+            add('david', davidOpts({ x: X.atGate, v: 0.5, facing: -1, pose: 'stand', from: fromOf(b) }));
+            walk('david', X.court + 0.072, { speed: 0.028 });
             levites(b, 0.75);
             levWalk(X.court, 0.028);
-            HORN.forEach((id, i) => add(id, { label: '吹角的人', sex: 'm', x: 0.8 + i * 0.012, v: 0.46 + i * 0.07, facing: -1, robe: [150, 128, 96], glow: 0.15, from: fromOf(b) }));
-            HORN.forEach((id, i) => walk(id, 0.742 + i * 0.016, { speed: 0.02 }));
-            crowd('isr', { n: 9, x0: 0.7, x1: 0.76, layer: 2, label: '以色列的全家', v: 0.25, from: fromOf(b), mill: false });
-            crowdWalk('isr', 0.565, 0.635, { speed: 0.03 });
+            HORN.forEach((id, i) => add(id, { label: '吹角的人', sex: 'm', x: X.gate + 0.02 + i * 0.014, v: 0.05 + i * 0.05, facing: -1, robe: [150, 128, 96], glow: 0.15, scale: P, from: fromOf(b) }));
+            crowd('isr', { n: 9, x0: 0.7, x1: 0.76, layer: 2, label: '以色列的全家', v: 0.35, from: fromOf(b), mill: false });
+            crowdV('isr', 0.3, 0.42);
+            crowdWalk('isr', 0.545, 0.605, { speed: 0.03 });
             sfx(b, 'crowd', { soft: true });
           }],
           [L[1] + 4.6, b => {
             S.ark = 'poles';
             LEV.forEach(id => face(id, 1));
             pose('obed', 'bow'); pose('obedW', 'bow');
+            uncrowd('obedFlock');                     // 羊群散去，让出约柜与祭坛
             if (!b.instant) fx().sparkle(X.court * W.w, fieldY(X.court, 0.03) - 12 * SU(), 20, [255, 226, 160], 14 * SU(), 'air');
           }],
           // 走了六步，献牛与肥羊为祭（6:13）
           [L[1] + 5.4, () => levWalk(X.court + 0.012, 0.012)],
-          [L[1] + 6.6, b => { fxAdd(b, { type: 'sac', xf: X.sac, dur: 7.5 }); pose('david', 'bow'); sfx(b, 'fire'); }],
-          // 大卫在耶和华面前极力跳舞；欢呼吹角（6:14–15）
+          [L[1] + 6.6, b => { fxAdd(b, { type: 'sac', xf: X.sac, dur: 7.5 }); face('david', -1); pose('david', 'bow'); sfx(b, 'fire'); }],
+          // 大卫在耶和华面前极力跳舞；欢呼吹角（6:14–15）：他在约柜前头，以色列的全家跟在后面
           [L[2], b => {
             S.dance = true; S.horns = true;
-            W.set('dkName', 0.4, b.instant);
-            add('david', davidOpts({ v: 0.2 }));
+            W.set('dkName', 0.5, b.instant);
             danceAttach();
             pose('david', 'raise');
             levWalk(X.gate - 0.002, 0.0125);
             HORN.forEach(id => face(id, -1));
-            crowdWalk('isr', X.gate - 0.19, X.gate - 0.09, { speed: 0.011, pose: 'raise' });
+            crowdWalk('isr', X.gate - 0.084, X.gate - 0.034, { speed: 0.0125, pose: 'raise' });
             sfx(b, 'crowd'); sfx(b, 'harp');
           }],
-          [L[2] + 4, b => { sfx(b, 'crowd'); crowdPose('isr', 'raise'); }],
+          [L[2] + 4, b => sfx(b, 'crowd')],
           [L[2] + 5, b => W.set('dkTent', 1, b.instant)],
           // 米甲从窗户里观看（6:16）
           [L[3], b => { W.set('dkMichal', 1, b.instant); sfx(b, 'harp', { soft: true }); }],
           [L[3] + 3.2, b => sfx(b, 'crowd')],
-          // 约柜进了大卫的城，安放在帐幕里（6:17）
-          [L[3] + 5.6, b => {
+          // 抬约柜的人进了城门；约柜的荣光上到帐幕，安放在里面（6:17）
+          [L[3] + 3.9, () => LEV.forEach((id, i) => walk(id, X.gate + 0.006 + LEV_DX[i] * 0.35, { speed: 0.012 }))],
+          [L[3] + 4.6, b => { LEV.forEach(id => rm(id)); fxAdd(b, { type: 'trail', dur: 1.8 }); sfx(b, 'harp', { soft: true }); }],
+          [L[3] + 6.3, b => {
             S.ark = 'tent';
             W.set('dkName', 0, b.instant);
-            LEV.forEach(id => rm(id));
             fxAdd(b, { type: 'enter', dur: 3 });
             if (!b.instant) fx().ring(tentBox().cx, tentBox().base - 10 * SU(), [255, 230, 170], M() * 0.18, 2.2, 1.4);
             sfx(b, 'angel');
           }],
-          [L[3] + 6.2, b => {
+          [L[3] + 6.7, b => {
             S.dance = false; S.horns = false;
             attach('david', null);
-            place('david', X.atGate - 0.01);
+            walk('david', X.gate + 0.045, { speed: 0.02, pose: 'bow' });
             face('david', 1);
-            pose('david', 'bow');
             HORN.forEach(id => pose(id, 'bow'));
             crowdPose('isr', 'bow');
             W.set('dkMichal', 0, b.instant);
@@ -1741,7 +1843,7 @@
             S.dRobe = 'king'; S.crown = true; dress();
             pose('david', 'stand');
             walk('david', 0.748, { speed: 0.02 });
-            add('nathan', { label: '拿单', sex: 'm', age: 'elder', x: 0.672, v: 0.14, facing: 1, robe: ROBE.nathan, glow: 0.4, from: fromOf(b), prop: 'staff' });
+            add('nathan', { label: '拿单', sex: 'm', age: 'elder', x: 0.672, v: 0.42, facing: 1, robe: ROBE.nathan, glow: 0.4, from: fromOf(b), prop: 'staff' });
             walk('nathan', 0.722, { speed: 0.02 });
             avoid([0.62, 0.8]);
           }],
@@ -1780,7 +1882,7 @@
         const L = starts(V5);
         T(c, [
           [0, b => {
-            W.goTo(0.36, 6, b.instant);
+            W.goTo(0.36, 8, b.instant);
             W.set('dkHouse', 0, b.instant); W.set('dkLine', 0, b.instant); W.set('dkBeam', 0, b.instant);
             S.beam = null;
             rm('nathan'); rm('david');
@@ -1817,8 +1919,9 @@
           [L[2] + 5.8, () => { face('david', -1); face('mephi', 1); }],
           // 约押统带勇猛的全军出去（10:7，12）；远处的拉巴
           [L[3], b => {
-            add('joab', { label: '约押', sex: 'm', x: 0.82, v: 0.08, facing: -1, robe: ROBE.joab, glow: 0.2, prop: 'staff', from: fromOf(b) });
-            crowd('army', { n: 8, x0: 0.8, x1: 0.9, layer: 2, label: '勇猛的全军', robe: [104, 90, 74], v: 0.05, from: fromOf(b), mill: false });
+            add('joab', { label: '约押', sex: 'm', x: 0.82, v: 0.2, facing: -1, robe: ROBE.joab, glow: 0.2, prop: 'staff', from: fromOf(b) });
+            crowd('army', { n: 8, x0: 0.8, x1: 0.9, layer: 2, label: '勇猛的全军', robe: [104, 90, 74], v: 0.2, from: fromOf(b), mill: false });
+            crowdV('army', 0.16, 0.34);
             walk('joab', 0.5, { speed: 0.036 });
             crowdWalk('army', 0.5, 0.58, { speed: 0.036 });
             sfx(b, 'crowd', { soft: true });
@@ -1853,11 +1956,12 @@
           [L[1], b => { W.set('dkCourt', 1, b.instant); }],
           [L[1] + 2, () => { face('david', -1); pose('david', 'gaze'); }],
           [L[1] + 5.2, () => { pose('david', 'stand'); }],
-          // 次日早晨：乌利亚带着信出城（11:14）
+          // 夜过去了（慢慢地），次日早晨（11:14）
+          [L[1] + 5.6, b => W.goTo(0.3, 9, b.instant)],
+          // 乌利亚带着信出城
           [L[2], b => {
-            W.goTo(0.3, 3.5, b.instant);
             W.set('dkCourt', 0, b.instant);
-            add('uriah', { label: '赫人乌利亚', sex: 'm', x: X.gate, v: 0.05, facing: -1, robe: ROBE.uriah, glow: 0.25, prop: 'staff', from: fromOf(b) });
+            add('uriah', { label: '赫人乌利亚', sex: 'm', x: X.gate, v: 0.16, facing: -1, robe: ROBE.uriah, glow: 0.25, prop: 'staff', from: fromOf(b) });
             S.letter = true;
             walk('uriah', 0.52, { speed: 0.04 });
           }],
@@ -1865,7 +1969,7 @@
           [L[2] + 5.8, b => { fxAdd(b, { type: 'out', dur: 2.6 }); rm('uriah'); S.letter = false; sfx(b, 'thunder', { soft: true, far: true }); }],
           // 乌利亚的妻为他哀哭；接到宫里（11:26–27）
           [L[3], b => {
-            W.goTo(0.7, 8, b.instant);
+            W.goTo(0.66, 9, b.instant);
             add('bathsheba', { label: '拔示巴', sex: 'f', x: X.uriah - 0.012, v: 0.12, facing: -1, robe: ROBE.bath, glow: 0.3, pose: 'weep', from: fromOf(b) });
           }],
           [L[3] + 3.2, () => { pose('bathsheba', 'stand'); walk('bathsheba', X.gate + 0.004, { speed: 0.012 }); }],
@@ -1884,7 +1988,6 @@
         T(c, [
           [0, b => {
             rm('bathsheba', true);
-            W.goTo(0.4, 5, b.instant);
             rm('david');
             add('nathan', { label: '拿单', sex: 'm', age: 'elder', x: 0.64, v: 0.14, facing: 1, robe: ROBE.nathan, glow: 0.4, prop: 'staff', from: fromOf(b) });
             walk('nathan', 0.735, { speed: 0.022 });
@@ -1997,11 +2100,11 @@
         T(c, [
           [0, b => {
             rm('absalom', true); uncrowd('hearts', true); rm('joab', true);
-            W.goTo(0.31, 5, b.instant);
+            W.goTo(0.31, 8, b.instant);
             // 大卫蒙头赤脚上橄榄山，一面上一面哭（15:30）
             walk('david', 0.648, { speed: 0.016 });
             pose('david', 'weep', { weep: true });
-            add('abishai', { label: '亚比筛', sex: 'm', x: X.gate, v: 0.06, facing: -1, robe: ROBE.abishai, glow: 0.2, prop: 'staff', from: fromOf(b) });
+            add('abishai', { label: '亚比筛', sex: 'm', x: X.gate, v: 0.16, facing: -1, robe: ROBE.abishai, glow: 0.2, prop: 'staff', from: fromOf(b) });
             walk('abishai', 0.664, { speed: 0.017 });
             crowd('flee', { n: 8, x0: 0.77, x1: 0.8, layer: 2, label: '跟随大卫的人', robe: [110, 98, 84], v: 0.25, from: fromOf(b), mill: false });
             crowdWalk('flee', 0.66, 0.74, { speed: 0.017, pose: 'weep' });
@@ -2021,18 +2124,20 @@
           [L[2], b => { W.set('dkCounsel', 1, b.instant); rm('shimei'); sfx(b, 'wind', { soft: true }); }],
           [L[2] + 3.6, b => { W.set('dkUnravel', 1, b.instant); sfx(b, 'harp'); }],
           // 夜里过约旦河；到了天亮（17:22）
+          // 夜里（乌云遮了日头，遍地一层暗，亚比筛手中的火把）；解开的计谋已经散尽
+          [L[3] - 0.8, b => { W.set('gloom', 0.55, b.instant); W.set('storm', 0.5, b.instant); }],
           [L[3], b => {
             offPath('shimei');
-            W.goTo(0.96, 2.5, b.instant);
+            W.set('dkCounsel', 0, true); W.set('dkUnravel', 0, true);
             walk('david', 0.6, { speed: 0.02 }); pose('david', 'stand', { weep: false });
             walk('abishai', 0.618, { speed: 0.02 });
             hold('abishai', 'torch');
             crowdWalk('flee', 0.555, 0.63, { speed: 0.022 });
           }],
-          [L[3] + 3.4, b => {
-            W.goTo(0.28, 3, b.instant);
+          // 到了天亮
+          [L[3] + 4.2, b => {
+            W.set('gloom', 0, b.instant); W.set('storm', 0, b.instant);
             hold('abishai', null);
-            W.set('dkCounsel', 0, b.instant); W.set('dkUnravel', 0, b.instant);
           }],
         ]);
       },
@@ -2040,7 +2145,7 @@
 
     // ── 10 · 我儿押沙龙啊（18—19:8）───────────────────────────
     {
-      kind: 'call', utter: '我儿押沙龙啊！我儿，我儿押沙龙啊！', cmd: 'wait 押沙龙  # 我恨不得替你死', ref: '18:33', tint: [214, 214, 236],
+      kind: 'judge', utter: '刀剑必永不离开你的家', cmd: 'while (家) 刀剑.留下()  # 我儿押沙龙啊', ref: '12:10', tint: [214, 214, 236],
       verse: V10,
       apply(c) {
         const L = starts(V10);
@@ -2052,8 +2157,8 @@
             walk('abishai', 0.625, { speed: 0.02 });
             crowdWalk('flee', 0.52, 0.575, { speed: 0.02 });
             // 押沙龙骑着骡子从大橡树密枝底下经过（18:9）
-            animal('mule', 'donkey', 0.99, { label: '骡子', facing: -1, v: 0.02, from: fromOf(b) });
-            add('absalom', { label: '押沙龙', sex: 'm', x: 0.99, v: 0.02, facing: -1, robe: ROBE.absalom, glow: 0.3, hair: 'long', from: fromOf(b) });
+            animal('mule', 'donkey', 0.99, { label: '骡子', facing: -1, v: 0.18, from: fromOf(b) });
+            add('absalom', { label: '押沙龙', sex: 'm', x: 0.99, v: 0.18, facing: -1, robe: ROBE.absalom, glow: 0.3, hair: 'long', from: fromOf(b) });
             ride('absalom', 'mule');
             walk('mule', X.oak - 0.004, { speed: 0.05 });
             avoid([0.52, 0.8]);
@@ -2117,7 +2222,7 @@
         T(c, [
           [0, b => {
             rm('ahimaaz'); rm('cushite');
-            W.goTo(0.42, 6, b.instant);
+            W.goTo(0.42, 8, b.instant);
             W.set('dkMaha', 0, b.instant); W.set('dkForest', 0, b.instant); W.set('dkCairn', 0, b.instant);
             pose('david', 'stand');
             walk('david', X.atGate, { speed: 0.03 });
@@ -2129,7 +2234,7 @@
           [5.6, () => { uncrowd('people'); uncrowd('flee'); rm('abishai'); face('david', -1); }],
           // 大卫年间有饥荒，一连三年（21:1）
           [L[1], b => {
-            W.goTo(0.5, 3, b.instant);
+            W.goTo(0.5, 5, b.instant);
             W.set('bare', 0.82, b.instant); W.set('grass', 0.45, b.instant); W.set('bloom', 0.1, b.instant); W.set('clouds', 0.05, b.instant);
             sfx(b, 'wind', { soft: true });
           }],
@@ -2143,8 +2248,9 @@
             onSpot('rizpah', 'rockTop', () => { const q = rockBox(); return [q.cx - q.w * 0.12, q.top + 1.2]; });
           }],
           [L[2] + 1.8, b => { pose('rizpah', 'raise'); if (!b.instant) { const r = rockBox(); fx().sparkle(r.cx, r.top - PH() * 1.4, 10, [60, 56, 64], 30 * SU(), 'air'); } sfx(b, 'wings', { soft: true }); }],
-          [L[2] + 3.2, b => { pose('rizpah', 'sit'); W.goTo(0.96, 2.6, b.instant); W.set('dkRizFire', 1, b.instant); }],
-          [L[2] + 6.6, b => { W.goTo(0.34, 2.6, b.instant); W.set('dkRizFire', 0, b.instant); }],
+          // 夜间（一层暗，她的火）；日间
+          [L[2] + 3.2, b => { pose('rizpah', 'sit'); W.set('gloom', 0.5, b.instant); W.set('storm', 0.45, b.instant); W.set('dkRizFire', 1, b.instant); }],
+          [L[2] + 6.4, b => { W.set('gloom', 0, b.instant); W.set('storm', 0, b.instant); W.set('dkRizFire', 0, b.instant); }],
           // 天降雨；神垂听（21:14）
           [L[3], b => {
             W.set('rain', 0.7, b.instant); W.set('clouds', 1, b.instant); W.set('storm', 0.35, b.instant);
@@ -2160,7 +2266,7 @@
 
     // ── 12 · 耶和华是我的岩石（22—23）───────────────────────────
     {
-      kind: 'act', utter: '耶和华是我的岩石，我的山寨，我的救主', cmd: 'mount 磐石 --as 山寨  # 他从高天伸手抓住我', ref: '22:2', tint: [255, 236, 200],
+      kind: 'act', utter: '耶和华从天上打雷；至高者发出声音', cmd: 'thunder --from 天上  # 耶和华是我的岩石', ref: '22:14', tint: [255, 236, 200],
       verse: V12,
       apply(c) {
         const L = starts(V12);
@@ -2171,7 +2277,7 @@
             S.dAge = 'elder'; dress();
             onPath('david', 'rock');
             walk('david', (X.rock - 0.004), { speed: 0.04, pose: 'raise' });
-            W.goTo(0.46, 4, b.instant);
+            W.goTo(0.54, 4, b.instant);
             W.set('storm', 0.95, b.instant); W.set('rain', 0.85, b.instant); W.set('gale', 0.8, b.instant); W.set('clouds', 1, b.instant);
             avoid([0.5, 0.62]);
             sfx(b, 'thunder');
@@ -2185,10 +2291,11 @@
             if (!b.instant) { W.flash = Math.max(W.flash || 0, 0.2); const p = figPt('david', 0.6); fx().ring(p[0], p[1], [255, 240, 210], M() * 0.16, 1.8, 1.4); }
             sfx(b, 'angel');
           }],
+          // 暴风渐息，天慢慢黑下来
+          [L[1] + 3.6, b => W.goTo(0.02, 8.5, b.instant)],
           [L[1] + 5, b => { W.set('storm', 0.3, b.instant); W.set('rain', 0.2, b.instant); W.set('gale', 0.2, b.instant); }],
           // 你是我的灯（22:29）
           [L[2], b => {
-            W.goTo(0.05, 3, b.instant);
             W.set('storm', 0, b.instant); W.set('rain', 0, b.instant); W.set('gale', 0, b.instant); W.set('clouds', 0.3, b.instant);
             W.set('dkBeam', 0, b.instant);
           }],
@@ -2209,49 +2316,54 @@
         T(c, [
           [0, b => {
             W.set('dkDew', 0, b.instant);
-            W.goTo(0.4, 4, b.instant);
+            W.goTo(0.4, 5, b.instant);
             S.beam = null;
-            walk('david', X.atGate - 0.012, { speed: 0.04 });
+            add('david', davidOpts({ v: 0.3 }));
+            walk('david', X.atGate - 0.012, { speed: 0.05 });
             W.set('dkFloor', 1, b.instant);
-            add('araunah', { label: '亚劳拿', sex: 'm', x: X.floor - 0.016, v: 0.1, facing: 1, robe: ROBE.araunah, glow: 0.2, from: fromOf(b) });
-            animal('ox1', 'cow', X.floor + 0.004, { label: '牛', facing: -1, v: 0.06, from: fromOf(b) });
-            animal('ox2', 'cow', X.floor + 0.024, { label: '牛', facing: 1, v: 0.14, from: fromOf(b) });
-            add('joab', { label: '约押', sex: 'm', x: X.gate + 0.02, v: 0.06, facing: -1, robe: ROBE.joab, glow: 0.2, prop: 'staff', from: fromOf(b) });
+            // 亚劳拿在禾场上，他的牛在场的西边（不与人叠在一处）
+            add('araunah', { label: '亚劳拿', sex: 'm', x: X.floor + 0.004, v: 0.12, facing: -1, robe: ROBE.araunah, glow: 0.2, from: fromOf(b) });
+            animal('ox1', 'cow', X.floor - 0.052, { label: '牛', facing: -1, v: 0.02, from: fromOf(b) });
+            animal('ox2', 'cow', X.floor - 0.03, { label: '牛', facing: -1, v: 0.02, from: fromOf(b) });
+            add('joab', { label: '约押', sex: 'm', x: X.gate + 0.02, v: 0.18, facing: -1, robe: ROBE.joab, glow: 0.2, prop: 'staff', from: fromOf(b) });
             avoid([0.52, 0.84]);
           }],
-          [3.2, b => { offPath('david'); place('david', X.atGate - 0.012); face('david', -1); pose('david', 'point'); }],
-          // 数点百姓：从但直到别是巴（24:2–9）
+          // 数点百姓：从但直到别是巴（24:2–9）——白日里，遍地亮起小光，地上一层薄薄的暗
           [4, b => {
-            pose('david', 'stand');
             walk('joab', 0.5, { speed: 0.045 });
             W.set('dkCount', 1, b.instant);
-            W.goTo(0.95, 1.8, b.instant);
+            W.set('gloom', 0.16, b.instant);
+            W.goTo(0.56, 14, b.instant);
           }],
-          [5.8, b => W.goTo(0.38, 2, b.instant)],
-          [L[1] - 0.5, b => { rm('joab'); }],
+          [4.6, () => { offPath('david'); face('david', -1); pose('david', 'point'); }],
+          [6.2, () => pose('david', 'stand')],
+          [L[1] - 0.5, () => { rm('joab'); }],
           // 大卫心中自责（24:10）
           [L[1] + 1, () => { face('david', 1); pose('david', 'kneel'); }],
           [L[1] + 2.6, () => pose('david', 'pray')],
           // 先见迦得；三样灾（24:11–14）
           [L[2] - 1, b => {
-            add('gad', { label: '迦得', sex: 'm', age: 'elder', x: 0.62, v: 0.2, facing: 1, robe: ROBE.gad, glow: 0.4, prop: 'staff', from: fromOf(b) });
-            walk('gad', X.atGate - 0.04, { speed: 0.025 });
+            add('gad', { label: '迦得', sex: 'm', age: 'elder', x: 0.62, v: 0.25, facing: 1, robe: ROBE.gad, glow: 0.4, prop: 'staff', from: fromOf(b) });
+            walk('gad', X.atGate - 0.028, { speed: 0.025 });
           }],
           [L[2] + 1, b => { fxAdd(b, { type: 'three', dur: 6 }); sfx(b, 'stars', { soft: true }); pose('david', 'kneel'); }],
           [L[2] + 4, () => pose('david', 'pray')],
-          // 耶和华降瘟疫；天使向耶路撒冷伸手（24:15–16）
+          // 耶和华降瘟疫：影子自西向东走过全地（24:15）；天使向耶路撒冷伸手（24:16）
           [L[3], b => {
-            W.set('dkPlague', 1, b.instant);
-            W.set('gloom', 0.42, b.instant);
+            W.set('dkPlague', 1, b.instant); W.set('dkVeil', 1, b.instant);
+            W.set('gloom', 0.3, b.instant);
             pose('araunah', 'bow');
             sfx(b, 'wind');
           }],
           [L[3] + 3, b => {
-            add('angel', { label: '耶和华的使者', sex: 'm', x: 0.93, v: 0, facing: -1, angel: true, glow: 1, scale: 1.3, from: b.instant ? 'none' : 'light', pose: 'point' });
-            fly('angel', 0.9, MOB() ? 0.6 : 0.52, { dur: 2.4, pose: 'point' });
+            // 天使在禾场的上空，向东边的耶路撒冷伸手（远离城楼与旗）
+            add('angel', { label: '耶和华的使者', sex: 'm', x: X.floor + 0.02, v: 0, facing: 1, angel: true, glow: 1, scale: 1.3, from: b.instant ? 'none' : 'light', pose: 'point' });
+            fly('angel', X.floor + 0.02, MOB() ? 0.47 : 0.4, { dur: 2.4, pose: 'point' });
+            face('angel', 1);
             sfx(b, 'angel');
           }],
-          [L[3] + 4.4, () => { pose('david', 'fall'); pose('gad', 'fall'); }],
+          [L[3] + 4.4, () => { pose('david', 'kneel'); pose('gad', 'kneel'); }],
+          [L[3] + 5.8, () => { pose('david', 'pray'); pose('gad', 'pray'); }],
         ]);
       },
     },
@@ -2264,11 +2376,19 @@
         const L = starts(V14);
         T(c, [
           [0, b => {
-            // 天使的手停住，站在亚劳拿的禾场那里
+            // 影子停在它所到之处（前锋上立起一道光）；天使的手停住，下到亚劳拿的禾场那里
+            haltAt = b.instant ? null : clamp(W.lv.dkPlague, 0, 1);
+            W.set('dkPlague', 1, true);
             const F = floorBox();
-            fly('angel', X.floor + 0.008, (F.top - PH() * 0.9) / W.h, { dur: 2.6, pose: 'stand' });
-            W.set('gloom', 0.22, b.instant);
-            if (!b.instant) { W.flash = Math.max(W.flash || 0, 0.18); fx().ring(X.floor * W.w, F.top - PH(), [255, 246, 222], M() * 0.3, 2.4, 1.6); }
+            fly('angel', X.floor + 0.024, (F.top - PH() * 0.9) / W.h, { dur: 2.6, pose: 'stand' });
+            W.set('gloom', 0.14, b.instant); W.set('dkVeil', 0.75, b.instant);
+            fxAdd(b, { type: 'halt', dur: 3.8 });
+            if (!b.instant) {
+              const fx0 = plagueFront();
+              W.flash = Math.max(W.flash || 0, 0.18);
+              fx().ring(fx0 * W.w, gY(2, fx0) - PH() * 0.4, [255, 246, 222], M() * 0.22, 2.2, 1.6);
+              fx().ring(X.floor * W.w, F.top - PH(), [255, 246, 222], M() * 0.3, 2.4, 1.6);
+            }
             avoid([0.6, 0.84]);
             sfx(b, 'angel');
           }],
@@ -2305,7 +2425,7 @@
           }],
           [L[3] + 2, b => {
             W.set('dkFire', 1, b.instant);
-            W.set('gloom', 0, b.instant); W.set('dkPlague', 0, b.instant); W.set('dkCount', 0, b.instant);
+            W.set('gloom', 0, b.instant); W.set('dkPlague', 0, b.instant); W.set('dkVeil', 0, b.instant); W.set('dkCount', 0, b.instant);
             W.goTo(0.72, 10, b.instant);
             S.beam = 'altar'; W.set('dkBeam', 0.7, b.instant);
             pose('david', 'kneel'); face('david', -1); face('araunah', 1);
@@ -2313,7 +2433,7 @@
             sfx(b, 'fire');
           }],
           [L[3] + 3.2, b => {
-            fly('angel', X.floor + 0.02, 0.2, { dur: 4 });
+            fly('angel', X.floor + 0.024, 0.2, { dur: 4 });
             sfx(b, 'angel');
           }],
           [L[3] + 5.6, b => { rm('angel'); crowdPose('elders2', 'raise'); pose('gad', 'raise'); }],
@@ -2345,8 +2465,8 @@
       if (!isCur()) return;
       if (pass === 'sky') { drawStarHouse(ctx); drawCounsel(ctx); drawFX(ctx, 'sky'); return; }
       const l = LAYER_OF_PASS[pass];
-      if (l === 0) { drawTally(ctx, 0); drawFX(ctx, 'far'); return; }
-      if (l === 1) { drawRabbah(ctx); drawTally(ctx, 1); drawFX(ctx, 'mid'); return; }
+      if (l === 0) { drawVeil(ctx, 0); drawTally(ctx, 0); drawFX(ctx, 'far'); return; }
+      if (l === 1) { drawRabbah(ctx); drawVeil(ctx, 1); drawTally(ctx, 1); drawFX(ctx, 'mid'); return; }
       if (l === 2) {
         for (const q of OLIVES) drawOlive(ctx, q[0], q[1], q[2]);
         const fk = W.lv.dkForest;
@@ -2359,13 +2479,13 @@
         drawFloor(ctx);
         drawCairn(ctx);
         drawTable(ctx);
+        drawVeil(ctx, 2);
         drawTally(ctx, 2);
         drawFX(ctx, 'near');
         return;
       }
       if (pass === 'air') {
-        drawPlague(ctx);
-        if (S.ark === 'poles') { const q = arkCarried(); if (q) drawArk(ctx, q.x, q.y, 1, q.a, true, q.span); }
+        if (S.ark === 'poles') { const q = arkCarried(); if (q) drawArk(ctx, q.x, q.y, PS(), q.a, true, q.span); }
         drawAltarFire(ctx);
         drawTorches(ctx);
         drawDance(ctx);
@@ -2379,8 +2499,8 @@
         drawFX(ctx, 'air');
       }
     },
-    reset() { FXL.length = 0; S = fresh(); },
-    restore() { FXL.length = 0; },
+    reset() { FXL.length = 0; S = fresh(); haltAt = null; },
+    restore() { FXL.length = 0; haltAt = null; },
     pick(x, y, r) {
       if (!isCur()) return null;
       let best = null;
@@ -2416,7 +2536,7 @@
   const PSALM = { text: '耶和华是我的岩石，我的山寨，我的救主，我的神，我的磐石，我所投靠的。', ref: '撒母耳记下 22:2–3' };
   GS.book.act({
     id: ACT, book: '撒母耳记下', books: [10], title: '大卫王', sub: '撒母耳记下 1 — 24', tint: [255, 214, 150], music: 'abraham',
-    outro: 20,
+    outro: 16,
     intro: INTRO,
     // 全卷终后，按住本卷的人与物，显出与它相关的经文
     behold: {
@@ -2449,7 +2569,7 @@
       '利斯巴': { text: '爱雅的女儿利斯巴用麻布在磐石上搭棚，从动手收割的时候直到天降雨在尸身上的时候。', ref: '撒母耳记下 21:10' },
       '磐石': PSALM,
       '亚劳拿的禾场': { text: '当日，迦得来见大卫，对他说：「你上去，在耶布斯人亚劳拿的禾场上为耶和华筑一座坛。」', ref: '撒母耳记下 24:18' },
-      '亚劳拿': { text: '王啊，这一切，我亚劳拿都奉给你」；又对王说：「愿耶和华你的神悦纳你。」', ref: '撒母耳记下 24:23' },
+      '亚劳拿': { text: '亚劳拿对大卫说：「我主我王，你喜悦用什么，就拿去献祭。看哪，这里有牛可以作燔祭……」', ref: '撒母耳记下 24:22' },
       '坛': { text: '大卫在那里为耶和华筑了一座坛，献燔祭和平安祭。如此，耶和华垂听国民所求的，瘟疫在以色列人中就止住了。', ref: '撒母耳记下 24:25' },
       '迦得': { text: '大卫早晨起来，耶和华的话临到先知迦得，就是大卫的先见。', ref: '撒母耳记下 24:11' },
       '耶和华的使者': { text: '那时耶和华的使者在耶布斯人亚劳拿的禾场那里。', ref: '撒母耳记下 24:16' },
@@ -2459,6 +2579,4 @@
     setup, stages: STAGES, scene: SCENE,
   });
 
-  // 测试用
-  GS._kingdavid = { get S() { return S; }, X, palaceBox, tentBox, gateBox, rockBox, mahaBox, floorBox };
 })(window.GS);
