@@ -14,6 +14,7 @@
  *     云升到天上，天上的圣所显现：真帐幕浮在云上，幔子后是至大者的荣光；施恩的宝座的光斜斜地照下来（4—5）。
  *   「主起了誓，决不后悔」——风浪里一只小船漂来；一条光的锚链自船上升起，直通入天上的幔内，
  *     锚钩住幔子；风浪平息，光一粒一粒自天上顺着链子下来（替他们祈求）（6—7）。
+ *     （到了夜里的光画，船解缆漂走，只留那锚钩在幔内。）
  *   「都要照着在山上指示你的样式」——天上的圣所放下一条条光的线，地上照着样式立起帐幕：院子、铜坛、
  *     圣所里的灯台与桌子、蓝紫朱红的幔子、幔子后的至圣所；祭司进头一层帐幕，大祭司独自进到幔子后面（8—9）。
  *   「神啊，我来了，为要照你的旨意行」——一道光自天上的至圣所降到地上的至圣所；坛上的火熄了；
@@ -233,9 +234,11 @@
     return [f.nx * W.w, fY(f.nx, f.v || 0, l) - 34 * LS(l) * k];
   }
   // 名字在某处上方、干净的天上以光聚成
+  const NAMED = {};   // 光画的名字以光聚成的时刻（转瞬的，不属于世界的状态）：那几秒里不再另显悬停的名字
   function nameAt(b, str, x, y, o) {
     if (inst(b) || !fx()) return;
     o = o || {};
+    NAMED[str] = W.t;
     const n = Array.from(str).length, u = SU();
     const size = Math.max(0.034 * M(), Math.min(o.size || 40 * u, (W.w * 0.6) / (n * 1.08)));
     const half = (size * 1.08 * (n - 1)) / 2 + size * 0.6;
@@ -2237,9 +2240,10 @@
       const d = Math.max(0, Math.hypot(px - x, py - y) - (d0 || 0));
       if (d < r && (!best || d < best.d)) best = { label, x: px, y: py, d };
     };
-    const H = heaven();
-    if (LV.hbHeaven > 0.4) { test('天上的圣所', H.x0 + (H.xv - H.x0) * 0.5, H.y, H.h * 0.4); test('施恩的宝座', H.mx, H.y, H.h * 0.35); }
-    if (LV.hbAnchor > 0.95 && LV.hbAnchorA > 0.5) test('锚', H.ax, H.ay - 6, 6);
+    // 天上的圣所：灵真在它上面时才显名（竖屏时灵歇在它下方不远处，不要一直挂着一个名字）
+    const H = heaven(), onH = x > H.x0 - 6 && x < H.x1 + 6 && y > H.top - 12 && y < H.bot + 8;
+    if (LV.hbHeaven > 0.4 && onH) { test('天上的圣所', H.x0 + (H.xv - H.x0) * 0.5, H.y, H.h * 0.4); test('施恩的宝座', H.mx, H.y, H.h * 0.35); }
+    if (LV.hbAnchor > 0.95 && LV.hbAnchorA > 0.5 && onH) test('锚', H.ax, H.ay - 6, 6);
     if (LV.hbBoat > 0.5) { const B = boatPos(); test('船', B.x, B.y - B.L * 0.2, B.L * 0.3); }
     if (LV.hbTab > 0.5) {
       const G = tabG();
@@ -2254,6 +2258,8 @@
       if (galAlpha(key) < 0.3 || LV.hbWitA < 0.5) continue;
       const P = galPos(key);
       const label = key === 'noah' ? '挪亚' : key === 'jericho' ? (LV.hbRahab > 0.5 ? '喇合' : '耶利哥') : key === 'moses' ? (LV.hbSea > 0.5 ? '红海' : '摩西') : GAL[key].name;
+      const nt = NAMED[GAL[key].name];
+      if (nt != null && W.t >= nt && W.t - nt < 5.5) continue;   // 名字正以光聚成：不叠一个悬停的名字
       test(label, P.x, P.y, P.R * 0.7);
     }
     if (LV.hbTents > 0.5) [X.tent0, X.tent1, X.tent2].forEach(xf => test('帐棚', xf * W.w, gY(1, xf) - 6 * LS(1), 6 * LS(1)));
@@ -2285,9 +2291,10 @@
     },
     drawUnder,
     draw,
-    reset() { FXL.length = 0; VT.clear(); },
+    reset() { FXL.length = 0; VT.clear(); for (const k in NAMED) delete NAMED[k]; },
     restore() {
       FXL.length = 0;
+      for (const k in NAMED) delete NAMED[k];
       for (const [id, v] of VT) { const q = fig(id); if (q) q.v = v; }
       VT.clear();
     },
