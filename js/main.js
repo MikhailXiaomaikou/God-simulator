@@ -249,9 +249,16 @@
     refreshHUD();
     const spoken = STAGES.filter(s => s.utter).length;
     const outro = (ACTS[ACTS.length - 1] && ACTS[ACTS.length - 1].outro) || 16;
-    GS.book.after(outro, () => { GS.ui.finale(true, { title: '旧约', sub: '三十九卷 · 终', foot: spoken + ' 句话 · 0 个 bug　—　God is the first vibecoder.' }); safe('audio.finale', () => GS.audio.finale()); });
-    GS.book.after(outro + 13, () => GS.ui.finale(false));
-    GS.book.after(outro + 16, () => GS.ui.hint('灵经过之处，万物显出其名；按住，观看它被造时的话', 7));
+    // 末一句的故事与经文都尽了，终章才写在天上（最多再等一分钟）
+    let waited = 0;
+    const show = () => {
+      if ((GS.book.busy() || GS.ui.narrating()) && waited++ < 60) { GS.book.after(1, show); return; }
+      GS.ui.finale(true, { title: '旧约', sub: '三十九卷 · 终', foot: spoken + ' 句话 · 0 个 bug　—　God is the first vibecoder.' });
+      safe('audio.finale', () => GS.audio.finale());
+      GS.book.after(13, () => GS.ui.finale(false));
+      GS.book.after(16, () => GS.ui.hint('灵经过之处，万物显出其名；按住，观看它被造时的话', 7));
+    };
+    GS.book.after(outro, show);
   }
 
   // 黎明：一日圆满——日数由晨光（前三日）或星光（后三日）写在地平线上
