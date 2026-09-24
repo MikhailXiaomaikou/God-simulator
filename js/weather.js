@@ -7,7 +7,7 @@
  *   W.set('gale', 0..1)    大风：云走得快，雨斜着落，海上起白浪
  *   W.set('hail', 0..1)    冰雹（出 9:23–24）：白色的雹粒夹在雨里，打在地上溅起
  *   W.set('gloom', 0..1)   遍地的黑暗（出 10:22）：整个世界沉入近乎全黑；各幕自己的光画在其上
- *   GS.weather.bolt()      立刻打一道闪电（西奈山、迦密山……）；瞬间重演时不打
+ *   GS.weather.bolt({x, y, near, front})  立刻打一道闪电（西奈山、迦密山……）；front: true 时画在群山之前；瞬间重演时不打
  *   W.weatherExclude = [[x0, x1], …]   画面比例的横向区间：雨、冰雹、遍地的黑暗在这里让开（歌珊地，出 9:26、10:23）；每幕开始时清空
  * ───────────────────────────────────────────────────────────── */
 (function (GS) {
@@ -177,7 +177,7 @@
     br.push(bx, by);
     const dir = Math.random() < 0.5 ? -1 : 1;
     for (let i = 0; i < 3; i++) { bx += dir * (0.02 + 0.03 * Math.random()) * W.w; by += (0.02 + 0.03 * Math.random()) * W.h; br.push(bx, by); }
-    S.bolt = { pts, br, t0: S.clock, dur: 0.42 };
+    S.bolt = { pts, br, t0: S.clock, dur: 0.42, front: !!o.front };
     W.flash = Math.max(W.flash || 0, 0.28 + 0.3 * Math.random());
     const d = o.near ? 0.15 : 0.4 + 1.4 * Math.random();
     const t0 = W.t;
@@ -271,12 +271,12 @@
       const col = U.mixRGB([110, 122, 150], [206, 214, 228], day);
       for (let layer = 0; layer < 2; layer++) {
         const n = Math.round((layer ? 140 : 200) * q * r) + 6;
-        const len = (layer ? 26 : 15) * u, sp = (layer ? 1250 : 820) * u;
+        const len = (layer ? 26 : 15) * u, spd = (layer ? 1250 : 820) * u;
         const H = W.h + len;
         ctx.beginPath();
         for (let i = 0; i < n; i++) {
           const hx = hsh(i * 1.37 + layer * 91), hy = hsh(i * 7.91 + layer * 37), hs = 0.8 + 0.4 * hsh(i * 3.17 + layer);
-          const yy = hy * H + S.clock * sp * hs;
+          const yy = hy * H + S.clock * spd * hs;
           const y = (yy % H) - len;
           const x = ((hx * W.w * 1.3 + slant * yy) % (W.w * 1.3)) - W.w * 0.15;
           if (sp && inSpared(sp, x)) continue;
@@ -289,12 +289,12 @@
     }
     if (hl >= 0.01) {
       // 冰雹：白色的粒，比雨慢，落到地上一闪
-      const n = Math.round(160 * q * hl) + 4, sp = 520 * u, H = W.h + 10;
+      const n = Math.round(160 * q * hl) + 4, spd = 520 * u, H = W.h + 10;
       ctx.fillStyle = U.rgba(236, 242, 250, 0.75 * hl * (0.55 + 0.45 * day) + 0.2 * (W.flash || 0));
       ctx.beginPath();
       for (let i = 0; i < n; i++) {
         const hx = hsh(i * 2.13 + 7), hy = hsh(i * 5.37 + 3), hs = 0.8 + 0.4 * hsh(i * 1.9);
-        const yy = hy * H + S.clock * sp * hs;
+        const yy = hy * H + S.clock * spd * hs;
         const y = (yy % H) - 5;
         const x = ((hx * W.w * 1.2 + slant * 0.5 * yy) % (W.w * 1.2)) - W.w * 0.1;
         if (sp && inSpared(sp, x)) continue;
@@ -337,9 +337,9 @@
     },
     draw(ctx, pass) {
       if (off()) return;
-      if (pass === 'seaFar') { drawStormSky(ctx); drawBolt(ctx); }
+      if (pass === 'seaFar') { drawStormSky(ctx); if (!(S.bolt && S.bolt.front)) drawBolt(ctx); }
       if (pass === 'seaFar' || pass === 'seaMid' || pass === 'seaNear') drawSea(ctx, pass);
-      else if (pass === 'air') { drawRain(ctx); drawGloom(ctx); }
+      else if (pass === 'air') { if (S.bolt && S.bolt.front) drawBolt(ctx); drawRain(ctx); drawGloom(ctx); }
     },
     pick() { return null; },
     bolt,

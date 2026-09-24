@@ -115,6 +115,7 @@
     taWalk: ['exp', 0.5],      // 与神同行的光
     taSins: ['lin', 0.12],     // 罪（0 → 0.3 显出 → 1 投于深海）
     taSea: ['exp', 0.3],       // 深海发光
+    taRain: ['exp', 0.45],     // 本幕的雨（核心的雨出错时由本幕自己画）
   };
   for (const k in LV) W.defineLevel(k, LV[k][0], LV[k][1]);
   const MY = Object.keys(LV);
@@ -130,7 +131,7 @@
     zion: 0.885, zionW: 0.13,
     beth: 0.565, crag: 0.63, cragW: 0.045, cragH: 0.2,
     fires: [0.565, 0.64, 0.715, 0.79, 0.855, 0.945],
-    anchor: [0.72, 0.25], plumbTop: 0.1, beamTop: 0,
+    anchor: [0.72, 0.25], plumbTop: 0.1, beamTop: 0.07,
     ship0: [0.37, 0.908], ship1: [0.2, 0.848], ship2: [0.075, 0.705],
     fishDx: 0.3, fishL: 0.23, fishH: 0.085, spit: [0.392, 0.915], land: 0.456,
     nin0: 0.628, nin1: 0.995, palace: 0.862, gate: 0.672, booth: 0.548,
@@ -197,6 +198,26 @@
     if (a && a.sfx) safe('twelve1.sfx', () => a.sfx(name, o || {}));
   }
   function time(tod, dur, b) { W.goTo(tod, dur, inst(b)); }
+  // 雨：优先交给核心的天气（声音也随之下雨）；若核心画雨出错，改由本幕自己画，免得控制台报错
+  let RAIN_OK = null;
+  function coreRainOK() {
+    if (RAIN_OK != null) return RAIN_OK;
+    RAIN_OK = !!(GS.weather && GS.weather.draw);
+    if (!RAIN_OK) return RAIN_OK;
+    const o = W.lv.rain;
+    try {
+      const c = document.createElement('canvas'); c.width = c.height = 4;
+      W.lv.rain = 0.5;
+      GS.weather.draw(c.getContext('2d'), 'air');
+    } catch (e) { RAIN_OK = false; }
+    W.lv.rain = o;
+    return RAIN_OK;
+  }
+  function rain(v, b) {
+    lv('taRain', v, b);
+    if (coreRainOK()) lv('rain', v, b);
+    else if (v > 0.05) sfx(b, 'rain', { soft: v < 0.4 });
+  }
   function avoid(r) { W.beastAvoid = r || []; }
   const C = () => cast();
   function add(id, o) { const c = C(); if (c) c.add(id, Object.assign({ layer: 2, from: 'fade', glow: 0.22 }, o)); }
@@ -1285,6 +1306,29 @@
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
   }
+  // 本幕自己的雨（仅当核心的雨不可用时）
+  function drawRainLocal(ctx) {
+    const r = L('taRain');
+    if (r < 0.01 || RAIN_OK !== false) return;
+    const q = W.quality || 1, u = Math.max(0.35, W.unit || 1);
+    const slant = 0.16 + 0.3 * L('gale');
+    const col = U.mixRGB([110, 122, 150], [206, 214, 228], W.daylight);
+    for (let layer = 0; layer < 2; layer++) {
+      const n = Math.round((layer ? 140 : 200) * q * r) + 6;
+      const len = (layer ? 26 : 15) * u, spd = (layer ? 1250 : 820) * u, H = W.h + len;
+      ctx.beginPath();
+      for (let i = 0; i < n; i++) {
+        const hx = hsh(i * 1.37 + layer * 91), hy = hsh(i * 7.91 + layer * 37), hs = 0.8 + 0.4 * hsh(i * 3.17 + layer);
+        const yy = hy * H + S.clock * spd * hs, y = (yy % H) - len;
+        const x = ((hx * W.w * 1.3 + slant * yy) % (W.w * 1.3)) - W.w * 0.15;
+        ctx.moveTo(x, y); ctx.lineTo(x + slant * len, y + len);
+      }
+      ctx.strokeStyle = rgba(col, (layer ? 0.3 : 0.2) * r * (0.6 + 0.4 * W.daylight) + 0.25 * (W.flash || 0));
+      ctx.lineWidth = (layer ? 1.2 : 0.8) * Math.max(0.8, u);
+      ctx.globalAlpha = 1;
+      ctx.stroke();
+    }
+  }
   // 我要回到原处（何 5:15）：世界的光变冷
   function drawCool(ctx) {
     const k = L('taCool');
@@ -1747,7 +1791,7 @@
     ctx.fillRect(px - 5 * n, pg - 66 * n, 10 * n, 66 * n);
     // 宝座
     ctx.fillStyle = sh([176, 132, 70], 0.02, 1, 0.1);
-    const tx = px + 13 * n, tg = gY(tx);
+    const tx = (X('palace') + 0.014) * W.w, tg = gY(tx);
     ctx.fillRect(tx - 6 * n, tg - 14 * n, 12 * n, 14 * n);
     ctx.fillStyle = sh(GOLD, 0.02, 1, 0.15);
     ctx.fillRect(tx - 7 * n, tg - 15 * n, 14 * n, 2 * n);
@@ -2134,13 +2178,23 @@
         } else if (e.type === 'whirl') {
           // 所收的是暴风：旋风卷起尘土
           const x = lerp(0.98, 0.6, q) * W.w, gy = gYb(x);
-          glow(ctx, 's', x, gy - 50 * n, 40 * n, 0.35 * env, 70 * n);
-          ctx.fillStyle = 'rgba(140,116,88,0.7)';
-          for (let i = 0; i < 140; i++) {
-            const h = (i / 140), ang = e.t * 8 + i * 1.3, r = (5 + h * 44) * n;
-            const px = x + Math.cos(ang) * r + h * 16 * n * Math.sin(e.t * 2), py = gy - h * 130 * n + Math.sin(ang) * 4 * n;
-            ctx.globalAlpha = env * 0.75 * (1 - h * 0.45);
-            ctx.fillRect(px, py, 2.4, 2.4);
+          // 旋风的漏斗：自地上卷起、上宽下窄的尘柱
+          ctx.globalAlpha = 0.28 * env;
+          ctx.fillStyle = 'rgba(120,100,78,0.8)';
+          ctx.beginPath();
+          const sw = Math.sin(e.t * 2) * 14 * n;
+          ctx.moveTo(x - 4 * n, gy);
+          ctx.quadraticCurveTo(x - 10 * n + sw * 0.3, gy - 60 * n, x - 48 * n + sw, gy - 140 * n);
+          ctx.lineTo(x + 48 * n + sw, gy - 140 * n);
+          ctx.quadraticCurveTo(x + 10 * n + sw * 0.3, gy - 60 * n, x + 4 * n, gy);
+          ctx.closePath(); ctx.fill();
+          glow(ctx, 's', x, gy - 60 * n, 60 * n, 0.5 * env, 90 * n);
+          ctx.fillStyle = 'rgb(112,92,70)';
+          for (let i = 0; i < 220; i++) {
+            const h = (i / 220), ang = e.t * 8 + i * 1.3, r = (5 + h * 46) * n;
+            const px = x + Math.cos(ang) * r + h * sw, py = gy - h * 140 * n + Math.sin(ang) * 5 * n;
+            ctx.globalAlpha = env * 0.85 * (1 - h * 0.4);
+            ctx.fillRect(px, py, 3.2, 3.2);
           }
         } else if (e.type === 'rise') {
           // 我必救赎他们脱离阴间：一片光自地里升起
@@ -2166,7 +2220,7 @@
           // 降临步行地的高处：一柱光沿着远山走过
           const x = lerp(1.0, 0.5, q) * W.w, y = gYb(x, 0);
           ctx.globalCompositeOperation = 'lighter';
-          beam(ctx, x, 0, y + 4, 60 * FU() * 3, 0.5 * env);
+          beam(ctx, x, X('beamTop') * W.h, y + 4, 60 * FU() * 3, 0.5 * env);
           glow(ctx, 'w', x, y, 40 * FU() * 2, 0.8 * env);
           ctx.globalCompositeOperation = 'source-over';
         } else if (e.type === 'lead') {
@@ -2255,9 +2309,9 @@
     }
     // 大风卷起地上的尘土（所种的是风，所收的是暴风）
     if (L('gale') > 0.4 && L('taIsrael') > 0.5 && L('taShipA') < 0.5 && Math.random() < 0.8 * L('gale')) {
-      for (let i = 0; i < 2; i++) {
+      for (let i = 0; i < 4; i++) {
         const x = rnd(0.45, 1.05) * W.w;
-        f.add({ x, y: gYb(Math.min(x, W.w)) - rnd(0, 50) * n, vx: -rnd(220, 420) * n, vy: rnd(-25, 8) * n, max: rnd(0.8, 1.6), size: rnd(1, 2), c: [176, 152, 118], drag: 0.2, a: 0.55, pass: 'near' });
+        f.add({ x, y: gYb(Math.min(x, W.w)) - rnd(0, 60) * n, vx: -rnd(220, 420) * n, vy: rnd(-25, 8) * n, max: rnd(0.8, 1.6), size: rnd(1.5, 3), c: [150, 124, 92], drag: 0.2, a: 0.75, pass: 'air' });
       }
     }
     // 风浪打在船头，溅起水花
@@ -2330,6 +2384,7 @@
       safe('ta.walk', () => drawWalk(ctx));
       safe('ta.sins', () => drawSins(ctx, 'air'));
       safe('ta.heat', () => drawHeat(ctx));
+      safe('ta.rain', () => drawRainLocal(ctx));
       safe('ta.fxl', () => drawFXL(ctx, 'air'));
     }
   }
@@ -2400,7 +2455,7 @@
     c.removeCrowd('isr'); rm('priest');
     c.crowd('nin', { n: 12, x0: 0.64, x1: 0.99, layer: 2, label: '尼尼微人', from: 'fade' });
     crowdRobe('nin', NIN);
-    add('king', { label: '尼尼微王', sex: 'm', age: 'elder', x: X('palace') + 13 / 1280 * 1.1, facing: -1, pose: 'seat', robe: ROBE.king, accent: GOLD, glow: 0.3, prop: null });
+    add('king', { label: '尼尼微王', sex: 'm', age: 'elder', x: X('palace') + 0.014, facing: -1, pose: 'seat', robe: ROBE.king, accent: GOLD, glow: 0.3, prop: null });
     if (c.herd) c.herd('ninCattle', { kind: 'cow', n: 3, x0: 0.7, x1: 0.8, layer: 2, label: '牲畜', from: 'fade', mill: false, pose: 'graze' });
     avoid([[0.4, 1]]);
   }
@@ -2509,7 +2564,7 @@
       kind: 'judge', utter: '我喜爱良善，不喜爱祭祀', cmd: 'grep -v 燔祭 心 | grep 良善', ref: '何西阿书 6:6', tint: TINT_HO,
       verse: [
         { text: '以色列人哪，你们当听耶和华的话。耶和华与这地的居民争辩，<br>因这地上无诚实，无良善，无人认识神。', ref: '何西阿书 4:1', hold: 7 },
-        { text: '我要回到原处，等他们自觉有罪，寻求我面……<br>来吧，我们归向耶和华！他撕裂我们，也必医治；他打伤我们，也必缠裹。', ref: '何西阿书 5:15–6:1', hold: 8 },
+        { text: '我要回到原处，等他们自觉有罪，寻求我面……<br>来吧，我们归向耶和华！他撕裂我们，也必医治；他打伤我们，也必缠裹。', ref: '何西阿书 5:15–6:1', hold: 7.5 },
         { text: '……你们的良善如同早晨的云雾，又如速散的甘露……<br>我喜爱良善，不喜爱祭祀；喜爱认识神，胜于燔祭。', ref: '何西阿书 6:4–6', hold: 7.5 },
         { text: '以法莲好像鸽子愚蠢无知；他们求告埃及，投奔亚述。', ref: '何西阿书 7:11', hold: 5.5 },
       ],
@@ -2578,11 +2633,11 @@
             add('plowman', { label: '耕田的', sex: 'm', x: X('field0') - 0.01, facing: 1, robe: [122, 100, 76] });
             if (C().animal) C().animal('ox', { kind: 'ox', x: X('field0') + 0.012, facing: 1, label: '牛', from: inst(b) ? 'none' : 'fade' });
             walk('plowman', X('field1') - 0.012, { speed: 0.019 }); walk('ox', X('field1') + 0.012, { speed: 0.019 });
-            lv('taPlow', 1, b); lv('rain', 0.22, b);
+            lv('taPlow', 1, b); rain(0.22, b);
             if (!inst(b)) S.goldRain = S.clock + 8;
             sfx(b, 'rain', { soft: true });
           }],
-          [21.5, b => { lv('rain', 0, b); }],
+          [21.5, b => { rain(0, b); }],
           [22.4, b => {
             lv('taCords', 1, b); lv('gale', 0, b);
             C().crowdWalk('isr', 0.72, 0.87, { speed: 0.018, pose: 'gaze' });
@@ -2601,7 +2656,7 @@
       verse: [
         { text: '以法莲哪，我怎能舍弃你？以色列啊，我怎能弃绝你？……<br>我回心转意，我的怜爱大大发动。', ref: '何西阿书 11:8', hold: 7 },
         { text: '所以你当归向你的神，谨守仁爱、公平，常常等候你的神。', ref: '何西阿书 12:6', hold: 5.5 },
-        { text: '我必救赎他们脱离阴间，救赎他们脱离死亡。<br>死亡啊，你的灾害在哪里呢？阴间哪，你的毁灭在哪里呢？', ref: '何西阿书 13:14', hold: 7 },
+        { text: '我必救赎他们脱离阴间，救赎他们脱离死亡。<br>死亡啊，你的灾害在哪里呢？阴间哪，你的毁灭在哪里呢？', ref: '何西阿书 13:14', hold: 6.5 },
         { text: '我必向以色列如甘露；他必如百合花开放，如黎巴嫩的树木扎根……<br>曾住在他荫下的必归回，发旺如五谷，开花如葡萄树。', ref: '何西阿书 14:5–7', hold: 8 },
       ],
       apply(c) {
@@ -2686,7 +2741,7 @@
         T(c, [
           [0, b => {
             time(0.64, 24, b);
-            lv('rain', 0.45, b); lv('taSwarm', 0, b); lv('taSwarmX', 1, b); lv('gloom', 0, b);
+            rain(0.45, b); lv('taSwarm', 0, b); lv('taSwarmX', 1, b); lv('gloom', 0, b);
             const ox = W.w * 0.8, oy = W.ridgeBaseY(2, ox);
             W.setOrigin('grass', ox, oy); W.setOrigin('herbs', ox, oy);
             lv('grass', 1, b); lv('herbs', 1, b); lv('trees', 0.62, b);
@@ -2695,7 +2750,7 @@
             C().crowdPose('isr', 'gaze'); pose('priest', 'stand');
             sfx(b, 'rain');
           }],
-          [6.5, b => { lv('rain', 0, b); }],
+          [6.5, b => { rain(0, b); }],
           [8.3, b => {
             lv('taSpirit', 1, b);
             crowdGlow('isr', 0.75); glowP('priest', 0.75);
@@ -2862,7 +2917,7 @@
           [2, b => { walk('jonah', 0.438, { speed: 0.042 }); }],
           [7.6, b => { rm('jonah'); lv('taJonah', 1, b); lv('taStand', 0, b); lv('taShip', 1, b); }],
           [8.3, b => {
-            lv('storm', 0.9, b); lv('gale', 0.85, b); lv('rain', 0.7, b); lv('clouds', 0.95, b);
+            lv('storm', 0.9, b); lv('gale', 0.85, b); rain(0.7, b); lv('clouds', 0.95, b);
             C().crowdPose('isr', 'kneel');
             sfx(b, 'thunder');
           }],
@@ -2891,7 +2946,7 @@
           [0, b => { lv('taOver', 1, b); sfx(b, 'wind', { soft: true }); }],
           [1.3, b => {
             const Q = jonahQ(); splash(b, Q[0], Q[1], W.seaScale(Q[1]) * 1.3, false);
-            lv('storm', 0, b); lv('gale', 0, b); lv('rain', 0, b); lv('clouds', 0.4, b);
+            lv('storm', 0, b); lv('gale', 0, b); rain(0, b); lv('clouds', 0.4, b);
           }],
           [2.2, b => { lv('taFish', 1, b); }],
           [3.2, b => { const G = fishGeom(); splash(b, G.qx, G.y0, W.seaScale(G.y0) * 1.6, true); }],
@@ -2919,7 +2974,7 @@
         { text: '约拿进城走了一日，宣告说：「再等四十日，尼尼微必倾覆了！」<br>尼尼微人信服神……从最大的到至小的都穿麻衣。', ref: '约拿书 3:4–5', hold: 7.5 },
         { text: '于是神察看他们的行为，见他们离开恶道，<br>他就后悔，不把所说的灾祸降与他们了。', ref: '约拿书 3:10', hold: 6.5 },
         { text: '耶和华神安排一棵蓖麻，使其发生高过约拿……<br>次日黎明，神却安排一条虫子咬这蓖麻，以致枯槁。', ref: '约拿书 4:6–7', hold: 7 },
-        { text: '耶和华说：「……何况这尼尼微大城，其中不能分辨左手右手的有十二万多人，<br>并有许多牲畜，我岂能不爱惜呢？」', ref: '约拿书 4:10–11', hold: 7.5 },
+        { text: '耶和华说：「……何况这尼尼微大城，其中不能分辨左手右手的有十二万多人，<br>并有许多牲畜，我岂能不爱惜呢？」', ref: '约拿书 4:10–11', hold: 7 },
       ],
       apply(c) {
         ring(c, [255, 226, 180]);
@@ -2972,7 +3027,7 @@
       verse: [
         { text: '看哪，耶和华出了他的居所，降临步行地的高处。<br>众山在他以下必消化，诸谷必崩裂，如蜡化在火中。', ref: '弥迦书 1:3–4', hold: 6.5 },
         { text: '雅各家啊，我必要聚集你们，必要招聚以色列剩下的人……<br>如波斯拉的羊，又如草场上的羊群。', ref: '弥迦书 2:12', hold: 6 },
-        { text: '锡安必被耕种像一块田……<br>末后的日子，耶和华殿的山必坚立，超乎诸山，高举过于万岭；万民都要流归这山。', ref: '弥迦书 3:12–4:1', hold: 8 },
+        { text: '锡安必被耕种像一块田……<br>末后的日子，耶和华殿的山必坚立，超乎诸山，高举过于万岭；万民都要流归这山。', ref: '弥迦书 3:12–4:1', hold: 7.5 },
         { text: '他们要将刀打成犁头，把枪打成镰刀……<br>人人都要坐在自己葡萄树下和无花果树下，无人惊吓。', ref: '弥迦书 4:3–4', hold: 7.5 },
       ],
       apply(c) {
@@ -3093,7 +3148,8 @@
       '蝗虫': { text: '有一队蝗虫又强盛又无数，侵犯我的地……', ref: '约珥书 1:6' },
       '锡安': { text: '你们要在锡安吹角，在我圣山吹出大声。', ref: '约珥书 2:1' },
       '阿摩司': { text: '阿摩司对亚玛谢说：「我原不是先知，也不是先知的门徒。我是牧人，又是修理桑树的。<br>耶和华选召我，使我不跟从羊群……」', ref: '阿摩司书 7:14–15' },
-      '羊群': { text: '……提哥亚牧人中的阿摩司得默示论以色列。', ref: '阿摩司书 1:1' },
+      '羊群': { text: '雅各家啊，我必要聚集你们，必要招聚以色列剩下的人……<br>如波斯拉的羊，又如草场上的羊群。', ref: '弥迦书 2:12' },
+      '牛': { text: '以法莲是驯良的母牛犊，喜爱踹谷……犹大必耕田；雅各必耙地。', ref: '何西阿书 10:11' },
       '公义的江河': { text: '惟愿公平如大水滚滚，使公义如江河滔滔。', ref: '阿摩司书 5:24' },
       '准绳': { text: '耶和华对我说：「阿摩司啊，你看见什么？」我说：「看见准绳。」', ref: '阿摩司书 7:8' },
       '墙': { text: '他又指示我一件事：有一道墙是按准绳建筑的，主手拿准绳站在其上。', ref: '阿摩司书 7:7' },
@@ -3112,7 +3168,7 @@
       '棚': { text: '于是约拿出城，坐在城的东边，在那里为自己搭了一座棚，<br>坐在棚的荫下，要看看那城究竟如何。', ref: '约拿书 4:5' },
       '蓖麻': { text: '耶和华神安排一棵蓖麻，使其发生高过约拿，影儿遮盖他的头，救他脱离苦楚；<br>约拿因这棵蓖麻大大喜乐。', ref: '约拿书 4:6' },
       '牧人': { text: '他必起来，倚靠耶和华的大能，并耶和华他神之名的威严，牧养他的羊群。', ref: '弥迦书 5:4' },
-      '羊圈': { text: '雅各家啊，我必要聚集你们……如波斯拉的羊，又如草场上的羊群。', ref: '弥迦书 2:12' },
+      '羊圈': { text: '开路的在他们前面上去；他们直闯过城门，从城门出去。<br>他们的王在前面行；耶和华引导他们。', ref: '弥迦书 2:13' },
       '耶和华殿的山': { text: '末后的日子，耶和华殿的山必坚立，超乎诸山，高举过于万岭；万民都要流归这山。', ref: '弥迦书 4:1' },
       '打刀的人': { text: '他们要将刀打成犁头，把枪打成镰刀。这国不举刀攻击那国；他们也不再学习战事。', ref: '弥迦书 4:3' },
       '犁头': { text: '他们要将刀打成犁头，把枪打成镰刀。', ref: '弥迦书 4:3' },
