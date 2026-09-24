@@ -3,10 +3,11 @@
  *
  * 一封没有具名的信，讲的是一个比影子更真的世界。这一幕里，地上的事物是「影像」，天上的是「本物」：
  *   夜里，近处的山岭与远处的丘陵上，一盏一盏的小灯此起彼落——「神既在古时藉着众先知多次多方地晓谕列祖」（开篇）。
- *   「你是我的儿子，我今日生你」——众灯自四处升起，汇成一点；天开了一道光，那一点光顺着光降下，儿子站在地上，
- *     他是神荣耀所发的光辉；天亮了；两位天使在他两旁下拜（1）。
+ *   「你是我的儿子，我今日生你」——众灯自四处升起，指向天开的那一道光，没入光里（他们是指着他说的）；
+ *     另有一点光自天上顺着光降下，儿子站在地上，他是神荣耀所发的光辉；天亮了；两位天使在他两旁下拜（1）。
  *   「看哪，我与神所给我的儿女」——一群人坐在冷灰的影子里（一生因怕死而为奴仆）；他走到他们中间，
- *     跪下，他的光低到几乎熄灭（为人人尝了死味），又重新亮起；影子退散，众人站起来，围着他（2）。
+ *     俯伏在地，冷影合拢在他身上，他的光低到几乎熄灭（为人人尝了死味）；又站起来，光与光圈把影子赶散；
+ *     众人的冷影也退散，众人站起来，围着他（2）。
  *   「你们今日若听他的话，就不可硬着心」——风吹过，地一时成了旷野，中丘上是四十年间苍白的帐棚；
  *     「今日」：地又青了，一层安息的金光落在地上，众人坐下安歇；神的道如一道光的剑掠过全地（3—4）。
  *   「你是照着麦基洗德的等次永远为祭司」——他举手祝福，升上高天，一朵光明的云把他接去；
@@ -22,13 +23,13 @@
  *     亚伯的坛与直上的烟、以诺行走而被接去、挪亚的方舟与虹（11:1–7）。
  *   「论子孙，我必叫你的子孙多起来」——亚伯拉罕（光的人影）在中丘上往不知道的地方走去，住在帐棚里，
  *     与以撒、雅各一样；满天的星一颗一颗多起来，海边的沙也闪着光（6:13–14，11:8–12）。
- *   「我拉着他们祖宗的手，领他们出埃及」——摩西与那不能看见的主（一根光柱）；海水分开，众人走过干地；
- *     七次围绕耶利哥，城墙倒塌，惟有挂着朱红线绳的那一扇窗仍立着（8:9，11:23–31）。
- *   「为我们信心创始成终的耶稣」——天快亮了，那一幅幅光的画都升入一圈光明的云：许多的见证人如同云彩围着我们；
+ *   「我拉着他们祖宗的手，领他们出埃及」——约瑟（光的人影）指着出去的路；摩西与那不能看见的主（一根光柱）；
+ *     海水分开，众人走过干地；七次围绕耶利哥，城墙倒塌，惟有挂着朱红线绳的那一扇窗仍立着（8:8–9，11:22–31）。
+ *   「忍受了十字架的苦难，便坐在神宝座的右边」——天快亮了，那一幅幅光的画都升入一圈光明的云：许多的见证人如同云彩围着我们；
  *     一个人放下重担，在一条光的路上奔跑，仰望天上的光（11:32，12:1–2）。
  *   「再一次我不单要震动地，还要震动天」——右边升起一座黑暗的山：火焰、密云、暴风、角声；又沉下去；
- *     天上的耶路撒冷显现，千万的天使如星；天地震动，人手所造的帐幕化作光尘散去，不被震动的常存；
- *     我们的神乃是烈火（12）。
+ *     天上的耶路撒冷显现，千万的天使如星；天地震动，人手所造的帐幕化作光尘散去（供职的祭司也一同隐去），
+ *     不被震动的常存；我们的神乃是烈火（12）。
  *   「我总不撇下你，也不丢弃你」——黄昏，众人摆上桌子，接待一位客旅（不知不觉就接待了天使）；
  *     天上的光落在他们身上；夜过去，天又亮了——昨日、今日、一直到永远，天上的光不变；愿恩惠常与你们众人同在（13）。
  *
@@ -38,7 +39,8 @@
  *
  * 画面的方位（桌面）：左 = 海（经文在海面上）；近地 —— 众人（0.47–0.62），帐幕与院子（0.8）；
  *   天上的圣所悬在帐幕的正上方（0.8, 0.16）；夜里的光画在天的中间（0.36–0.64）。
- * 竖屏的手机：位置经 PX 收拢到 0.4–0.9；天上的圣所与光画都在经文之下的天空里。
+ * 竖屏的手机：世界的位置经 PX 收拢到 0.4–0.9；人（与桌子、油灯、路程）另经 PXP 散开在近地的平顶上，离崖边
+ *   至少 30 px，并往前站（pv 加深纵深），好让帐幕立在他们后面；天上的圣所与光画都在经文之下的天空里。
  * 一切位置都以画面的比例记下；一切情节都可瞬间重演（恢复存档 / 提前言说）。
  * ───────────────────────────────────────────────────────────── */
 (function (GS) {
@@ -54,12 +56,13 @@
   const LEVELS = {
     hbLamps: ['exp', 0.9],      // 众先知的灯（多次多方）
     hbGather: ['lin', 0.34],    // 众灯升起，汇成一点
-    hbDescend: ['lin', 0.8],    // 那一点光顺着天光降下
+    hbDescend: ['lin', 0.6],    // 一点光自天上顺着天光降下（父所差来的）
     hbBeam: ['exp', 0.9],       // 天开了，父的光照下来
     hbVoice: ['exp', 1.2],      // 父的声音：天光更亮
     hbRadiance: ['exp', 0.7],   // 神荣耀所发的光辉
     hbOil: ['exp', 0.6],        // 众人身旁的一盏油灯（夜里）
     hbShadow: ['exp', 0.45],    // 怕死的冷影
+    hbDeath: ['exp', 0.8],      // 为人人尝了死味：冷影合拢在他身上
     hbWild: ['exp', 0.5],       // 旷野：四十年间苍白的帐棚
     hbRest: ['exp', 0.4],       // 安息的金光
     hbCloud: ['exp', 0.8],      // 接他的光明的云
@@ -119,11 +122,20 @@
   };
   const X = Object.assign({}, XL);
   let PORT = false;
+  // 世界里的东西（帐幕、中丘上的帐棚……）：竖屏时收拢
   const PX = x => (!PORT || x >= 1.001 ? x : 0.4 + (x - 0.45) * 0.9);
+  // 人与人群里的东西（桌子、油灯、路程的起点）：竖屏时散开在近地的平顶上（0.47 → 0.53，离崖边约 30 px）
+  const PXP = x => (!PORT ? x : 0.5 + (x - 0.45) * 1.6);
+  // 竖屏时人往前站（纵深加深）：帐幕立在他们后面，彼此也不挡
+  const pv = v => (!PORT ? v : 0.3 + v * 0.75);
+  const PEOPLE_X = { p1: 1, p2: 1, p3: 1, p4: 1, p5: 1, p6: 1, jmid: 1, asc: 1, oil: 1, table: 1 };
+  const XP = { jesus: 0.82, start: 0.535, tab: 0.75 };   // 竖屏另定
   function layout() {
     PORT = W.w < W.h * 0.9;
-    for (const k in XL) X[k] = PX(XL[k]);
+    for (const k in XL) X[k] = PORT && XP[k] != null ? XP[k] : PEOPLE_X[k] ? PXP(XL[k]) : PX(XL[k]);
   }
+  // 两位天使（1）：在他的右边
+  const angelX = () => (PORT ? [0.89, 0.955] : [0.718, 0.772]);
   // 众人（弟兄、圣徒、儿女）：各自在近地里的纵深 v 错开，免得挤成一团
   const PEOPLE = [
     { id: 'p1', label: '弟兄', sex: 'm', age: 'adult', robe: [118, 98, 80], v: 0.44 },
@@ -196,9 +208,9 @@
   function home(o) {
     o = o || {};
     each((id, i) => {
-      const q = PEOPLE[i], x = PX(XL[id] + (o.dx || 0) + (o.spread ? (i - 2.5) * o.spread : 0));
+      const q = PEOPLE[i], x = PXP(XL[id] + (o.dx || 0) + (o.spread ? (i - 2.5) * o.spread : 0));
       if (o.walk === false) { C().place && C().place(id, x); } else walk(id, x, { speed: o.speed || 0.03, pose: o.pose || 'stand' });
-      sink(id, o.v != null ? o.v : q.v);
+      sink(id, pv(o.v != null ? o.v : q.v));
     });
   }
 
@@ -272,6 +284,7 @@
         pale: radial([255, 246, 222], 1, 0.5), soot: radial([30, 34, 46], 0.9, 0.55), cloud: radial([252, 250, 246], 1, 0.62),
         cloudW: radial([255, 238, 206], 1, 0.6), blue: radial([170, 206, 255], 1, 0.45), red: radial([236, 76, 64], 1, 0.4),
         fire: radial([255, 150, 60], 1, 0.4), smoke: radial([70, 62, 66], 0.85, 0.55), dim: radial([150, 160, 180], 0.8, 0.55),
+        chill: radial([66, 80, 106], 0.85, 0.55),
       };
       // 竖直的光柱：中间亮，两边淡；上下两端淡去
       const b = cnv(64, 256), g = b.getContext('2d');
@@ -283,11 +296,16 @@
       vt.addColorStop(0, 'rgba(0,0,0,0)'); vt.addColorStop(0.12, 'rgba(0,0,0,0.85)'); vt.addColorStop(0.9, 'rgba(0,0,0,1)'); vt.addColorStop(1, 'rgba(0,0,0,0.2)');
       g.fillStyle = vt; g.fillRect(0, 0, 64, 256);
       SP.column = b;
-      // 横的光带（贴着地面的一道光）
-      const bd = cnv(4, 64), bg = bd.getContext('2d'), bv = bg.createLinearGradient(0, 0, 0, 64);
+      // 横的光带（贴着地面的一道光）：上下淡去；左端（崖边、海上）柔柔地淡入，右端略淡——没有一道硬边
+      const bd = cnv(128, 64), bg = bd.getContext('2d'), bv = bg.createLinearGradient(0, 0, 0, 64);
       bv.addColorStop(0, 'rgba(255,240,206,0)'); bv.addColorStop(0.45, 'rgba(255,238,200,0.22)'); bv.addColorStop(0.7, 'rgba(255,242,212,0.62)');
       bv.addColorStop(0.82, 'rgba(255,248,226,0.95)'); bv.addColorStop(0.9, 'rgba(255,244,216,0.5)'); bv.addColorStop(1, 'rgba(255,240,206,0)');
-      bg.fillStyle = bv; bg.fillRect(0, 0, 4, 64);
+      bg.fillStyle = bv; bg.fillRect(0, 0, 128, 64);
+      bg.globalCompositeOperation = 'destination-in';
+      const bh = bg.createLinearGradient(0, 0, 128, 0);
+      bh.addColorStop(0, 'rgba(0,0,0,0)'); bh.addColorStop(0.06, 'rgba(0,0,0,0.04)'); bh.addColorStop(0.12, 'rgba(0,0,0,0.2)');
+      bh.addColorStop(0.19, 'rgba(0,0,0,0.6)'); bh.addColorStop(0.27, 'rgba(0,0,0,1)'); bh.addColorStop(0.88, 'rgba(0,0,0,1)'); bh.addColorStop(1, 'rgba(0,0,0,0.55)');
+      bg.fillStyle = bh; bg.fillRect(0, 0, 128, 64);
       SP.band = bd;
     } catch (e) { SP = null; }
     return SP;
@@ -485,7 +503,8 @@
   // 天上的圣所（真帐幕）：浮在云上，悬在地上帐幕的正上方
   function heaven() {
     const w = PORT ? W.w * 0.44 : Math.min(W.w * 0.2, W.h * 0.34);
-    const x = (PORT ? 0.665 : 0.8) * W.w, y = (PORT ? 0.385 : 0.165) * W.h;
+    // 竖屏：在经文（顶上，最多五行）之下留出一段天空
+    const x = (PORT ? 0.665 : 0.8) * W.w, y = (PORT ? 0.43 : 0.165) * W.h;
     const h = w * 0.36;
     const x0 = x - w / 2, x1 = x + w / 2, xv = x0 + w * 0.64;
     return { x, y, w, h, x0, x1, xv, top: y - h / 2, bot: y + h / 2, mx: (xv + x1) / 2, ax: (xv + x1) / 2, ay: y + h * 0.18 };
@@ -512,13 +531,13 @@
     return { x, y: by * W.h + bob, L, ang };
   }
   function bowPt(B) { return [B.x + Math.cos(B.ang) * B.L * 0.44, B.y + Math.sin(B.ang) * B.L * 0.44 - B.L * 0.12]; }
-  // 光画的位置（中心、半径）
+  // 光画的位置（中心、半径）：d 桌面，p 竖屏——竖屏时第一组排在左边一列（让开右边灵的歇处 0.72, 0.55 与天上的圣所）
   const GAL = {
-    abel: { d: [0.33, 0.31], p: [0.27, 0.425], slot: 234, lv: 'hbAbel', grp: 'hbDimA', name: '亚伯' },
-    enoch: { d: [0.485, 0.19], p: [0.72, 0.535], slot: 249, lv: 'hbEnoch', grp: 'hbDimA', name: '以诺' },
-    noah: { d: [0.64, 0.32], p: [0.3, 0.605], slot: 264, lv: 'hbNoah', grp: 'hbDimA', name: '挪亚' },
-    moses: { d: [0.36, 0.28], p: [0.28, 0.44], slot: 289, lv: 'hbMoses', grp: 'hbDimB', name: '摩西' },
-    jericho: { d: [0.58, 0.3], p: [0.71, 0.56], slot: 304, lv: 'hbJericho', grp: 'hbDimB', name: '喇合' },
+    abel: { d: [0.33, 0.31], p: [0.26, 0.37], slot: 234, lv: 'hbAbel', grp: 'hbDimA', name: '亚伯' },
+    enoch: { d: [0.485, 0.19], p: [0.26, 0.55], slot: 249, lv: 'hbEnoch', grp: 'hbDimA', name: '以诺' },
+    noah: { d: [0.64, 0.32], p: [0.26, 0.73], slot: 264, lv: 'hbNoah', grp: 'hbDimA', name: '挪亚' },
+    moses: { d: [0.36, 0.28], p: [0.26, 0.45], slot: 289, lv: 'hbMoses', grp: 'hbDimB', name: '摩西' },
+    jericho: { d: [0.58, 0.3], p: [0.62, 0.69], slot: 304, lv: 'hbJericho', grp: 'hbDimB', name: '喇合' },
   };
   const galR = () => (PORT ? W.w * 0.17 : Math.min(W.w * 0.07, W.h * 0.115));
   // 许多的见证人：一圈光明的云（像看台一样围着地上奔跑的人）
@@ -581,30 +600,33 @@
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
   }
+  // 众先知的灯升起，指向天开的那一道光，到了光里就隐没（他们是指着他说的，他不是由他们而来）；
+  // 另有一点光自天上（光的顶端，父那里）顺着光降下，落在地上，便是子
   function drawGather(ctx) {
     const g = LV.hbGather, d = LV.hbDescend;
-    if (g < 0.005 || d >= 0.999 || !SP) return;
+    if ((g < 0.005 && d < 0.005) || d >= 0.999 || !SP) return;
     const [tx, ty] = gatherTarget(), u = SU();
     ctx.globalCompositeOperation = 'lighter';
-    let merged = 0;
     for (let i = 0; i < LAMPS.length; i++) {
       const t = lampT(i);
-      if (t <= 0) continue;
-      if (t >= 1) { merged++; continue; }
-      const [x0, y0] = lampXY(i);
+      if (t <= 0 || t >= 1) continue;
+      const [x0, y0] = lampXY(i), fade = 1 - sm(0.72, 1, t);
       const cx = lerp(x0, tx, 0.5), cy = Math.min(y0, ty) - W.h * 0.12;
       const P = q => { const m = 1 - q; return [m * m * x0 + 2 * m * q * cx + q * q * tx, m * m * y0 + 2 * m * q * cy + q * q * ty]; };
       const [x, y] = P(t);
-      for (let j = 1; j <= 5; j++) { const [ax, ay] = P(Math.max(0, t - j * 0.035)); glowAt(ctx, SP.gold, ax, ay, (5 - j * 0.6) * u, 0.3 * (1 - j / 6)); }
-      glowAt(ctx, SP.warm, x, y, 16 * u, 0.5);
-      glowAt(ctx, SP.gold, x, y, 5 * u, 1);
+      for (let j = 1; j <= 5; j++) { const [ax, ay] = P(Math.max(0, t - j * 0.035)); glowAt(ctx, SP.gold, ax, ay, (5 - j * 0.6) * u, 0.3 * (1 - j / 6) * fade); }
+      glowAt(ctx, SP.warm, x, y, 16 * u, 0.5 * fade);
+      glowAt(ctx, SP.gold, x, y, 5 * u, fade);
+      // 没入光里：一圈淡淡的光在那道光上散开
+      const inK = sm(0.8, 1, t) * (1 - sm(0.97, 1, t));
+      if (inK > 0.01) glowAt(ctx, SP.pale, tx, ty, 22 * u, inK * 0.45 * LV.hbBeam);
     }
-    if (merged > 0) {
-      const f = merged / LAMPS.length;
-      const y = lerp(ty, gY(2, S.beamX) - 26 * LS(2), ease(d));
-      const r = (10 + 16 * f) * u * (1 + 0.06 * Math.sin(W.t * 5));
-      glowAt(ctx, SP.gold, tx, y, r * 3.2, 0.55 * f * (1 - d));
-      glowAt(ctx, SP.white, tx, y, r, Math.min(1, f * 1.2) * (1 - d * 0.7));
+    if (d > 0.005) {
+      const y = lerp(-0.02 * W.h, fY(S.beamX, pv(0.1)) - 26 * LS(2), ease(d));
+      const r = 15 * u * (1 + 0.06 * Math.sin(W.t * 5));
+      for (let j = 1; j <= 6; j++) glowAt(ctx, SP.gold, tx, y - j * r * 0.9, r * (1.1 - j * 0.13), 0.28 * (1 - j / 7) * (1 - 0.5 * d));
+      glowAt(ctx, SP.gold, tx, y, r * 3.2, 0.6 * (1 - 0.6 * d));
+      glowAt(ctx, SP.white, tx, y, r, 1 - 0.5 * d);
     }
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
@@ -613,7 +635,7 @@
   function drawBeam(ctx) {
     const b = LV.hbBeam, v = LV.hbVoice;
     if (b < 0.005 || !SP) return;
-    const x = S.beamX * W.w, g = gY(2, S.beamX) + 4 * LS(2), w = (PORT ? 0.2 : 0.075) * W.w;
+    const x = S.beamX * W.w, g = fY(S.beamX, pv(0.1)) + 2 * LS(2), w = (PORT ? 0.2 : 0.075) * W.w;
     ctx.globalCompositeOperation = 'lighter';
     const a = b * (0.28 + 0.24 * v) * (0.7 + 0.5 * nightK());
     column(ctx, x, -10, g, w * (1 + 0.25 * v), a);
@@ -641,7 +663,7 @@
   function drawOil(ctx) {
     const k = LV.hbOil;
     if (k < 0.005 || !SP) return;
-    const s = LS(2), x = X.oil * W.w, y = fY(X.oil, 0.36);
+    const s = LS(2), x = X.oil * W.w, y = fY(X.oil, pv(0.36));
     ctx.fillStyle = css([150, 104, 70], 2);
     ctx.beginPath(); ctx.ellipse(x, y - 1.6 * s, 4.2 * s, 1.8 * s, 0, 0, TAU); ctx.fill();
     ctx.globalCompositeOperation = 'lighter';
@@ -655,20 +677,51 @@
   // ════════════════════════════════════════════════════════════
   //  画：怕死的冷影（2）、旷野与安息（3—4）
   // ════════════════════════════════════════════════════════════
+  // 怕死的冷影：一层冷灰的雾贴着地罩着众人；夜里近乎黑，白昼里是冷的灰蓝（不是海上的一团污）；
+  // 画进离屏层，再自上而下淡去——不高过众人的头，不落在海上
   function drawShadow(ctx) {
     const k = LV.hbShadow;
     if (k < 0.005 || !SP) return;
-    const s = LS(2), xa = PX(0.45), xb = PX(0.635), rise = (1 - k) * W.h * 0.22, drift = (1 - k) * W.w * 0.1;
-    const mx = (xa + xb) / 2;
+    const s = LS(2), xa = PXP(0.45), xb = PXP(0.635), mx = (xa + xb) / 2;
+    const top = gY(2, mx) - 58 * s, bot = fY(mx, pv(0.6)) + 16 * s;
+    const x0 = xa * W.w - 80 * s, x1 = xb * W.w + 60 * s;
+    cached(ctx, 'shadow', [x0, top, x1 - x0, bot - top], [qz(k), qz(W.daylight), W.w, W.h].join(','), 0.1, 'source-over', g => drawShadow0(g, k, xa, xb, top, bot, x0, x1));
+  }
+  function drawShadow0(ctx, k, xa, xb, top, bot, x0, x1) {
+    const s = LS(2), day = W.daylight, al = k * (1 - 0.4 * day), mx = (xa + xb) / 2;
+    const rise = (1 - k) * 40 * s, drift = (1 - k) * W.w * 0.05;
+    const puff = (x, y, rx, ry, a) => { glowE(ctx, SP.soot, x, y, rx, ry, a * (1 - day)); glowE(ctx, SP.chill, x, y, rx, ry, a * day); };
     ctx.globalCompositeOperation = 'source-over';
-    // 一层冷灰的雾罩着众人（怕死的影子）；退散时升起、向海那边飘去、变淡
-    glowE(ctx, SP.soot, mx * W.w - drift, fY(mx, 0.3) - 30 * s - rise, (xb - xa) * W.w * 0.72, 56 * s, k * 0.46);
+    puff(mx * W.w - drift, fY(mx, pv(0.3)) - 14 * s - rise, (xb - xa) * W.w * 0.72, 46 * s, al * 0.46);
     for (let i = 0; i < 14; i++) {
       const f = (i + 0.5) / 14, xf = lerp(xa, xb, f);
       const x = xf * W.w + Math.sin(W.t * 0.23 + i * 1.7) * 10 * s - drift * (0.6 + 0.8 * hsh(i));
-      const y = fY(xf, 0.3) - (16 + 36 * hsh(i + 5)) * s - rise * (0.5 + hsh(i + 3));
+      const y = fY(xf, pv(0.14 + 0.3 * hsh(i + 11))) - (6 + 22 * hsh(i + 5)) * s - rise * (0.5 + hsh(i + 3));
       const r = (19 + 12 * hsh(i + 7)) * s * (1 + 0.6 * (1 - k));
-      glowE(ctx, SP.soot, x, y, r * 1.3, r, k * (0.4 + 0.1 * Math.sin(W.t * 0.4 + i)));
+      puff(x, y, r * 1.3, r, al * (0.4 + 0.1 * Math.sin(W.t * 0.4 + i)));
+    }
+    // 自上而下淡去：地平（岭）之上约一个坐着的人高便没有了
+    const ridge = gY(2, mx), gr = ctx.createLinearGradient(0, top, 0, ridge + 4 * s);
+    gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(0.45, 'rgba(0,0,0,0.35)'); gr.addColorStop(1, 'rgba(0,0,0,1)');
+    ctx.globalCompositeOperation = 'destination-in';
+    ctx.fillStyle = gr;
+    ctx.fillRect(x0, top, x1 - x0, bot - top);
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 1;
+  }
+  // 为人人尝了死味：冷影合拢在他身上（只是暗下来的光，不画别的）
+  function drawDeath(ctx) {
+    const k = LV.hbDeath;
+    if (k < 0.005 || !SP || !has('jesus')) return;
+    const f = fig('jesus');
+    if (!f || f.alpha < 0.02) return;
+    const s = LS(2), h = headOf('jesus', 0.15), day = W.daylight;
+    ctx.globalCompositeOperation = 'source-over';
+    glowE(ctx, SP.chill, h[0], h[1] - 10 * s, 92 * s, 58 * s, k * (0.5 + 0.2 * day));
+    glowE(ctx, SP.soot, h[0], h[1] - 6 * s, 54 * s, 34 * s, k * 0.55);
+    for (let i = 0; i < 7; i++) {
+      const a = i / 7 * TAU + W.t * 0.12, rr = (34 + 10 * Math.sin(W.t * 0.5 + i)) * s * (1.4 - 0.4 * k);
+      glowE(ctx, SP.chill, h[0] + Math.cos(a) * rr, h[1] - 8 * s + Math.sin(a) * rr * 0.45, 26 * s, 18 * s, k * 0.35);
     }
     ctx.globalAlpha = 1;
   }
@@ -692,11 +745,12 @@
   function drawRest(ctx) {
     const k = LV.hbRest;
     if (k < 0.005 || !SP) return;
-    const s = LS(2), x0 = PX(0.4) * W.w, x1 = W.w, gy = gY(2, PX(0.6));
+    // 光带左端在崖边之外就已淡入（SP.band 自带横向的淡入淡出），不在海上留一道硬边
+    const s = LS(2), x0 = PX(0.4) * W.w, x1 = W.w, gy = PORT ? fY(PXP(0.56), pv(0.2)) : gY(2, PX(0.6));
     ctx.globalCompositeOperation = 'lighter';
     ctx.globalAlpha = k * 0.34 * dayBoost();
     ctx.drawImage(SP.band, x0, gy - 70 * s, x1 - x0, 110 * s);
-    glowE(ctx, SP.gold, PX(0.56) * W.w, gy, 190 * s, 50 * s, k * 0.3);
+    glowE(ctx, SP.gold, PXP(0.56) * W.w, gy, 190 * s, 50 * s, k * 0.3);
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
   }
@@ -728,14 +782,17 @@
     if (bx1 - bx0 < 2 || by1 - by0 < 2) return;
     const back = layer('hvBack', bx0, by0, bx1 - bx0, by1 - by0, sig, 0.31, g => heavenBack(g, H, k, day));
     const light = layer('hvLight', bx0, by0, bx1 - bx0, by1 - by0, sig, 0.2, g => heavenLight(g, H, k, pt, th, ov, day, fire));
+    // 幔子另画一层（不透明些，盖在光之上）：白昼里光加在亮的天上会白成一片，幔子自己的蓝、紫、朱红要看得见
+    const veil = layer('hvVeil', bx0, by0, bx1 - bx0, by1 - by0, sig, 0.25, g => heavenVeil(g, H, k, ov, day));
     const front = layer('hvFront', bx0, by0, bx1 - bx0, by1 - by0, sig, 0.37, g => heavenFront(g, H, k, day));
     blit(ctx, back, 'source-over');
     blit(ctx, light, 'lighter');
-    // 施恩的宝座的光：斜斜地照到地上
+    blit(ctx, veil, 'source-over');
+    // 施恩的宝座的光：斜斜地照到地上（照在众人身上）
     if (th > 0.01) {
       ctx.globalCompositeOperation = 'lighter';
       for (let i = 0; i < 5; i++) {
-        const tx = lerp(PX(0.46), PX(0.9), i / 4) * W.w, ty = gY(2, tx / W.w);
+        const tx = lerp(PXP(0.46), PX(0.9), i / 4) * W.w, ty = fY(tx / W.w, PORT ? pv(0.2) : 0);
         beamTo(ctx, H.mx, H.bot, tx, ty, H.w * (0.18 + 0.06 * (i % 2)), th * k * 0.065 * (0.8 + 0.2 * Math.sin(W.t * 0.7 + i)));
       }
       ctx.globalCompositeOperation = 'source-over';
@@ -765,11 +822,11 @@
   }
   // 光：荣光、光芒、帐幕的身、光的柱子、灯台、幔子、亮边
   function heavenLight(ctx, H, k, pt, th, ov, day, fire) {
-    const u = SU(), arch = H.w * 0.045;
+    const u = SU(), arch = H.w * 0.045, dk = 1 - 0.6 * day;
     ctx.globalCompositeOperation = 'lighter';
-    // 至大者的荣光：在至圣所之后、之上，缓缓放射（父不显为人形，只是光）
-    glowAt(ctx, SP.gold, H.mx, H.top, H.w * (0.9 + 0.25 * th + 0.2 * ov), k * (0.24 + 0.16 * th + 0.14 * ov) * dayBoost());
-    glowAt(ctx, SP.white, H.mx, H.top - H.h * 0.1, H.w * (0.24 + 0.14 * ov), k * (0.28 + 0.26 * ov + 0.1 * th));
+    // 至大者的荣光：在至圣所之后、之上，缓缓放射（父不显为人形，只是光）；白昼里收敛些，免得白成一片
+    glowAt(ctx, SP.gold, H.mx, H.top, H.w * (0.9 + 0.25 * th + 0.2 * ov), k * (0.24 + 0.16 * th + 0.14 * ov) * dayBoost() * dk);
+    glowAt(ctx, SP.white, H.mx, H.top - H.h * 0.1, H.w * (0.24 + 0.14 * ov), k * (0.28 + 0.26 * ov + 0.1 * th) * dk);
     if (fire > 0.01) glowAt(ctx, SP.warm, H.x, H.y, H.w * 1.5, fire * 0.3 * k);
     for (let i = 0; i < 11; i++) {
       const an = -Math.PI * (0.06 + 0.88 * (i / 10)) + Math.sin(W.t * 0.07 + i) * 0.03;
@@ -798,8 +855,9 @@
     // 圣所里的灯台：七点光
     const lx = H.x0 + (H.xv - H.x0) * 0.5, ly = H.y + H.h * 0.08;
     for (let j = 0; j < 7; j++) glowAt(ctx, SP.gold, lx + (j - 3) * H.w * 0.02, ly - (3 - Math.abs(j - 3)) * 0.8 * u, 3 * u, k * (0.75 + 0.25 * Math.sin(W.t * 3 + j)));
-    // 幔子
-    drawHVeil(ctx, H, k, ov);
+    // 幔子后的光（幔子本身另画一层）
+    const V = hveilBox(H);
+    glowAt(ctx, SP.white, V.mid, V.cy, V.vw * (0.45 + 0.5 * ov), k * (0.12 + 0.48 * ov) * dk);
     // 顶上一道亮边、地上一道柔光
     ctx.lineCap = 'round';
     ctx.strokeStyle = rgba([255, 238, 200], k * 0.28);
@@ -819,17 +877,34 @@
       glowAt(ctx, SP.gold, H.x, H.y, H.w * 0.8, pt * k * 0.3);
     }
   }
-  // 天上的幔子：一幅光的幔，蓝、紫、朱红柔和地交融，几道褶的亮；打开时两半拉向两旁
-  function drawHVeil(ctx, H, k, ov) {
+  // 天上的幔子：一幅幔，蓝、紫、朱红柔和地交融，几道褶的亮，金线绣的基路伯；打开时两半拉向两旁，
+  // 中间露出至圣所的荣光（暖金，不是一片白）。另画一层、以 source-over 贴上：白昼里也保得住它的颜色
+  const VEIL_D = [[86, 118, 212], [138, 100, 200], [208, 92, 116]];
+  function hveilBox(H) {
     const vx0 = H.xv + H.w * 0.012, vx1 = H.x1 - H.w * 0.012, vy0 = H.top + H.h * 0.16, vy1 = H.bot - H.h * 0.03;
-    const vw = vx1 - vx0, mid = (vx0 + vx1) / 2, cy = (vy0 + vy1) / 2;
-    glowAt(ctx, SP.white, mid, cy, vw * (0.45 + 0.5 * ov), k * (0.12 + 0.48 * ov));
+    return { vx0, vx1, vy0, vy1, vw: vx1 - vx0, mid: (vx0 + vx1) / 2, cy: (vy0 + vy1) / 2 };
+  }
+  function heavenVeil(ctx, H, k, ov, day) {
+    const { vx0, vx1, vy0, vy1, vw, mid, cy } = hveilBox(H);
+    const col = i => mix(VEIL_H[i], VEIL_D[i], day), al = k * (0.6 + 0.26 * day);
+    ctx.globalCompositeOperation = 'source-over';
+    // 打开之后：中间是至圣所的荣光
+    if (ov > 0.01) {
+      const gg = ctx.createLinearGradient(0, vy0, 0, vy1);
+      gg.addColorStop(0, rgba([255, 246, 222], k * ov * (0.35 + 0.3 * day)));
+      gg.addColorStop(1, rgba([255, 214, 150], k * ov * (0.3 + 0.3 * day)));
+      ctx.fillStyle = gg;
+      ctx.beginPath();
+      ctx.moveTo(mid - vw * 0.5 * ov * 0.9, vy0); ctx.lineTo(mid + vw * 0.5 * ov * 0.9, vy0);
+      ctx.lineTo(mid + vw * 0.5 * ov * 0.55, vy1); ctx.lineTo(mid - vw * 0.5 * ov * 0.55, vy1);
+      ctx.closePath(); ctx.fill();
+    }
     for (const side of [-1, 1]) {
       const outer = side < 0 ? vx0 : vx1;
       const inT = mid + side * vw * 0.5 * ov * 0.9, inB = mid + side * vw * 0.5 * ov * 0.55, bulge = side * vw * 0.2 * ov;
       const gr = ctx.createLinearGradient(outer, 0, mid, 0);
-      gr.addColorStop(0, rgba(side < 0 ? VEIL_H[0] : VEIL_H[2], k * 0.5));
-      gr.addColorStop(1, rgba(VEIL_H[1], k * 0.5));
+      gr.addColorStop(0, rgba(col(side < 0 ? 0 : 2), al));
+      gr.addColorStop(1, rgba(col(1), al));
       ctx.fillStyle = gr;
       ctx.beginPath();
       ctx.moveTo(outer, vy0); ctx.lineTo(inT, vy0);
@@ -838,12 +913,12 @@
       ctx.lineWidth = Math.max(0.8, H.w * 0.006);
       for (let j = 1; j <= 3; j++) {
         const f = j / 4, xt = lerp(outer, inT, f), xb = lerp(outer, inB, f);
-        ctx.strokeStyle = rgba([255, 250, 240], k * 0.3 * (0.7 + 0.3 * Math.sin(W.t * 0.8 + j + side)));
+        ctx.strokeStyle = rgba([255, 250, 240], k * (0.3 + 0.15 * day) * (0.7 + 0.3 * Math.sin(W.t * 0.8 + j + side)));
         ctx.beginPath(); ctx.moveTo(xt, vy0 + 1); ctx.quadraticCurveTo(lerp(xt, xb, 0.5) + bulge * f, cy, xb, vy1 - 1); ctx.stroke();
       }
     }
     // 绣在幔上的基路伯（金线，幔子打开时隐去）
-    const ck = k * (1 - ov) * 0.6;
+    const ck = k * (1 - ov) * (0.6 + 0.3 * day);
     if (ck > 0.01) {
       ctx.strokeStyle = rgba([255, 226, 150], ck);
       ctx.lineWidth = Math.max(0.7, H.w * 0.005);
@@ -867,7 +942,7 @@
   // 接他的光明的云：云在人之前（遮住他）
   function cloudPos() {
     const u = ease(LV.hbCloudUp), H = heaven();
-    const x0 = X.asc * W.w, y0 = (PORT ? 0.52 : 0.42) * W.h;
+    const x0 = X.asc * W.w, y0 = (PORT ? 0.57 : 0.42) * W.h;
     return [lerp(x0, H.x, u), lerp(y0, H.bot + H.h * 0.1, u)];
   }
   function drawCloud(ctx) {
@@ -949,14 +1024,32 @@
   }
   function drawAnchor(ctx) {
     const hv = 0.04 + 0.96 * clamp(LV.hbHeaven, 0, 1);
-    const a = LV.hbAnchor * LV.hbAnchorA * LV.hbBoat * hv;
-    if (a < 0.005 || !SP) return;
-    const f = LV.hbAnchor, u = SU(), p0 = anchorCurve(0), p1 = anchorCurve(1), H = heaven(), pad = Math.max(30 * u, H.w * 0.2);
-    const bb = [Math.min(p0[0], p1[0]) - pad, Math.min(p0[1], p1[1]) - pad, Math.abs(p1[0] - p0[0]) + pad * 2, Math.abs(p1[1] - p0[1]) + pad * 2];
-    cached(ctx, 'anchor', bb, [qz(a), qz(f), qz(W.daylight), Math.round(p0[0] / 2), Math.round(p0[1] / 2), W.w, W.h].join(','), 1, 'lighter', c => drawAnchor0(c, a, f));
+    const ag = LV.hbAnchor * LV.hbAnchorA * hv;          // 锚（钩在天上的幔内）：船走了它也还在
+    const a = ag * LV.hbBoat;                            // 锚链（系在船上）
+    if (ag < 0.005 || !SP) return;
+    const f = LV.hbAnchor, u = SU(), H = heaven();
+    if (a > 0.005) {
+      const p0 = anchorCurve(0), p1 = anchorCurve(1), pad = Math.max(30 * u, H.w * 0.2);
+      const bb = [Math.min(p0[0], p1[0]) - pad, Math.min(p0[1], p1[1]) - pad, Math.abs(p1[0] - p0[0]) + pad * 2, Math.abs(p1[1] - p0[1]) + pad * 2];
+      cached(ctx, 'anchor', bb, [qz(a), qz(f), qz(W.daylight), Math.round(p0[0] / 2), Math.round(p0[1] / 2), W.w, W.h].join(','), 1, 'lighter', c => drawAnchor0(c, a, f));
+    }
+    // 船已离去：只留锚钩在幔内，垂下一小段链子
+    const rest = ag * (1 - LV.hbBoat);
+    if (rest > 0.005 && f > 0.94) {
+      const r = Math.max(7, H.w * 0.07), x = H.ax, y = H.ay;
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.save();
+      drawAnchorGlyph(ctx, x, y, r, rest * sm(0.94, 1, f), u);
+      ctx.lineCap = 'round';
+      ctx.strokeStyle = rgba([255, 240, 206], rest * 0.7 * dayBoost());
+      ctx.lineWidth = Math.max(1, 1.3 * u);
+      ctx.beginPath(); ctx.moveTo(x, y + r * 0.47); ctx.quadraticCurveTo(x - r * 0.35, y + r * 1.4, x - r * 0.2, y + r * 2.2); ctx.stroke();
+      ctx.restore();
+      ctx.globalCompositeOperation = 'source-over';
+    }
     // 替他们祈求：光一粒一粒自天上顺着链子下来
     const pu = LV.hbPulse;
-    if (pu > 0.01 && f > 0.98) {
+    if (pu > 0.01 && f > 0.98 && a > 0.005) {
       ctx.globalCompositeOperation = 'lighter';
       for (let i = 0; i < 4; i++) {
         const t = 1 - ((W.t * 0.16 + i / 4) % 1), p = anchorCurve(t);
@@ -983,20 +1076,20 @@
     // 链上一节一节的光
     for (let i = 1; i < 18; i++) { const t = i / 18; if (t > f) break; const p = anchorCurve(t); glowAt(ctx, SP.gold, p[0], p[1], 2.2 * u, a * 0.6); }
     // 锚：钩在幔子上（锚冠朝上，锚环在下，系着链子）
-    if (f > 0.94) {
-      const k = sm(0.94, 1, f) * a, H = heaven(), x = H.ax, y = H.ay, r = Math.max(7, H.w * 0.07);
-      glowAt(ctx, SP.gold, x, y - r * 0.5, r * 2.2, k * 0.35);
-      ctx.strokeStyle = rgba([255, 228, 160], k * 0.35);
-      ctx.lineWidth = Math.max(2, 3.6 * u);
-      anchorGlyph(ctx, x, y, r);
-      ctx.stroke();
-      ctx.strokeStyle = rgba([255, 250, 232], k);
-      ctx.lineWidth = Math.max(1, 1.5 * u);
-      anchorGlyph(ctx, x, y, r);
-      ctx.stroke();
-    }
+    if (f > 0.94) { const H = heaven(); drawAnchorGlyph(ctx, H.ax, H.ay, Math.max(7, H.w * 0.07), sm(0.94, 1, f) * a, u); }
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
+  }
+  function drawAnchorGlyph(ctx, x, y, r, k, u) {
+    glowAt(ctx, SP.gold, x, y - r * 0.5, r * 2.2, k * 0.35);
+    ctx.strokeStyle = rgba([255, 228, 160], k * 0.35);
+    ctx.lineWidth = Math.max(2, 3.6 * u);
+    anchorGlyph(ctx, x, y, r);
+    ctx.stroke();
+    ctx.strokeStyle = rgba([255, 250, 232], k);
+    ctx.lineWidth = Math.max(1, 1.5 * u);
+    anchorGlyph(ctx, x, y, r);
+    ctx.stroke();
   }
   function anchorGlyph(ctx, x, y, r) {
     ctx.beginPath();
@@ -1358,12 +1451,12 @@
   }
   function wayPts() {
     const G = tabG(), s = G.s, pts = [];
-    const xEnd = PX(0.515) * W.w, gate = G.x0;
+    const xEnd = (PORT ? 0.545 : PX(0.515)) * W.w, gate = G.x0;
     // 自至圣所（约柜前）经过裂开的幔子、圣所、帐幕的门，出了院子的门，到众人脚前
     for (let i = 0; i <= 10; i++) { const x = lerp(G.mx, G.tx0 - 2 * s, i / 10); pts.push([x, G.base + 1 * s]); }
     const y0 = G.base + 1 * s;
     for (let i = 1; i <= 8; i++) { const x = lerp(G.tx0 - 2 * s, gate, i / 8); pts.push([x, lerp(y0, fY(x / W.w, 0.2), i / 8)]); }
-    for (let i = 1; i <= 12; i++) { const x = lerp(gate, xEnd, i / 12); pts.push([x, fY(x / W.w, 0.2 + 0.1 * (i / 12))]); }
+    for (let i = 1; i <= 12; i++) { const x = lerp(gate, xEnd, i / 12); pts.push([x, fY(x / W.w, lerp(0.2, pv(0.3), i / 12))]); }
     return pts;
   }
   function drawWay(ctx) {
@@ -1792,17 +1885,17 @@
       ctx.strokeStyle = rgba(c, al * k * dayBoost());
       ctx.lineWidth = lw * s;
       ctx.beginPath();
-      for (let i = 0; i <= n; i++) { const xf = lerp(x0, x1, i / n), y = fY(xf, RACE_V) + 1 * s; if (i) ctx.lineTo(xf * W.w, y); else ctx.moveTo(xf * W.w, y); }
+      for (let i = 0; i <= n; i++) { const xf = lerp(x0, x1, i / n), y = fY(xf, pv(RACE_V)) + 1 * s; if (i) ctx.lineTo(xf * W.w, y); else ctx.moveTo(xf * W.w, y); }
       ctx.stroke();
     }
-    glowE(ctx, SP.gold, x1 * W.w, fY(x1, RACE_V), 30 * s, 10 * s, k * 0.6);
+    glowE(ctx, SP.gold, x1 * W.w, fY(x1, pv(RACE_V)), 30 * s, 10 * s, k * 0.6);
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
   }
   // 放下的重担
   function drawBundle(ctx) {
     if (!S.bundle) return;
-    const s = LS(2), x = (X.start - 0.012) * W.w, y = fY(X.start - 0.012, RACE_V + 0.04);
+    const s = LS(2), x = (X.start - 0.012) * W.w, y = fY(X.start - 0.012, pv(RACE_V + 0.04));
     ctx.fillStyle = css([128, 100, 72], 2);
     ctx.beginPath(); ctx.ellipse(x, y - 3.2 * s, 6 * s, 3.6 * s, -0.1, 0, TAU); ctx.fill();
     ctx.strokeStyle = css([80, 60, 42], 2);
@@ -1978,7 +2071,7 @@
   function drawTable(ctx) {
     const k = LV.hbTable;
     if (k < 0.005 || !SP) return;
-    const s = LS(2), x = X.table * W.w, y = fY(X.table, TABLE_V), w = (PORT ? 17 : 22) * s;
+    const s = LS(2), x = X.table * W.w, y = fY(X.table, pv(TABLE_V)), w = (PORT ? 17 : 22) * s;
     ctx.globalAlpha = k;
     ctx.fillStyle = css([104, 80, 58], 2, 0.5);
     ctx.beginPath(); ctx.ellipse(x, y + 1 * s, w * 1.5, 3.6 * s, 0, 0, TAU); ctx.fill();
@@ -2015,7 +2108,7 @@
   function drawBless(ctx) {
     const b = LV.hbBless;
     if (b < 0.005 || !SP) return;
-    const x = X.table * W.w, y = fY(X.table, TABLE_V), top = zionG().y;
+    const x = X.table * W.w, y = fY(X.table, pv(TABLE_V)), top = zionG().y;
     ctx.globalCompositeOperation = 'lighter';
     column(ctx, x, top, y + 6 * LS(2), (PORT ? 0.34 : 0.15) * W.w, b * 0.22);
     glowE(ctx, SP.gold, x, y, (PORT ? 0.26 : 0.12) * W.w, 16 * LS(2), b * 0.45);
@@ -2031,13 +2124,29 @@
       if (e.t < 0) continue;
       const q = clamp(e.t / e.dur, 0, 1);
       if (e.type === 'sweep') {
-        const y = gY(2, 0.62) - 42 * LS(2), x = lerp(-0.1, 1.1, ease(q)) * W.w, L = 0.22 * W.w, a = Math.sin(q * Math.PI);
-        const g = ctx.createLinearGradient(x - L, 0, x, 0);
-        g.addColorStop(0, 'rgba(255,244,214,0)'); g.addColorStop(1, 'rgba(255,250,236,' + (0.85 * a).toFixed(3) + ')');
-        ctx.strokeStyle = g; ctx.lineWidth = Math.max(1.2, 2 * SU());
-        ctx.beginPath(); ctx.moveTo(x - L, y + 2); ctx.lineTo(x, y); ctx.stroke();
-        glowAt(ctx, SP.white, x, y, 26 * SU(), a * 0.8);
-        ctx.globalAlpha = a * 0.08; ctx.fillStyle = 'rgb(255,248,230)'; ctx.fillRect(0, 0, W.w, W.h);
+        // 比一切两刃的剑更快：一道光的剑自崖边掠过全地与众人（只在地上，不越过海上的经文），约在头的高处；
+        // 两道亮的刃，中间一道光的脊
+        let hy = 0, hn = 0;
+        for (const id of PIDS) if (has(id)) { hy += headOf(id, 1.05)[1]; hn++; }
+        const s = LS(2), y = hn ? hy / hn : gY(2, 0.6) - 50 * s;
+        const xs = PX(0.42) * W.w, xe = 1.05 * W.w, x = lerp(xs, xe, ease(q)), L = 0.2 * W.w, a = Math.sin(q * Math.PI);
+        const xl = Math.max(xs, x - L), th = Math.max(3, 3.4 * s);
+        if (x - xl > 2) {
+          glowE(ctx, SP.gold, (xl + x) / 2, y, (x - xl) / 2 + 6 * s, th * 2.6, a * 0.35);
+          glowE(ctx, SP.white, (xl + x) / 2 + (x - xl) * 0.15, y, (x - xl) * 0.4, th * 1.1, a * 0.7);
+          for (const d of [-1, 1]) {
+            const g = ctx.createLinearGradient(xl, 0, x, 0);
+            g.addColorStop(0, 'rgba(255,244,214,0)'); g.addColorStop(1, 'rgba(255,252,240,' + (0.95 * a).toFixed(3) + ')');
+            ctx.strokeStyle = g; ctx.lineWidth = Math.max(1.2, 1.6 * SU());
+            ctx.beginPath(); ctx.moveTo(xl, y + d * th * 0.8); ctx.lineTo(x - 2 * s, y + d * th); ctx.lineTo(x + 7 * s, y); ctx.stroke();
+          }
+        }
+        glowAt(ctx, SP.white, x, y, 22 * SU(), a * 0.8);
+        glowAt(ctx, SP.gold, x, y, 60 * SU(), a * 0.3);
+        // 一闪：只在地的那一边（左边柔柔地淡去，不照白海上的经文）
+        const fl = ctx.createLinearGradient(xs - 80 * s, 0, xs + 120 * s, 0);
+        fl.addColorStop(0, 'rgba(255,248,230,0)'); fl.addColorStop(1, 'rgba(255,248,230,' + (a * 0.07).toFixed(3) + ')');
+        ctx.fillStyle = fl; ctx.fillRect(0, 0, W.w, W.h);
       } else if (e.type === 'heart') {
         if (!has(e.id)) continue;
         const h = headOf(e.id, 0.62), a = Math.sin(q * Math.PI);
@@ -2096,6 +2205,7 @@
     } else if (pass === 'air') {
       U.safe('hebrews.veil', () => drawVeil(ctx));
       U.safe('hebrews.shadow', () => drawShadow(ctx));
+      U.safe('hebrews.death', () => drawDeath(ctx));
       U.safe('hebrews.cloud', () => drawCloud(ctx));
       U.safe('hebrews.gather', () => drawGather(ctx));
       U.safe('hebrews.motes', () => drawRestMotes(ctx));
@@ -2128,7 +2238,7 @@
     };
     const H = heaven();
     if (LV.hbHeaven > 0.4) { test('天上的圣所', H.x0 + (H.xv - H.x0) * 0.5, H.y, H.h * 0.4); test('施恩的宝座', H.mx, H.y, H.h * 0.35); }
-    if (LV.hbAnchor > 0.95 && LV.hbAnchorA > 0.5 && LV.hbBoat > 0.5) test('锚', H.ax, H.ay - 6, 6);
+    if (LV.hbAnchor > 0.95 && LV.hbAnchorA > 0.5) test('锚', H.ax, H.ay - 6, 6);
     if (LV.hbBoat > 0.5) { const B = boatPos(); test('船', B.x, B.y - B.L * 0.2, B.L * 0.3); }
     if (LV.hbTab > 0.5) {
       const G = tabG();
@@ -2148,11 +2258,11 @@
     if (LV.hbTents > 0.5) [X.tent0, X.tent1, X.tent2].forEach(xf => test('帐棚', xf * W.w, gY(1, xf) - 6 * LS(1), 6 * LS(1)));
     if (LV.hbSand > 0.5) test('海边的沙', (PORT ? 0.37 : 0.38) * W.w, gY(2, PORT ? 0.37 : 0.38), 10);
     if (LV.hbWit > 0.5 && LV.hbWitA > 0.5) { const A = witArc(), p = arcAt(A, 270); test('见证人', p[0], p[1], 20); }
-    if (LV.hbRace > 0.5) { const xf = lerp(X.start, goalX(), 0.5); test('路程', xf * W.w, fY(xf, RACE_V), 6); }
-    if (S.bundle) test('重担', (X.start - 0.012) * W.w, fY(X.start - 0.012, RACE_V + 0.04) - 4, 5);
+    if (LV.hbRace > 0.5) { const xf = lerp(X.start, goalX(), 0.5); test('路程', xf * W.w, fY(xf, pv(RACE_V)), 6); }
+    if (S.bundle) test('重担', (X.start - 0.012) * W.w, fY(X.start - 0.012, pv(RACE_V + 0.04)) - 4, 5);
     if (LV.hbSinai > 0.4) { const G = sinaiG(); test('那能摸的山', G.px, G.top + (G.base - G.top) * 0.3, 20); }
     if (LV.hbZion > 0.4) { const Z = zionG(); test('锡安山', (Z.x0 + Z.x1) / 2, Z.y - Z.h, 20); if (LV.hbAngels > 0.5) test('千万的天使', lerp(Z.x0, Z.x1, 0.2), Z.y - Z.h * 4, 16); }
-    if (LV.hbTable > 0.5) test('桌子', X.table * W.w, fY(X.table, TABLE_V) - 8 * LS(2), 8);
+    if (LV.hbTable > 0.5) test('桌子', X.table * W.w, fY(X.table, pv(TABLE_V)) - 8 * LS(2), 8);
     // 满天的星：灵在最亮的几颗星近旁时
     if (LV.hbStars > 0.5 && nightK() > 0.4) for (let i = 0; i < 60; i++) { if (hsh(i * 5.1 + 0.7) < 0.93) continue; test('天上的星', hsh(i * 1.37 + 0.3) * W.w, Math.pow(hsh(i * 2.71 + 0.9), 1.2) * W.horizonY * 0.97, 0); }
     return best;
@@ -2218,7 +2328,7 @@
     // 一群人坐在冷灰的影子里（一生因怕死而为奴仆）；身旁一盏油灯
     const P0 = ['sit', 'weep', 'sit', 'bow', 'sit', 'sit'];
     PEOPLE.forEach((q, i) => {
-      add(q.id, { label: q.label, sex: q.sex, age: q.age, x: X[q.id], layer: 2, v: q.v, robe: q.robe, accent: q.accent, beard: q.beard,
+      add(q.id, { label: q.label, sex: q.sex, age: q.age, x: X[q.id], layer: 2, v: pv(q.v), robe: q.robe, accent: q.accent, beard: q.beard,
         facing: i % 2 ? -1 : 1, pose: P0[i], glow: 0.06, from: 'none' });
     });
     avoid([0.38, 1]);
@@ -2235,8 +2345,8 @@
   // 众人在院子里（10:19–22）/ 桌子四围（13）的位置：[dx, v]
   const COURT = [[-0.095, 0.3], [-0.072, 0.44], [-0.05, 0.28], [-0.028, 0.42], [-0.006, 0.26], [0.016, 0.44]];
   const SEATS = { p1: [-0.062, 0.36], p2: [-0.022, 0.1], p4: [0.02, 0.1], p5: [0.05, 0.06], p6: [-0.03, 0.68], p3: [0.03, 0.68],
-    guest: [0.06, 0.3], priest1: [0.1, 0.18], priest2: [0.122, 0.36], hp: [0.145, 0.12] };
-  const seatX = id => PX(XL.table + SEATS[id][0]);
+    guest: [0.06, 0.3] };
+  const seatX = id => PXP(XL.table + SEATS[id][0]);
 
   const STAGES = [
     // ── 1 · 1:5 你是我的儿子，我今日生你 ────────────────────────────
@@ -2253,9 +2363,10 @@
           [0, b => { S.beamX = X.jesus; lv('hbGather', 1, b); W.goTo(0.285, 18, inst(b)); sfx(b, 'stars'); }],
           [1, () => { face('p4', 1); pose('p4', 'sit'); face('p2', 1); face('p6', 1); }],
           [1.3, b => { lv('hbBeam', 1, b); sfx(b, 'harp', { soft: true }); }],
-          [3.1, b => { lv('hbDescend', 1, b); lv('hbLamps', 0, b); }],
-          [4.3, b => {
-            add('jesus', Object.assign({}, LOOK().jesus || { label: '耶稣', sex: 'm', robe: [232, 224, 206] }, { x: X.jesus, layer: 2, v: 0.1, facing: -1, pose: 'stand', glow: 0.5, from: inst(b) ? 'none' : 'light' }));
+          // 众灯没入光里；另有一点光自天上顺着光降下（父所差来的）
+          [2.7, b => { lv('hbDescend', 1, b); lv('hbLamps', 0, b); }],
+          [4.4, b => {
+            add('jesus', Object.assign({}, LOOK().jesus || { label: '耶稣', sex: 'm', robe: [232, 224, 206] }, { x: X.jesus, layer: 2, v: pv(0.1), facing: -1, pose: 'stand', glow: 0.5, from: inst(b) ? 'none' : 'light' }));
             lv('hbRadiance', 1, b);
             flashW(b, 0.22); ringOn(b, 'jesus', 0.22); sparkleOn(b, 'jesus', 40, [255, 240, 206], 0.6);
             sfx(b, 'chime');
@@ -2272,9 +2383,9 @@
           [13.2, b => lv('hbVoice', 0, b)],
           // 神的使者都要拜他
           [15.6, b => {
-            const o = { label: '天使', sex: 'm', age: 'adult', layer: 2, facing: -1, angel: true, glow: 1, pose: 'stand', from: inst(b) ? 'none' : 'light' };
-            add('angelA', Object.assign({ x: PX(0.718), v: 0.02 }, o));
-            add('angelB', Object.assign({ x: PX(0.772), v: 0.16 }, o));
+            const o = { label: '天使', sex: 'm', age: 'adult', layer: 2, facing: -1, angel: true, glow: 1, pose: 'stand', from: inst(b) ? 'none' : 'light' }, ax = angelX();
+            add('angelA', Object.assign({ x: ax[0], v: pv(0.02) }, o));
+            add('angelB', Object.assign({ x: ax[1], v: pv(0.16) }, o));
             sfx(b, 'angel');
           }],
           [17.6, b => { pose('angelA', 'bow'); pose('angelB', 'bow'); face('jesus', 1); pose('jesus', 'stand'); }],
@@ -2295,24 +2406,26 @@
         layout();
         T(c, [
           [0, b => {
-            W.goTo(0.36, 12, inst(b)); lv('hbBeam', 0, b); lv('hbOil', 0, b);
-            fly('angelA', PX(0.718), 0.12, { dur: 2.4 }); fly('angelB', PX(0.772), 0.1, { dur: 2.4 });
+            W.goTo(0.3, 8, inst(b)); lv('hbBeam', 0, b); lv('hbOil', 0, b);
+            const ax = angelX();
+            fly('angelA', ax[0], 0.12, { dur: 2.4 }); fly('angelB', ax[1], 0.1, { dur: 2.4 });
           }],
           [0.8, () => walk('jesus', X.jmid, { speed: 0.032 })],
           [2.6, () => { rm('angelA'); rm('angelB'); }],
           [3.2, () => { face('p4', 1); face('p5', -1); face('p6', 1); face('p3', 1); pose('p2', 'sit'); face('p2', 1); }],
           [4.2, b => { face('jesus', -1); pose('jesus', 'raise'); sfx(b, 'harp', { soft: true }); }],
           [7.5, () => { face('jesus', 1); }],
-          // 为人人尝了死味：他的光低下去，几乎熄灭
+          // 为人人尝了死味：他俯伏在地，冷影合拢在他身上，他的光低下去，几乎熄灭
           [9.4, b => {
-            pose('jesus', 'kneel'); glow('jesus', 0.04); lv('hbRadiance', 0, b);
-            W.set('gloom', 0.42, inst(b));
+            pose('jesus', 'fall'); glow('jesus', 0.04); lv('hbRadiance', 0, b); lv('hbDeath', 1, b);
+            W.set('gloom', 0.6, inst(b));
             sfx(b, 'wind', { soft: true, low: true });
           }],
+          // 又站起来：光与光圈把冷影赶散
           [13.8, b => {
-            W.set('gloom', 0, inst(b));
+            W.set('gloom', 0, inst(b)); lv('hbDeath', 0, b); W.goTo(0.36, 8, inst(b));
             pose('jesus', 'stand'); glow('jesus', 0.62); lv('hbRadiance', 1, b);
-            flashW(b, 0.25); ringOn(b, 'jesus', 0.3); sparkleOn(b, 'jesus', 36, [255, 240, 206], 0.7);
+            flashW(b, 0.3); ringOn(b, 'jesus', 0.3); ringOn(b, 'jesus', 0.16, [255, 248, 226]); sparkleOn(b, 'jesus', 44, [255, 240, 206], 0.5);
             sfx(b, 'harp');
           }],
           // 释放那些一生因怕死而为奴仆的人：冷影退散，众人站起来
@@ -2352,7 +2465,7 @@
             lv('hbWild', 0, b); W.set('gale', 0, inst(b));
             W.set('bare', 0, inst(b)); W.set('grass', 1, inst(b)); W.set('herbs', 0.9, inst(b)); W.set('bloom', 1, inst(b));
             lv('hbRest', 1, b); sfx(b, 'harp', { soft: true });
-            if (!inst(b)) bless(X.jmid * W.w, gY(2, X.jmid), 0.35 * W.w);
+            if (!inst(b)) bless(X.jmid * W.w, fY(X.jmid, pv(0.2)), 0.35 * W.w);
           }],
           [9.4, () => { peopleFace('jesus'); pose('p4', 'stand'); }],
           [10.4, () => each(id => pose(id, 'sit'))],
@@ -2373,7 +2486,7 @@
       kind: 'name', utter: '你是照着麦基洗德的等次永远为祭司', cmd: 'sudo priest --order 麦基洗德 --ttl ∞  # 升入高天', ref: '5:6',
       verse: [
         { text: '我们既然有一位已经升入高天尊荣的大祭司，<br>就是神的儿子耶稣，便当持定所承认的道。', ref: '希伯来书 4:14', hold: 7 },
-        { text: '如此，基督也不是自取荣耀作大祭司，<br>乃是在乎向他说「你是我的儿子，我今日生你」的那一位；<br>就如经上又有一处说：<br>「你是照着麦基洗德的等次永远为祭司。」', ref: '希伯来书 5:5–6', hold: 8.5 },
+        { text: '如此，基督也不是自取荣耀作大祭司，<br>乃是在乎向他说<br>「你是我的儿子，我今日生你」的那一位；<br>就如经上又有一处说：<br>「你是照着麦基洗德的等次永远为祭司。」', ref: '希伯来书 5:5–6', hold: 8.5 },
         { text: '因我们的大祭司并非不能体恤我们的软弱。……<br>所以，我们只管坦然无惧地来到施恩的宝座前，<br>为要得怜恤，蒙恩惠，作随时的帮助。', ref: '希伯来书 4:15–16', hold: 8 },
       ],
       apply(c) {
@@ -2399,7 +2512,7 @@
           // 坦然无惧地来到施恩的宝座前
           [18.2, b => {
             lv('hbThrone', 1, b);
-            each((id, i) => walk(id, PX(XL[id] + 0.03), { speed: 0.02, pose: 'raise' }));
+            each((id, i) => walk(id, PXP(XL[id] + 0.03), { speed: 0.02, pose: 'raise' }));
             sfx(b, 'crowd', { soft: true });
           }],
           [22.8, () => each((id, i) => pose(id, i % 2 ? 'kneel' : 'raise'))],
@@ -2453,7 +2566,7 @@
     {
       kind: 'cmd', utter: '都要照着在山上指示你的样式', cmd: 'cp -r 天上的样式 ./帐幕  # 形状和影像', ref: '8:5',
       verse: [
-        { text: '他们供奉的事本是天上事的形状和影像，<br>正如摩西将要造帐幕的时候，蒙神警戒他，说：<br>「你要谨慎，作各样的物件都要照着在山上指示你的样式。」', ref: '希伯来书 8:5', hold: 8 },
+        { text: '他们供奉的事本是天上事的形状和影像，<br>正如摩西将要造帐幕的时候，蒙神警戒他，说：<br>「你要谨慎，作各样的物件<br>都要照着在山上指示你的样式。」', ref: '希伯来书 8:5', hold: 8 },
         { text: '我们有这样的大祭司，<br>已经坐在天上至大者宝座的右边，<br>在圣所，就是真帐幕里，作执事；<br>这帐幕是主所支的，不是人所支的。', ref: '希伯来书 8:1–2', hold: 8 },
         { text: '众祭司就常进头一层帐幕，行拜神的礼。<br>至于第二层帐幕，惟有大祭司一年一次独自进去。', ref: '希伯来书 9:6–7', hold: 7 },
       ],
@@ -2530,7 +2643,8 @@
           // 众人坦然走进院子
           [19.8, () => {
             const G = tabG();
-            each((id, i) => { walk(id, (G.x0 + G.cw * (0.1 + i * 0.09)) / W.w, { speed: 0.03, pose: 'raise' }); sink(id, COURT[i][1]); });
+            // 竖屏：院子窄，众人在院子前面（往前站）散开
+            each((id, i) => { walk(id, PORT ? lerp(0.545, 0.86, i / 5) : (G.x0 + G.cw * (0.1 + i * 0.09)) / W.w, { speed: 0.03, pose: 'raise' }); sink(id, pv(COURT[i][1])); });
           }],
           [25, b => { each((id, i) => pose(id, i % 2 ? 'kneel' : 'pray')); allGlow(0.36); sfx(b, 'sing', { soft: true }); }],
         ]);
@@ -2554,12 +2668,15 @@
             W.goTo(0.845, 13, inst(b));
             lv('hbHeaven', 0.15, b); lv('hbThrone', 0, b); lv('hbCome', 0, b); lv('hbGlory', 0.4, b);
             lv('hbOil', 1, b); lv('hbAnchorA', 0.15, b); lv('hbWayA', 0.45, b);
+            // 风浪早已平息：船解缆漂走（锚仍钩在天上的幔内）
+            lv('hbBoatIn', 0, b);
             home({ pose: 'sit', speed: 0.034 });
-            walk('priest1', PX(0.645), { speed: 0.03, pose: 'sit' }); sink('priest1', 0.2);
-            walk('priest2', PX(0.628), { speed: 0.03, pose: 'sit' }); sink('priest2', 0.36);
-            walk('hp', PX(0.665), { speed: 0.03, pose: 'sit' }); sink('hp', 0.1);
+            walk('priest1', PXP(0.645), { speed: 0.03, pose: 'sit' }); sink('priest1', pv(0.2));
+            walk('priest2', PXP(0.628), { speed: 0.03, pose: 'sit' }); sink('priest2', pv(0.36));
+            walk('hp', PXP(0.665), { speed: 0.03, pose: 'sit' }); sink('hp', pv(0.1));
             sfx(b, 'stars');
           }],
+          [2.4, b => lv('hbBoat', 0, b)],
           [3, b => { if (!inst(b)) ringAt(b, W.w * 0.5, W.h * 0.28, M() * 0.7, [214, 226, 255], 4, 1.2); }],
           [9, () => { each(id => face(id, 1)); ['priest1', 'priest2', 'hp'].forEach(id => face(id, 1)); }],
           // 亚伯
@@ -2581,7 +2698,7 @@
     {
       kind: 'promise', utter: '论子孙，我必叫你的子孙多起来', cmd: 'seq 1 ∞ | stars  # 如同天上的星', ref: '6:14',
       verse: [
-        { text: '当初神应许亚伯拉罕的时候，……就指着自己起誓，说：<br>「论福，我必赐大福给你；<br>论子孙，我必叫你的子孙多起来。」', ref: '希伯来书 6:13–14', hold: 7 },
+        { text: '当初神应许亚伯拉罕的时候，……<br>就指着自己起誓，说：<br>「论福，我必赐大福给你；<br>论子孙，我必叫你的子孙多起来。」', ref: '希伯来书 6:13–14', hold: 7 },
         { text: '亚伯拉罕因着信，蒙召的时候就遵命出去，<br>往将来要得为业的地方去；<br>出去的时候，还不知往哪里去。', ref: '希伯来书 11:8', hold: 7 },
         { text: '他因着信，就在所应许之地作客，好像在异地居住帐棚，<br>与那同蒙一个应许的以撒、雅各一样。', ref: '希伯来书 11:9', hold: 6.5 },
         { text: '所以从一个仿佛已死的人就生出子孙，<br>如同天上的星那样众多，海边的沙那样无数。', ref: '希伯来书 11:12', hold: 6.5 },
@@ -2609,6 +2726,8 @@
             add('jacob', Object.assign({ label: '雅各', sex: 'm', age: 'adult', x: X.tent2 + 0.034, hair: 'cloth', robe: [236, 220, 196] }, o));
             sfx(b, 'chime', { soft: true });
           }],
+          [17.6, b => { const h = headOf('isaac', 1); nameAt(b, '以撒', h[0], h[1] - (PORT ? 26 : 40) * SU(), { size: 28 * SU(), hold: 3 }); }],
+          [21, b => { const h = headOf('jacob', 1); nameAt(b, '雅各', h[0], h[1] - (PORT ? 26 : 40) * SU(), { size: 28 * SU(), hold: 3 }); }],
           // 如同天上的星那样众多，海边的沙那样无数
           [24.5, b => {
             lv('hbSand', 1, b); pose('abraham', 'gaze'); pose('sarah', 'gaze'); face('abraham', 1);
@@ -2623,7 +2742,7 @@
     {
       kind: 'act', utter: '我拉着他们祖宗的手，领他们出埃及', cmd: 'exodus --by-hand 列祖 | cross 红海 --dry', ref: '8:9',
       verse: [
-        { text: '不像我拉着他们祖宗的手，领他们出埃及的时候，<br>与他们所立的约。', ref: '希伯来书 8:9', hold: 5.5 },
+        { text: '所以主指责他的百姓说：……<br>不像我拉着他们祖宗的手，领他们出埃及的时候，<br>与他们所立的约。', ref: '希伯来书 8:8–9', hold: 6.5 },
         { text: '摩西……因着信，就离开埃及，不怕王怒；<br>因为他恒心忍耐，如同看见那不能看见的主。', ref: '希伯来书 11:24–27', hold: 7 },
         { text: '他们因着信，过红海如行干地；<br>埃及人试着要过去，就被吞灭了。', ref: '希伯来书 11:29', hold: 6 },
         { text: '以色列人因着信，围绕耶利哥城七日，城墙就倒塌了。<br>妓女喇合因着信，曾和和平平地接待探子，<br>就不与那些不顺从的人一同灭亡。', ref: '希伯来书 11:30–31', hold: 8.5 },
@@ -2636,6 +2755,14 @@
             lv('hbTents', 0, b); lv('hbSand', 0, b); lv('hbDimA', 0, b);
             W.goTo(0.13, 14, inst(b));
           }],
+          // 约瑟（光的人影）：临终的时候，提到以色列族将来要出——他指着出去的路
+          [0.6, b => {
+            add('joseph', { label: '约瑟', sex: 'm', age: 'elder', x: X.tent1, layer: 1, facing: -1, angel: true, glow: 1, hair: 'cloth', beard: true,
+              robe: [240, 222, 186], pose: 'point', from: inst(b) ? 'none' : 'light' });
+            sfx(b, 'chime', { soft: true });
+          }],
+          [1.8, b => { const h = headOf('joseph', 1); nameAt(b, '约瑟', h[0], h[1] - (PORT ? 26 : 40) * SU(), { size: 28 * SU(), hold: 3.2 }); }],
+          [6.2, () => rm('joseph')],
           // 摩西与那不能看见的主（光柱先显出：拉着他们祖宗的手领他们的，是那不能看见的主）
           [1, b => { lv('hbMoses', 0.4, b); lv('hbDimB', 1, b); sfx(b, 'wind', { soft: true }); }],
           [6.9, b => { lv('hbMoses', 1, b); sfx(b, 'chime', { soft: true }); }],
@@ -2654,7 +2781,7 @@
 
     // ── 11 · 12:2 为我们信心创始成终的耶稣 ─────────────────────────
     {
-      kind: 'act', utter: '为我们信心创始成终的耶稣', cmd: 'run 路程 --patient --look-to 耶稣', ref: '12:2',
+      kind: 'act', utter: '忍受了十字架的苦难，便坐在神宝座的右边', cmd: 'run 路程 --patient --look-to 耶稣', ref: '12:2',
       verse: [
         { text: '我又何必再说呢？若要一一细说，<br>基甸、巴拉、参孙、耶弗他、大卫、撒母耳，<br>和众先知的事，时候就不够了。', ref: '希伯来书 11:32', hold: 7 },
         { text: '我们既有这许多的见证人，如同云彩围着我们，<br>就当放下各样的重担，脱去容易缠累我们的罪，<br>存心忍耐，奔那摆在我们前头的路程，', ref: '希伯来书 12:1', hold: 8 },
@@ -2672,7 +2799,7 @@
             S.runner = true;
             lv('hbRace', 1, b);
             hold('p3', 'bundle'); pose('p3', 'stand');
-            walk('p3', X.start, { speed: 0.03 }); sink('p3', RACE_V);
+            walk('p3', X.start, { speed: 0.03 }); sink('p3', pv(RACE_V));
             sfx(b, 'chime', { soft: true });
           }],
           [11, b => { hold('p3', null); S.bundle = true; sfx(b, 'build', { soft: true }); }],
@@ -2723,12 +2850,14 @@
           }],
           [9.6, () => { each(id => pose(id, 'gaze')); ['priest1', 'priest2', 'hp'].forEach(id => pose(id, 'gaze')); }],
           // 再一次震动天地：人手所造的帐幕化作光尘，不被震动的常存
+          // （在帐幕中供职的祭司与大祭司也一同隐去：头一个已经除去）
           [16.2, b => {
             S.gone = true; S.bundle = false;
             lv('hbTab', 0, b); lv('hbWay', 0, b); lv('hbLamp', 0, b); lv('hbGlory', 0, b);
+            ['priest1', 'priest2', 'hp'].forEach(id => rm(id));
             shake(b, 1.1); flashW(b, 0.3); sfx(b, 'quake');
           }],
-          [16.8, () => { each(id => pose(id, 'kneel')); ['priest1', 'priest2', 'hp'].forEach(id => pose(id, 'kneel')); }],
+          [16.8, () => each(id => pose(id, 'kneel'))],
           [17.8, b => shake(b, 0.8)],
           [19.4, b => shake(b, 0.55)],
           // 我们的神乃是烈火
@@ -2757,19 +2886,18 @@
           // 黄昏：摆上桌子，众人围坐
           [0, b => {
             W.goTo(0.765, 8, inst(b)); lv('hbTable', 1, b); lv('hbFire', 0, b);
-            each(id => { walk(id, seatX(id), { speed: 0.03, pose: 'sit' }); sink(id, SEATS[id][1]); });
-            ['priest1', 'priest2', 'hp'].forEach(id => { walk(id, seatX(id), { speed: 0.03, pose: 'sit' }); sink(id, SEATS[id][1]); });
+            each(id => { walk(id, seatX(id), { speed: 0.03, pose: 'sit' }); sink(id, pv(SEATS[id][1])); });
             sfx(b, 'crowd', { soft: true });
           }],
           // 一位客旅从远处来
           [1.4, b => {
-            add('guest', { label: '客旅', sex: 'm', age: 'adult', x: PX(0.95), layer: 2, v: 0.14, facing: -1, robe: ROBE.guest, accent: [200, 186, 160], prop: 'staff', glow: 0.2, pose: 'walk' });
+            add('guest', { label: '客旅', sex: 'm', age: 'adult', x: PX(0.95), layer: 2, v: pv(0.14), facing: -1, robe: ROBE.guest, accent: [200, 186, 160], prop: 'staff', glow: 0.2, pose: 'walk' });
             walk('guest', seatX('guest') + 0.02, { speed: 0.045 });
           }],
           [6.4, () => { face('p4', 1); pose('p4', 'stand'); face('p5', 1); }],
           [8.4, b => { walk('guest', seatX('guest'), { speed: 0.02, pose: 'sit' }); pose('p4', 'sit'); lv('hbGuest', 1, b); }],
           // 我总不撇下你：天上的光落在他们身上
-          [9, b => { lv('hbBless', 1, b); allGlow(0.46); ['priest1', 'priest2', 'hp'].forEach(id => glow(id, 0.42)); sfx(b, 'harp'); }],
+          [9, b => { lv('hbBless', 1, b); allGlow(0.46); sfx(b, 'harp'); }],
           // 昨日、今日、一直到永远：夜过去，天又亮了；天上的光不变
           [16.8, b => { W.goTo(0.3, 9, inst(b)); lv('hbBless', 0.55, b); sfx(b, 'bell', { soft: true }); }],
           // 不知不觉接待了天使：客旅站起来，他的光升上去
@@ -2779,16 +2907,16 @@
           // 愿恩惠常与你们众人同在
           [24.4, b => {
             lv('hbBless', 1, b);
-            each(id => { pose(id, 'raise'); face(id, 1); }); ['priest1', 'priest2', 'hp'].forEach(id => pose(id, 'raise'));
+            each(id => { pose(id, 'raise'); face(id, 1); });
             W.setPop('bird', 30, W.w * 0.6, W.h * 0.35, inst(b));
             if (!inst(b)) {
               const R = Math.hypot(W.w, W.h);
-              ringAt(b, X.table * W.w, fY(X.table, TABLE_V) - 30 * LS(2), R, [255, 238, 196], 5.5, 2);
+              ringAt(b, X.table * W.w, fY(X.table, pv(TABLE_V)) - 30 * LS(2), R, [255, 238, 196], 5.5, 2);
               for (const [xf, yf] of [[0.2, 0.8], [0.5, 0.75], [0.8, 0.86], [0.92, 0.72], [0.62, 0.9]]) bless(xf * W.w, yf * W.h, 0.3 * W.w);
             }
             sfx(b, 'harp'); sfx(b, 'bird', { soft: true });
           }],
-          [28.4, () => { each(id => pose(id, 'stand')); ['priest1', 'priest2', 'hp'].forEach(id => pose(id, 'stand')); }],
+          [28.4, () => each(id => pose(id, 'stand'))],
         ]);
       },
     },
@@ -2811,12 +2939,13 @@
       '弟兄': { text: '你们务要常存弟兄相爱的心。', ref: '希伯来书 13:1' },
       '圣徒': { text: '请你们问引导你们的诸位和众圣徒安。', ref: '希伯来书 13:24' },
       '儿女': { text: '看哪，我与神所给我的儿女。', ref: '希伯来书 2:13' },
-      '祭司': { text: '凡祭司天天站着事奉神，屡次献上一样的祭物，这祭物永不能除罪。', ref: '希伯来书 10:11' },
+      '祭司': { text: '这些物件既如此预备齐了，众祭司就常进头一层帐幕，行拜神的礼。', ref: '希伯来书 9:6' },
       '大祭司': { text: '凡从人间挑选的大祭司，是奉派替人办理属神的事，为要献上礼物和赎罪祭。', ref: '希伯来书 5:1' },
       '亚伯拉罕': { text: '亚伯拉罕因着信，蒙召的时候就遵命出去，往将来要得为业的地方去；出去的时候，还不知往哪里去。', ref: '希伯来书 11:8' },
       '撒拉': { text: '因着信，连撒拉自己，虽然过了生育的岁数，还能怀孕，因她以为那应许她的是可信的。', ref: '希伯来书 11:11' },
       '以撒': { text: '以撒因着信，就指着将来的事给雅各、以扫祝福。', ref: '希伯来书 11:20' },
       '雅各': { text: '雅各因着信，临死的时候，给约瑟的两个儿子各自祝福，扶着杖头敬拜神。', ref: '希伯来书 11:21' },
+      '约瑟': { text: '约瑟因着信，临终的时候，提到以色列族将来要出，并为自己的骸骨留下遗命。', ref: '希伯来书 11:22' },
       '客旅': { text: '不可忘记用爱心接待客旅；因为曾有接待客旅的，不知不觉就接待了天使。', ref: '希伯来书 13:2' },
       '天上的圣所': { text: '在圣所，就是真帐幕里，作执事；这帐幕是主所支的，不是人所支的。', ref: '希伯来书 8:2' },
       '施恩的宝座': { text: '所以，我们只管坦然无惧地来到施恩的宝座前，为要得怜恤，蒙恩惠，作随时的帮助。', ref: '希伯来书 4:16' },
@@ -2825,7 +2954,7 @@
       '帐幕': { text: '因为有预备的帐幕，头一层叫作圣所，里面有灯台、桌子，和陈设饼。', ref: '希伯来书 9:2' },
       '幔子': { text: '第二幔子后又有一层帐幕，叫作至圣所，', ref: '希伯来书 9:3' },
       '约柜': { text: '有金香炉，有包金的约柜，柜里有盛吗哪的金罐和亚伦发过芽的杖，并两块约版；', ref: '希伯来书 9:4' },
-      '祭坛': { text: '我们有一祭坛，上面的祭物是那些在帐幕中供职的人不可同吃的。', ref: '希伯来书 13:10' },
+      '祭坛': { text: '凡祭司天天站着事奉神，屡次献上一样的祭物，这祭物永不能除罪。', ref: '希伯来书 10:11' },
       '又新又活的路': { text: '是藉着他给我们开了一条又新又活的路，从幔子经过，这幔子就是他的身体。', ref: '希伯来书 10:20' },
       '亚伯': { text: '亚伯因着信，献祭与神，比该隐所献的更美，因此便得了称义的见证，就是神指他礼物作的见证。', ref: '希伯来书 11:4' },
       '以诺': { text: '以诺因着信，被接去，不至于见死，人也找不着他，因为神已经把他接去了；', ref: '希伯来书 11:5' },

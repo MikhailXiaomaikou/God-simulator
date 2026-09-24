@@ -106,7 +106,7 @@
     // 五 腓立比的河边
     women: [0.6, 0.635, 0.67], lydia: 0.705, paul5: 0.765, silas5: 0.795, tim5: 0.82, lhouse: 0.905, bapt: 0.69,
     // 六 监
-    pris: [0.575, 0.87], paul6: 0.635, silas6: 0.668, prisoners: [0.597, 0.613], jailer: 0.905, jhouse: 0.965,
+    pris: [0.575, 0.87], paul6: 0.63, silas6: 0.66, prisoners: [0.592, 0.608], jailer: 0.905, jhouse: 0.965,
     meet6: [0.738, 0.762, 0.787], jfam: [0.806, 0.83], jfam0: [0.875, 0.91],
     // 七 雅典
     stoa: [0.5, 0.6], idols: [0.535, 0.585, 0.695], altar: 0.645, rock: 0.79, athens: [0.54, 0.68], near7: [0.72, 0.745, 0.84, 0.86],
@@ -136,7 +136,7 @@
     part: 0.62, troas: 0.7, sleep: 0.62, mac: 0.72, silas4: 0.72, tim4: 0.8,
     women: [0.46, 0.52, 0.58], lydia: 0.64, paul5: 0.73, silas5: 0.79, tim5: 0.85, lhouse: 0.93, bapt: 0.6,
     pris: [0.43, 0.9], paul6: 0.515, silas6: 0.58, prisoners: [0.455, 0.479], jailer: 0.955, jhouse: null,
-    meet6: [0.7, 0.735, 0.77], jfam: [0.805, 0.84], jfam0: [0.9, 0.95],
+    meet6: [0.695, 0.725, 0.758], jfam: [0.795, 0.835], jfam0: [0.9, 0.95],
     stoa: [0.44, 0.52], idols: [0.47, 0.54, 0.64], altar: 0.59, rock: 0.8, athens: [0.46, 0.66], near7: [0.66, 0.7, 0.9, 0.95],
     tents: [0.52, 0.62], paul8: 0.57, aquila: 0.52, prisca: 0.62, corHouses: [0.76, 0.9], cor: [0.45, 0.5, 0.68, 0.74],
     paul9: 0.52, tim9: 0.47, elders: [0.58, 0.64, 0.7, 0.76, 0.82, 0.88],
@@ -1786,6 +1786,13 @@
     if (!cur()) { if (FXL.length) FXL.length = 0; return; }
     for (let i = 0; i < LAMPS.length; i++) LA[i] = U.approach(LA[i], i < S.lamps ? 1 : 0, 1.4, k);
     for (let i = FXL.length - 1; i >= 0; i--) { FXL[i].t += k; if (FXL[i].t >= FXL[i].dur) FXL.splice(i, 1); }
+    // 监里的地是平的，外面的地往右升高：监里的人（与进来的家人）都站在监的地面上（按各人此刻的 x 算纵深，纯由位置决定）
+    if (S.place === 'prison') {
+      const G = prisonG(), fy = G.floor + 0.06 * G.B;
+      const setFloor = p => { if (!p || p.layer !== 2) return; const g = gY(p.nx * W.w); p.v = Math.max(0, (fy - g) / (Math.max(1, W.h - g) * 0.8)); };
+      for (const id of ['paul', 'silas', 'jailer', 'pr1', 'pr2']) setFloor(person(id));
+      const fam = crowdOf('jfam'); if (fam) fam.members.forEach(setFloor);
+    }
     if (W.replaying) return;
     const f = fx(); if (!f) return;
     // 圣灵的光：细细的光尘落下
@@ -2319,20 +2326,20 @@
           [16.6, b => { pose('jailer', 'stand'); face('jailer', -1); }],
           [18, b => { pose('paul', 'raise'); pose('silas', 'stand'); }],
           // 禁卒跳进内监，俯伏在保罗、西拉面前（在二人的前面，面向他们）
-          [19.4, b => { run('jailer', X('silas6') + (tall() ? 0.06 : 0.045), { speed: 0.085 }); }],
+          [19.2, b => { run('jailer', X('silas6') + (tall() ? 0.06 : 0.036), { speed: tall() ? 0.1 : 0.085 }); }],
           [22.6, b => { pose('jailer', 'fall'); face('jailer', -1); pose('paul', 'stand'); }],
           [25.2, b => { pose('jailer', 'kneel'); face('jailer', -1); }],
           // 又领他们出来：到外监的灯下；他的家人拿着光从外门进来
-          [26.6, b => {
-            const m = X('meet6');
-            walk('silas', m[0], { speed: 0.04 }); walk('paul', m[1], { speed: 0.04 }); walk('jailer', m[2], { speed: 0.04 });
+          [26.2, b => {
+            const m = X('meet6'), sp = tall() ? 0.065 : 0.045;
+            walk('silas', m[0], { speed: sp }); walk('paul', m[1], { speed: sp }); walk('jailer', m[2], { speed: sp });
             lv('jySing', 0, b); glowP('jailer', 0.34);
-            crowd('jfam', { n: 3, x0: X('jfam0')[0], x1: X('jfam0')[1], label: '禁卒的家人', glow: 0.34, mill: false });
+            crowd('jfam', { n: 3, x0: X('jfam0')[0], x1: X('jfam0')[1], label: '禁卒的家人', glow: 0.4, mill: false });
             crowdWalk('jfam', X('jfam')[0], X('jfam')[1], { speed: 0.04 });
           }],
           [29.6, b => {
-            face('paul', 1); face('silas', 1); face('jailer', -1); crowdFaceX('jfam', X('meet6')[1]);
-            pose('paul', 'raise'); crowdPose('jfam', 'raise'); glowP('jailer', 0.42); flashAt(b, 'jailer', [255, 230, 190], 20); sfx(b, 'harp', { soft: true });
+            crowdPose('jfam', 'raise'); face('paul', 1); face('silas', 1); face('jailer', -1); crowdFaceX('jfam', X('meet6')[1]);
+            pose('paul', 'raise'); glowP('jailer', 0.42); flashAt(b, 'jailer', [255, 230, 190], 20); sfx(b, 'harp', { soft: true });
           }],
         ]);
       },
@@ -2512,7 +2519,7 @@
           [18, b => { time(0.01, 5, b); crowdRm('jer'); rm('s2'); rm('tribune'); pose('paul', 'sit'); face('s1', -1); }],
           [20.2, b => {
             // 主的光站在台阶上、保罗的旁边：脚落在那一级台阶的面上
-            const q = stairTop(), G = fortG(), lx = q[0] - (tall() ? 0.07 : 0.036) * W.w;
+            const q = stairTop(), G = fortG(), lx = q[0] - (tall() ? 0.06 : 0.028) * W.w;
             const t = clamp((lx - G.sx0) / Math.max(1, G.sx1 - G.sx0), 0, 1);
             S.lordX = lx / W.w; S.lordY = lerp(G.g + 0.1 * G.B, G.land, t) / W.h;
             lv('jyLord', 1, b); sfx(b, 'angel'); face('paul', -1); glowP('paul', 0.45);
@@ -2721,7 +2728,7 @@
           [22.4, b => {
             lv('rain', 0, b); lv('clouds', 0.35, b); lv('storm', 0, b); lv('gale', 0, b); time(0.48, 6, b);
             const H = X('heal14');
-            add('father', { label: '部百流的父亲', sex: 'm', age: 'elder', robe: ROBE.father, accent: [200, 196, 186], x: H.father, v: 0.1, facing: -1, pose: 'lie', glow: 0.14 });
+            add('father', { label: '部百流的父亲', sex: 'm', age: 'elder', robe: ROBE.father, accent: [200, 196, 186], x: H.father, v: 0.1, facing: -1, pose: 'lie', glow: 0.14, prop: null });
             add('publius', { label: '部百流', sex: 'm', robe: [150, 120, 96], accent: [220, 200, 160], beard: true, x: X('pub') - 0.02, facing: -1, glow: 0.16 });
             walk('publius', H.publius, { speed: 0.03 });
             crowdWalk('isl', H.isl[0], H.isl[1], { speed: 0.042, pose: 'stand' });
@@ -2729,10 +2736,11 @@
             walk('julius', H.julius, { speed: 0.045 });
             walk('paul', H.paul, { speed: 0.03 });
           }],
-          [25.8, b => { pose('paul', 'kneel'); face('paul', 1); crowdFaceX('isl', X('heal14').father); }],
-          [26.8, b => { lv('jyHeal', 1, b); flashAt(b, 'father', [255, 244, 220], 26); sfx(b, 'harp'); }],
-          [28.2, b => { pose('father', 'stand'); pose('paul', 'stand'); glowP('father', 0.36); lampOn(b, 9, 'paul'); }],
-          [29.4, b => { pose('publius', 'raise'); crowdPose('isl', 'raise'); crowdFaceX('isl', X('heal14').father); }],
+          // 「手按病人，病人就必好了」：保罗跪下按手，那父亲起来
+          [26, b => { pose('paul', 'kneel'); face('paul', 1); crowdFaceX('isl', X('heal14').father); }],
+          [27.6, b => { lv('jyHeal', 1, b); flashAt(b, 'father', [255, 244, 220], 26); sfx(b, 'harp'); }],
+          [29, b => { pose('father', 'stand'); pose('paul', 'stand'); glowP('father', 0.36); lampOn(b, 9, 'paul'); }],
+          [30, b => { pose('publius', 'raise'); crowdPose('isl', 'raise'); crowdFaceX('isl', X('heal14').father); }],
         ]);
       },
     },

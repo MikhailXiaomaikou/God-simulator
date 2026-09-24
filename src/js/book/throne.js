@@ -1415,7 +1415,7 @@
     const k = lv('trnBook') * hush;
     if (k < 0.01) return;
     const t = easeIO(clamp(lv('trnTake'), 0, 1));
-    const s = V.s * lerp(1.55, 1.25 * lambK() / 1.35, t), [x, y] = bookPos(V);
+    const s = V.s * lerp(1.55, 0.78 * lambK(), t), [x, y] = bookPos(V);
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
     let r = 30 * s;
@@ -1450,7 +1450,7 @@
     // 身后一圈稍暗的晕：好叫白色的羔羊在明亮的玻璃海上显出来
     const dg = ctx.createRadialGradient(x, y - 11 * s, 0, x, y - 11 * s, 26 * s);
     dg.addColorStop(0, 'rgba(10,16,34,0.5)'); dg.addColorStop(0.6, 'rgba(10,16,34,0.3)'); dg.addColorStop(1, 'rgba(10,16,34,0)');
-    ctx.globalAlpha = k; ctx.fillStyle = dg;
+    ctx.globalAlpha = k * (1 - 0.75 * W.dayFactor); ctx.fillStyle = dg;
     ctx.beginPath(); ctx.ellipse(x, y - 11 * s, 26 * s, 21 * s, 0, 0, TAU); ctx.fill();
     ctx.globalCompositeOperation = 'lighter';
     let r = 34 * s * (1 + 0.1 * lv('trnPraise'));
@@ -1491,9 +1491,9 @@
       if (on < 0.01) continue;
       const E = vp(V, ...lambEye(i));
       const tw = 0.75 + 0.25 * Math.sin(CLK * 2.4 + i * 1.3);
-      r = 7 * V.s * lambK() / 2.2 * tw * 1.6;
-      ctx.globalAlpha = k * on * 0.5; ctx.drawImage(SP.flame, E[0] - r, E[1] - r, 2 * r, 2 * r);
-      r = 4.2 * V.s * lambK() / 2.2 * 1.35 * tw;
+      r = 7 * V.s * lambK() / 2.2 * tw * 2;
+      ctx.globalAlpha = k * on * 0.6; ctx.drawImage(SP.flame, E[0] - r, E[1] - r, 2 * r, 2 * r);
+      r = 4.2 * V.s * lambK() / 2.2 * 1.8 * tw;
       ctx.globalAlpha = k * on * 0.95; ctx.drawImage(SP.star, E[0] - r, E[1] - r, 2 * r, 2 * r);
     }
     ctx.restore();
@@ -1563,7 +1563,7 @@
   }
   // 「阿们」写在天上的地方（横屏：宝座之上；竖屏：异象之下，不入顶上的经文）与它的字号
   function amenAt() {
-    const V = VG(), size = M() * (V.port ? 0.075 : 0.055), p = vp(V, 0, V.port ? 122 : -196);
+    const V = VG(), size = M() * (V.port ? 0.075 : 0.055), p = vp(V, 0, V.port ? 152 : -196);
     const half = (size * 1.08 * 1) / 2 + size * 0.6;
     return [clamp(p[0], half + 8, W.w - half - 8), clamp(p[1], size + 8, W.h - size), size, half];
   }
@@ -1672,6 +1672,9 @@
         const st = 0.12 * f;
         if (Math.abs(v - q.v) <= st) { q.v = v; VT.delete(id); } else q.v += Math.sign(v - q.v) * st;
       }
+      // 人子进屋时渐渐隐去，不像天使那样升起
+      const sf = fig('son');
+      if (sf && sf.dying) sf.lift = 0;
     },
     drawUnder(ctx, pass) {
       if (!isCur()) return;
@@ -2047,7 +2050,7 @@
           // 一点光自约翰身上顺着那道光升到天上的门里（「我立刻被圣灵感动」）
           [4.4, b => {
             glow('john', 0.6);
-            mote(b, () => figPt('john', 0.62), () => vp(VG(), 0, -44), { dur: 5.2, arc: 0, size: 8, c: [255, 240, 210] });
+            mote(b, () => figPt('john', 0.62), () => vp(VG(), 0, -44), { dur: 5.2, arc: 0, size: 11, c: [255, 240, 210] });
             sfx(b, 'angel', { soft: true });
           }],
           [9.6, b => {

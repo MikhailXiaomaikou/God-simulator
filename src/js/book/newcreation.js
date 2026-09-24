@@ -6,7 +6,8 @@
  *        海平静下来，自远而近化作一片明如水晶的光原：「海也不再有了」。
  *   二 · 「圣城新耶路撒冷由神那里从天而降」——天开了一道门，城自光中缓缓降下，落在中丘上：
  *        碧玉的墙、珍珠的门、精金如玻璃的城，如新妇妆饰整齐。
- *   三 · 「看哪，神的帐幕在人间」——一道光自宝座降到地上，在人中间张开一座光的帐幕；万民聚来。
+ *   三 · 「看哪，神的帐幕在人间」——宝座的光一闪，一团荣耀的云自正门降到人中间，张开覆庇众人；万民聚来。
+ *        （到第五句「一切都更新了」时，那云化入新造的光里，不停成一带。）
  *   四 · 「神要擦去他们一切的眼泪」——光一一临到哀哭的人：母亲的孩子自光中跑来，与她相拥；
  *        拄杖的老者直起身来；众人都穿上了白衣。
  *   五 · 「看哪，我将一切都更新了」——从灵所在之处，青草、菜蔬、树木、百花一齐长起，飞鸟、走兽自光与尘中出来。
@@ -19,7 +20,7 @@
  *   十 · 「我必将神乐园中生命树的果子赐给他吃」——河这边与那边长起生命树，结十二样果子，叶子乃为医治万民。
  *   十一 · 「也要见他的面」——宝座的光临到众人：众人俯伏，起来时额上有他的名；荆棘化为花——再没有咒诅。
  *   十二 · 「我是明亮的晨星」——一颗明亮的星自东方升起。
- *   十三 · 「来」——圣灵（灵的光）和新妇都说「来」：远处的人成群而来，到河边取生命的水。
+ *   十三 · 「来」——圣灵（灵的光）和新妇都说「来」：珍珠门一圈一圈放光；远处的人成群而来，到河边取生命的水。
  *   十四 · 「是了，我必快来」——东方大放光明，众人举手：「阿们！主耶稣啊，我愿你来！」
  *        末了一句：「愿主耶稣的恩惠常与众圣徒同在。阿们！」——全本圣经在满满的光中结束。
  *
@@ -28,7 +29,7 @@
  *
  * 画面的方位（桌面）：左 = 先前的海（化为光原，经文在其上）；右 = 近地（众人站在岭线上）；
  *   中丘上是城（0.60 — 0.92，左侧的城墙面向画面中央）；河从当中的城门（0.76）流出，流到众人脚前；
- *   两棵生命树在河的这边与那边（0.655 / 0.87）。竖屏的手机：一切按 XP 另排，人数少些。
+ *   两棵生命树在河的这边与那边（0.598 / 0.922，在城的两角之前，不挡正面的珍珠门）。竖屏的手机：一切按 XP 另排，人数少些。
  * 一切位置都以画面宽度的比例记下；一切情节都可瞬间重演（恢复存档 / 提前言说）。
  * ───────────────────────────────────────────────────────────── */
 (function (GS) {
@@ -52,8 +53,9 @@
     ncCity: ['lin', 0.115],   // 圣城自天而降（0 天上 → 1 落在山上）
     ncVeil: ['exp', 0.45],    // 降下时围着城的光纱（如新妇的纱）
     ncGlow: ['exp', 0.35],    // 城的荣光
-    ncBeam: ['exp', 0.5],     // 自宝座降到人间的光的云柱
-    ncTent: ['lin', 0.22],    // 神的帐幕在人间：光的云降下（0–0.55），张开覆庇众人（0.45–1）
+    ncBeam: ['exp', 0.5],     // 自正门降到人间的一道光（云柱）
+    ncTent: ['lin', 0.2],     // 神的帐幕在人间：荣耀的云自正门降下（0–0.55），张开覆庇众人（0.4–1）
+    ncCloud: ['exp', 0.5],    // 那云的浓淡（一切更新时化入新造的光里）
     ncWall: ['exp', 0.6],     // 碧玉的墙放光
     ncFound: ['lin', 1.45],   // 十二根基一层层显出（0 … 12）
     ncGates: ['exp', 0.5],    // 十二个珍珠门发亮
@@ -83,14 +85,16 @@
   // ── 地上的位置（画面宽度的比例）：桌面 XD；竖屏手机 XP ──────────────
   const XD = {
     angel: 0.515, john: 0.545, mother: 0.595, childFrom: 0.672, elder: 0.642, man: 0.808, woman: 0.9,
-    rx: 0.76, treeL: 0.655, treeR: 0.872, city0: 0.6, city1: 0.92, side: 0.05,
-    cA0: 0.565, cA1: 0.715, cB0: 0.79, cB1: 0.95, nA: 6, nB: 6, nC: 5, nD: 6,
+    rx: 0.76, treeL: 0.598, treeR: 0.922, treeH: 3.8, city0: 0.6, city1: 0.92, side: 0.05,
+    cA0: 0.565, cA1: 0.715, cB0: 0.79, cB1: 0.95, nA: 6, nB: 5, nC: 5, nD: 6,
+    cC0: 0.805, cC1: 0.935, vC: 0.42,
     bankL: 0.728, bankR: 0.79, drinkM: 0.715, drinkC: 0.735,
   };
   const XP = {
     angel: 0.455, john: 0.505, mother: 0.57, childFrom: 0.665, elder: 0.645, man: 0.83, woman: 0.905,
-    rx: 0.755, treeL: 0.615, treeR: 0.878, city0: 0.52, city1: 0.99, side: 0.045,
+    rx: 0.755, treeL: 0.615, treeR: 0.878, treeH: 3.35, city0: 0.52, city1: 0.99, side: 0.045,
     cA0: 0.52, cA1: 0.69, cB0: 0.8, cB1: 0.93, nA: 3, nB: 3, nC: 3, nD: 3,
+    cC0: 0.8, cC1: 0.94, vC: 0.4,
     bankL: 0.7, bankR: 0.8, drinkM: 0.69, drinkC: 0.715,
   };
   let X = XD, PORT = false;
@@ -140,6 +144,14 @@
     g.fillStyle = vt; g.fillRect(0, 0, 64, 256);
     return b;
   }
+  // 云团：当中实、边上柔（没有硬边）
+  function puff(rgb) {
+    const c = cnv(96, 96), g = c.getContext('2d'), gr = g.createRadialGradient(48, 48, 0, 48, 48, 48);
+    gr.addColorStop(0, rgba(rgb, 1)); gr.addColorStop(0.42, rgba(rgb, 0.86));
+    gr.addColorStop(0.74, rgba(rgb, 0.34)); gr.addColorStop(1, rgba(rgb, 0));
+    g.fillStyle = gr; g.fillRect(0, 0, 96, 96);
+    return c;
+  }
   function sprites() {
     if (SP) return SP;
     try {
@@ -148,6 +160,7 @@
         warm: radial([255, 236, 196], 1, 0.4), jade: radial([180, 255, 214], 1), rose: radial([255, 214, 200], 1, 0.4),
         aqua: radial([200, 240, 255], 1, 0.35),
         beam: vbeam('rgba(255,244,214,0)', 'rgba(255,248,230,1)'),
+        cloudL: puff([255, 250, 236]), cloudS: puff([230, 224, 228]),
       };
     } catch (e) { SP = null; }
     return SP;
@@ -460,13 +473,19 @@
     const a = (1 - t) * (1 - t) * (1 - t), b = 3 * (1 - t) * (1 - t) * t, c = 3 * (1 - t) * t * t, d = t * t * t;
     return [a * P[0][0] + b * P[1][0] + c * P[2][0] + d * P[3][0], a * P[0][1] + b * P[1][1] + c * P[2][1] + d * P[3][1]];
   }
-  // 神的帐幕：光的云在人中间（x 为河所出之处），张开覆庇众人
+  // 神的帐幕：荣耀的云自正门降到人中间（x 为河所出之处，正在正门之下），张开覆庇众人
   function tentG() {
     const x = X.rx * W.w, g = gY(2, X.rx), ph = PH(2);
     const x0 = X.cA0 * W.w, x1 = X.cB1 * W.w;
-    return { x, g, ph, cx: (x0 + x1) / 2, half: (x1 - x0) / 2 + ph * 0.5, top: g - 1.8 * ph };
+    return { x, g, ph, cx: (x0 + x1) / 2, half: (x1 - x0) / 2 + ph * 0.2, top: g - 2.4 * ph };
   }
-  function treeG(i) { const xf = i ? X.treeR : X.treeL; return { x: xf * W.w, y: gY(2, xf) + 1, H: (PORT ? 3.8 : 4.3) * PH(2) }; }
+  // 那云的一团团（确定的）：[沿云的位置 −1…1, 大小, 明暗, 相位]
+  const TPUFF = (function () {
+    const R = U.mulberry32(2103), out = [];
+    for (let i = 0; i < 17; i++) out.push([(i / 16) * 2 - 1 + (R() - 0.5) * 0.06, R(), R(), R() * TAU]);
+    return out;
+  })();
+  function treeG(i) { const xf = i ? X.treeR : X.treeL; return { x: xf * W.w, y: gY(2, xf) + 1, H: X.treeH * PH(2) }; }
   function starPt() {
     const t = U.easeInOut(clamp(lv('ncStar'), 0, 1));
     const P0 = PORT ? [0.14, 0.6] : [0.1, 0.6], P1 = PORT ? [0.25, 0.44] : [0.2, 0.17];
@@ -1218,48 +1237,61 @@
     }
     ctx.globalAlpha = 1;
   }
-  // 神的帐幕在人间：一团光的云自宝座降到人中间，张开成覆庇众人的光（只是光）
+  // 神的帐幕在人间：一团荣耀的云自正门出来，降到人中间，张开成覆庇众人的云（如会幕上的云，出 40:34）——只是光与云
   function drawTent(ctx) {
-    const k = lv('ncTent'), col = lv('ncBeam');
-    if (k < 0.003) return;
-    const T0 = tentG();
+    const k = lv('ncTent'), col = lv('ncBeam'), cl = lv('ncCloud');
+    if (k < 0.003 || cl < 0.004 || lv('ncCity') < 0.9) return;
+    const T0 = tentG(), G = cityG(), q = G.gates[1], ph = T0.ph;
     sprites(); ctxA = ctx;
+    const e1 = U.easeInOut(clamp(k / 0.55, 0, 1)), e2 = U.easeInOut(clamp((k - 0.4) / 0.6, 0, 1));
+    // 云头：自正门里（y0）降到河所出之处的上空（yR），再向两边张开
+    const y0 = q.y - q.h * 0.5, yR = T0.g - 2.0 * ph;
+    const cy = lerp(y0, yR, e1), hx = lerp(q.x, T0.x, e1);
+    const cx = lerp(hx, T0.cx, e2), half = lerp(ph * 0.55, T0.half, e2);
+    const A = cl * (0.45 + 0.55 * sm(0, 0.25, e1));
+    // up = 1：当中隆起的一层（云的顶，像帐幕的脊）
+    const puffXY = (P, up) => {
+      const t = up ? P[0] * 0.6 : P[0], x = cx + t * half + Math.sin(W.t * 0.3 + P[3]) * 0.06 * ph;
+      let rest = gY(2, clamp(x / W.w, 0, 1)) - ph * (1.45 + 0.55 * (1 - t * t));   // 随地势，当中高、两边低（如帐幕的顶）
+      if (up) rest -= ph * 0.5 * (1 - P[0] * P[0]);
+      const y = lerp(cy + (P[2] - 0.5) * 0.35 * ph - (up ? 0.3 * ph : 0), rest, e2) + Math.sin(W.t * 0.4 + P[3] * 1.7) * 0.04 * ph;
+      const r = ph * (0.5 + 0.32 * P[1]) * lerp(0.75, 1 - 0.22 * Math.abs(t), e2) * (up ? 0.82 : 1);
+      return [x, y, r];
+    };
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
-    const e1 = U.easeInOut(clamp(k / 0.55, 0, 1)), e2 = U.easeOut(clamp((k - 0.45) / 0.55, 0, 1));
-    // 云柱：自宝座降下（一串柔光）
-    if (col > 0.01 && lv('ncCity') > 0.9) {
-      const [tx, ty] = throneXY(), yb = lerp(ty, T0.top, e1), n = 8;
-      for (let i = 0; i < n; i++) {
-        const t = i / (n - 1), y = lerp(ty, yb, t), x = lerp(tx, T0.x, t) + Math.sin(W.t * 0.7 + i * 1.3) * 0.12 * T0.ph;
-        glowAt(SP.warm, x, y, T0.ph * (0.7 + 0.5 * t), 0.18 * sm(0.5, 1, col), 1.1);
+    // 自正门降下的一道光（云柱）：门里亮起，一直连到云中
+    if (col > 0.01) {
+      const top = q.y - q.h * 0.95, bot = cy + 0.3 * ph, wd = Math.max(q.w * 1.5, 0.8 * ph);
+      if (bot > top + 2) {
+        ctx.globalAlpha = clamp(0.55 * col * cl, 0, 1);
+        ctx.drawImage(SP.beam, hx - wd / 2, top, wd, bot - top);
+        ctx.globalAlpha = clamp(0.5 * col * cl, 0, 1);
+        ctx.drawImage(SP.beam, hx - wd * 0.18, top, wd * 0.36, bot - top);
       }
+      glowAt(SP.white, q.x, q.y - q.h * 0.45, q.w * 1.6, 0.5 * col * cl);
     }
-    // 荣耀的云停在众人头上，张开覆庇他们（如会幕上的云，出 40:34）：柔和的一片光云，几幅光垂到地上
-    if (e2 > 0.001) {
-      const A = 0.35 + 0.65 * col, cx = lerp(T0.x, T0.cx, e2), half = lerp(T0.ph * 0.9, T0.half, e2), ph = T0.ph;
-      const cy = T0.g - 1.75 * ph;
-      ctx.globalCompositeOperation = 'source-over';
-      const n = 13;
-      for (let i = 0; i < n; i++) {
-        const t = (i / (n - 1)) * 2 - 1, q = hsh(i * 3.7 + 1);
-        const x = cx + t * half * 0.94 + Math.sin(W.t * 0.3 + i) * 0.05 * ph;
-        const y = cy + (t * t) * 0.35 * ph - (0.15 + 0.2 * q) * ph + Math.sin(W.t * 0.4 + i * 1.7) * 0.05 * ph;
-        const rx = ph * (0.8 + 0.5 * q) * (1 - 0.25 * Math.abs(t)), ry = ph * (0.42 + 0.22 * q) * (1 - 0.2 * Math.abs(t));
-        ctx.fillStyle = 'rgba(255,250,240,' + (0.2 * e2 * A).toFixed(3) + ')';
-        ctx.beginPath(); ctx.ellipse(x, y, rx, ry, 0, 0, TAU); ctx.fill();
-      }
-      ctx.globalCompositeOperation = 'lighter';
+    // 云身：先画背光的一层（略带珍珠灰），再画迎光的一层
+    ctx.globalCompositeOperation = 'source-over';
+    for (const P of TPUFF) { const [x, y, r] = puffXY(P, 0); glowAt(SP.cloudS, x, y + r * 0.2, r * 1.05, 0.45 * A, 0.62); }
+    for (const P of TPUFF) { const [x, y, r] = puffXY(P, 0); glowAt(SP.cloudL, x, y - r * 0.14, r * 0.88, 0.85 * A, 0.62); }
+    for (let i = 3; i < TPUFF.length - 3; i += 2) { const [x, y, r] = puffXY(TPUFF[i], 1); glowAt(SP.cloudL, x, y, r, 0.8 * A * sm(0, 0.35, e1), 0.66); }
+    // 云里的荣光
+    ctx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < 5; i++) {
+      const t = (i / 4) * 2 - 1, x = cx + t * half * 0.8;
+      const y = lerp(cy, gY(2, clamp(x / W.w, 0, 1)) - ph * (1.6 + 0.55 * (1 - t * t)), e2);
+      glowAt(SP.warm, x, y, ph * 1.6, 0.26 * A * (0.85 + 0.15 * Math.sin(W.t * 0.9 + i)), 0.5);
+      glowAt(SP.gold, x, y + 0.15 * ph, ph * 0.9, 0.12 * A, 0.5);
+    }
+    glowAt(SP.white, cx, lerp(cy, T0.g - 2.2 * ph, e2) - 0.1 * ph, ph * 1.2, 0.45 * A, 0.6);
+    // 垂到众人身上的几幅光
+    if (e2 > 0.01) {
       for (let i = 0; i < 5; i++) {
-        const t = (i / 4) * 2 - 1;
-        glowAt(SP.warm, cx + t * half * 0.8, cy - 0.1 * ph, ph * 1.6, 0.28 * e2 * A, 0.45);
-      }
-      glowAt(SP.white, cx, cy - 0.2 * ph, ph * 0.9, 0.45 * e2 * A, 0.6);
-      // 垂到地上的几幅光
-      ctx.globalAlpha = 0.16 * e2 * A;
-      for (let i = 0; i < 4; i++) {
-        const t = ((i + 0.5) / 4) * 2 - 1, x = cx + t * half * 0.75, wd = ph * 0.8;
-        ctx.drawImage(SP.beam, x - wd / 2, cy, wd, T0.g - cy + 0.1 * ph);
+        const t = ((i + 0.5) / 5) * 2 - 1, x = cx + t * half * 0.82, g = gY(2, clamp(x / W.w, 0, 1));
+        const y1 = g - ph * (1.45 + 0.5 * (1 - t * t)), wd = ph * 0.9;
+        ctx.globalAlpha = clamp(0.3 * e2 * A * (0.85 + 0.15 * Math.sin(W.t * 0.6 + i * 1.9)), 0, 1);
+        ctx.drawImage(SP.beam, x - wd / 2, y1, wd, g - y1 + 0.15 * ph);
       }
       glowAt(SP.gold, cx, T0.g - 0.3 * ph, half * 0.85, 0.14 * e2 * A, 0.25);
     }
@@ -1279,7 +1311,20 @@
       glowAt(SP.warm, (G.tx + X.rx * W.w) / 2, g - PH(2) * 1.2, (PORT ? 0.45 : 0.26) * W.w, 0.22 * f, 0.55);
       glowAt(SP.white, G.tx, G.ty, G.Wc * 0.22, 0.22 * f);
     }
-    if (call > 0.003) for (const q of G.gates) glowAt(SP.white, q.x, q.y - q.h * 0.5, q.w * 2.6, 0.3 * call * (0.8 + 0.2 * Math.sin(W.t * 2 + q.x)));
+    if (call > 0.003) {
+      // 「来！」：每个珍珠门都放出光来，一圈一圈向外（约两秒一圈）
+      for (const q of G.gates) glowAt(SP.white, q.x, q.y - q.h * 0.5, q.w * 3.5, 0.55 * call * (0.82 + 0.18 * Math.sin(W.t * 2 + q.x)));
+      const pk = sm(0.5, 0.85, call);
+      if (pk > 0.01) {
+        ctx.strokeStyle = 'rgb(255,248,226)';
+        G.gates.forEach((q, i) => {
+          const f = U.fract(W.t / 2 + i * 0.17), r = q.w * (0.7 + 5.2 * f);
+          ctx.globalAlpha = clamp(0.62 * pk * (1 - f) * (1 - f), 0, 1);
+          ctx.lineWidth = Math.max(1, (2.4 - 1.4 * f) * SU());
+          ctx.beginPath(); ctx.ellipse(q.x, q.y - q.h * 0.5, r, r * 0.78, 0, 0, TAU); ctx.stroke();
+        });
+      }
+    }
     ctx.restore();
     ctx.globalAlpha = 1;
   }
@@ -1419,7 +1464,7 @@
       }
       if (lv('ncRiver') > 0.7) { const R = riverNear(), q = bez(R.P, 0.45); consider('生命水的河', q[0], q[1]); }
       if (lv('ncTree') > 0.6) for (let i = 0; i < 2; i++) { const T0 = treeG(i); consider('生命树', T0.x, T0.y - T0.H * 0.62); }
-      if (lv('ncTent') > 0.5) { const T0 = tentG(); consider('神的帐幕', T0.cx, T0.top); }
+      if (lv('ncTent') > 0.5 && lv('ncCloud') > 0.5) { const T0 = tentG(); consider('神的帐幕', T0.cx, T0.top); }
       if (lv('ncStarA') > 0.5) { const s = starPt(); consider('晨星', s[0], s[1]); }
       if (!best && lv('ncSea') > 0.9 && y > W.horizonY + 4 && W.isSea(x, y)) best = { label: '新天新地', x, y, d: r * 0.9 };
       return best;
@@ -1569,8 +1614,12 @@
       ],
       apply(c) {
         T(c, [
-          [0, b => { setL('ncBeam', 1, b); sfx(b, 'angel'); }],
-          [0.3, b => { setL('ncTent', 1, b); }],
+          // 大声音从宝座出来：宝座的光一闪，一道光自正门降下
+          [0, b => {
+            setL('ncBeam', 1, b); sfx(b, 'angel');
+            if (!b.instant) { const G = cityG(); ringAt(b, G.tx, G.ty, G.Wc * 0.45, [255, 246, 220], 2.2); sparkleAt(b, G.tx, G.ty, 20, [255, 250, 236], 12); }
+          }],
+          [0.3, b => { setL('ncTent', 1, b); setL('ncCloud', 1, b); }],
           [3, b => { sfx(b, 'harp', { soft: true }); }],
           // 哀哭的人抬起头来
           [4.6, b => {
@@ -1640,13 +1689,15 @@
         T(c, [
           [0, b => {
             flash(b, 0.7); shake(b, 0.3); sfx(b, 'harp');
+            setL('ncCloud', 0, b); setL('ncBeam', 0, b);      // 帐幕的云化入新造的光里（不再停成一带）
             const px = cx * W.w, py = W.ridgeBaseY(2, px);
             W.setOrigin('grass', px, py); W.setOrigin('herbs', px, py); W.setOrigin('trees', px, py);
             W.set('grass', 1, b.instant); W.set('herbs', 1, b.instant);
             W.set('bloom', 1, b.instant); W.set('bare', 0, b.instant); W.set('life', 1, b.instant);
             if (!b.instant) { ringAt(b, c.x || px, c.y || py, M() * 0.9, [255, 246, 220], 3.2); ringAt(b, px, py, M() * 0.5, [214, 255, 200], 2.6); }
           }],
-          [2.4, b => { W.setPop('bird', PORT ? 16 : 30, cx * W.w, W.h * 0.32, b.instant); sfx(b, 'bird'); }],
+          // 飞鸟自东边的天上出来（不在城前）
+          [2.4, b => { W.setPop('bird', PORT ? 10 : 16, W.w * 0.28, W.h * 0.3, b.instant); sfx(b, 'bird'); }],
           [4.6, b => {
             const px = cx * W.w, py = W.ridgeBaseY(2, px);
             W.setPop('cattle', PORT ? 3 : 5, px, py, b.instant); W.setPop('beast', PORT ? 2 : 4, px, py, b.instant); W.setPop('creeper', PORT ? 8 : 16, px, py, b.instant);
@@ -1668,9 +1719,10 @@
       ],
       apply(c) {
         T(c, [
-          [0, b => { const R = ringG(); nameAt(b, '初', R.cx - R.rx, R.cy, R.size, { hold: 3 }); flash(b, 0.2); }],
-          [1, b => { const R = ringG(); nameAt(b, '终', R.cx + R.rx, R.cy, R.size, { hold: 2.2 }); }],
-          [4.6, b => { setL('ncRing', 1, b); setL('ncRingA', 1, b); sfx(b, 'stars'); }],
+          // 「初」与「终」都留到那一环合上之后
+          [0, b => { const R = ringG(); nameAt(b, '初', R.cx - R.rx, R.cy, R.size, { hold: 6.2 }); flash(b, 0.2); }],
+          [1, b => { const R = ringG(); nameAt(b, '终', R.cx + R.rx, R.cy, R.size, { hold: 5.2 }); }],
+          [2.4, b => { setL('ncRing', 1, b); setL('ncRingA', 1, b); sfx(b, 'stars'); }],
           // 都成了：城的荣光更盛
           [7.8, b => { setL('ncGlow', 0.72, b); sfx(b, 'harp'); if (!b.instant) { const G = cityG(); ringAt(b, G.tx, G.ty, G.Wc * 0.8, [255, 240, 200], 2.8); } }],
           // 我要作他的神，他要作我的儿子
@@ -1841,9 +1893,10 @@
           // 听见的人也该说：「来！」
           [1.4, b => { everyonePose('raise', EMB); everyoneFaceOut(X.rx); }],
           // 远处的人成群而来
+          // （自右边远处来，走到河的右岸、岭线之前的坡上——不挤在岭上的人中间）
           [3, b => {
-            crowd('folkC', { n: X.nC, x0: 1.03, x1: 1.12, layer: 2, pose: 'walk', robe: WHITES[0], glow: 0.26, label: '万民' });
-            C().crowdWalk('folkC', X.cB0 + 0.02, X.cB1, { speed: 0.03 });
+            crowd('folkC', { n: X.nC, x0: 1.03, x1: 1.12, layer: 2, v: X.vC, pose: 'walk', robe: WHITES[0], glow: 0.26, label: '万民' });
+            C().crowdWalk('folkC', X.cC0, X.cC1, { speed: 0.036, pose: 'stand' });
             crowd('folkD', { n: X.nD, x0: PORT ? 0.485 : 0.487, x1: PORT ? 0.51 : 0.53, layer: 1, pose: 'stand', robe: WHITES[1], glow: 0.26, label: '万民' });
             C().crowdWalk('folkD', PORT ? 0.495 : 0.51, PORT ? 0.535 : 0.58, { speed: 0.012 });
             S.called = true;
@@ -1851,7 +1904,11 @@
           }],
           // 到河边取生命的水
           [7.6, b => { walk('man', X.bankR, { speed: 0.028, pose: 'kneel' }); face('man', -1); }],
-          [10, b => { everyonePose('stand', ['mother', 'child', 'man']); crowdPose('folkC', 'stand'); crowdFace('folkC', X.rx); }],
+          [10, b => {
+            for (const id of allPeople()) if (['mother', 'child', 'man'].indexOf(id) < 0) pose(id, 'stand');
+            for (const g of ['folkA', 'folkB', 'folkD']) crowdPose(g, 'stand');
+            crowdFace('folkC', X.rx);
+          }],
           [12.4, b => { setL('ncCall', 0.25, b); }],
         ]);
       },
@@ -1866,7 +1923,12 @@
       ],
       apply(c) {
         T(c, [
-          [0, b => { setL('ncGlory', 1, b); W.set('good', 0.55, b.instant); flash(b, 0.45); sfx(b, 'angel'); setL('ncCall', 0, b); }],
+          [0, b => {
+            setL('ncGlory', 1, b); W.set('good', 0.55, b.instant); flash(b, 0.45); sfx(b, 'angel'); setL('ncCall', 0, b);
+            // 那城内又不用日月光照，也不再有黑夜：时辰就停在日落之后的光里——全书终了之后，日头也不再升起
+            //（不论是看完还是恢复存档，都停住：goTo 自 0.8 到 0.8，历时极长；下一次言说或别的幕会照常接管时辰）
+            W.goTo(0.8, 1e7);
+          }],
           // 众人转向东方的光，举手：阿们！主耶稣啊，我愿你来！
           [1.6, b => { everyoneFaceDir(-1); everyonePose('raise'); pose('angel', 'raise'); face('angel', -1); for (const g of FOLK) crowdGlow(g, 0.4); }],
           [5, b => { sfx(b, 'harp'); }],
