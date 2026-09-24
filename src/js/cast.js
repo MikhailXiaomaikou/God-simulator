@@ -29,6 +29,7 @@
  *   GS.cast.ride(id, mountId|null)     // 骑上骆驼 / 驴，坐上车；null 下来
  *   GS.cast.fly(id, x, y|null, { dur, pose })  // 升空 / 飞到 (x, y)（y 为画面高度的比例）；y 为 null 则落回地面（以诺被取去、天梯上的使者）
  *   GS.cast.attach(id, fn|null)        // 每帧由 fn() → [px, py] 给出脚下的位置（站在方舟上、梯子上……）
+ *   GS.cast.light(key, x, y, r, a, rgb) // 局部的光（灯、火、火把）：每帧登记一次；半径 r 以内的人与牲畜被照亮（像素坐标；a 0..1）
  *
  *   pose：'stand' 'walk' 'run' 'kneel' 'bow' 'lie' 'sit' 'seat'（坐在座上） 'raise'（举手） 'pray' 'carry' 'point'
  *         'wrestle'（二人相对，会伸手角力） 'fall'（仆倒、脸伏于地） 'weep'（低头、掩面、双肩抽动）
@@ -189,6 +190,15 @@
     LT.spA = L * (0.1 + 0.9 * W.night);
     LT.sh = 0.2 * (0.25 + 0.75 * W.daylight);
   }
+  // ── 局部的光：灯、火、火把、光柱……各幕每帧调用 GS.cast.light(key, x, y, r, a, rgb) 登记（像素坐标；r 为照到的半径，a 0..1）；
+  //    近处的人与牲畜受它照亮（整体提亮，迎光一侧一道暖边）。两帧没有再登记的光自行熄灭——不会带到下一幕。
+  const LIGHTS = new Map();
+  const LOC = { a: 0, r: 0, g: 0, b: 0 };         // 此刻正在上色的这个人（或牲畜）所受的局部光
+  function light(key, x, y, r, a, c) {
+    let l = LIGHTS.get(key);
+    if (!l) { l = {}; LIGHTS.set(key, l); }
+    l.x = x; l.y = y; l.r = Math.max(1, r || 120); l.a = a == null ? 0.6 : a; l.c = c || [255, 196, 120]; l.f = W.frame;
+  }
   function rimAt(x, y, warm) {
     let wx = 0, wy = 0, ws = 0, r = 0, g = 0, b = 0;
     if (LT.sunA > 0.004) {
@@ -207,6 +217,23 @@
     if (sa > 0.004) {
       const c = warm ? mix3(RIM_SPIRIT, INNER, 0.5) : RIM_SPIRIT;
       wx += dx / d * sa; wy += dy / d * sa; ws += sa; r += c[0] * sa; g += c[1] * sa; b += c[2] * sa;
+    }
+    LOC.a = 0;
+    if (LIGHTS.size) {
+      let la0 = 0, lr = 0, lg = 0, lb = 0;
+      for (const lt of LIGHTS.values()) {
+        if (W.frame - lt.f > 2) continue;
+        const lx = lt.x - x, ly = lt.y - y, ld = Math.hypot(lx, ly) || 1, lf = c01(1 - ld / lt.r);
+        if (lf <= 0) continue;
+        const la = lt.a * lf * lf, s2 = la * 1.6;
+        la0 += la; lr += lt.c[0] * la; lg += lt.c[1] * la; lb += lt.c[2] * la;
+        wx += lx / ld * s2; wy += ly / ld * s2; ws += s2; r += lt.c[0] * s2; g += lt.c[1] * s2; b += lt.c[2] * s2;
+      }
+      if (la0 > 0.004) {
+        // 灯火的光直接加在衣袍上（按衣色反射），不被夜的冷色吞掉；ex 也随之变化，好让颜色缓存失效
+        LOC.a = Math.min(1, la0); LOC.r = lr / la0; LOC.g = lg / la0; LOC.b = lb / la0;
+        RIM.extra += LOC.a * 0.12;
+      }
     }
     if (ws < 0.004) { RIM.a = 0; RIM.dx = 0; RIM.dy = -1; return RIM; }
     const L = Math.hypot(wx, wy) || 1;
@@ -351,14 +378,23 @@
     if (!v) { if (CSS.size > 4000) CSS.clear(); v = 'rgb(' + r + ',' + g + ',' + b + ')'; CSS.set(k, v); }
     return v;
   }
+  function lamp(c, rgb) {
+    if (LOC.a <= 0.004) return;
+    const q = LOC.a * 0.9 / 255;
+    c[0] = Math.min(255, c[0] + rgb[0] * LOC.r * q / 255 * 1.6);
+    c[1] = Math.min(255, c[1] + rgb[1] * LOC.g * q / 255 * 1.6);
+    c[2] = Math.min(255, c[2] + rgb[2] * LOC.b * q / 255 * 1.6);
+  }
   function setCol(key, rgb, depth, extra, k) {
     const c = W.shade(rgb, depth, extra);
+    lamp(c, rgb);
     if (k != null) { c[0] *= k; c[1] *= k; c[2] *= k; }
     CRGB[key] = c; COL[key] = css(c);
   }
   // 自带光的颜色（天使）：一部分受环境光，一部分是自身的淡金
   function lumCol(key, rgb, depth, extra, lum, k) {
     const c = W.shade(rgb, depth, extra);
+    lamp(c, rgb);
     for (let i = 0; i < 3; i++) c[i] = Math.min(255, lerp(c[i], rgb[i] * (i === 2 ? 0.88 : 0.96), lum) * (k || 1));
     CRGB[key] = c; COL[key] = css(c);
   }
@@ -2048,7 +2084,7 @@
   const DISCIPLE_ROBES = [[122, 104, 84], [104, 92, 80], [138, 116, 92], [96, 104, 118], [132, 98, 82], [112, 118, 96], [146, 128, 104], [100, 88, 96], [126, 110, 120], [140, 104, 88], [108, 100, 86]];
 
   GS.cast = {
-    LOOK, DISCIPLE_ROBES,
+    LOOK, DISCIPLE_ROBES, light,
     init, resize() {}, update, draw, reset, restore, pick,
     add, remove, has, get, place, walk, run, pose, face, follow, glow, clear,
     crowd, crowdWalk, crowdPose, scatter, removeCrowd,
