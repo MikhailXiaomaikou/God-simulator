@@ -2566,7 +2566,10 @@
           }],
           [1.8, b => {
             lv('taCalf', 0, b);
-            if (!inst(b)) { const D = altarDims(); safe('ta.dust', () => fx().dust(D.cx, D.top - 6 * D.n, 30, [236, 196, 110], 10 * D.n, 'near')); }
+            if (!inst(b)) {
+              const D = altarDims();
+              safe('ta.dust', () => { fx().dust(D.cx, D.top - 6 * D.n, 36, [236, 196, 110], 12 * D.n, 'near'); fx().sparkle(D.cx, D.top - 8 * D.n, 24, [255, 214, 120], 10 * D.n, 'near'); fx().ring(D.cx, D.top - 8 * D.n, [255, 214, 150], 60 * D.n, 1.2, 1.2); });
+            }
             sfx(b, 'build');
           }],
           [6.8, b => { lv('gale', 0.12, b); lv('taGrapes', 1, b); pose('hosea', 'stand'); pose('gomer', 'stand'); }],
