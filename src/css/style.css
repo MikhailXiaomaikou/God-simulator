@@ -496,7 +496,7 @@ body.acts #scripture.show::before { opacity: 1; transition: opacity 0.6s ease; }
 @media (pointer: coarse) { #help .kb { display: none; } }
 @media (max-width: 600px) {
   /* 窄屏：卷名靠左上，不压在右上的按钮上 */
-  #act { left: 12px; top: 12px; transform: none; text-align: left; font-size: 14px; letter-spacing: 0.1em; max-width: calc(100vw - 200px); white-space: normal; }
+  #act { left: 12px; top: 12px; transform: none; text-align: left; font-size: 13px; letter-spacing: 0.08em; max-width: calc(100vw - 240px); white-space: normal; }
   #act span { text-align: left; letter-spacing: 0.08em; }
   /* 窄屏：七日之印竖排于左上，与右上的按钮互不相扰 */
   #days { flex-direction: column; gap: 5px; top: 14px; left: 12px; transform: none; font-size: 12px; }

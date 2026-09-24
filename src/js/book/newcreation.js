@@ -462,7 +462,6 @@
     const gates = [0.2, 0.5, 0.8].map(u => ({ x: x0 + u * Wc, y: yW, w: gw, h: gh }));
     return { x0, x1, Wc, Hs, cx, ds, dz, yL, yB, yW, off, Hw, Fh, fb, rowY, rowX, tx, ty, gw, gh, gates, e };
   }
-  const throneXY = () => { const G = cityG(); return [G.tx, G.ty]; };
   // 近地上的河：自岭线（正门之下）弯弯地流到众人脚前、流向画面的左下
   function riverNear() {
     const rx = X.rx, g = gY(2, rx), H = W.h, d = Math.max(4, H - g);

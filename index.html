@@ -507,7 +507,7 @@ body.acts #scripture.show::before { opacity: 1; transition: opacity 0.6s ease; }
 @media (pointer: coarse) { #help .kb { display: none; } }
 @media (max-width: 600px) {
   /* 窄屏：卷名靠左上，不压在右上的按钮上 */
-  #act { left: 12px; top: 12px; transform: none; text-align: left; font-size: 14px; letter-spacing: 0.1em; max-width: calc(100vw - 200px); white-space: normal; }
+  #act { left: 12px; top: 12px; transform: none; text-align: left; font-size: 13px; letter-spacing: 0.08em; max-width: calc(100vw - 240px); white-space: normal; }
   #act span { text-align: left; letter-spacing: 0.08em; }
   /* 窄屏：七日之印竖排于左上，与右上的按钮互不相扰 */
   #days { flex-direction: column; gap: 5px; top: 14px; left: 12px; transform: none; font-size: 12px; }
@@ -23775,6 +23775,8 @@ void main() {
     john:      { label: '约翰', sex: 'm', age: 'adult', robe: [150, 70, 64], accent: [220, 206, 180], hair: 'short', beard: false, glow: 0.2 },
     magdalene: { label: '抹大拉的马利亚', sex: 'f', age: 'adult', robe: [150, 84, 96], accent: [230, 214, 196], hair: 'veil', glow: 0.22 },
     paul:      { label: '保罗', sex: 'm', age: 'adult', robe: [128, 96, 72], accent: [200, 160, 100], beard: true, glow: 0.2 },
+    andrew:    { label: '安得烈', sex: 'm', age: 'adult', robe: [122, 104, 84], beard: true, glow: 0.16 },
+    james:     { label: '雅各', sex: 'm', age: 'adult', robe: [132, 98, 82], accent: [206, 186, 150], beard: true, glow: 0.16 },
     disciple:  { sex: 'm', age: 'adult', beard: true, glow: 0.14 },     // 其余门徒：robe 从 DISCIPLE_ROBES 里挑
   };
   const DISCIPLE_ROBES = [[122, 104, 84], [104, 92, 80], [138, 116, 92], [96, 104, 118], [132, 98, 82], [112, 118, 96], [146, 128, 104], [100, 88, 96], [126, 110, 120], [140, 104, 88], [108, 100, 86]];
@@ -161965,7 +161967,7 @@ void main() {
   <script>
 /* js/book/damascus.js */
 /* ─────────────────────────────────────────────────────────────
- * book/damascus.js —— 使徒行传 · 大马色（使徒行传 8 — 12）
+ * book/damascus.js —— 使徒行传 · 大马士革（使徒行传 8 — 12）
  *
  * 司提反死后，耶路撒冷的教会大遭逼迫，门徒分散，往各处去传道。这一幕里，道一步一步走出耶路撒冷：
  * 撒马利亚城里的欢喜；往迦萨去的旷野路上，一辆车、一卷以赛亚书、一处有水的地方；
@@ -164694,7 +164696,7 @@ void main() {
   //  登记本幕
   // ════════════════════════════════════════════════════════════
   GS.book.act({
-    id: ACT, book: '使徒行传', books: [44], title: '大马色', sub: '使徒行传 8 — 12', tint: TINT, music: 'elijah',
+    id: ACT, book: '使徒行传', books: [44], title: '大马士革', sub: '使徒行传 8 — 12', tint: TINT, music: 'elijah',
     outro: 24,
     intro: [
       { text: '从这日起，耶路撒冷的教会大遭逼迫，除了使徒以外，门徒都分散在犹太和撒马利亚各处……那些分散的人往各处去传道。', ref: '使徒行传 8:1–4', hold: 7 },
@@ -181223,7 +181225,7 @@ void main() {
         pale: radial([255, 246, 222], 1, 0.5), soot: radial([30, 34, 46], 0.9, 0.55), cloud: radial([252, 250, 246], 1, 0.62),
         cloudW: radial([255, 238, 206], 1, 0.6), blue: radial([170, 206, 255], 1, 0.45), red: radial([236, 76, 64], 1, 0.4),
         fire: radial([255, 150, 60], 1, 0.4), smoke: radial([70, 62, 66], 0.85, 0.55), dim: radial([150, 160, 180], 0.8, 0.55),
-        chill: radial([66, 80, 106], 0.85, 0.55),
+        chill: radial([108, 120, 142], 0.8, 0.55), cold: radial([40, 48, 68], 0.85, 0.55),
       };
       // 竖直的光柱：中间亮，两边淡；上下两端淡去
       const b = cnv(64, 256), g = b.getContext('2d');
@@ -181657,11 +181659,11 @@ void main() {
     const s = LS(2), h = headOf('jesus', 0.12), day = W.daylight;
     ctx.globalCompositeOperation = 'source-over';
     // 冷影合拢：一圈冷灰的雾围着他、罩着他；中间不全黑（仍看得出他俯伏在地）
-    glowE(ctx, SP.chill, h[0], h[1] - 12 * s, 110 * s, 64 * s, k * (0.55 + 0.2 * day));
-    glowE(ctx, SP.soot, h[0], h[1] - 8 * s, 62 * s, 36 * s, k * 0.32);
+    glowE(ctx, SP.cold, h[0], h[1] - 12 * s, 110 * s, 64 * s, k * (0.5 + 0.2 * day));
+    glowE(ctx, SP.soot, h[0], h[1] - 8 * s, 62 * s, 36 * s, k * 0.3);
     for (let i = 0; i < 9; i++) {
       const a = i / 9 * TAU + W.t * 0.12, rr = (40 + 10 * Math.sin(W.t * 0.5 + i)) * s * (1.5 - 0.5 * k);
-      glowE(ctx, i % 2 ? SP.soot : SP.chill, h[0] + Math.cos(a) * rr, h[1] - 10 * s + Math.sin(a) * rr * 0.42, 28 * s, 19 * s, k * (i % 2 ? 0.3 : 0.45));
+      glowE(ctx, i % 2 ? SP.soot : SP.cold, h[0] + Math.cos(a) * rr, h[1] - 10 * s + Math.sin(a) * rr * 0.42, 28 * s, 19 * s, k * (i % 2 ? 0.3 : 0.45));
     }
     ctx.globalAlpha = 1;
   }
@@ -183667,8 +183669,9 @@ void main() {
             add('jacob', Object.assign({ label: '雅各', sex: 'm', age: 'adult', x: X.tent2 + 0.034, hair: 'cloth', robe: [236, 220, 196] }, o));
             sfx(b, 'chime', { soft: true });
           }],
-          [17.6, b => { const h = headOf('isaac', 1); nameAt(b, '以撒', h[0], h[1] - (PORT ? 26 : 40) * SU(), { size: 28 * SU(), hold: 3 }); }],
-          [21, b => { const h = headOf('jacob', 1); nameAt(b, '雅各', h[0], h[1] - (PORT ? 26 : 40) * SU(), { size: 28 * SU(), hold: 3 }); }],
+          // 名字一个一个地显出（先后错开，高低也错开，免得叠在一起）
+          [17.2, b => { const h = headOf('isaac', 1); nameAt(b, '以撒', h[0], h[1] - (PORT ? 26 : 40) * SU(), { size: 28 * SU(), hold: 2.2 }); }],
+          [21.4, b => { const h = headOf('jacob', 1); nameAt(b, '雅各', h[0], h[1] - (PORT ? 58 : 76) * SU(), { size: 28 * SU(), hold: 2.4 }); }],
           // 如同天上的星那样众多，海边的沙那样无数
           [24.5, b => {
             lv('hbSand', 1, b); pose('abraham', 'gaze'); pose('sarah', 'gaze'); face('abraham', 1);
@@ -193621,7 +193624,6 @@ void main() {
     const gates = [0.2, 0.5, 0.8].map(u => ({ x: x0 + u * Wc, y: yW, w: gw, h: gh }));
     return { x0, x1, Wc, Hs, cx, ds, dz, yL, yB, yW, off, Hw, Fh, fb, rowY, rowX, tx, ty, gw, gh, gates, e };
   }
-  const throneXY = () => { const G = cityG(); return [G.tx, G.ty]; };
   // 近地上的河：自岭线（正门之下）弯弯地流到众人脚前、流向画面的左下
   function riverNear() {
     const rx = X.rx, g = gY(2, rx), H = W.h, d = Math.max(4, H - g);

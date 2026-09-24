@@ -284,7 +284,7 @@
         pale: radial([255, 246, 222], 1, 0.5), soot: radial([30, 34, 46], 0.9, 0.55), cloud: radial([252, 250, 246], 1, 0.62),
         cloudW: radial([255, 238, 206], 1, 0.6), blue: radial([170, 206, 255], 1, 0.45), red: radial([236, 76, 64], 1, 0.4),
         fire: radial([255, 150, 60], 1, 0.4), smoke: radial([70, 62, 66], 0.85, 0.55), dim: radial([150, 160, 180], 0.8, 0.55),
-        chill: radial([66, 80, 106], 0.85, 0.55),
+        chill: radial([108, 120, 142], 0.8, 0.55), cold: radial([40, 48, 68], 0.85, 0.55),
       };
       // 竖直的光柱：中间亮，两边淡；上下两端淡去
       const b = cnv(64, 256), g = b.getContext('2d');
@@ -718,11 +718,11 @@
     const s = LS(2), h = headOf('jesus', 0.12), day = W.daylight;
     ctx.globalCompositeOperation = 'source-over';
     // 冷影合拢：一圈冷灰的雾围着他、罩着他；中间不全黑（仍看得出他俯伏在地）
-    glowE(ctx, SP.chill, h[0], h[1] - 12 * s, 110 * s, 64 * s, k * (0.55 + 0.2 * day));
-    glowE(ctx, SP.soot, h[0], h[1] - 8 * s, 62 * s, 36 * s, k * 0.32);
+    glowE(ctx, SP.cold, h[0], h[1] - 12 * s, 110 * s, 64 * s, k * (0.5 + 0.2 * day));
+    glowE(ctx, SP.soot, h[0], h[1] - 8 * s, 62 * s, 36 * s, k * 0.3);
     for (let i = 0; i < 9; i++) {
       const a = i / 9 * TAU + W.t * 0.12, rr = (40 + 10 * Math.sin(W.t * 0.5 + i)) * s * (1.5 - 0.5 * k);
-      glowE(ctx, i % 2 ? SP.soot : SP.chill, h[0] + Math.cos(a) * rr, h[1] - 10 * s + Math.sin(a) * rr * 0.42, 28 * s, 19 * s, k * (i % 2 ? 0.3 : 0.45));
+      glowE(ctx, i % 2 ? SP.soot : SP.cold, h[0] + Math.cos(a) * rr, h[1] - 10 * s + Math.sin(a) * rr * 0.42, 28 * s, 19 * s, k * (i % 2 ? 0.3 : 0.45));
     }
     ctx.globalAlpha = 1;
   }
@@ -2728,8 +2728,9 @@
             add('jacob', Object.assign({ label: '雅各', sex: 'm', age: 'adult', x: X.tent2 + 0.034, hair: 'cloth', robe: [236, 220, 196] }, o));
             sfx(b, 'chime', { soft: true });
           }],
-          [17.6, b => { const h = headOf('isaac', 1); nameAt(b, '以撒', h[0], h[1] - (PORT ? 26 : 40) * SU(), { size: 28 * SU(), hold: 3 }); }],
-          [21, b => { const h = headOf('jacob', 1); nameAt(b, '雅各', h[0], h[1] - (PORT ? 26 : 40) * SU(), { size: 28 * SU(), hold: 3 }); }],
+          // 名字一个一个地显出（先后错开，高低也错开，免得叠在一起）
+          [17.2, b => { const h = headOf('isaac', 1); nameAt(b, '以撒', h[0], h[1] - (PORT ? 26 : 40) * SU(), { size: 28 * SU(), hold: 2.2 }); }],
+          [21.4, b => { const h = headOf('jacob', 1); nameAt(b, '雅各', h[0], h[1] - (PORT ? 58 : 76) * SU(), { size: 28 * SU(), hold: 2.4 }); }],
           // 如同天上的星那样众多，海边的沙那样无数
           [24.5, b => {
             lv('hbSand', 1, b); pose('abraham', 'gaze'); pose('sarah', 'gaze'); face('abraham', 1);

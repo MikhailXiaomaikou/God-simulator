@@ -2081,6 +2081,8 @@
     john:      { label: '约翰', sex: 'm', age: 'adult', robe: [150, 70, 64], accent: [220, 206, 180], hair: 'short', beard: false, glow: 0.2 },
     magdalene: { label: '抹大拉的马利亚', sex: 'f', age: 'adult', robe: [150, 84, 96], accent: [230, 214, 196], hair: 'veil', glow: 0.22 },
     paul:      { label: '保罗', sex: 'm', age: 'adult', robe: [128, 96, 72], accent: [200, 160, 100], beard: true, glow: 0.2 },
+    andrew:    { label: '安得烈', sex: 'm', age: 'adult', robe: [122, 104, 84], beard: true, glow: 0.16 },
+    james:     { label: '雅各', sex: 'm', age: 'adult', robe: [132, 98, 82], accent: [206, 186, 150], beard: true, glow: 0.16 },
     disciple:  { sex: 'm', age: 'adult', beard: true, glow: 0.14 },     // 其余门徒：robe 从 DISCIPLE_ROBES 里挑
   };
   const DISCIPLE_ROBES = [[122, 104, 84], [104, 92, 80], [138, 116, 92], [96, 104, 118], [132, 98, 82], [112, 118, 96], [146, 128, 104], [100, 88, 96], [126, 110, 120], [140, 104, 88], [108, 100, 86]];
