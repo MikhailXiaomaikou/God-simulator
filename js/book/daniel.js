@@ -98,6 +98,7 @@
     dnStars: ['exp', 0.3],      // 发光如星（12:3）
     dnFirm: ['exp', 0.3],       // 发光如同天上的光（12:3）
     dnRest: ['exp', 0.4],       // 你必安歇（12:13）：但以理头上的一颗星
+    dnWise: ['exp', 0.4],       // 智慧人必发光（12:3）：但以理身上的光
   };
   for (const k in LVL) W.defineLevel(k, LVL[k][0], LVL[k][1]);
 
@@ -107,7 +108,7 @@
     house: 0.606,
     furn: 0.604, image: 0.705, crowd0: 0.728, crowd1: 0.778, kingD: 0.664,
     tree: 0.67, den: 0.69,
-    pal0: 0.79, pal1: 0.982, throne: 0.947, lamp: 0.823, wall0: 0.842, wall1: 0.928, bed: 0.905,
+    pal0: 0.79, pal1: 0.982, throne: 0.947, lamp: 0.823, wall0: 0.838, wall1: 0.93, bed: 0.905,
     hall0: 0.816, hall1: 0.925, court: 0.772,
     youth: [0.688, 0.703, 0.718, 0.733], table: 0.752, eunuch: 0.773,
     palmsN: [0.555, 0.647, 0.768], palmsM: [0.56, 0.745, 0.93],
@@ -172,8 +173,9 @@
 
   // 随画面大小（与地的升起）而变的几何缓存
   let GKEY = '', GC = {};
+  // 键里放几处真实的地面高度：大地模块的地形在恢复存档后要到下一帧才更新，不能只看 land 的程度
   function geo() {
-    const k = W.w + 'x' + W.h + ':' + Math.round((W.lv.land || 0) * 40);
+    const k = W.w + 'x' + W.h + ':' + Math.round(gY(2, 0.62)) + ':' + Math.round(gY(2, 0.9)) + ':' + Math.round(gY(1, 0.75)) + ':' + Math.round(gY(0, 0.75));
     if (k !== GKEY) { GKEY = k; GC = {}; }
     return GC;
   }
@@ -657,7 +659,7 @@
     ctx.globalAlpha = 1;
   }
   // 日落时开向耶路撒冷的窗里的一道光（6:10）；夜里异象中显明的光（2:19）
-  function drawHouseLight(ctx) {
+  function drawWinRay(ctx) {
     if (!SP) return;
     const a = lv('dnHouse');
     if (a < 0.01) return;
@@ -669,13 +671,22 @@
       const sx = W.w + 20, sy = W.sun && W.sun.y > 0 && W.sun.y < W.h ? Math.min(W.sun.y, W.horizonY) : W.horizonY - 0.08 * W.h;
       const dusk = clamp(W.dusk * 1.3 + 0.25, 0, 1);
       const g = ctx.createLinearGradient(wx, wy, sx, sy);
-      g.addColorStop(0, 'rgba(255,214,140,' + (0.42 * w * a * dusk).toFixed(3) + ')');
+      g.addColorStop(0, 'rgba(255,214,140,' + (0.26 * w * a * dusk).toFixed(3) + ')');
       g.addColorStop(1, 'rgba(255,190,110,0)');
       ctx.fillStyle = g;
       ctx.globalAlpha = 1;
-      ctx.beginPath(); ctx.moveTo(wx, wy - 6 * k); ctx.lineTo(sx, sy - 0.07 * W.h); ctx.lineTo(sx, sy + 0.05 * W.h); ctx.lineTo(wx, wy + 7 * k); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(wx, wy - 5 * k); ctx.lineTo(sx, sy - 0.035 * W.h); ctx.lineTo(sx, sy + 0.03 * W.h); ctx.lineTo(wx, wy + 6 * k); ctx.closePath(); ctx.fill();
       glowAt(ctx, SP.amber, wx, wy, 14 * k, w * a * 0.6);
     }
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 1;
+  }
+  function drawHouseLight(ctx) {
+    if (!SP) return;
+    const a = lv('dnHouse');
+    if (a < 0.01) return;
+    const H = houseGeom(), k = H.k;
+    ctx.globalCompositeOperation = 'lighter';
     const r = lv('dnReveal');
     if (r > 0.01) {
       const x = H.x - 2 * k, y = H.g;
@@ -772,15 +783,12 @@
     ctx.beginPath();
     for (let yy = wallTop + 58 * k; yy < G.gMax; yy += 5.5 * k) { ctx.moveTo(h0, yy); ctx.lineTo(h1, yy); }
     ctx.stroke();
-    // 屋顶之下的暗影
-    const sh = ctx.createLinearGradient(0, wallTop, 0, wallTop + 40 * k);
-    sh.addColorStop(0, 'rgba(8,10,22,' + (0.5 * dayA()).toFixed(3) + ')');
-    sh.addColorStop(1, 'rgba(8,10,22,0)');
-    ctx.fillStyle = sh;
-    ctx.fillRect(h0, wallTop, h1 - h0, 40 * k);
     // 粉墙（灯台对面）：白的灰泥，细金框
     const Pn = panelRect();
-    ctx.fillStyle = css([232, 226, 210], l, 1, 0.04);
+    const pg = ctx.createLinearGradient(0, Pn.y0, 0, Pn.y1);
+    const pc0 = W.shade([214, 204, 184], 0, 0.02), pc1 = W.shade([196, 186, 166], 0, 0);
+    pg.addColorStop(0, U.rgb(pc0[0], pc0[1], pc0[2])); pg.addColorStop(1, U.rgb(pc1[0], pc1[1], pc1[2]));
+    ctx.fillStyle = pg;
     ctx.fillRect(Pn.x0, Pn.y0, Pn.x1 - Pn.x0, Pn.y1 - Pn.y0);
     ctx.strokeStyle = css(YEL, l, 0.8, 0.08); ctx.lineWidth = Math.max(0.5, 0.9 * k);
     ctx.strokeRect(Pn.x0 - 1 * k, Pn.y0 - 1 * k, Pn.x1 - Pn.x0 + 2 * k, Pn.y1 - Pn.y0 + 2 * k);
@@ -790,11 +798,24 @@
     ctx.fillRect(h0, fy - 5.5 * k, h1 - h0, 11 * k);
     lionRow(ctx, h0 + 4 * k, h1 - 4 * k, fy, k, 0.95);
     rosettes(ctx, h0 + 2 * k, h1 - 2 * k, wallTop + 3.5 * k, k, 0.8);
-    // 殿中的灯照在墙上
+    // 屋顶之下的暗影
+    const sh = ctx.createLinearGradient(0, wallTop, 0, wallTop + 46 * k);
+    sh.addColorStop(0, 'rgba(8,10,22,' + (0.5 * dayA()).toFixed(3) + ')');
+    sh.addColorStop(1, 'rgba(8,10,22,' + (0.12 * dayA()).toFixed(3) + ')');
+    ctx.fillStyle = sh;
+    ctx.fillRect(h0, wallTop, h1 - h0, 46 * k);
+    // 殿中的灯：整个殿里一片暖光，墙上与地上更亮
     if (SP && lampK > 0.02) {
+      const nk = nightK();
       ctx.globalCompositeOperation = 'lighter';
-      glowAt(ctx, SP.warm, (Pn.x0 + Pn.x1) / 2, (Pn.y0 + Pn.y1) / 2, (Pn.x1 - Pn.x0) * 0.8, lampK * 0.45, 0.7);
-      glowAt(ctx, SP.warm, lerp(h0, h1, 0.5), G.gMin - 12 * k, (h1 - h0) * 0.6, lampK * 0.3, 0.5);
+      const ig = ctx.createLinearGradient(0, wallTop, 0, G.gMax);
+      ig.addColorStop(0, rgba([255, 150, 70], 0.08 * lampK));
+      ig.addColorStop(1, rgba([255, 170, 90], 0.3 * lampK * (0.4 + 0.6 * nk)));
+      ctx.fillStyle = ig;
+      wallPoly(ctx, h0, h1, wallTop, k); ctx.fill();
+      glowAt(ctx, SP.warm, (Pn.x0 + Pn.x1) / 2, (Pn.y0 + Pn.y1) / 2, (Pn.x1 - Pn.x0) * 0.85, lampK * 0.55, 0.7);
+      glowAt(ctx, SP.warm, lerp(h0, h1, 0.5), G.gMin - 14 * k, (h1 - h0) * 0.65, lampK * 0.4, 0.5);
+      glowAt(ctx, SP.lamp, X().lamp * W.w, G.gMin - 40 * k, 34 * k, lampK * 0.6);
       ctx.globalCompositeOperation = 'source-over';
       ctx.globalAlpha = 1;
     }
@@ -1022,7 +1043,7 @@
     // 写字的指头：四道淡淡的光
     const h = lv('dnHand');
     if (pen && h > 0.001 && h < 0.999 && SP) {
-      const px = pen[0], py = pen[1], u = Math.max(0.7, k);
+      const px = pen[0], py = pen[1], u = Math.max(0.8, Wm.cell / 4.2);
       glowAt(ctx, SP.white, px, py, 12 * u, 0.6 * a);
       ctx.fillStyle = 'rgb(255,244,226)';
       for (let i = 0; i < 4; i++) {
@@ -1193,7 +1214,11 @@
     }
     ctx.fill();
     const fo = lv('dnFourth');
-    if (fo > 0.02 && SP) glowAt(ctx, SP.white, F.x, F.g - F.mh * 0.45, F.mw * 1.1, fo * 0.55);
+    if (fo > 0.02 && SP) {
+      const f4 = fig('fourth'), fx4 = f4 ? f4.nx * W.w : F.x;
+      glowAt(ctx, SP.white, fx4, F.g - F.mh * 0.4, F.mw * 0.9, fo * 0.7);
+      glowAt(ctx, SP.gold, fx4, F.g - F.mh * 0.55, F.mw * 0.5, fo * 0.6);
+    }
     ctx.restore();
     // 窑口的拱
     ctx.strokeStyle = css([120, 84, 58], l); ctx.lineWidth = Math.max(1, 3 * k);
@@ -1283,7 +1308,7 @@
   }
   function treeFrame() {
     const P_ = X(), x = P_.tree * W.w, g = gY(2, P_.tree) + 2 * BK();
-    const Hmax = port() ? Math.min(g - W.h * 0.4, W.h * 0.5) : g - W.h * 0.15;
+    const Hmax = port() ? Math.min(g - W.h * 0.45, W.h * 0.45) : g - W.h * 0.15;
     const asp = port() ? 0.8 : 1.0;
     return { x, g, Hmax, asp };
   }
@@ -1295,8 +1320,8 @@
       const Tm = treeModel();
       const grow = eOut(clamp(gr0, 0, 1));
       const Hh = TF.Hmax * (0.12 + 0.88 * grow), Wd = Hh * TF.asp;
-      const ang = fell > 0 ? Math.pow(clamp(fell / 0.5, 0, 1), 2) * 1.35 : 0;
-      const al = 1 - smoothstep(0.45, 1, fell);
+      const ang = fell > 0 ? -Math.pow(clamp(fell / 0.45, 0, 1), 2) * 1.3 : 0;
+      const al = 1 - smoothstep(0.3, 0.8, fell);
       const cut = 0.035;
       ctx.save();
       ctx.globalAlpha = al;
@@ -1400,22 +1425,24 @@
   function denGeom() {
     return cached('den', () => {
       const P_ = X(), k = BK(), x = P_.den * W.w, g = gY(2, P_.den);
-      const w = (port() ? 0.3 : 0.15) * W.w, avail = W.h - g;
+      const w = (port() ? 0.28 : 0.18) * W.w, avail = W.h - g;
       const top = g + Math.min(18 * k, avail * 0.16), bot = Math.min(W.h - 3, g + Math.max(avail * 0.93, 60 * k));
       // 不规则的洞：一圈点
       const pts = [], N = 30;
       for (let i = 0; i < N; i++) {
         const a = (i / N) * TAU, c = Math.cos(a), s = Math.sin(a);
-        const n = 1 + 0.07 * Math.sin(a * 5 + 1.3) + 0.05 * Math.sin(a * 9 + 0.4);
-        let y = (top + bot) / 2 + s * (bot - top) / 2 * n;
-        if (s > 0.55) y = Math.min(y, bot);
-        pts.push([x + c * w / 2 * n, Math.max(top, y)]);
+        const n = 1 + 0.06 * Math.sin(a * 5 + 1.3) + 0.045 * Math.sin(a * 9 + 0.4);
+        // 近乎方圆的洞：底平而宽
+        const cx = Math.sign(c) * Math.pow(Math.abs(c), 0.62), sy = Math.sign(s) * Math.pow(Math.abs(s), s > 0 ? 0.45 : 0.8);
+        let y = (top + bot) / 2 + sy * (bot - top) / 2 * n;
+        if (s > 0.3) y = Math.min(y, bot);
+        pts.push([x + cx * w / 2 * n, Math.max(top, y)]);
       }
       const cave = new Path2D();
       pts.forEach((p, i) => (i ? cave.lineTo(p[0], p[1]) : cave.moveTo(p[0], p[1])));
       cave.closePath();
       const shaft = new Path2D();
-      shaft.rect(x - 7 * k, g + 1.5 * k, 14 * k, top - g + 4 * k);
+      shaft.rect(x - 6 * k, g + 4 * k, 12 * k, top - g);
       return { k, x, g, w, top, bot, floor: bot - 3 * k, cave, shaft };
     });
   }
@@ -1424,14 +1451,18 @@
   }
   function denFloor(dx) { return () => { const D = denGeom(); return [D.x + dx * D.w, D.floor]; }; }
   // 狮子：侧影（朝右），lie 0 站 → 1 卧；ph 步伐
-  function drawLion(ctx, x, y, s, d, lie, ph, a, calm) {
+  function drawLion(ctx, x, y, s, d, lie, ph, a, calm, lit) {
     ctx.save();
     ctx.translate(x, y);
     ctx.scale(d, 1);
     ctx.globalAlpha = a;
-    const body = css([190, 146, 86], 2, 1, 0.04), mane = css([126, 84, 46], 2, 1, 0.02);
-    const by = -10 * s * (1 - 0.5 * lie);
-    ctx.strokeStyle = body; ctx.lineCap = 'round'; ctx.lineWidth = Math.max(1, 3 * s);
+    const lk = clamp(lit || 0, 0, 1);
+    const bodyC = mix(W.shade([196, 146, 84], 0, 0.04), [196, 124, 54], lk), maneC = mix(W.shade([110, 70, 38], 0, 0.02), [72, 38, 16], lk);
+    const body = rgba(bodyC, 1), mane = rgba(maneC, 1);
+    const by = lerp(-10 * s, -4.6 * s, lie);
+    ctx.lineCap = 'round';
+    // 腿（站着 / 走着）或伸在前面的前爪（卧着）
+    ctx.strokeStyle = body; ctx.lineWidth = Math.max(1, 3 * s);
     ctx.beginPath();
     if (lie < 0.5) {
       const sw = Math.sin(ph) * 3 * s;
@@ -1439,30 +1470,45 @@
       ctx.moveTo(-5 * s, by + 2 * s); ctx.lineTo(-4 * s + sw, 0);
       ctx.moveTo(7 * s, by + 2 * s); ctx.lineTo(8 * s + sw, 0);
       ctx.moveTo(10 * s, by + 2 * s); ctx.lineTo(12 * s - sw, 0);
-    } else {
-      ctx.moveTo(-8 * s, by + 3 * s); ctx.lineTo(-13 * s, -1 * s);
-      ctx.moveTo(8 * s, by + 3 * s); ctx.lineTo(18 * s, -0.8 * s);
+      ctx.stroke();
     }
-    ctx.stroke();
     ctx.fillStyle = body;
-    ctx.beginPath(); ctx.ellipse(0, by, 13 * s, 5.2 * s * (1 - 0.1 * lie), 0, 0, TAU); ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(0, by, 13 * s, 5.2 * s, 0, 0, TAU);
+    if (lie >= 0.5) {
+      ctx.moveTo(-3 * s, by); ctx.ellipse(-8 * s, by + 0.8 * s, 5.4 * s, 4.6 * s, 0, 0, TAU);
+      ctx.moveTo(22 * s, -1.2 * s); ctx.ellipse(15.5 * s, -1.3 * s, 6.5 * s, 1.4 * s, 0, 0, TAU);
+    }
+    ctx.fill();
+    // 尾
     ctx.strokeStyle = body; ctx.lineWidth = Math.max(0.6, 1.2 * s);
-    ctx.beginPath(); ctx.moveTo(-12 * s, by - 1 * s); ctx.quadraticCurveTo(-19 * s, by - 3 * s + Math.sin(W.t * 1.3 + x) * 1.5 * s * (1 - lie), -21 * s, by + 3 * s + lie * 2 * s); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-12 * s, by - 1 * s);
+    if (lie < 0.5) ctx.quadraticCurveTo(-19 * s, by - 3 * s + Math.sin(W.t * 1.3 + x) * 1.5 * s, -21 * s, by + 3 * s);
+    else ctx.quadraticCurveTo(-18 * s, by + 3 * s, -14 * s, -0.8 * s);
+    ctx.stroke();
+    // 鬃、头、口鼻、耳
+    const hy = by - (lie >= 0.5 ? 4.2 : 3.2 + (1 - calm) * -1.2) * s, hx = 11.5 * s;
     ctx.fillStyle = mane;
-    ctx.beginPath(); ctx.arc(-21 * s, by + 3.5 * s + lie * 2 * s, 1.5 * s, 0, TAU); ctx.fill();
-    const hx = 12 * s, hy = by - 3.5 * s * (1 - lie) + lie * 1.5 * s + (1 - lie) * (1 - calm) * 1.5 * s;
-    ctx.beginPath(); ctx.ellipse(hx - 1 * s, hy, 6.2 * s, 6.6 * s, 0, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(hx, hy, 6.8 * s, 7.2 * s, 0, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.arc(hx + 0.6 * s, hy - 6 * s, 1.3 * s, 0, TAU); ctx.fill();
     ctx.fillStyle = body;
-    ctx.beginPath(); ctx.ellipse(hx + 3.5 * s, hy + 0.6 * s, 3.6 * s, 3 * s, 0, 0, TAU); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(hx + 6.4 * s, hy + 1.8 * s, 2 * s, 1.5 * s, 0, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(hx + 3.4 * s, hy + 0.9 * s, 3.8 * s, 3.2 * s, 0, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(hx + 6.3 * s, hy + 2.1 * s, 2.1 * s, 1.6 * s, 0, 0, TAU); ctx.fill();
     // 未封口时：张口
     if (calm < 0.5) {
-      ctx.fillStyle = css([40, 22, 18], 2);
-      ctx.beginPath(); ctx.ellipse(hx + 7 * s, hy + 3.1 * s, 1.5 * s, 0.9 * s * (0.5 + 0.5 * Math.abs(Math.sin(W.t * 1.6 + x))), 0, 0, TAU); ctx.fill();
+      ctx.fillStyle = 'rgb(40,22,18)';
+      ctx.beginPath(); ctx.ellipse(hx + 7 * s, hy + 3.4 * s, 1.5 * s, 0.9 * s * (0.5 + 0.5 * Math.abs(Math.sin(W.t * 1.6 + x))), 0, 0, TAU); ctx.fill();
+    }
+    // 迎着使者之光的一道亮边
+    if (lk > 0.05) {
+      ctx.strokeStyle = rgba([255, 228, 170], 0.75 * lk); ctx.lineWidth = Math.max(0.6, 0.9 * s);
+      ctx.beginPath(); ctx.ellipse(0, by, 13 * s, 5.2 * s, 0, Math.PI * 1.1, Math.PI * 1.9);
+      ctx.moveTo(hx - 5 * s, hy - 5 * s); ctx.ellipse(hx, hy, 6.8 * s, 7.2 * s, 0, Math.PI * 1.15, Math.PI * 1.85);
+      ctx.stroke();
     }
     ctx.restore();
   }
-  const LIONS = [[-0.36, 1, 0.9], [-0.2, 1, 1.05], [0.22, -1, 1], [0.38, -1, 0.88]];
+  const LIONS = [[-0.38, 1, 0.9], [-0.25, 1, 1.02], [0.28, -1, 1], [0.4, -1, 0.88]];
   function drawDen(ctx) {
     const a = lv('dnDen');
     if (a < 0.01) return;
@@ -1480,7 +1526,7 @@
     // 井口与洞
     ctx.fillStyle = css([22, 16, 13], l);
     ctx.fill(D.shaft);
-    ctx.beginPath(); ctx.ellipse(D.x, D.g + 1.5 * k, 8.5 * k, 2.4 * k, 0, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(D.x, D.g + 4 * k, 8 * k, 2.6 * k, 0, 0, TAU); ctx.fill();
     ctx.fill(D.cave);
     // 洞里：石壁的层次；使者的光由中心向外渐暗
     ctx.save();
@@ -1509,23 +1555,28 @@
     }
     ctx.fill();
     // 地面
-    ctx.fillStyle = al > 0.01 ? rgba([150, 108, 66], 0.55 * al + 0.2) : css([58, 42, 30], l);
-    ctx.fillRect(D.x - D.w, D.floor, D.w * 2, D.bot - D.floor + 6);
-    // 狮子
+    ctx.fillStyle = al > 0.01 ? rgba(mix([40, 28, 20], [92, 62, 38], al), 0.9) : css([50, 36, 26], l);
+    ctx.fillRect(D.x - D.w, D.floor - 1, D.w * 2, D.bot - D.floor + 8);
+    if (SP && al > 0.01) {
+      ctx.globalCompositeOperation = 'lighter';
+      glowAt(ctx, SP.gold, ax, ay, D.w * 0.24, al * 0.35 * a);
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.globalAlpha = a;
+    }
+    // 狮子（脚下一片影）
     const calm = lv('dnCalm');
+    ctx.fillStyle = 'rgba(20,12,8,0.35)';
+    ctx.beginPath();
+    for (const L of LIONS) { const lx = D.x + L[0] * D.w; ctx.moveTo(lx + 16 * k, D.floor + 1); ctx.ellipse(lx + L[1] * 3 * k, D.floor + 1, 16 * k, 2.4 * k, 0, 0, TAU); }
+    ctx.fill();
     const lieK = smoothstep(0.3, 0.9, calm);
     for (let i = 0; i < LIONS.length; i++) {
       const L = LIONS[i];
       const pace = (1 - calm) * Math.sin(W.t * 0.35 + i * 1.7) * 0.05 * D.w;
       const ph = W.t * 3.2 + i * 1.3;
-      const sc = L[2] * 1.3 * k * (port() ? 1.05 : 1);
+      const sc = L[2] * 1.5 * k * (port() ? 1.05 : 1);
       const dd = calm < 0.5 ? (Math.cos(W.t * 0.35 + i * 1.7) >= 0 ? 1 : -1) : L[1];
-      drawLion(ctx, D.x + L[0] * D.w + pace, D.floor + 1, sc, dd, lieK, ph, a, calm);
-    }
-    if (SP && al > 0.01) {
-      ctx.globalCompositeOperation = 'lighter';
-      glowAt(ctx, SP.gold, ax, ay, D.w * 0.28, al * 0.45 * a);
-      ctx.globalCompositeOperation = 'source-over';
+      drawLion(ctx, D.x + L[0] * D.w + pace, D.floor + 1, sc, dd, lieK, ph, a, calm, al * 0.75);
     }
     ctx.restore();
     // 洞壁的亮边
@@ -1571,6 +1622,7 @@
     { m: 'gold', p: [[-3.9, 11.6], [3.9, 11.6], [3.5, 19.6], [0, 21.2], [-3.5, 19.6]], dk: 0.8 },
     { m: 'silver', p: [[-16.4, 20.6], [-10.5, 17.6], [10.5, 17.6], [16.4, 20.6], [13.8, 28], [11.8, 39.5], [-11.8, 39.5], [-13.8, 28]] },
     { m: 'silver', p: ARM }, { m: 'silver', p: mirror(ARM) },
+    { m: 'silver', p: ellPoly(-15.6, 22, 4, 3.4, 14) }, { m: 'silver', p: ellPoly(15.6, 22, 4, 3.4, 14) },
     { m: 'silver', p: ellPoly(-15, 47.2, 2.4, 2, 10) }, { m: 'silver', p: ellPoly(15, 47.2, 2.4, 2, 10) },
     { m: 'bronze', p: [[-11.8, 39.5], [11.8, 39.5], [12.8, 47], [14.2, 62.5], [-14.2, 62.5], [-12.8, 47]] },
     { m: 'iron', p: LEG }, { m: 'iron', p: mirror(LEG) },
@@ -1704,13 +1756,23 @@
         const sz = f.s * u * (1 - 0.5 * t), rot = f.rot + t * 8 * (f.r2 - 0.5);
         (groups[f.m] || (groups[f.m] = [])).push([x, y, sz, rot, fa]);
       }
+      // 按颜色与透明度分组，一组一笔
       for (const m in groups) {
         const col = METAL[m], hi = METAL_HI[m];
         ctx.fillStyle = U.rgb(lerp(col[0], hi[0], 0.3), lerp(col[1], hi[1], 0.3), lerp(col[2], hi[2], 0.3));
-        for (const q of groups[m]) {
-          ctx.globalAlpha = q[4];
-          const c = Math.cos(q[3]) * q[2], s = Math.sin(q[3]) * q[2];
-          ctx.beginPath(); ctx.moveTo(q[0] + c, q[1] + s); ctx.lineTo(q[0] - s * 0.7, q[1] + c * 0.7); ctx.lineTo(q[0] - c, q[1] - s); ctx.closePath(); ctx.fill();
+        for (let bk = 1; bk <= 5; bk++) {
+          const lo = (bk - 1) / 5, up = bk / 5;
+          let any = false;
+          ctx.beginPath();
+          for (const q of groups[m]) {
+            if (q[4] <= lo || q[4] > up) continue;
+            const c = Math.cos(q[3]) * q[2], s = Math.sin(q[3]) * q[2];
+            ctx.moveTo(q[0] + c, q[1] + s); ctx.lineTo(q[0] - s * 0.7, q[1] + c * 0.7); ctx.lineTo(q[0] - c, q[1] - s); ctx.closePath();
+            any = true;
+          }
+          if (!any) continue;
+          ctx.globalAlpha = (lo + up) / 2;
+          ctx.fill();
         }
       }
     }
@@ -1749,7 +1811,7 @@
   // 大山（远山那一层；石头打碎像之后渐渐长起，充满天下）
   function mountProfile() {
     return cached('mprof', () => {
-      const N = 60, out = [];
+      const N = 140, out = [];
       for (let i = 0; i <= N; i++) {
         const u = (i / N) * 2 - 1, au_ = Math.abs(u);
         let h = Math.pow(Math.max(0, 1 - Math.pow(au_, 1.35)), 1.25);
@@ -1785,14 +1847,6 @@
     const sg = ctx.createLinearGradient(G.cx - d * half * 0.5, 0, G.cx + d * half * 0.4, 0);
     sg.addColorStop(0, 'rgba(20,24,40,0.28)'); sg.addColorStop(1, 'rgba(20,24,40,0)');
     ctx.fillStyle = sg; ctx.fillRect(G.cx - half, base - Hm, half * 2, Hm);
-    ctx.strokeStyle = 'rgba(30,34,52,0.22)'; ctx.lineWidth = Math.max(0.8, 1.4 * SU());
-    ctx.beginPath();
-    for (let i = 0; i < 7; i++) {
-      const u0 = -0.6 + i * 0.2 + 0.05 * Math.sin(i * 3.1), q = prof[Math.round((u0 + 1) / 2 * (prof.length - 1))];
-      const x0 = G.cx + u0 * half, y0 = base - q[1] * Hm;
-      ctx.moveTo(x0, y0); ctx.quadraticCurveTo(x0 - d * 0.04 * half, y0 + Hm * 0.3, x0 - d * 0.1 * half, base);
-    }
-    ctx.stroke();
     // 迎光的一面
     const lg = ctx.createLinearGradient(G.cx - d * half * 0.1, 0, G.cx + d * half * 0.7, 0);
     lg.addColorStop(0, 'rgba(255,238,206,0)'); lg.addColorStop(1, 'rgba(255,232,190,' + (0.12 * dayA() + 0.25 * glow).toFixed(3) + ')');
@@ -1802,7 +1856,7 @@
     ctx.globalCompositeOperation = 'lighter';
     ctx.strokeStyle = 'rgba(255,226,170,1)';
     ctx.globalAlpha = clamp(m * 2, 0, 1) * (0.12 + 0.55 * glow + 0.2 * W.dusk + 0.12 * W.night + 0.25 * lv('dnStars'));
-    ctx.lineWidth = Math.max(0.8, (1 + 1.2 * glow) * SU());
+    ctx.lineWidth = Math.max(0.7, (0.8 + 0.5 * glow) * SU());
     ctx.beginPath();
     let on = false;
     prof.forEach(q => { const x = G.cx + q[0] * half, y = base - q[1] * Hm; if (q[1] < 0.03) { on = false; return; } if (on) ctx.lineTo(x, y); else { ctx.moveTo(x, y); on = true; } });
@@ -1822,19 +1876,33 @@
     const p = port(), m = M();
     return {
       beasts: p
-        ? [[0.12, 0.575, 0.8], [0.33, 0.585, 0.85], [0.56, 0.575, 0.85], [0.8, 0.585, 1.05]]
+        ? [[0.13, 0.515, 0.85], [0.38, 0.53, 0.9], [0.15, 0.598, 0.85], [0.42, 0.6, 1.05]]
         : [[0.1, 0.43, 1], [0.205, 0.47, 1.02], [0.305, 0.38, 1], [0.41, 0.33, 1.3]],
-      bs: m * (p ? 0.0032 : 0.0034),
-      th: p ? [0.64 * W.w, 0.43 * W.h] : [0.77 * W.w, 0.2 * W.h],
-      tu: m * (p ? 0.0024 : 0.0026),
-      river: p ? [0.36 * W.w, W.horizonY] : [0.6 * W.w, W.horizonY],
-      son0: p ? [0.04 * W.w, 0.47 * W.h] : [0.06 * W.w, 0.26 * W.h],
+      bs: m * (p ? 0.0046 : 0.0034),
+      th: p ? [0.72 * W.w, 0.45 * W.h] : [0.77 * W.w, 0.2 * W.h],
+      tu: m * (p ? 0.0031 : 0.0026),
+      river: p ? [0.56 * W.w, 0.58 * W.h] : [0.6 * W.w, 0.47 * W.h],
+      son0: p ? [0.1 * W.w, 0.42 * W.h] : [0.06 * W.w, 0.26 * W.h],
     };
   }
   // 兽的剪影（朝右；y 向上为负；单位约为身长的三十分之一）
   function beastPath(ctx, kind, ph) {
     const E = (cx, cy, rx, ry, r) => { ctx.moveTo(cx + rx, cy); ctx.ellipse(cx, cy, rx, ry, r || 0, 0, TAU); };
-    const legs = (xs, top, len, w) => { for (const x of xs) { ctx.moveTo(x - w / 2, top); ctx.lineTo(x + w / 2, top); ctx.lineTo(x + w / 2 + 0.6, top + len); ctx.lineTo(x - w / 2 - 0.4, top + len); ctx.closePath(); } };
+    // 腿：上粗下细，有膝（后腿向后弯），脚掌向前
+    const legs = (xs, top, len, w) => {
+      xs.forEach((x, j) => {
+        const hind = j < xs.length / 2, kx = x + (hind ? -1.4 : 0.9), ky = top + len * 0.52, fx0 = x + (hind ? 0.3 : 0.7), fy = top + len;
+        ctx.moveTo(x - w * 0.6, top - 1);
+        ctx.lineTo(x + w * 0.6, top - 1);
+        ctx.lineTo(kx + w * 0.34, ky);
+        ctx.lineTo(fx0 + w * 0.28, fy - 1);
+        ctx.lineTo(fx0 + w * 0.3 + 1.4, fy);
+        ctx.lineTo(fx0 - w * 0.34, fy);
+        ctx.lineTo(kx - w * 0.36, ky);
+        ctx.closePath();
+        if (hind) { ctx.moveTo(x + w * 0.9, top + 0.6); ctx.ellipse(x, top + 0.6, w * 0.9, w * 1.1, 0, 0, TAU); }
+      });
+    };
     const wing = (rx, ry, a0, a1, L, n) => {
       ctx.moveTo(rx, ry);
       for (let i = 0; i <= n; i++) { const a = lerp(a0, a1, i / n), l = L * (0.7 + 0.3 * Math.sin((i / n) * Math.PI)); ctx.lineTo(rx + Math.cos(a) * l, ry + Math.sin(a) * l); ctx.lineTo(rx + Math.cos(a + 0.08) * l * 0.82, ry + Math.sin(a + 0.08) * l * 0.82); }
@@ -1848,7 +1916,7 @@
       wing(1, -14, -2.1 + flap, -0.9 + flap, 22, 6);
       wing(3, -14.5, -2.3 + flap * 0.7, -1.1 + flap * 0.7, 18, 5);
     } else if (kind === 1) {    // 如熊，旁跨而坐
-      E(-1, -12, 13, 8, -0.22); E(12, -18.5, 5, 4.4); E(16.6, -17.6, 2.8, 2.1); E(10.5, -22.4, 1.4, 1.4);
+      E(-1, -12, 13, 8, -0.22); E(8, -16, 5, 4.6, -0.5); E(12, -18.5, 5, 4.4); E(16.6, -17.6, 2.8, 2.1); E(10.5, -22.4, 1.4, 1.4);
       legs([-10, -5], -8, 8, 4); legs([7, 11], -12, 12, 3.6);
     } else if (kind === 2) {    // 如豹，背上有鸟的四个翅膀，有四个头
       E(0, -10, 13, 4.2); legs([-9, -6, 8, 11], -8, 10, 2);
@@ -1885,12 +1953,17 @@
       ctx.globalCompositeOperation = 'lighter';
       if (SP) glowAt(ctx, SP.pale, 0, -12, 34, al * 0.12);
       ctx.globalCompositeOperation = 'source-over';
-      ctx.globalAlpha = al * 0.94;
-      ctx.fillStyle = i === 3 ? 'rgb(18,20,30)' : rgba(mix([22, 26, 42], [70, 74, 86], fade * 0.6), 1);
+      ctx.globalAlpha = al * 0.96;
+      ctx.shadowColor = i === 3 ? 'rgba(200,120,110,0.85)' : 'rgba(150,176,240,0.8)';
+      ctx.shadowBlur = Math.max(4, 7 * s * (W.dpr || 1));
+      ctx.fillStyle = i === 3 ? 'rgb(16,16,24)' : rgba(mix([20, 24, 40], [70, 74, 86], fade * 0.6), 1);
       ctx.beginPath(); beastPath(ctx, i, ph); ctx.fill();
-      ctx.globalAlpha = al * 0.55;
-      ctx.strokeStyle = 'rgb(170,190,236)'; ctx.lineWidth = 0.7;
-      ctx.beginPath(); beastPath(ctx, i, ph); ctx.stroke();
+      ctx.shadowBlur = 0; ctx.shadowColor = 'rgba(0,0,0,0)';
+      // 背上一道冷光
+      const bg = ctx.createLinearGradient(0, -26, 0, 0);
+      bg.addColorStop(0, 'rgba(170,190,240,0.28)'); bg.addColorStop(0.5, 'rgba(170,190,240,0.06)'); bg.addColorStop(1, 'rgba(170,190,240,0)');
+      ctx.fillStyle = bg;
+      ctx.beginPath(); beastPath(ctx, i, ph); ctx.fill();
       if (i === 3) {
         // 大铁牙
         ctx.fillStyle = 'rgb(186,194,210)'; ctx.globalAlpha = al * 0.9;
@@ -1946,14 +2019,15 @@
     if (fr > 0.01) {
       const P = riverPts();
       const n = Math.max(2, Math.round(fr * P.length));
-      for (let pass = 0; pass < 2; pass++) {
-        ctx.strokeStyle = pass ? 'rgba(255,226,150,1)' : 'rgba(255,120,40,1)';
-        ctx.lineWidth = (pass ? 2.2 : 7) * tu * (0.9 + 0.1 * Math.sin(W.t * 3));
-        ctx.globalAlpha = v * (pass ? 0.55 : 0.4);
-        ctx.lineCap = 'round';
-        ctx.beginPath();
-        for (let i = 0; i < n; i++) { const q = P[i], w = (1 + q[2] * 1.6); if (i) ctx.lineTo(q[0], q[1]); else ctx.moveTo(q[0], q[1]); void w; }
-        ctx.stroke();
+      ctx.lineCap = 'round';
+      for (let pass = 0; pass < 3; pass++) {
+        ctx.strokeStyle = pass === 2 ? 'rgba(255,240,190,1)' : pass === 1 ? 'rgba(255,170,70,1)' : 'rgba(230,80,30,1)';
+        for (let i = 1; i < n; i++) {
+          const q0 = P[i - 1], q = P[i], w = (1 + q[2] * 1.6) * tu * (pass === 2 ? 1.1 : pass === 1 ? 3.2 : 7) * (0.9 + 0.1 * Math.sin(W.t * 3 + i * 0.7));
+          ctx.globalAlpha = v * (pass === 2 ? 0.7 : pass === 1 ? 0.42 : 0.22) * (1 - smoothstep(0.7, 1, q[2]));
+          ctx.lineWidth = w;
+          ctx.beginPath(); ctx.moveTo(q0[0], q0[1]); ctx.lineTo(q[0], q[1]); ctx.stroke();
+        }
       }
       // 流动的火光
       ctx.fillStyle = 'rgb(255,214,140)';
@@ -1965,8 +2039,7 @@
         ctx.globalAlpha = v * 0.7 * Math.sin(Math.PI * t);
         ctx.fillRect(q[0] - 1.2 * tu + Math.sin(i * 7) * 2 * tu, q[1] - 1.2 * tu, 2.4 * tu, 2.4 * tu);
       }
-      const end = P[n - 1];
-      glowAt(ctx, SP.fire, end[0], end[1], 22 * tu, v * 0.5 * fr);
+
     }
     if (th > 0.01) {
       const a = v * th;
@@ -1979,48 +2052,65 @@
           const ring = i % 3, ang = hsh(i * 1.9) * TAU + W.t * 0.03 * (ring + 1) * (i % 2 ? 1 : -1);
           const rr = (46 + ring * 22 + hsh(i * 5.3) * 14) * tu;
           const x = cx + Math.cos(ang) * rr * 1.5, y = cy + 4 * tu + Math.sin(ang) * rr * 0.62;
-          ctx.globalAlpha = a * my * (0.3 + 0.5 * (0.5 + 0.5 * Math.sin(W.t * 2 + i)));
-          ctx.fillRect(x - 0.8, y - 0.8, 1.6, 1.6);
+          const tw = 0.5 + 0.5 * Math.sin(W.t * 2 + i), sz = Math.max(1.4, 1.1 * tu) * (0.7 + 0.6 * hsh(i * 7.7));
+          ctx.globalAlpha = a * my * (0.45 + 0.55 * tw);
+          ctx.fillRect(x - sz / 2, y - sz / 2, sz, sz);
+          if (i % 9 === 0) glowAt(ctx, SP.gold, x, y, 5 * tu, a * my * 0.4 * tw);
         }
       }
-      // 亘古常在者：洁白如雪、如纯净的羊毛的光（不画形像）
-      glowAt(ctx, SP.white, cx, cy - 14 * tu, 58 * tu, a * 0.55);
-      glowAt(ctx, SP.cloud, cx - 8 * tu, cy - 18 * tu, 26 * tu, a * 0.5);
-      glowAt(ctx, SP.cloud, cx + 9 * tu, cy - 16 * tu, 24 * tu, a * 0.45);
-      glowAt(ctx, SP.cloud, cx, cy - 26 * tu, 22 * tu, a * 0.5);
-      glowAt(ctx, SP.white, cx, cy - 16 * tu, 14 * tu, a * 0.9);
-      // 宝座乃火焰
-      ctx.globalAlpha = a * 0.8;
-      ctx.fillStyle = 'rgba(255,160,60,0.9)';
-      ctx.beginPath();
-      for (let i = 0; i < 9; i++) tongue(ctx, cx - 20 * tu + i * 5 * tu, cy + 8 * tu, 2.8 * tu, (7 + 4 * Math.sin(W.t * 5 + i)) * tu, W.t * 6 + i);
-      for (let i = 0; i < 5; i++) tongue(ctx, cx + 14 * tu, cy + 8 * tu - i * 6 * tu, 2.2 * tu, (6 + 3 * Math.sin(W.t * 6 + i * 2)) * tu, W.t * 7 + i * 3);
-      for (let i = 0; i < 5; i++) tongue(ctx, cx - 14 * tu, cy + 8 * tu - i * 6 * tu, 2.2 * tu, (6 + 3 * Math.sin(W.t * 5.5 + i * 2)) * tu, W.t * 6.5 + i * 3);
-      ctx.fill();
-      ctx.strokeStyle = 'rgba(255,236,190,0.9)'; ctx.lineWidth = Math.max(0.8, 1.2 * tu);
-      ctx.beginPath(); ctx.moveTo(cx - 22 * tu, cy + 8 * tu); ctx.lineTo(cx + 22 * tu, cy + 8 * tu); ctx.moveTo(cx - 14 * tu, cy + 8 * tu); ctx.lineTo(cx - 14 * tu, cy - 20 * tu); ctx.moveTo(cx + 14 * tu, cy + 8 * tu); ctx.lineTo(cx + 14 * tu, cy - 20 * tu); ctx.stroke();
-      // 其轮乃烈火：两个转动的火轮
-      for (const s of [-1, 1]) {
-        const wx = cx + s * 16 * tu, wy = cy + 22 * tu, R = 11 * tu;
-        ctx.strokeStyle = 'rgba(255,190,90,0.85)'; ctx.lineWidth = Math.max(0.8, 1.6 * tu);
+      // 其轮乃烈火：两个转动的火轮（在宝座之下）
+      for (const sgn of [-1, 1]) {
+        const wx = cx + sgn * 15 * tu, wy = cy + 21 * tu, R = 10 * tu;
+        glowAt(ctx, SP.fire, wx, wy, R * 2, a * 0.4);
+        ctx.globalAlpha = a;
+        ctx.strokeStyle = 'rgba(255,196,110,0.9)'; ctx.lineWidth = Math.max(0.8, 1.5 * tu);
         ctx.beginPath(); ctx.arc(wx, wy, R, 0, TAU); ctx.stroke();
-        ctx.beginPath();
-        for (let j = 0; j < 6; j++) { const aa = W.t * 1.2 * s + j * TAU / 6; ctx.moveTo(wx, wy); ctx.lineTo(wx + Math.cos(aa) * R, wy + Math.sin(aa) * R); }
+        ctx.strokeStyle = 'rgba(255,170,80,0.6)'; ctx.lineWidth = Math.max(0.6, 1 * tu);
+        ctx.beginPath(); ctx.arc(wx, wy, R * 0.55, 0, TAU);
+        for (let j = 0; j < 8; j++) { const aa = W.t * 1.3 * sgn + j * TAU / 8; ctx.moveTo(wx + Math.cos(aa) * R * 0.2, wy + Math.sin(aa) * R * 0.2); ctx.lineTo(wx + Math.cos(aa) * R, wy + Math.sin(aa) * R); }
         ctx.stroke();
-        ctx.fillStyle = 'rgba(255,150,60,0.8)';
+        ctx.fillStyle = 'rgba(255,150,60,0.85)';
         ctx.beginPath();
-        for (let j = 0; j < 10; j++) {
-          const aa = W.t * 1.2 * s + j * TAU / 10, px = wx + Math.cos(aa) * R, py = wy + Math.sin(aa) * R;
-          ctx.moveTo(px + 2 * tu, py); ctx.arc(px, py, (1.4 + 0.8 * Math.sin(W.t * 8 + j)) * tu, 0, TAU);
+        for (let j = 0; j < 12; j++) {
+          const aa = W.t * 1.3 * sgn + j * TAU / 12, px = wx + Math.cos(aa) * R, py = wy + Math.sin(aa) * R, rr = (1.3 + 0.7 * Math.sin(W.t * 8 + j)) * tu;
+          ctx.moveTo(px + rr, py); ctx.arc(px, py, rr, 0, TAU);
         }
         ctx.fill();
-        glowAt(ctx, SP.fire, wx, wy, R * 1.8, a * 0.35);
       }
-      glowAt(ctx, SP.amber, cx, cy, 70 * tu, a * 0.3);
-      // 案卷都展开了
-      ctx.globalAlpha = a * 0.75;
-      ctx.fillStyle = 'rgb(255,236,200)';
-      for (const s of [-1, 1]) { const bx = cx + s * 30 * tu, by = cy + 38 * tu; ctx.fillRect(bx - 5 * tu, by - 1.8 * tu, 10 * tu, 3.6 * tu); }
+      // 宝座乃火焰：高背、座、扶手——全是火
+      const back = () => {
+        ctx.beginPath();
+        ctx.moveTo(cx - 13 * tu, cy + 9 * tu);
+        ctx.lineTo(cx - 13 * tu, cy - 16 * tu);
+        ctx.quadraticCurveTo(cx - 13 * tu, cy - 30 * tu, cx, cy - 32 * tu);
+        ctx.quadraticCurveTo(cx + 13 * tu, cy - 30 * tu, cx + 13 * tu, cy - 16 * tu);
+        ctx.lineTo(cx + 13 * tu, cy + 9 * tu);
+        ctx.closePath();
+      };
+      const tg = ctx.createLinearGradient(0, cy - 32 * tu, 0, cy + 12 * tu);
+      tg.addColorStop(0, 'rgba(255,240,200,0.55)'); tg.addColorStop(0.6, 'rgba(255,160,70,0.5)'); tg.addColorStop(1, 'rgba(220,80,30,0.45)');
+      ctx.globalAlpha = a;
+      ctx.fillStyle = tg; back(); ctx.fill();
+      ctx.strokeStyle = 'rgba(255,236,180,0.95)'; ctx.lineWidth = Math.max(0.9, 1.4 * tu); back(); ctx.stroke();
+      ctx.fillStyle = 'rgba(255,170,70,0.85)';
+      ctx.beginPath();
+      for (let i = 0; i < 11; i++) {
+        const t = i / 10, ang = Math.PI * (1 + t);
+        const bx = cx + Math.cos(ang) * 13 * tu, by = cy - 18 * tu + Math.sin(ang) * 14 * tu;
+        tongue(ctx, bx, by + 2 * tu, 2.2 * tu, (6 + 4 * Math.sin(W.t * 6 + i * 1.7)) * tu, W.t * 7 + i * 2);
+      }
+      for (let i = 0; i < 7; i++) tongue(ctx, cx - 18 * tu + i * 6 * tu, cy + 11 * tu, 2.6 * tu, (6 + 3 * Math.sin(W.t * 5 + i)) * tu, W.t * 6 + i);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(255,226,160,0.9)';
+      ctx.fillRect(cx - 19 * tu, cy + 8 * tu, 38 * tu, 2.4 * tu);
+      ctx.fillRect(cx - 19 * tu, cy - 2 * tu, 6 * tu, 1.6 * tu); ctx.fillRect(cx + 13 * tu, cy - 2 * tu, 6 * tu, 1.6 * tu);
+      // 亘古常在者：洁白如雪、如纯净的羊毛的光（不画形像）
+      glowAt(ctx, SP.white, cx, cy - 12 * tu, 56 * tu, a * 0.3);
+      glowAt(ctx, SP.cloud, cx - 6 * tu, cy - 13 * tu, 13 * tu, a * 0.4);
+      glowAt(ctx, SP.cloud, cx + 6 * tu, cy - 11 * tu, 12 * tu, a * 0.38);
+      glowAt(ctx, SP.cloud, cx, cy - 20 * tu, 12 * tu, a * 0.42);
+      glowAt(ctx, SP.white, cx, cy - 13 * tu, 8 * tu, a * 0.8);
+      glowAt(ctx, SP.amber, cx, cy, 80 * tu, a * 0.22);
     }
     ctx.restore();
     ctx.globalAlpha = 1;
@@ -2087,19 +2177,18 @@
       ctx.scale(s, s);
       ctx.globalCompositeOperation = 'lighter';
       glowAt(ctx, SP.gold, 0, -12, 30, ra * 0.25);
-      ctx.globalAlpha = ra * 0.5;
+      ctx.globalAlpha = ra * 0.62;
       ctx.fillStyle = 'rgb(236,214,160)';
       const P = () => {
         ctx.beginPath();
         for (let i = 0; i < 7; i++) { const x = -10 + i * 3.3, r = 4 + (i % 2) * 0.8; ctx.moveTo(x + r, -11); ctx.arc(x, -11 + (i % 2 ? -1 : 0.6), r, 0, TAU); }
         ctx.moveTo(15.5, -15); ctx.ellipse(12.5, -15, 3.2, 3.6, 0, 0, TAU);
         ctx.moveTo(17.6, -13.4); ctx.ellipse(15.4, -13.4, 2.2, 1.8, 0.3, 0, TAU);
-        for (const x of [-8, -4, 6, 9.5]) { ctx.moveTo(x - 1, -7); ctx.rect(x - 1, -7, 2, 8); }
+        for (const x of [-8, -4.5, 6, 9.5]) { ctx.moveTo(x - 1.3, -8); ctx.lineTo(x + 1.3, -8); ctx.lineTo(x + 0.9, -3.5); ctx.lineTo(x + 0.6, 1); ctx.lineTo(x - 0.6, 1); ctx.lineTo(x - 0.9, -3.5); ctx.closePath(); }
       };
+      ctx.shadowColor = 'rgba(255,226,160,0.9)'; ctx.shadowBlur = Math.max(4, 3 * s * (W.dpr || 1));
       P(); ctx.fill();
-      ctx.globalAlpha = ra * 0.9;
-      ctx.strokeStyle = 'rgb(255,236,190)'; ctx.lineWidth = 0.6;
-      P(); ctx.stroke();
+      ctx.shadowBlur = 0; ctx.shadowColor = 'rgba(0,0,0,0)';
       // 两角都高，这角高过那角
       ctx.strokeStyle = 'rgb(255,226,160)'; ctx.lineWidth = 1.4;
       ctx.beginPath();
@@ -2119,7 +2208,7 @@
       ctx.scale(-s, s);
       ctx.globalCompositeOperation = 'lighter';
       glowAt(ctx, SP.pale, 0, -12, 30, v * 0.3);
-      ctx.globalAlpha = v * 0.45;
+      ctx.globalAlpha = v * 0.6;
       ctx.fillStyle = 'rgb(214,226,250)';
       const P = () => {
         ctx.beginPath();
@@ -2127,13 +2216,12 @@
         ctx.moveTo(10, -10); ctx.lineTo(15, -17); ctx.lineTo(17, -16); ctx.lineTo(13, -8); ctx.closePath();
         ctx.moveTo(19.6, -16.5); ctx.ellipse(16.5, -16.5, 3.4, 2.2, 0.4, 0, TAU);
         const run = Math.sin(W.t * 12) * 3;
-        for (const [xx, d] of [[-8, 1], [-5, -1], [7, 1], [10, -1]]) { ctx.moveTo(xx - 0.8, -6); ctx.lineTo(xx + 0.8, -6); ctx.lineTo(xx + d * run * 0.4 + 0.8, 3); ctx.lineTo(xx + d * run * 0.4 - 0.8, 3); ctx.closePath(); }
+        for (const [xx, d] of [[-8, 1], [-5, -1], [7, 1], [10, -1]]) { const o = d * run * 0.4; ctx.moveTo(xx - 1.2, -7); ctx.lineTo(xx + 1.2, -7); ctx.lineTo(xx + o * 0.5 + 0.7, -2); ctx.lineTo(xx + o + 0.45, 3); ctx.lineTo(xx + o - 0.45, 3); ctx.lineTo(xx + o * 0.5 - 0.7, -2); ctx.closePath(); }
         ctx.moveTo(-11, -10); ctx.lineTo(-14, -13); ctx.lineTo(-12, -9); ctx.closePath();
       };
+      ctx.shadowColor = 'rgba(200,220,255,0.9)'; ctx.shadowBlur = Math.max(4, 3 * s * (W.dpr || 1));
       P(); ctx.fill();
-      ctx.globalAlpha = v * 0.9;
-      ctx.strokeStyle = 'rgb(232,240,255)'; ctx.lineWidth = 0.6;
-      P(); ctx.stroke();
+      ctx.shadowBlur = 0; ctx.shadowColor = 'rgba(0,0,0,0)';
       // 角：一只大角 → 折断，长出四角 → 其中一角长出小角
       const h4 = lv('dnHorn4'), lt = lv('dnLittle');
       ctx.strokeStyle = 'rgb(255,244,214)'; ctx.lineWidth = 1.5; ctx.lineCap = 'round';
@@ -2168,12 +2256,19 @@
     for (let side = 0; side < 2; side++) {
       const x0 = side ? (p ? 0.8 : 0.8) : (p ? 0.5 : 0.56), x1 = side ? 0.99 : (p ? 0.7 : 0.74);
       const push = (side ? -1 : 1) * surge * 0.05;
-      for (let i = 0; i < 16; i++) {
+      const u = SU();
+      ctx.fillStyle = side ? 'rgb(255,190,120)' : 'rgb(255,150,90)';
+      for (let i = 0; i < 20; i++) {
         const xf = clamp(lerp(x0, x1, hsh(i * 3.3 + side * 50)) + push * hsh(i * 1.7), 0.02, 0.99);
-        const y = gY(0, xf) - 1.5 - hsh(i * 4.1) * 3;
+        const y = gY(0, xf) - 1.5 - hsh(i * 4.1) * 4 * u;
         const tw = 0.6 + 0.4 * Math.sin(W.t * 5 + i * 2.1 + side);
-        glowAt(ctx, SP.fire, xf * W.w, y, 5 + 4 * hsh(i * 9.1), bell * tw * 0.8);
+        glowAt(ctx, SP.fire, xf * W.w, y, (7 + 6 * hsh(i * 9.1)) * u, bell * tw * 0.85);
+        ctx.globalAlpha = bell * tw;
+        ctx.fillRect(xf * W.w - 0.8 * u, y - 0.8 * u, 1.6 * u, 1.6 * u);
       }
+      // 两军相交处的一团火光
+      const mx = lerp(side ? x0 : x1, (x1 + x0) / 2, 0.2) * W.w;
+      glowAt(ctx, SP.fire, mx, gY(0, mx / W.w) - 4 * u, 30 * u * (0.6 + 0.4 * Math.abs(surge)), bell * 0.35);
     }
     ctx.restore();
     ctx.globalAlpha = 1;
@@ -2192,6 +2287,21 @@
     glowAt(ctx, SP.gold, h[0], h[1] + hh * 0.42, hh * 0.18, a * 0.5);
     // 河面上的倒影
     glowAt(ctx, SP.pale, h[0], h[1] + hh * 1.25, hh * 0.9, a * 0.25, 0.25);
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  }
+  // 智慧人必发光（12:3）：但以理身上柔和的金光
+  function drawWise(ctx) {
+    const a = lv('dnWise');
+    if (a < 0.01 || !SP || !has('daniel')) return;
+    const h = headTop('daniel'), f = fig('daniel');
+    if (!h || !f) return;
+    const hh = heightOf(f);
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    glowAt(ctx, SP.gold, h[0], h[1] + hh * 0.4, hh * 1.1, a * 0.5);
+    glowAt(ctx, SP.white, h[0], h[1] + hh * 0.15, hh * 0.35, a * 0.5);
+    glowAt(ctx, SP.warm, h[0], h[1] + hh * 0.95, hh * 1.4, a * 0.3, 0.3);
     ctx.restore();
     ctx.globalAlpha = 1;
   }
@@ -2233,7 +2343,7 @@
   function riseModel() {
     return cached('rise', () => {
       const rng = U.mulberry32(1203), out = [];
-      const N = (W.quality || 1) < 0.75 ? 90 : 150;
+      const N = (W.quality || 1) < 0.75 ? 120 : 210;
       for (let i = 0; i < N; i++) {
         const layer = rng() < 0.7 ? 2 : 1;
         const xf = layer === 2 ? lerp(0.4, 0.99, rng()) : lerp(0.52, 0.99, rng());
@@ -2250,20 +2360,20 @@
     const R = riseModel(), u = SU();
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
-    ctx.fillStyle = 'rgb(255,244,220)';
     for (const m of R) {
       const p = clamp((r - m.d) / 0.5, 0, 1);
       if (p <= 0) continue;
       const e = eInOut(p);
       const x = lerp(m.sx, m.tx, e) + Math.sin(p * 9 + m.ph) * 6 * u * (1 - p);
       const y = lerp(m.sy, m.ty, e);
-      const tw = p < 1 ? 1 : 0.55 + 0.45 * Math.sin(W.t * (1.2 + m.w) + m.ph);
-      const a = (p < 1 ? smoothstep(0, 0.1, p) : Math.max(0.5, st)) * tw;
+      const tw = p < 1 ? 1 : 0.6 + 0.4 * Math.sin(W.t * (1.2 + m.w) + m.ph);
+      const a = (p < 1 ? smoothstep(0, 0.1, p) : Math.max(0.55, st)) * tw;
       ctx.globalAlpha = a;
-      const s = m.r * u * (p < 1 ? 1 : 1.2);
+      ctx.fillStyle = p < 1 ? 'rgb(255,226,160)' : 'rgb(255,246,226)';
+      const s = m.r * u * (p < 1 ? 1.1 : 1.5);
       ctx.fillRect(x - s / 2, y - s / 2, s, s);
-      if (p >= 1 && m.w > 0.8) glowAt(ctx, SP.white, x, y, 5 * m.r * u, a * 0.5);
-      else if (p < 1) glowAt(ctx, SP.gold, x, y, 4 * u, a * 0.3);
+      if (p >= 1) { if (m.w > 0.72) glowAt(ctx, SP.white, x, y, 7 * m.r * u, a * 0.55); }
+      else if (m.w > 0.45) glowAt(ctx, SP.gold, x, y, 6 * u, a * 0.5);
     }
     ctx.restore();
     ctx.globalAlpha = 1;
@@ -2317,8 +2427,8 @@
         const TF = treeFrame();
         ctx.globalCompositeOperation = 'source-over';
         for (let i = 0; i < 40; i++) {
-          const sx = TF.x + (hsh(i * 3.1) - 0.3) * TF.Hmax * 0.8, sy = TF.g - TF.Hmax * (0.4 + 0.5 * hsh(i * 5.7));
-          const x = sx + p * (60 + 140 * hsh(i * 2.2)) * u + Math.sin(p * 8 + i) * 8 * u, y = sy + p * p * (TF.g - sy) * (0.7 + 0.3 * hsh(i));
+          const sx = TF.x + (hsh(i * 3.1) - 0.6) * TF.Hmax * 0.8, sy = TF.g - TF.Hmax * (0.4 + 0.5 * hsh(i * 5.7));
+          const x = sx - p * (60 + 160 * hsh(i * 2.2)) * u + Math.sin(p * 8 + i) * 8 * u, y = sy + p * p * (TF.g - sy) * (0.7 + 0.3 * hsh(i));
           ctx.globalAlpha = (1 - p) * 0.9;
           ctx.fillStyle = css(i % 3 ? [70, 110, 56] : [140, 150, 70], 2);
           ctx.fillRect(x, y, 2.4 * u, 1.4 * u);
@@ -2396,7 +2506,6 @@
         U.safe('daniel.beasts', () => drawBeasts(ctx));
         U.safe('daniel.throne', () => drawThroneV(ctx));
         U.safe('daniel.son', () => drawSon(ctx));
-        U.safe('daniel.ramgoat', () => drawRamGoat(ctx));
         ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
         return;
       }
@@ -2408,6 +2517,7 @@
         P_.palmsN.forEach((f, j) => palm(ctx, 2, f * W.w, gY(2, f) + 2 * k, (50 + 10 * hsh(j * 2.7)) * k, k, j + 7));
         U.safe('daniel.den', () => drawDen(ctx));
         U.safe('daniel.house', () => drawHouse(ctx));
+        U.safe('daniel.winray', () => drawWinRay(ctx));
         U.safe('daniel.furnace', () => drawFurnace(ctx));
         U.safe('daniel.image', () => drawGoldImage(ctx));
         U.safe('daniel.tree', () => drawTree(ctx));
@@ -2423,7 +2533,9 @@
         U.safe('daniel.decree', () => drawDecree(ctx));
         U.safe('daniel.voice', () => drawVoice(ctx));
         U.safe('daniel.linen', () => drawLinenAura(ctx));
+        U.safe('daniel.wise', () => drawWise(ctx));
         U.safe('daniel.rise', () => drawRise(ctx));
+        U.safe('daniel.ramgoat', () => drawRamGoat(ctx));
         U.safe('daniel.fx', () => drawFX(ctx));
         ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
       }
@@ -2633,7 +2745,7 @@
         const dx = lerp(P_.hall0, P_.hall1, 0.52);
         T(c, [
           [0, b => {
-            W.goTo(0.2, 13, b.instant);
+            W.goTo(0.265, 17, b.instant);
             W.set('dnReveal', 0, b.instant); W.set('dnWin', 0, b.instant); W.set('dnBed', 0, b.instant); W.set('dnWrath', 0.15, b.instant);
             walk('arioch', lerp(P_.hall0, P_.hall1, 0.3), { speed: 0.06 });
             walk('daniel', dx, { speed: 0.06 });
@@ -2950,8 +3062,8 @@
             W.set('dnRead', 1, b.instant);
             const Pn = panelRect(), sz = Math.min(24 * SU(), W.w * 0.05);
             const src = () => [lerp(Pn.x0, Pn.x1, Math.random()), lerp(Pn.y0, Pn.y1, Math.random())];
-            wordsAt(b, '弥尼　弥尼', (Pn.x0 + Pn.x1) / 2, Pn.y0 - (port() ? 58 : 76) * SU(), sz, [255, 226, 160], src, { hold: 3.2 });
-            wordsAt(b, '提客勒　乌法珥新', (Pn.x0 + Pn.x1) / 2, Pn.y0 - (port() ? 30 : 44) * SU(), sz, [255, 226, 160], src, { hold: 3.2, delay: 0.5 });
+            wordsAt(b, '弥尼　弥尼', (Pn.x0 + Pn.x1) / 2, Pn.y0 - (port() ? 92 : 126) * SU(), sz, [255, 226, 160], src, { hold: 3.2 });
+            wordsAt(b, '提客勒　乌法珥新', (Pn.x0 + Pn.x1) / 2, Pn.y0 - (port() ? 64 : 92) * SU(), sz, [255, 226, 160], src, { hold: 3.2, delay: 0.5 });
             sfx(b, 'stars');
           }],
           [21.5, b => { W.set('dnScale', 1, b.instant); sfx(b, 'seal', { soft: true }); }],
@@ -3222,7 +3334,6 @@
       verse: [
         { text: '「那时，保佑你本国之民的天使长米迦勒必站起来……<br>你本国的民中，凡名录在册上的，必得拯救。」', ref: '但以理书 12:1', hold: 6.5 },
         { text: '「睡在尘埃中的，必有多人复醒……<br>智慧人必发光如同天上的光；那使多人归义的，必发光如星，直到永永远远。」', ref: '但以理书 12:2–3', hold: 8 },
-        { text: '「但以理啊，你要隐藏这话，封闭这书，直到末时。」', ref: '但以理书 12:4', hold: 5 },
         { text: '「你且去等候结局，因为你必安歇。到了末期，你必起来，享受你的福分。」', ref: '但以理书 12:13', hold: 7 },
       ],
       apply(c) {
@@ -3237,7 +3348,7 @@
           }],
           [2, b => { W.set('dnFirm', 1, b.instant); }],
           [3.6, b => { W.set('dnRise', 1, b.instant); W.set('dnStars', 1, b.instant); sfx(b, 'stars'); }],
-          [8.5, b => { pose('daniel', 'gaze'); glow('daniel', 1); sparkleOn(b, 'daniel', 24, [255, 244, 220], 0.3); }],
+          [8.5, b => { pose('daniel', 'gaze'); glow('daniel', 1); W.set('dnWise', 1, b.instant); sparkleOn(b, 'daniel', 24, [255, 244, 220], 0.3); }],
           [15.5, () => { pose('linen', 'stand'); }],
           [17.5, b => { rm('linen'); W.set('dnLinen', 0, b.instant); }],
           [19.5, () => { walk('daniel', X().house - 0.004, { speed: 0.02, pose: 'sit' }); }],

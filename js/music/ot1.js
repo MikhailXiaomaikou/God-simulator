@@ -22,6 +22,7 @@
  *     · angelRun(g) · starPing(g) · strings(ns, o) · pipe(ns, o) · choir(音[], o) · note(o) · chord(音[], o) · bells · pluck · ping
  *     · knocks · burst · motif('cain', g)（借创世记的一句）· lv · night · deg(调式, 基音, 级) · pick · rnd · rint · pan()。
  *     spec.motif2 是次要的一层（星、露、灯），同样返回间隔。言说时、落幕时乐句自动静候。
+ *   · spec.coda（秒）只给全书的末一卷用：末一句成就之后乐声再留多久，才随「终」缓缓归于安息。
  *   · 检查：node --check；走一幕（walk.js <id>）时 GS.audio._dbg().pads 给出本卷乐垫各组此刻的分量与低通，errs 必须为空。
  * ───────────────────────────────────────────────────────────── */
 (function (GS) {
@@ -68,17 +69,17 @@
     weight: { drone: 0.6, pad: 0.95 },
     pad: { lp: 1300, groups: {
       rest: [['A2', 's', 0.44, 0], ['E3', 'soft', 0.34, -0.2], ['B3', 'soft', 0.17, 0.3], ['Fs4', 's', 0.08, -0.4]],
-      opp: { v: [['A1', 's', 0.42, 0], ['E2', 'soft', 0.3, 0.1], ['A2', 'reed', 0.03, -0.15], ['C3', 'soft', 0.17, -0.3], ['Bb3', 's', 0.045, 0.35]], pulse: [0.7, 0.3] },
+      opp: { v: [['A1', 's', 0.5, 0], ['E2', 'soft', 0.36, 0.1], ['A2', 'reed', 0.04, -0.15], ['C3', 'soft', 0.28, -0.3], ['E3', 'soft', 0.13, 0.25], ['Bb3', 's', 0.055, 0.35]], pulse: [0.7, 0.3] },
       deliver: [['A2', 's', 0.4, 0], ['E3', 'warm', 0.18, 0.15], ['A3', 'soft', 0.2, -0.25], ['Cs4', 'soft', 0.15, 0.3], ['E4', 's', 0.09, -0.4], ['A4', 's', 0.045, 0.5]],
       lament: [['A2', 's', 0.42, 0], ['E3', 'soft', 0.32, 0.2], ['C4', 'soft', 0.16, -0.3], ['F4', 's', 0.07, 0.35]],
       mercy: [['A2', 's', 0.42, 0], ['E3', 'soft', 0.3, -0.15], ['A3', 's', 0.14, 0.25], ['Cs4', 'soft', 0.15, -0.3], ['Fs4', 's', 0.08, 0.4], ['B4', 's', 0.03, -0.5]],
-      wander: [['A1', 's', 0.45, 0], ['E2', 'soft', 0.3, 0.1], ['D3', 'soft', 0.12, -0.3, -9], ['D3', 'soft', 0.08, 0.3, 9], ['B3', 's', 0.06, 0.35]],
+      wander: [['A1', 's', 0.5, 0], ['E2', 'soft', 0.34, 0.1], ['D3', 'soft', 0.2, -0.3, -9], ['D3', 'soft', 0.14, 0.3, 9], ['B3', 's', 0.09, 0.35]],
     } },
     mix(lv) {
       const del = cl(max(lv('jgStar'), lv('jgTorch'), lv('jgReign'), 0.7 * lv('jgFlood')));
       const g = stack([['wander', lv('jgWander')], ['mercy', lv('jgMercy')], ['lament', lv('jgLament')], ['deliver', del], ['opp', lv('jgOpp')]], 'rest');
       const hush = cl(lv('jgJar')) * (1 - cl(lv('jgTorch')));        // 瓶内藏着火把：屏住气
-      const lp = 1300 * (1 + 0.7 * g.deliver + 0.3 * g.mercy) * (1 - 0.45 * g.opp) * (1 - 0.25 * g.lament) * (1 - 0.3 * g.wander) * (1 - 0.3 * cl(lv('storm'))) * (1 - 0.35 * hush);
+      const lp = 1300 * (1 + 0.7 * g.deliver + 0.3 * g.mercy) * (1 - 0.35 * g.opp) * (1 - 0.25 * g.lament) * (1 - 0.2 * g.wander) * (1 - 0.3 * cl(lv('storm'))) * (1 - 0.35 * hush);
       return { g, lp, dlp: 1 - 0.25 * g.opp, drone: 1 + 0.2 * g.opp - 0.2 * g.deliver, pad: 1 - 0.25 * hush };
     },
     scale(lv) {
@@ -117,10 +118,10 @@
     weight: { drone: 0.55, pad: 0.95 },
     pad: { lp: 1500, groups: {
       court: [['A1', 's', 0.28, 0], ['A2', 's', 0.3, 0], ['E3', 'soft', 0.28, -0.2], ['Cs4', 'soft', 0.14, 0.3], ['A2', 'over', 0.09, 0.1], ['E4', 's', 0.06, -0.4]],
-      song: [['A2', 's', 0.36, 0], ['E3', 'soft', 0.14, 0.15], ['A3', 'choir', 0.3, 0], ['E4', 'choir', 0.25, 0], ['A4', 'choir', 0.2, 0], ['Cs5', 'choir', 0.13, 0]],
-      glory: [['A2', 's', 0.3, 0], ['E3', 'soft', 0.24, -0.15], ['A3', 's', 0.16, 0.2], ['Cs4', 'soft', 0.14, -0.3], ['E4', 's', 0.11, 0.35], ['A4', 's', 0.07, -0.45], ['Cs5', 's', 0.045, 0.5], ['E5', 's', 0.03, -0.55], ['A3', 'over', 0.06, 0]],
-      threat: { v: [['A1', 's', 0.42, 0], ['E2', 'soft', 0.28, 0.1], ['Bb2', 'soft', 0.07, -0.35], ['C3', 'soft', 0.12, 0.3], ['Ds4', 's', 0.022, -0.45]], pulse: [0.9, 0.3] },
-      ruin: [['A1', 's', 0.45, 0], ['E2', 'soft', 0.3, 0.1], ['C3', 'soft', 0.16, -0.3], ['F3', 's', 0.07, 0.35]],
+      song: [['A2', 's', 0.45, 0], ['E3', 'soft', 0.2, 0.15], ['A3', 'choir', 0.24, 0], ['E4', 'choir', 0.2, 0], ['A4', 'choir', 0.16, 0], ['Cs5', 'choir', 0.1, 0]],
+      glory: [['A2', 's', 0.4, 0], ['E3', 'soft', 0.31, -0.15], ['A3', 's', 0.2, 0.2], ['Cs4', 'soft', 0.17, -0.3], ['E4', 's', 0.12, 0.35], ['A4', 's', 0.075, -0.45], ['Cs5', 's', 0.05, 0.5], ['E5', 's', 0.03, -0.55], ['A3', 'over', 0.06, 0]],
+      threat: { v: [['A1', 's', 0.5, 0], ['E2', 'soft', 0.33, 0.1], ['Bb2', 'soft', 0.09, -0.35], ['C3', 'soft', 0.26, 0.3], ['E3', 'soft', 0.13, -0.2], ['Ds4', 's', 0.028, -0.45]], pulse: [0.9, 0.3] },
+      ruin: [['A1', 's', 0.5, 0], ['E2', 'soft', 0.35, 0.1], ['C3', 'soft', 0.28, -0.3], ['E3', 'soft', 0.13, 0.25], ['F3', 's', 0.09, 0.35]],
       east: [['A2', 's', 0.42, 0], ['E3', 'soft', 0.32, -0.15], ['B3', 'soft', 0.14, 0.3], ['Cs4', 'soft', 0.14, -0.3], ['Ds4', 's', 0.05, 0.4], ['Gs4', 's', 0.04, -0.45]],
     } },
     mix(lv) {
@@ -128,7 +129,7 @@
       const threat = cl(max(lv('chSword') * lv('chAngel'), lv('chCamp') * (1 - lv('chCampOut'))));
       const ruin = cl(max(lv('chBurn'), lv('chRuin'))), east = cl(max(lv('chEast'), 0.8 * lv('chRoad'))), wild = cl(lv('chWild'));
       const g = stack([['east', east], ['threat', threat], ['song', 0.55 * song], ['glory', glory], ['ruin', ruin]], 'court');
-      const lp = 1500 * (1 + 1.1 * g.glory + 0.5 * g.song + 0.35 * g.east) * (1 - 0.45 * g.threat) * (1 - 0.45 * g.ruin * (0.5 + 0.5 * wild));
+      const lp = 1500 * (1 + 0.8 * g.glory + 0.5 * g.song + 0.35 * g.east) * (1 - 0.35 * g.threat) * (1 - 0.35 * g.ruin * (0.5 + 0.5 * wild));
       return { g, lp, pad: 1 - 0.3 * wild * g.ruin, dlp: 1 - 0.2 * g.threat - 0.15 * g.ruin, drone: 1 + 0.15 * g.threat };
     },
     scale(lv) {
@@ -166,8 +167,8 @@
     weight: { drone: 0.6, pad: 0.95 },
     pad: { lp: 1500, groups: {
       city: [['A2', 's', 0.42, 0], ['E3', 'soft', 0.32, -0.2], ['B3', 'soft', 0.15, 0.3], ['Cs4', 'soft', 0.13, -0.3], ['E4', 's', 0.07, 0.4]],
-      holy: [['A1', 's', 0.3, 0], ['A2', 'over', 0.08, 0], ['E3', 's', 0.14, 0.1], ['A3', 'choir', 0.26, 0], ['E4', 'choir', 0.22, 0], ['A4', 'choir', 0.17, 0], ['Cs5', 'choir', 0.12, 0], ['E5', 's', 0.03, -0.5], ['Gs5', 's', 0.012, 0.55]],
-      dark: [['A1', 's', 0.44, 0], ['E2', 'soft', 0.3, 0.1], ['A2', 'warm', 0.07, -0.2], ['C3', 'soft', 0.15, 0.3], ['F3', 's', 0.05, -0.35]],
+      holy: [['A1', 's', 0.32, 0], ['A2', 'over', 0.08, 0], ['E3', 's', 0.16, 0.1], ['A3', 'choir', 0.2, 0], ['E4', 'choir', 0.17, 0], ['A4', 'choir', 0.13, 0], ['Cs5', 'choir', 0.09, 0], ['E5', 's', 0.03, -0.5], ['Gs5', 's', 0.012, 0.55]],
+      dark: [['A1', 's', 0.5, 0], ['E2', 'soft', 0.35, 0.1], ['A2', 'warm', 0.09, -0.2], ['C3', 'soft', 0.28, 0.3], ['E3', 'soft', 0.13, -0.25], ['F3', 's', 0.065, -0.35]],
       light: [['A2', 's', 0.4, 0], ['E3', 'soft', 0.3, -0.15], ['A3', 'soft', 0.18, 0.25], ['Cs4', 'soft', 0.17, -0.3], ['E4', 's', 0.11, 0.35], ['Gs4', 's', 0.045, -0.45]],
       peace: [['A2', 's', 0.42, 0], ['E3', 'soft', 0.32, 0.2], ['Cs4', 'soft', 0.18, -0.3], ['Fs4', 's', 0.09, 0.4], ['B4', 's', 0.04, -0.5]],
       stars: [['A2', 's', 0.42, 0], ['E3', 'soft', 0.32, 0.15], ['Cs4', 'soft', 0.16, -0.3], ['Gs4', 's', 0.065, 0.35], ['Ds5', 's', 0.03, -0.45], ['A3', 'over', 0.05, 0]],
@@ -176,17 +177,17 @@
       const holy = cl(max(lv('isGlory'), 0.8 * lv('isSeraph'), 0.6 * lv('isThrone')));
       const lit = cl(max(lv('isLight'), lv('isZion'), 0.7 * lv('isNew')));
       const dark = cl(max(lv('gloom') * (1 - lit), lv('isBurden'), 0.85 * lv('isSmoke'), 0.8 * lv('isCamp') * (1 - lv('isCampOut'))));
-      const stars = cl(max(lv('isHost'), 0.8 * lv('isConst'), 0.7 * lv('isEagles')));
+      const stars = cl(max(lv('isConst'), 0.7 * lv('isEagles')));       // （isHost 领出之后一直留着，不用它）
       const peace = cl(max(lv('isBeasts'), lv('isStreams'), 1.6 * lv('isSea'), lv('isHills'), 0.7 * lv('isNew'), 0.5 * lv('isRiver')));
       const g = stack([['holy', holy], ['dark', dark], ['light', lit], ['stars', stars], ['peace', peace]], 'city');
-      const lp = 1500 * (1 + 0.9 * g.holy + 0.6 * g.light + 0.45 * g.stars + 0.25 * g.peace) * (1 - 0.5 * g.dark) * (1 - 0.3 * cl(lv('storm')));
+      const lp = 1500 * (1 + 0.9 * g.holy + 0.6 * g.light + 0.45 * g.stars + 0.25 * g.peace) * (1 - 0.4 * g.dark) * (1 - 0.3 * cl(lv('storm')));
       return { g, lp, dlp: 1 - 0.25 * g.dark + 0.15 * g.holy, drone: 1 + 0.3 * g.holy };   // 门槛的根基震动：宝座下的底鸣更深
     },
     scale(lv) {
       if (max(lv('isGlory'), lv('isSeraph')) > 0.4) return 'lyd';
       const lit = max(lv('isLight'), lv('isZion'), lv('isNew'));
       if (lv('isBurden') > 0.4 || lv('isSmoke') > 0.5 || (lv('gloom') > 0.5 && lit < 0.5)) return 'aeol';
-      if (max(lv('isHost'), lv('isConst')) > 0.4) return 'lyd';
+      if (lv('isConst') > 0.4) return 'lyd';
       if (lit > 0.4 || lv('isBeasts') > 0.4 || lv('isStreams') > 0.4 || lv('isHills') > 0.4) return 'maj';
       return 'ion';
     },
@@ -200,7 +201,7 @@
       if (lv('isBurden') > 0.4 || lv('isSmoke') > 0.5 || (lv('gloom') > 0.5 && max(lv('isLight'), lv('isZion')) < 0.5)) {
         a.bowed(a.pick(['A2', 'C3', 'E3', 'F3', 'D3']), g * 0.9, p); return [13, 20];
       }
-      if (max(lv('isHost'), lv('isConst')) > 0.4) { a.lyre('A4', a.rint(3, 5), g * 0.7, p, 'lyd'); return [14, 20]; }
+      if (lv('isConst') > 0.4) { a.lyre('A4', a.rint(3, 5), g * 0.7, p, 'lyd'); return [14, 20]; }
       if (max(lv('isLight'), lv('isZion'), lv('isNew')) > 0.4) { a.lyre('A4', a.rint(4, 6), g * 0.85, p, 'maj'); return [11, 16]; }
       if (max(lv('isBeasts'), lv('isStreams'), lv('isHills')) > 0.4) { a.shepherd(g, p); return [12, 18]; }   // 小孩子要牵引它们
       a.lyre(a.pick(['A3', 'A4']), a.rint(3, 5), g * 0.8, p); return [15, 24];
@@ -208,7 +209,7 @@
     motif2(t, g, a) {
       const lv = a.lv;
       if (max(lv('isGlory'), lv('isSeraph')) > 0.4) { a.glass(g * 0.55, 1); return [3, 6]; }
-      if (lv('isHost') > 0.3 || lv('isConst') > 0.3) { a.starPing(g); return [0.5, 1.4]; }                    // 一一称其名
+      if (lv('isConst') > 0.3) { a.starPing(g); return [0.5, 1.4]; }                    // 一一称其名
       if (lv('isStreams') > 0.4 || lv('isSea') > 0.2 || lv('isRiver') > 0.5) { flowing(a, g); return [5, 9]; }   // 旷野的河；知识如水
       if (lv('isSnow') > 0.3) { a.ping(a.deg('maj', 'A5', a.rint(0, 6)), 0, g * 0.5, a.pan()); return [1.5, 3.5]; }  // 雪片
       if (lv('isZion') > 0.5 || lv('isNew') > 0.5) { a.glass(g * 0.45, 1); return [6, 10]; }
@@ -224,26 +225,30 @@
     weight: { drone: 0.65, pad: 0.95 },
     pad: { lp: 1300, groups: {
       call: [['A2', 's', 0.42, 0], ['E3', 'soft', 0.32, -0.2], ['B3', 's', 0.13, 0.3], ['Cs4', 'soft', 0.14, -0.3], ['Fs4', 's', 0.06, 0.4]],
-      lament: [['A1', 's', 0.38, 0], ['E2', 'soft', 0.28, 0.1], ['A2', 'warm', 0.09, -0.2], ['C3', 'soft', 0.16, 0.3], ['G3', 's', 0.06, -0.35], ['E3', 'warm', 0.04, 0.4]],
-      wheel: { v: [['A2', 's', 0.38, 0], ['E3', 'soft', 0.3, -0.2], ['B3', 'soft', 0.12, 0.3], ['D4', 's', 0.06, -0.35], ['A3', 'over', 0.05, 0.1]], pulse: [1.3, 0.35] },
+      lament: [['A1', 's', 0.45, 0], ['E2', 'soft', 0.33, 0.1], ['A2', 'warm', 0.11, -0.2], ['C3', 'soft', 0.28, 0.3], ['E3', 'warm', 0.08, 0.4], ['G3', 's', 0.09, -0.35]],
+      wheel: { v: [['A2', 's', 0.4, 0], ['E3', 'soft', 0.32, -0.2], ['B3', 'soft', 0.14, 0.3], ['D4', 's', 0.07, -0.35], ['A3', 'over', 0.05, 0.1]], pulse: [1.3, 0.35] },
       sign: [['A2', 's', 0.34, 0], ['E3', 'soft', 0.27, -0.15], ['A3', 's', 0.16, 0.2], ['Cs4', 'soft', 0.14, -0.3], ['E4', 's', 0.11, 0.35], ['A4', 's', 0.06, -0.45], ['Cs5', 's', 0.035, 0.5], ['A3', 'over', 0.05, 0]],
-      siege: { v: [['A1', 's', 0.42, 0], ['E2', 'soft', 0.3, 0.1], ['Bb2', 'soft', 0.06, -0.35], ['C3', 'soft', 0.14, 0.3], ['F3', 's', 0.045, -0.4]], pulse: [0.85, 0.3] },
+      siege: { v: [['A1', 's', 0.5, 0], ['E2', 'soft', 0.35, 0.1], ['Bb2', 'soft', 0.075, -0.35], ['C3', 'soft', 0.26, 0.3], ['E3', 'soft', 0.1, -0.2], ['F3', 's', 0.055, -0.4]], pulse: [0.85, 0.3] },
       love: [['A2', 's', 0.4, 0], ['E3', 'soft', 0.3, -0.15], ['Cs4', 'flute', 0.17, 0.3], ['E4', 's', 0.09, -0.35], ['A4', 's', 0.05, 0.45], ['E5', 's', 0.022, -0.5]],
     } },
     mix(lv) {
       const love = cl(max(lv('jrLove'), 0.8 * lv('jrHope'), 0.9 * lv('jrHeart')));
-      const sign = cl(max(0.8 * lv('jrSign'), lv('jrGlory'), 0.7 * lv('jrThread'), 0.8 * lv('jrVision'), lv('jrNew'), 0.6 * lv('jrLine'), 0.45 * lv('jrDeed')));
-      const siege = cl(max(lv('jrSiege'), lv('jrBreach'), 0.9 * max(lv('jrFire'), lv('jrTFire')), 0.8 * lv('jrPot'), 0.7 * lv('jrPit'), 0.6 * lv('jrBone')));
+      const fire = max(lv('jrFire'), lv('jrTFire'));
+      // 天上的器皿、平安的意念、光的城在前；地契与将来的葡萄园（封好之后一直留着）只在城未破时透出光来
+      const signHi = cl(max(0.8 * lv('jrSign'), lv('jrGlory'), 0.7 * lv('jrThread'), lv('jrNew'), 0.6 * lv('jrLine')));
+      const signLo = cl(max(0.8 * lv('jrVision'), 0.45 * lv('jrDeed')) * (1 - cl(max(lv('jrBreach'), fire))));
+      const siege = cl(max(lv('jrSiege'), lv('jrBreach') * max(lv('jrSiege'), fire), 0.9 * fire, 0.8 * lv('jrPot'), 0.7 * lv('jrPit'), 0.6 * lv('jrBone')));
       const dry = cl((0.6 - lv('jrSpring')) / 0.32);                      // 离弃了活水的泉源
       const lament = cl(max(0.9 * lv('storm'), 0.7 * lv('rain'), dry, 0.8 * lv('jrRuin'), 0.7 * lv('jrEmber'), 0.6 * lv('jrStocks'), 0.5 * lv('jrBrazier'), lv('jrMud')));
-      const g = stack([['love', love], ['sign', sign], ['siege', siege], ['wheel', lv('jrWheel')], ['lament', lament]], 'call');
-      const lp = 1300 * (1 + 0.9 * g.sign + 0.5 * g.love + 0.15 * g.wheel) * (1 - 0.45 * g.siege) * (1 - 0.3 * g.lament) * (1 - 0.25 * cl(lv('storm')));
+      const g = stack([['sign', signHi], ['love', love], ['sign', signLo], ['siege', siege], ['wheel', lv('jrWheel')], ['lament', lament]], 'call');
+      const lp = 1300 * (1 + 0.9 * g.sign + 0.5 * g.love + 0.15 * g.wheel) * (1 - 0.35 * g.siege) * (1 - 0.2 * g.lament) * (1 - 0.25 * cl(lv('storm')));
       return { g, lp, dlp: 1 - 0.2 * g.siege - 0.15 * g.lament, drone: 1 + 0.25 * g.siege };
     },
     scale(lv) {
-      if (max(lv('jrLove'), lv('jrHope'), lv('jrHeart')) > 0.45) return 'maj';
       if (max(lv('jrSign'), lv('jrGlory')) > 0.5) return 'lyd';
-      if (max(lv('jrNew'), lv('jrThread'), lv('jrVision')) > 0.45) return 'ion';
+      if (max(lv('jrNew'), lv('jrThread')) > 0.45) return 'ion';
+      if (max(lv('jrLove'), lv('jrHope'), lv('jrHeart')) > 0.45) return 'maj';
+      if (lv('jrVision') > 0.45 && lv('jrBreach') < 0.5) return 'ion';
       if (max(lv('jrSiege'), lv('jrBreach'), lv('jrFire'), lv('jrPot')) > 0.5) return 'phryg';
       if (lv('jrWheel') > 0.5) return 'dor';
       if (lv('jrSpring') < 0.45 || lv('storm') > 0.2 || lv('jrRuin') > 0.5) return 'aeol';
@@ -251,9 +256,9 @@
     },
     motif(t, g, a) {
       const lv = a.lv, p = a.pan();
-      if (max(lv('jrLove'), lv('jrHope'), lv('jrHeart')) > 0.45) { a.lyre('A4', a.rint(3, 5), g * 0.75, p, 'maj', { gap: 0.34 }); return [13, 19]; }
       if (max(lv('jrSign'), lv('jrGlory')) > 0.5) { a.angelRun(g * 0.9); return [7, 11]; }                   // 器皿在天上被重新做成
       if (max(lv('jrNew'), lv('jrLine')) > 0.5) { a.lyre('A4', a.rint(4, 6), g * 0.9, p, 'ion'); return [10, 15]; }
+      if (max(lv('jrLove'), lv('jrHope'), lv('jrHeart')) > 0.45) { a.lyre('A4', a.rint(3, 5), g * 0.75, p, 'maj', { gap: 0.34 }); return [13, 19]; }
       if (max(lv('jrSiege'), lv('jrBreach'), lv('jrFire')) > 0.5) {                                          // 远处的战鼓
         a.knocks([[0, 300, 70, g * 1.4, true], [0.62, 300, 72, g, true], [1.24, 300, 70, g * 1.3, true], [1.55, 320, 74, g * 0.8, true], [1.86, 300, 70, g * 1.2, true]], { lp: 700, pan: p, rev: 0.6 });
         return [9, 14];
@@ -284,26 +289,27 @@
   // 末了公义的日头：创世记第六日「甚好」的那个和弦（A1 E2 A2 C#3 E3 B3 C#4 E4 F#4 A4）从低到高整个亮起，低通全开。
   music('twelve2', {
     weight: { drone: 0.55, pad: 1 },
+    coda: 34,                                    // 旧约的末一句之后：日头升起的整段尾声里乐声都在，直到「旧约 · 三十九卷 · 终」写在天上
     pad: { lp: 1400, groups: {
       vigil: [['A2', 's', 0.42, 0], ['E3', 'soft', 0.3, -0.2], ['B3', 'soft', 0.14, 0.3], ['E4', 's', 0.07, -0.4]],
-      storm: [['A1', 's', 0.45, 0], ['E2', 'soft', 0.3, 0.1], ['C3', 'soft', 0.12, -0.3], ['F3', 's', 0.045, 0.35]],
-      song: [['A2', 's', 0.34, 0], ['E3', 'soft', 0.14, 0.15], ['A3', 'choir', 0.28, 0], ['Cs4', 'choir', 0.23, 0], ['E4', 'choir', 0.21, 0], ['A4', 'choir', 0.14, 0]],
+      storm: [['A1', 's', 0.5, 0], ['E2', 'soft', 0.35, 0.1], ['C3', 'soft', 0.26, -0.3], ['E3', 'soft', 0.1, 0.25], ['F3', 's', 0.065, 0.35]],
+      song: [['A2', 's', 0.36, 0], ['E3', 'soft', 0.16, 0.15], ['A3', 'choir', 0.18, 0], ['Cs4', 'choir', 0.15, 0], ['E4', 'choir', 0.14, 0], ['A4', 'choir', 0.09, 0]],
       glory: [['A2', 's', 0.34, 0], ['E3', 'soft', 0.27, -0.15], ['A3', 's', 0.16, 0.2], ['Cs4', 'soft', 0.14, -0.3], ['E4', 's', 0.1, 0.35], ['Gs4', 's', 0.04, -0.45], ['B4', 's', 0.035, 0.5]],
       river: { v: [['A2', 's', 0.4, 0], ['E3', 'soft', 0.3, -0.2], ['B3', 's', 0.13, 0.3], ['Cs4', 'soft', 0.14, -0.3], ['E4', 's', 0.08, 0.4]], pulse: [0.28, 0.22] },
       love: [['A2', 's', 0.42, 0], ['E3', 'soft', 0.3, 0.2], ['Cs4', 'soft', 0.17, -0.3], ['Fs4', 's', 0.08, 0.4], ['A4', 'flute', 0.045, -0.45]],
-      sun: [['A1', 's', 0.22, 0], ['E2', 's', 0.17, 0.1], ['A2', 's', 0.2, -0.1], ['Cs3', 's', 0.14, 0.2], ['E3', 's', 0.13, -0.25],
-        ['B3', 't', 0.07, 0.3], ['Cs4', 't', 0.08, -0.35], ['E4', 't', 0.07, 0.4], ['Fs4', 't', 0.06, -0.45], ['A4', 't', 0.05, 0.5]],
+      sun: [['A1', 's', 0.24, 0], ['E2', 's', 0.2, 0.1], ['A2', 's', 0.24, -0.1], ['Cs3', 's', 0.2, 0.2], ['E3', 's', 0.2, -0.25],
+        ['B3', 't', 0.15, 0.3], ['Cs4', 't', 0.16, -0.35], ['E4', 't', 0.15, 0.4], ['Fs4', 't', 0.13, -0.45], ['A4', 't', 0.1, 0.5]],
     } },
     mix(lv) {
       const sun = cl(max(lv('tbSun'), 0.8 * lv('tbHeal')));
       const storm = cl(max(sm(0.35, 0.8, lv('storm')), lv('gloom'), lv('tbFurnace'), 0.7 * lv('tbSpirit'), 0.8 * lv('tbNinFlood')));
       const song = cl(max(lv('tbSong'), lv('tbJoy'), 0.6 * lv('tbHind')));
-      const glory = cl(max(lv('tbGlory'), 0.9 * lv('tbFire'), 0.8 * lv('tbLampstand'), 0.6 * lv('tbOil'), 0.7 * lv('tbCap'), lv('tbWindows'), lv('tbPour'), 0.5 * lv('tbCrown')));
-      const river = cl(max(lv('tbRiver'), 0.8 * lv('tbFount'), 0.9 * lv('tbSea'), lv('tbKnow')));
-      const love = cl(max(lv('tbLove'), 0.8 * lv('tbIncense'), 0.7 * lv('tbTeach'), 0.8 * lv('tbBook'), 0.5 * lv('tbNames')));
+      const glory = cl(max(lv('tbGlory'), 0.9 * lv('tbFire'), 0.8 * lv('tbLampstand'), 0.6 * lv('tbOil'), lv('tbWindows'), lv('tbPour'), 0.5 * lv('tbCrown')));   // （殿顶的石头安上之后一直在，不用它）
+      const fount = lv('tbFount'), river = cl(max(0.9 * lv('tbSea'), lv('tbKnow'), fount > 0.8 ? fount : 0.5 * fount));   // 泉源开了之后一直在流：只留一半
+      const love = cl(max(0.8 * lv('tbIncense'), 0.7 * lv('tbTeach'), 0.8 * lv('tbBook'), 0.5 * lv('tbNames')));
       const fruit = cl(Math.min(lv('tbOrchard'), lv('tbField') / 0.6));   // 园子结果、田里有粮：寻常日子的温暖
-      const g = stack([['sun', sun], ['love', 0.6 * lv('tbShelter')], ['storm', storm], ['song', song], ['glory', glory], ['river', river], ['love', love], ['love', 0.55 * fruit]], 'vigil');
-      const lp = 1400 * (1 + 1.3 * g.sun + 0.8 * g.glory + 0.6 * g.song + 0.4 * g.river + 0.25 * g.love) * (1 - 0.5 * g.storm);
+      const g = stack([['sun', sun], ['love', max(0.6 * lv('tbShelter'), lv('tbLove'))], ['storm', storm], ['song', song], ['glory', glory], ['river', river], ['love', love], ['love', 0.55 * fruit]], 'vigil');
+      const lp = 1400 * (1 + 1.3 * g.sun + 0.8 * g.glory + 0.6 * g.song + 0.4 * g.river + 0.25 * g.love) * (1 - 0.4 * g.storm);
       return { g, lp, dlp: 1 - 0.25 * g.storm + 0.2 * g.sun, drone: 1 - 0.3 * g.sun + 0.2 * g.storm };
     },
     scale(lv) {
@@ -313,7 +319,7 @@
       if (lv('tbSpirit') > 0.5) return 'aeol';
       if (max(lv('tbSong'), lv('tbJoy')) > 0.4) return 'maj';
       if (max(lv('tbLampstand'), lv('tbFire'), lv('tbWindows')) > 0.4) return 'lyd';
-      if (max(lv('tbGlory'), lv('tbRiver'), lv('tbSea'), lv('tbLove')) > 0.4) return 'maj';
+      if (max(lv('tbGlory'), lv('tbRiver'), lv('tbSea'), lv('tbLove'), lv('tbCrown')) > 0.4) return 'maj';
       if (lv('bare') > 0.5) return 'sus';                                                  // 无花果树不发旺
       return 'ion';
     },
@@ -332,11 +338,11 @@
       }
       if (lv('tbSpirit') > 0.5) { a.bowed(a.pick(['A2', 'C3', 'E3']), g * 0.85, p); return [10, 14]; }   // 为他悲哀，如丧独生子
       if (max(lv('tbLampstand'), lv('tbFire'), lv('tbGlory')) > 0.45) { a.lyre('A4', a.rint(4, 6), g * 0.8, p); return [11, 16]; }
-      if (max(lv('tbRiver'), lv('tbSea'), lv('tbKnow')) > 0.45) { flowing(a, g); return [8, 12]; }
       if (max(lv('tbLove'), lv('tbIncense'), lv('tbBook')) > 0.4) {                           // 我曾爱你们
         a.pipe([['E4', 0.5], ['Fs4', 0.3], ['E4', 0.3], ['Cs4', 0.6], ['B3', 0.4], ['A3', 1.4]], { g: g * 0.5, pan: p, bright: 4, breath: 0.25, vib: 10, rev: 0.6 });
         return [13, 18];
       }
+      if (max(lv('tbSea'), lv('tbKnow'), lv('tbFount') > 0.8 ? 1 : 0) > 0.45) { flowing(a, g); return [8, 12]; }
       if (lv('bare') > 0.5) { a.ney(g, p); return [15, 22]; }                                  // 望楼上的等候
       a.shepherd(g * 0.9, p); return [14, 20];
     },
