@@ -602,43 +602,51 @@
     ctx.globalCompositeOperation = 'lighter';
     // 周围有光辉
     let r = 520 * s;
-    ctx.globalAlpha = cl * 0.3; ctx.drawImage(SP.gold, cx - r * V.xk, cy - r, 2 * r * V.xk, 2 * r);
+    ctx.globalAlpha = cl * 0.16; ctx.drawImage(SP.gold, cx - r * V.xk, cy - r, 2 * r * V.xk, 2 * r);
     // 狂风：旋转的风线
     ctx.strokeStyle = 'rgb(236,226,210)';
     ctx.lineWidth = Math.max(1, 1.6 * s);
     for (let i = 0; i < 9; i++) {
       const R = (150 + 160 * rt(i * 3)) * s, a0 = CLK * (0.9 + 0.6 * rt(i * 3 + 1)) + i * 0.7;
-      ctx.globalAlpha = cl * (0.1 + 0.25 * (1 - V.n)) * (0.5 + 0.5 * Math.sin(CLK * 0.7 + i));
+      ctx.globalAlpha = cl * (0.08 + 0.25 * (1 - V.n)) * (0.5 + 0.5 * Math.sin(CLK * 0.7 + i));
       ctx.beginPath(); ctx.ellipse(cx, cy, R * V.xk, R * 0.62, 0, a0, a0 + 0.9 + 0.8 * rt(i * 3 + 2)); ctx.stroke();
     }
-    // 火内发出好像光耀的精金
-    r = 190 * s * (1 + 0.06 * Math.sin(CLK * 3.1));
-    ctx.globalAlpha = cl * 0.75; ctx.drawImage(SP.amber, cx - r, cy + 40 * s - r, 2 * r, 2 * r);
-    r = 80 * s;
-    ctx.globalAlpha = cl * 0.8; ctx.drawImage(SP.white, cx - r, cy + 40 * s - r, 2 * r, 2 * r);
+    // 火内发出好像光耀的精金（活物显出之后，退为活物之间的火）
     const ca = lv('ekCreat') * a, wa = lv('ekWheel') * a, fa = lv('ekFire') * a;
+    const core = 1 - 0.6 * lv('ekCreat');
+    r = 190 * s * (1 + 0.06 * Math.sin(CLK * 3.1));
+    ctx.globalAlpha = cl * 0.55 * core; ctx.drawImage(SP.amber, cx - r, cy + 40 * s - r, 2 * r, 2 * r);
+    r = 70 * s;
+    ctx.globalAlpha = cl * 0.7 * core; ctx.drawImage(SP.white, cx - r, cy + 40 * s - r, 2 * r, 2 * r);
     // 后面的轮与活物
-    if (wa > 0.01) for (const w of WHEELS) if (!w[3]) drawWheel(ctx, V, w[0], w[1], w[2], wa * 0.7, w[0] * 0.01);
+    if (wa > 0.01) for (const w of WHEELS) if (!w[3]) drawWheel(ctx, V, w[0], w[1], w[2], wa * 0.65, w[0] * 0.01);
     const drawC = c => {
       const [px, py] = vp(V, c[0], c[1]), k = s * c[2];
-      const flick = 0.9 + 0.1 * Math.sin(CLK * 4.3 + c[0]);
-      ctx.globalAlpha = ca * (c[3] ? 0.95 : 0.72) * flick;
+      const flick = 0.93 + 0.07 * Math.sin(CLK * 4.3 + c[0]);
+      ctx.globalCompositeOperation = 'lighter';
+      const gr = 150 * k;
+      ctx.globalAlpha = ca * 0.22 * flick; ctx.drawImage(SP.gold, px - gr * V.xk, py - 190 * k - gr, 2 * gr * V.xk, 2 * gr);
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.globalAlpha = ca * (c[3] ? 0.96 : 0.8) * flick;
       ctx.drawImage(SP.creature, px - CRFX * k * V.xk, py - CRFY * k, CRW * k * V.xk, CRH * k);
+      ctx.globalCompositeOperation = 'lighter';
     };
     if (ca > 0.01) for (const c of CREAT) if (!c[3]) drawC(c);
     // 火在四活物中间上去下来：烧着的火炭
     if (fa > 0.01 || ca > 0.3) {
       const k = Math.max(fa, ca * 0.4);
+      r = 120 * s;
+      ctx.globalAlpha = k * 0.35 * (0.85 + 0.15 * Math.sin(CLK * 6.1)); ctx.drawImage(SP.ember, cx - r, cy + 110 * s - r * 1.2, 2 * r, 2.4 * r);
       for (let i = 0; i < 11; i++) {
         const ph = U.fract(CLK * (0.16 + 0.08 * rt(i * 5)) + rt(i * 5 + 1));
         const up = i % 2 ? ph : 1 - ph;
-        const [px, py] = vp(V, (rt(i * 5 + 2) - 0.5) * 120 + Math.sin(CLK * 1.3 + i) * 10, lerp(-30, -210, up));
-        const rr = (16 + 10 * rt(i * 5 + 3)) * s;
-        ctx.globalAlpha = k * 0.75 * Math.sin(Math.PI * ph);
+        const [px, py] = vp(V, (rt(i * 5 + 2) - 0.5) * 110 + Math.sin(CLK * 1.3 + i) * 10, lerp(-30, -200, up));
+        const rr = (14 + 10 * rt(i * 5 + 3)) * s;
+        ctx.globalAlpha = k * 0.7 * Math.sin(Math.PI * ph);
         ctx.drawImage(SP.ember, px - rr, py - rr, 2 * rr, 2 * rr);
         ctx.globalAlpha = k * Math.sin(Math.PI * ph);
-        ctx.fillStyle = 'rgb(255,236,190)';
-        ctx.beginPath(); ctx.arc(px, py, Math.max(1, 2.6 * s), 0, TAU); ctx.fill();
+        ctx.fillStyle = 'rgb(255,226,170)';
+        ctx.beginPath(); ctx.arc(px, py, Math.max(1, 2.4 * s), 0, TAU); ctx.fill();
       }
       if (fa > 0.2) drawZaps(ctx, V, fa);
     }
@@ -648,17 +656,19 @@
     const fm = lv('ekFirm') * a;
     if (fm > 0.01) {
       const [fx0, fy0] = vp(V, 0, -322);
-      const rx = 250 * s * V.xk, ry = 30 * s;
+      const rx = 236 * s * V.xk, ry = 24 * s;
       const gr = ctx.createRadialGradient(fx0, fy0, 0, fx0, fy0, rx);
-      gr.addColorStop(0, 'rgba(226,242,255,0.5)'); gr.addColorStop(0.7, 'rgba(190,220,255,0.22)'); gr.addColorStop(1, 'rgba(170,210,255,0.05)');
+      gr.addColorStop(0, 'rgba(206,232,255,0.22)'); gr.addColorStop(0.75, 'rgba(180,214,255,0.1)'); gr.addColorStop(1, 'rgba(170,210,255,0.02)');
       ctx.globalAlpha = fm;
       ctx.fillStyle = gr;
       ctx.beginPath(); ctx.ellipse(fx0, fy0, rx, ry, 0, 0, TAU); ctx.fill();
-      ctx.strokeStyle = 'rgb(236,248,255)'; ctx.lineWidth = Math.max(1, 1.3 * s);
-      ctx.globalAlpha = fm * 0.75;
+      ctx.strokeStyle = 'rgb(220,240,255)'; ctx.lineWidth = Math.max(0.8, 1 * s);
+      ctx.globalAlpha = fm * 0.45;
       ctx.beginPath(); ctx.ellipse(fx0, fy0, rx, ry, 0, 0, TAU); ctx.stroke();
+      ctx.globalAlpha = fm * 0.22;
+      ctx.beginPath(); ctx.ellipse(fx0, fy0 - 2 * s, rx * 0.96, ry * 0.8, 0, Math.PI * 1.05, Math.PI * 1.95); ctx.stroke();
       // 水晶的棱光
-      ctx.globalAlpha = fm * 0.35;
+      ctx.globalAlpha = fm * 0.18;
       ctx.beginPath();
       for (let i = 0; i < 7; i++) {
         const t0 = rt(i * 3 + 40) * TAU, t1 = t0 + 1.2 + rt(i * 3 + 41);
@@ -666,62 +676,72 @@
       }
       ctx.stroke();
       const gl = U.fract(CLK * 0.12);
-      ctx.globalAlpha = fm * 0.8 * Math.sin(Math.PI * gl);
+      ctx.globalAlpha = fm * 0.6 * Math.sin(Math.PI * gl);
       const gx = fx0 + lerp(-rx * 0.8, rx * 0.8, gl);
-      r = 30 * s; ctx.drawImage(SP.white, gx - r, fy0 - r * 0.4, 2 * r, r * 0.8);
+      r = 26 * s; ctx.drawImage(SP.white, gx - r, fy0 - r * 0.4, 2 * r, r * 0.8);
     }
     // 宝座：仿佛蓝宝石
     const th = lv('ekThrone') * a;
     if (th > 0.01) {
-      const [tx, ty] = vp(V, 0, -336);
+      const [tx, ty] = vp(V, 0, -334);
       const q = s;
-      r = 190 * q;
-      ctx.globalAlpha = th * 0.5; ctx.drawImage(SP.blue, tx - r, ty - 50 * q - r, 2 * r, 2 * r);
-      const gr = ctx.createLinearGradient(0, ty - 96 * q, 0, ty);
-      gr.addColorStop(0, 'rgba(150,190,255,0.95)'); gr.addColorStop(1, 'rgba(60,100,230,0.9)');
-      ctx.fillStyle = gr; ctx.globalAlpha = th;
-      ctx.beginPath();
-      ctx.moveTo(tx - 44 * q, ty); ctx.lineTo(tx - 40 * q, ty - 30 * q); ctx.lineTo(tx - 30 * q, ty - 32 * q); ctx.lineTo(tx - 30 * q, ty - 84 * q);
-      ctx.quadraticCurveTo(tx, ty - 104 * q, tx + 30 * q, ty - 84 * q); ctx.lineTo(tx + 30 * q, ty - 32 * q); ctx.lineTo(tx + 40 * q, ty - 30 * q); ctx.lineTo(tx + 44 * q, ty);
-      ctx.closePath(); ctx.fill();
-      ctx.strokeStyle = 'rgb(214,232,255)'; ctx.lineWidth = Math.max(1, 1.4 * q); ctx.globalAlpha = th * 0.9; ctx.stroke();
-      // 座与台阶
-      ctx.beginPath();
-      for (let i = 0; i < 3; i++) { const yy = ty - (4 + i * 5) * q, hw = (46 - i * 4) * q; ctx.moveTo(tx - hw, yy); ctx.lineTo(tx + hw, yy); }
-      ctx.globalAlpha = th * 0.5; ctx.stroke();
-      // 宝座以上：精金与火的光辉（不画形像）
+      r = 170 * q;
+      ctx.globalAlpha = th * 0.45; ctx.drawImage(SP.blue, tx - r, ty - 50 * q - r, 2 * r, 2 * r);
+      // 宝座以上：先是火，其上是精金的光辉（不画形像）
       const fl = th * (0.9 + 0.1 * Math.sin(CLK * 2.3));
-      ctx.fillStyle = 'rgb(255,150,70)';
-      ctx.globalAlpha = fl * 0.35;
+      r = 150 * q;
+      ctx.globalAlpha = fl * 0.55; ctx.drawImage(SP.amber, tx - r * 0.62, ty - 205 * q - r, 1.24 * r, 2 * r);
+      r = 52 * q;
+      ctx.globalAlpha = fl * 0.85; ctx.drawImage(SP.white, tx - r * 0.7, ty - 200 * q - r * 1.3, 1.4 * r, 2.6 * r);
+      ctx.fillStyle = 'rgb(255,140,60)';
+      ctx.globalAlpha = fl * 0.42;
       ctx.beginPath();
-      for (let i = 0; i < 7; i++) flamePath(ctx, tx + (i - 3) * 13 * q, ty - 40 * q, (46 + 20 * rt(i + 60)) * q, 9 * q, i * 1.7);
+      for (let i = 0; i < 7; i++) flamePath(ctx, tx + (i - 3) * 8 * q, ty - 96 * q, (48 + 26 * rt(i + 60)) * q, 7 * q, i * 1.7);
       ctx.fill();
-      ctx.fillStyle = 'rgb(255,214,140)'; ctx.globalAlpha = fl * 0.45;
+      ctx.fillStyle = 'rgb(255,210,130)'; ctx.globalAlpha = fl * 0.5;
       ctx.beginPath();
-      for (let i = 0; i < 5; i++) flamePath(ctx, tx + (i - 2) * 11 * q, ty - 44 * q, (30 + 14 * rt(i + 70)) * q, 6 * q, i * 2.3 + 1);
+      for (let i = 0; i < 5; i++) flamePath(ctx, tx + (i - 2) * 7 * q, ty - 98 * q, (32 + 16 * rt(i + 70)) * q, 5 * q, i * 2.3 + 1);
       ctx.fill();
-      r = 130 * q;
-      ctx.globalAlpha = fl * 0.85; ctx.drawImage(SP.amber, tx - r * 0.7, ty - 150 * q - r, 1.4 * r, 2 * r);
-      r = 56 * q;
-      ctx.globalAlpha = fl; ctx.drawImage(SP.white, tx - r * 0.75, ty - 150 * q - r * 1.3, 1.5 * r, 2.6 * r);
       // 光芒
-      ctx.strokeStyle = 'rgb(255,238,200)'; ctx.lineWidth = Math.max(1, 1.2 * q);
+      ctx.strokeStyle = 'rgb(255,238,200)'; ctx.lineWidth = Math.max(1, 1.1 * q);
       ctx.beginPath();
       for (let i = 0; i < 18; i++) {
-        const an = (i / 18) * TAU + CLK * 0.03, L0 = 60 * q, L1 = (170 + 90 * rt(i * 7 + 90)) * q;
-        ctx.moveTo(tx + Math.cos(an) * L0, ty - 150 * q + Math.sin(an) * L0); ctx.lineTo(tx + Math.cos(an) * L1, ty - 150 * q + Math.sin(an) * L1);
+        const an = (i / 18) * TAU + CLK * 0.03, L0 = 70 * q, L1 = (170 + 90 * rt(i * 7 + 90)) * q;
+        ctx.moveTo(tx + Math.cos(an) * L0, ty - 190 * q + Math.sin(an) * L0); ctx.lineTo(tx + Math.cos(an) * L1, ty - 190 * q + Math.sin(an) * L1);
       }
-      ctx.globalAlpha = fl * 0.1; ctx.stroke();
+      ctx.globalAlpha = fl * 0.08; ctx.stroke();
+      // 宝座本身（蓝宝石）：不相加，才看得出颜色
+      ctx.globalCompositeOperation = 'source-over';
+      const g2 = ctx.createLinearGradient(tx - 40 * q, ty - 100 * q, tx + 40 * q, ty);
+      g2.addColorStop(0, 'rgba(120,170,255,0.97)'); g2.addColorStop(0.5, 'rgba(52,96,214,0.97)'); g2.addColorStop(1, 'rgba(30,58,160,0.97)');
+      ctx.fillStyle = g2; ctx.globalAlpha = th;
+      ctx.beginPath();
+      ctx.moveTo(tx - 44 * q, ty); ctx.lineTo(tx - 40 * q, ty - 30 * q); ctx.lineTo(tx - 30 * q, ty - 32 * q); ctx.lineTo(tx - 30 * q, ty - 84 * q);
+      ctx.quadraticCurveTo(tx, ty - 102 * q, tx + 30 * q, ty - 84 * q); ctx.lineTo(tx + 30 * q, ty - 32 * q); ctx.lineTo(tx + 40 * q, ty - 30 * q); ctx.lineTo(tx + 44 * q, ty);
+      ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = 'rgb(200,224,255)'; ctx.lineWidth = Math.max(1, 1.3 * q); ctx.globalAlpha = th * 0.9; ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(tx - 22 * q, ty - 36 * q); ctx.lineTo(tx - 22 * q, ty - 80 * q); ctx.quadraticCurveTo(tx, ty - 92 * q, tx + 22 * q, ty - 80 * q); ctx.lineTo(tx + 22 * q, ty - 36 * q);
+      ctx.globalAlpha = th * 0.4; ctx.stroke();
+      for (let i = 0; i < 3; i++) { const yy = ty - (4 + i * 5) * q, hw = (46 - i * 4) * q; ctx.beginPath(); ctx.moveTo(tx - hw, yy); ctx.lineTo(tx + hw, yy); ctx.globalAlpha = th * 0.45; ctx.stroke(); }
+      // 宝石的闪光
+      ctx.globalCompositeOperation = 'lighter';
+      for (let i = 0; i < 4; i++) {
+        const tw = Math.max(0, Math.sin(CLK * 1.7 + i * 1.9));
+        ctx.globalAlpha = th * tw * 0.8; r = 10 * q;
+        ctx.drawImage(SP.white, tx + (rt(i + 120) - 0.5) * 60 * q - r, ty - (20 + 70 * rt(i + 125)) * q - r, 2 * r, 2 * r);
+      }
     }
     // 周围光辉如虹
+    ctx.globalCompositeOperation = 'lighter';
     const bw = lv('ekBow') * a;
     if (bw > 0.01) {
       const [bx, by] = vp(V, 0, -436);
       const R = 158 * s / 100 * 128;
-      ctx.globalAlpha = bw * (0.8 + 0.2 * Math.sin(CLK * 0.9));
+      ctx.globalAlpha = bw * (0.72 + 0.18 * Math.sin(CLK * 0.9));
       ctx.drawImage(SP.bow, bx - R, by - R, 2 * R, 2 * R);
       r = 240 * s;
-      ctx.globalAlpha = bw * 0.18; ctx.drawImage(SP.gold, bx - r, by - r, 2 * r, 2 * r);
+      ctx.globalAlpha = bw * 0.12; ctx.drawImage(SP.gold, bx - r, by - r, 2 * r, 2 * r);
     }
     ctx.restore();
   }

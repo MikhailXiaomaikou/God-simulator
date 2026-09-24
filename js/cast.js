@@ -1329,9 +1329,14 @@
         if (p.age === 'elder') ell(bx + dx * 1.08, by + dy * 1.08, 0.016, 0.016, 0);
       } else {
         // 放在身旁的地上
-        const base = upright > 0.5 ? gY : 0.02;
         if (upright > 0.5) seg(-0.5, gY - 0.006, 0.55, gY - 0.012, 0.018, 0.018);
-        else seg(-0.55, base, 0.55, base, 0.018, 0.018);
+        else {
+          // 身子倒下（俯伏、躺卧）时，杖仍平放在屏幕上的地面，不随身子转成竖的（否则看来像十字）
+          const sc = T.s, gy = (isFinite(p._y) ? p._y : T.y + gY * sc) - 0.012 * sc;
+          inv(T.x - 0.55 * sc * T.f, gy); const ax = IX, ay = IY;
+          inv(T.x + 0.55 * sc * T.f, gy - 0.004 * sc);
+          seg(ax, ay, IX, IY, 0.018, 0.018);
+        }
       }
     } else if (k === 'torch') {
       const tx = hx + 0.03, ty = hy - 0.19;
