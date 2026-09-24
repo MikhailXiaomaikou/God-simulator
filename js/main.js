@@ -708,7 +708,7 @@
     S.idle += dt;
     // 故事一静下来便轻声提醒（开头几句更快），之后隔一阵再提醒
     // 新的一幕：开场的话说完约三秒便提醒
-    const lim = S.actFresh ? 3 : W.stage <= 4 ? 4 : 10;
+    const lim = S.actFresh ? 3 : W.stage <= 4 ? 4 : 6;
     if (S.idle > lim) { S.idle = -28; S.actFresh = false; GS.ui.hint(W.stage <= 1 ? '再按住 · 说出下一句' : '按住 · 言说', 4); }
   }
 
