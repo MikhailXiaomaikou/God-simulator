@@ -413,28 +413,29 @@
       if (!g) {
         g = ctx.createRadialGradient(ox, oy, R * 0.03, ox, oy, R);
         const col = c ? [255, 180, 168] : [255, 222, 170];
-        g.addColorStop(0, rgba(col, 0.26)); g.addColorStop(0.22, rgba(col, 0.15)); g.addColorStop(0.5, rgba(col, 0.05)); g.addColorStop(0.8, rgba(col, 0.012)); g.addColorStop(1, rgba(col, 0));
+        g.addColorStop(0, rgba(col, 0.5)); g.addColorStop(0.25, rgba(col, 0.32)); g.addColorStop(0.55, rgba(col, 0.13)); g.addColorStop(0.82, rgba(col, 0.035)); g.addColorStop(1, rgba(col, 0));
         RAYG[c] = { key, g };
       }
       ctx.fillStyle = g;
-      // 三层由宽到窄叠起来，边缘就柔了
-      for (const [wk, al] of [[1.7, 0.3], [1.15, 0.42], [0.65, 0.6]]) {
+      // 三层由宽到窄叠起来，边缘就柔了；每一面是一条宽的光带（不是一道细光），自日出处斜斜展开，像布一样缓缓起伏
+      const su = SU();
+      for (const [wk, al] of [[1.45, 0.34], [1, 0.42], [0.6, 0.38]]) {
         ctx.globalAlpha = A * al;
         ctx.beginPath();
         for (let i = c; i < N; i += 2) {
-          // 日出在画面左边：旌旗向右上方一面一面展开，横过天空（不往画外去）
-          const a = -Math.PI * (0.06 + 0.52 * (i + 0.5) / N) + Math.sin(W.t * 0.25 + i * 1.7) * 0.02;
-          const wA = (0.04 + 0.008 * Math.sin(W.t * 0.4 + i * 2.3)) * wk;
-          // 一面旌旗：自日出处不远的地方展开，越远越宽，两边像布一样缓缓起伏
-          const r1 = 0.45 + 0.05 * Math.sin(W.t * 0.7 + i);
-          const b1 = Math.sin(W.t * 0.6 + i * 1.3) * 0.045, b2 = Math.sin(W.t * 0.6 + i * 1.3 + 1.7) * 0.05;
-          const P = (ang, r) => [ox + Math.cos(ang) * R * r, oy + Math.sin(ang) * R * r];
-          const p0 = P(a - wA * 0.45, 0.07), p1 = P(a - wA * 1.05 + b1, r1), p2 = P(a - wA * 1.3 + b2, 1), p3 = P(a + wA * 1.3 + b2, 1), p4 = P(a + wA * 1.05 + b1, r1), p5 = P(a + wA * 0.45, 0.07);
-          const pc = P(a + b2, 1.06);
-          ctx.moveTo(p0[0], p0[1]);
-          ctx.quadraticCurveTo(p1[0], p1[1], p2[0], p2[1]);
-          ctx.quadraticCurveTo(pc[0], pc[1], p3[0], p3[1]);
-          ctx.quadraticCurveTo(p4[0], p4[1], p5[0], p5[1]);
+          const a = -Math.PI * (0.07 + 0.5 * (i + 0.5) / N) + Math.sin(W.t * 0.25 + i * 1.7) * 0.02;
+          const ca = Math.cos(a), sa = Math.sin(a), nx = -sa, ny = ca;
+          const L = [], Rr = [];
+          for (let j = 0; j <= 8; j++) {
+            const r = 0.04 + 0.96 * (j / 8);
+            const hw = (16 + 44 * r) * su * wk * (0.9 + 0.1 * Math.sin(W.t * 0.5 + i * 2.3));
+            const wave = Math.sin(r * Math.PI * 1.3 + W.t * 0.6 + i * 1.7) * 14 * su * r;
+            const cx = ox + ca * R * r + nx * wave, cy = oy + sa * R * r + ny * wave;
+            L.push([cx + nx * hw, cy + ny * hw]); Rr.push([cx - nx * hw, cy - ny * hw]);
+          }
+          ctx.moveTo(L[0][0], L[0][1]);
+          for (let j = 1; j < L.length; j++) ctx.lineTo(L[j][0], L[j][1]);
+          for (let j = Rr.length - 1; j >= 0; j--) ctx.lineTo(Rr[j][0], Rr[j][1]);
           ctx.closePath();
         }
         ctx.fill();
@@ -2331,7 +2332,7 @@
     const L = { deep: 1, light: 1, gather: 1, dayNight: 1, vault: 1, clouds: 0.9, land: 1, grass: 0.3, herbs: 0, trees: 0, lights: 1, moon: 1, stars: 1, life: 1, good: 0, sabbath: 0, given: 1,
       sgSnow: 1, sgLeaf: 0, sgBlos: 0, sgFig: 0, sgApple: 0, sgPom: 0, sgPomFr: 0, sgVine: 0, sgGrape: 0, sgLily: 0, sgLily1: 0, sgThorn: 1, sgTrack: 0,
       sgTents: 1, sgWin: 0, sgLamp: 0, sgDoor: 0, sgSmoke: 0, sgLitter: 0, sgGlow: 0, sgWall: 0, sgGate: 0, sgSpring: 0, sgStream: 0, sgFalls: 0, sgFrag: 0,
-      sgLeb: 0, sgRays: 0, sgSeal: 0, sgFlame: 0, sgWaves: 0, sgSpice: 0, sgGz: 0, sgMeadow: 0 };
+      sgLeb: 0, sgRays: 0, sgSeal: 0, sgFlame: 0, sgWaves: 0, sgSpice: 0, sgGz: 0, sgMeadow: 0, sgCrown: 0 };
     for (const k in L) if (W.hasLevel(k)) W.set(k, L[k], true);
     W.freeClock = false;
     const gx = W.w * LX(0.35);

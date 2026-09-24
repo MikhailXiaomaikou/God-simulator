@@ -37,9 +37,9 @@
   // ── 本卷的程度（缓动的量；恢复存档时直接到位）────────────────
   const LV = {
     lmEmber: ['exp', 0.3],     // 余烬与烟（1 → 0：锡安的火熄灭 4:11）
-    lmWall: ['lin', 0.085],    // 残存的城墙：1 = 残段尚立；0 = 尽都坍倒（2:8）——一段一段，自左而右
+    lmWall: ['lin', 0.12],     // 残存的城墙：1 = 残段尚立；0 = 尽都坍倒（2:8）——线铊经过哪一段，哪一段就倒下（与准绳同速）
     lmSink: ['lin', 0.15],     // 城门陷入地内（2:9）
-    lmLine: ['lin', 0.42],     // 准绳拉开的长度（2:8）
+    lmLine: ['lin', 0.12],     // 准绳拉开的长度（2:8）
     lmLineA: ['exp', 0.9],     // 准绳的光
     lmCell: ['exp', 0.45],     // 围住他的凿过的石头（3:7–9）；深牢（3:55）
     lmTears: ['exp', 0.4],     // 泪河的光（2:18）
@@ -53,11 +53,16 @@
     lmNear: ['exp', 0.5],      // 你临近我：临到深牢的光（3:57）
     lmJackal: ['exp', 0.45],   // 野狗行在锡安山上（5:18）
     lmThrone: ['exp', 0.2],    // 你的宝座存到万代（5:19）
+    lmFire: ['exp', 1.1],      // 在锡安使火着起（4:11）：台上一阵火舌
+    lmPlume: ['exp', 0.25],    // 火灭之后的一柱烟
+    lmDim: ['lin', 0.2],       // 黄金失光（4:1）：自左而右，一块一块变灰
+    lmRoad: ['exp', 0.35],     // 必不使你再被掳去（4:22）：被掳之路上落下一片暖光
   };
   for (const k in LV) W.defineLevel(k, LV[k][0], LV[k][1]);
   const LV0 = {
     lmEmber: 1, lmWall: 1, lmSink: 0, lmLine: 0, lmLineA: 0, lmCell: 0, lmTears: 0, lmFlow: 0, lmGold: 0, lmGaze: 0,
     lmDawn: 0, lmRays: 0, lmDew: 0, lmShine: 0.45, lmNear: 0, lmJackal: 0, lmThrone: 0,
+    lmFire: 0, lmPlume: 0, lmDim: 0, lmRoad: 0,
   };
 
   // ── 地上的位置（画面宽度的比例）─────────────────────────────
@@ -69,7 +74,7 @@
     zion: 0.607,                  // 锡安（寡妇）坐在城门旁
     jer: 0.535,                   // 耶利米
     cell: 0.506,                  // 深牢（凿过的石头围住他的地方）
-    out: 0.55,                    // 他从深牢里出来，站在这里
+    out: 0.53,                    // 他从深牢里出来，站在这里（让开锡安与余民）
     road: 0.345,                  // 被掳之路下到海边
   };
   const ELDERS = [0.668, 0.699, 0.741, 0.772];
@@ -78,14 +83,23 @@
   const VIRGIN_V = [0.12, 0.19, 0.11];
   const ROBE = {
     zion: [72, 64, 76], zionAcc: [120, 110, 124], jer: [112, 98, 82], cap: [104, 92, 84], sack: [108, 94, 76],
-    virgin: [168, 150, 144], pass: [128, 102, 72], rem: [124, 108, 92],
+    virgin: [124, 100, 112], virginAcc: [206, 194, 200], pass: [128, 102, 72], rem: [124, 108, 92],
   };
+  // 余民（3:25–32）：自己一排，在长老之前（画面更低），彼此隔开，不挤在锡安与耶利米身上
+  const REM = [
+    { x: 0.668, v: 0.52, sex: 'm', age: 'adult', robe: [124, 108, 92] },
+    { x: 0.699, v: 0.6, sex: 'f', age: 'adult', robe: [118, 100, 104], acc: [196, 180, 170] },
+    { x: 0.73, v: 0.5, sex: 'm', age: 'elder', robe: [110, 98, 84] },
+    { x: 0.76, v: 0.58, sex: 'f', age: 'adult', robe: [132, 112, 96], acc: [184, 170, 176] },
+    { x: 0.79, v: 0.53, sex: 'm', age: 'child', robe: [120, 104, 100] },
+  ];
   const TINT_LAMENT = [200, 206, 230], TINT_DAWN = [255, 226, 176], TINT_PROM = [255, 214, 168], TINT_END = [226, 222, 255];
 
   // ── 颜色 ────────────────────────────────────────────────────
   const STONE = [228, 214, 186], STONE2 = [212, 196, 166], CHAR = [66, 56, 50], EARTH = [140, 118, 92], BRONZE = [156, 110, 64];
   const GOLD = [236, 198, 112], DULL = [120, 114, 104], JACKAL = [58, 47, 38], HEWN = [176, 164, 144], HOLE = [22, 18, 18];
-  const TEAR = [188, 212, 255], TEAR_GOLD = [255, 212, 140];
+  const WALLC = [206, 178, 136];      // 城墙与城门的石头：比房屋暖一些、深一些
+  const TEAR = [150, 180, 235], TEAR_GOLD = [255, 212, 140];
 
   // ════════════════════════════════════════════════════════════
   //  小工具
@@ -101,7 +115,9 @@
   // 人的身高（像素），与人物模块一致
   const PH = l => 34 * W.layerScale(l) * (phone() ? 1.4 : 1) * ([1.1, 1.2, 1.3][l] || 1);
   // 城的尺度：宽屏时与人同高；手机上人放大了，城只随画面宽度缩小一些（地窄，城要放得下）
-  const CPH = () => { const p = PH(2); return p * clamp((W.w * 0.045) / p, 0.62, 1); };
+  // 竖屏的手机上，城向上长进空着的天（城的尺度不低于人的 0.8），圣所的门往里挪，免得右门柱出了画面
+  const CPH = () => { const p = PH(2); return p * clamp((W.w * 0.045) / p, port() ? 0.8 : 0.62, 1); };
+  const porX = () => (port() ? 0.868 : X.por);
   const gY = (l, xf) => {
     const x = xf * W.w, L = GS.land;
     let y = L && L.groundY ? L.groundY(l, x) : W.ridgeY(l, x);
@@ -114,7 +130,29 @@
   // 余烬映在石上的暖光
   const cityL = () => 0.1 * W.lv.lmEmber * nightK();
   // 月光：夜里的石头泛着冷冷的灰蓝——倾覆了的城在夜里仍看得见（遍地黑暗、黑云压城时暗下去）
-  const moonK = () => clamp(W.night * 1.1, 0, 1) * 0.85 * (1 - 0.8 * W.lv.gloom) * (1 - 0.4 * W.lv.storm);
+  const moonK = () => clamp(W.night * 1.1, 0, 1) * 0.6 * (1 - 0.8 * W.lv.gloom) * (1 - 0.4 * W.lv.storm);
+  // 渐变的缓存：同一键（位置、颜色都取整）只建一次；按单位坐标建的渐变配合 translate/scale 反复使用
+  const GC = new Map();
+  function grad(key, mk) {
+    let g = GC.get(key);
+    if (!g) { if (GC.size > 64) GC.clear(); g = mk(); GC.set(key, g); }
+    return g;
+  }
+  const ck = c => (c[0] | 0) + ',' + (c[1] | 0) + ',' + (c[2] | 0);
+  // 自上（透明）而下（颜色 c，不透明度 a1）的单位渐变：画在 (0,0)–(1,1) 里
+  function vGrad(ctx, c, a0, a1) {
+    return grad('v|' + ck(c) + '|' + a0.toFixed(2) + '|' + a1.toFixed(2), () => {
+      const g = ctx.createLinearGradient(0, 0, 0, 1);
+      g.addColorStop(0, rgba(c, a0)); g.addColorStop(1, rgba(c, a1));
+      return g;
+    });
+  }
+  function unitRect(ctx, fill, x, y, w, h) {
+    if (!(w > 0.5) || !(h > 0.5)) return;
+    ctx.save(); ctx.translate(x, y); ctx.scale(w, h);
+    ctx.fillStyle = fill; ctx.fillRect(0, 0, 1, 1);
+    ctx.restore();
+  }
   function lit(rgb, k, ex) {
     let c = W.shade(rgb, 0.02, (ex || 0) + cityL());
     const mk = moonK();
@@ -136,7 +174,7 @@
   // 圣殿的台（山顶的巨石台）与圣所的门
   function temGeo(ph) {
     const top = hillTop(0.93, ph) - 0.95 * ph;
-    return { x0: X.tem0 * W.w, x1: X.tem1 * W.w, top, px: X.por * W.w };
+    return { x0: X.tem0 * W.w, x1: X.tem1 * W.w, top, px: porX() * W.w };
   }
   const temBase = (xf, ph) => hillTop(xf, ph) + 0.32 * ph;
   // 城门两座楼的位置（像素）

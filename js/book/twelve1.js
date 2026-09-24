@@ -83,7 +83,7 @@
     taWall: ['exp', 0.5],      // 按准绳建筑的墙
     taPlumb: ['lin', 0.3],     // 准绳垂下
     taTilt: ['exp', 0.5],      // 墙是歪的
-    taGold: ['exp', 0.25],     // 庄稼金黄
+    taGold: ['exp', 0.7],      // 庄稼金黄
     taCrag: ['lin', 0.2],      // 以东的山岩（高度）
     taCragA: ['exp', 0.5],     // 以东的山岩（显隐）
     taCrumble: ['lin', 0.25],  // 山岩崩塌：碎石落下
@@ -119,7 +119,7 @@
     taBeth: ['exp', 0.4],      // 伯利恒的光
     taWalk: ['exp', 0.5],      // 与神同行的光
     taSins: ['lin', 0.12],     // 罪（0 → 0.3 显出 → 1 投于深海）
-    taSea: ['exp', 0.3],       // 深海发光
+    taSea: ['exp', 0.5],       // 深海发光
   };
   for (const k in LV) W.defineLevel(k, LV[k][0], LV[k][1]);
   const MY = Object.keys(LV);
@@ -146,8 +146,9 @@
   };
   const LAYP = Object.assign({}, LAYL, {
     anchor: [0.7, 0.42], plumbTop: 0.36, beamTop: 0.33,
-    ship1: [0.14, 0.87], ship2: [0.08, 0.745], shipK: 2.5,
-    fishDx: 0.15, fishL: 0.4, fishH: 0.09,
+    // 竖屏：船停在中丘与近地之间那一带宽阔的海上；大鱼向右弓身，横越这片海
+    ship1: [0.1, 0.8], ship2: [0.08, 0.745], shipK: 2.5,
+    fishDx: 0.45, fishL: 0.4, fishH: 0.075,
     zionW: 0.2, cragW: 0.07, cragH: 0.17, beth: 0.6, fold: 0.47,
     sea: [0.1, 0.36, 0.82, 0.95], sinTop: 0,
   });
@@ -642,11 +643,13 @@
     const n = NU(), x = X('houses')[2] * W.w, gy = gY(x) + 2;
     const fx0 = (X('fam').hosea + X('fam').ammi) / 2 * W.w;
     ctx.globalCompositeOperation = 'lighter';
-    glow(ctx, 'g', (x + fx0) / 2, gy - 12 * n, 60 * n, 0.42 * k, 34 * n);
-    glow(ctx, 'g', x, gy - 10 * n, 26 * n, 0.5 * k);
-    glow(ctx, 'w', x, gy - 8 * n, 9 * n, 0.55 * k * (0.9 + 0.1 * Math.sin(S.clock * 1.7)));
+    // 一道柔光自天上落在这家
+    beam(ctx, (x + fx0) / 2, X('beamTop') * W.h, gy, 70 * n, 0.2 * k);
+    glow(ctx, 'g', (x + fx0) / 2, gy - 12 * n, 60 * n, 0.6 * k, 34 * n);
+    glow(ctx, 'g', x, gy - 10 * n, 26 * n, 0.6 * k);
+    glow(ctx, 'w', x, gy - 8 * n, 10 * n, 0.7 * k * (0.9 + 0.1 * Math.sin(S.clock * 1.7)));
     // 地上的一片暖光
-    glow(ctx, 'g', (x + fx0) / 2, gy + 2 * n, 70 * n, 0.3 * k, 9 * n);
+    glow(ctx, 'g', (x + fx0) / 2, gy + 2 * n, 70 * n, 0.4 * k, 9 * n);
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
   }
@@ -707,13 +710,28 @@
   // ════════════════════════════════════════════════════════════
   //  锡安（中丘右）：山、城墙、殿；伯利恒（中丘左）
   // ════════════════════════════════════════════════════════════
+  // 山形按比例取样缓存（高举的过程中每帧重取，停下后不再计算）
+  let ZC = null;
   function zionGeom() {
     const up = L('taZionUp');
+    const key = W.w + 'x' + W.h + ':' + Math.round(up * 2000) + ':' + Math.round((W.lv.land || 0) * 1000);
+    if (ZC && ZC.key === key) return ZC.g;
     const cx = X('zion') * W.w, hw = X('zionW') * W.w * 0.5 * (1 + 0.5 * up);
     const base = gYb(cx, 1), H = (0.026 + 0.092 * up) * W.h;
-    return { cx, hw, base, H, top: base - H, m: MU(), up };
+    const g = { cx, hw, base, H, top: base - H, m: MU(), up, ys: null, N: 160 };
+    const ys = new Float32Array(g.N + 1);
+    for (let i = 0; i <= g.N; i++) ys[i] = zionYraw(g, cx - hw + (2 * hw * i) / g.N);
+    g.ys = ys;
+    ZC = { key, g };
+    return g;
   }
   function zionY(g, x) {
+    const d = (x - g.cx) / g.hw;
+    if (!g.ys || d <= -1 || d >= 1) return zionYraw(g, x);
+    const f = ((d + 1) / 2) * g.N, i = Math.floor(f), r = f - i;
+    return g.ys[i] + (g.ys[Math.min(g.N, i + 1)] - g.ys[i]) * r;
+  }
+  function zionYraw(g, x) {
     const d = (x - g.cx) / g.hw, ad = Math.abs(d);
     if (ad >= 1) return gYb(x, 1);
     // 山顶平坦（殿在其上）；抬高时山坡上有嶙峋的岩脊
@@ -745,10 +763,14 @@
     // 背光的一坡（随日头的方向）
     ctx.fillStyle = sh(mix([70, 78, 70], [44, 62, 44], up), dz, 0.35 + 0.15 * up);
     ctx.beginPath();
-    const sunL = !W.sun || W.sun.x < g.cx;
-    const s0 = sunL ? g.cx + g.hw * 0.05 : g.cx - g.hw, s1 = sunL ? g.cx + g.hw : g.cx - g.hw * 0.05;
-    for (let x = s0; x <= s1; x += step) ctx.lineTo(x, zionY(g, x));
-    ctx.lineTo(s1, gYb(s1, 1) + 2); ctx.lineTo(s0, gYb(s0, 1) + 2);
+    const sunL = !W.sun || W.sun.x < g.cx, sd = sunL ? 1 : -1;
+    // 背光的一坡：自山顶斜斜而下（不是一道直线切开）
+    const s0 = g.cx + sd * g.hw * 0.04, s1 = g.cx + sd * g.hw;
+    for (let i = 0; i <= 30; i++) { const x = lerp(s0, s1, i / 30); ctx.lineTo(x, zionY(g, x)); }
+    ctx.lineTo(s1, gYb(s1, 1) + 2);
+    const sb = g.cx + sd * g.hw * 0.42;
+    ctx.lineTo(sb, gYb(sb, 1) + 2);
+    ctx.quadraticCurveTo(g.cx + sd * g.hw * 0.12, lerp(zionY(g, g.cx), gYb(g.cx, 1), 0.55), s0, zionY(g, s0));
     ctx.closePath(); ctx.fill();
     if (up > 0.05) {
       // 山坡上的梯田与橄榄树
@@ -820,7 +842,7 @@
         ctx.globalAlpha = city;
       }
       ctx.save(); ctx.translate(tx, ty); ctx.scale(1 + 0.45 * up, 1 + 0.45 * up); ctx.translate(-tx, -ty);
-      ctx.fillStyle = sh([226, 214, 188], lerp(0.36, 0.1, up), 1, 0.08 + 0.3 * up);
+      ctx.fillStyle = sh([226, 214, 188], lerp(0.36, 0.12, up), 1, 0.08 + 0.12 * up);
       ctx.fillRect(tx - 11 * m, ty - 9 * m, 22 * m, 9 * m);
       ctx.fillRect(tx - 7 * m, ty - 14 * m, 14 * m, 5 * m);
       ctx.fillStyle = sh(GOLD, 0.3, 1, 0.12);
@@ -844,7 +866,7 @@
       ctx.globalCompositeOperation = 'lighter';
       const ty = zionY(g, g.cx) - 8 * m;
       glow(ctx, 'g', g.cx, ty, (30 + 50 * up) * m, 0.5 * up * A);
-      glow(ctx, 'w', g.cx, ty, 16 * m, 0.7 * up * A);
+      glow(ctx, 'w', g.cx, ty, 14 * m, 0.45 * up * A);
       ctx.globalCompositeOperation = 'source-over';
     }
     ctx.globalAlpha = 1;
@@ -863,7 +885,7 @@
   function drawFount(ctx) {
     const a = L('taFountA') * L('taIsrael'), k = L('taFount');
     if (a < 0.01 || k < 0.01) return;
-    const m = MU(), G = flowGeom(fountPath(), m, 1.4, 5.5);
+    const m = MU(), G = flowGeom(fountPath(), m, 2, 9);
     drawFlow(ctx, G, k, a, { glints: 26, src: 0.45, bank: 0.5, depth: 0.3, speed: 1.6 });
     // 流到海边：一汪发光的水
     if (k > 0.9) {
@@ -959,12 +981,12 @@
   }
   // 以东的山岩：三道山脊叠成的一座石山（后一道最高），各有迎光与背光的一面，山腰有山穴（俄 3）
   const CRAG_R = [
-    { d: 0.74, pk: 7, p: [[-1.3, 0], [-1.0, 0.2], [-0.78, 0.34], [-0.62, 0.52], [-0.5, 0.58], [-0.36, 0.78], [-0.22, 0.86], [-0.08, 1.0], [0.06, 0.94],
-      [0.18, 0.82], [0.3, 0.77], [0.42, 0.58], [0.6, 0.47], [0.78, 0.3], [1.0, 0.16], [1.3, 0]] },
-    { d: 0.68, pk: 4, p: [[-1.45, 0], [-1.25, 0.12], [-1.05, 0.2], [-0.88, 0.33], [-0.72, 0.4], [-0.56, 0.31], [-0.4, 0.2], [-0.2, 0.08], [0, 0]] },
-    { d: 0.66, pk: 3, p: [[-0.1, 0], [0.15, 0.14], [0.35, 0.3], [0.52, 0.42], [0.66, 0.36], [0.84, 0.24], [1.05, 0.14], [1.25, 0.07], [1.45, 0]] },
+    { d: 0.46, pk: 7, p: [[-1.35, 0], [-1.08, 0.2], [-0.94, 0.28], [-0.84, 0.52], [-0.66, 0.6], [-0.56, 0.78], [-0.36, 0.84], [-0.22, 1.0], [0.0, 0.97],
+      [0.12, 0.9], [0.3, 0.88], [0.38, 0.66], [0.56, 0.6], [0.66, 0.4], [0.9, 0.3], [1.1, 0.12], [1.35, 0]] },
+    { d: 0.4, pk: 4, p: [[-1.55, 0], [-1.32, 0.1], [-1.14, 0.2], [-1.02, 0.36], [-0.84, 0.42], [-0.7, 0.3], [-0.5, 0.22], [-0.3, 0.1], [-0.1, 0]] },
+    { d: 0.38, pk: 3, p: [[-0.2, 0], [0.1, 0.12], [0.32, 0.3], [0.46, 0.46], [0.62, 0.42], [0.72, 0.26], [0.96, 0.18], [1.25, 0.08], [1.55, 0]] },
   ];
-  const CLEFTS = [[-0.3, 0.5, 1], [0.1, 0.62, 0.8], [-0.12, 0.34, 1.2], [0.28, 0.4, 0.7], [-0.52, 0.3, 0.8]];
+  const CLEFTS = [[-0.34, 0.56, 1], [0.12, 0.66, 0.85], [-0.1, 0.36, 1.25], [0.3, 0.46, 0.8], [-0.62, 0.4, 0.85], [0.5, 0.26, 0.7]];
   function cragGeom() {
     const cx = X('crag') * W.w, hw = X('cragW') * W.w, base = gYb(cx, 0) + 2, H = X('cragH') * W.h * L('taCrag');
     return { cx, hw, base, H, top: base - H };
@@ -986,13 +1008,20 @@
     };
     for (const R of CRAG_R) {
       // 山身
-      ctx.fillStyle = sh(ROCK, R.d, 1, 0.04);
+      ctx.fillStyle = sh([186, 110, 84], R.d, 1, 0.02);
       ctx.beginPath();
       R.p.forEach((q, i) => { const v = P(q); if (i) ctx.lineTo(v[0], v[1]); else ctx.moveTo(v[0], v[1]); });
       ctx.closePath(); ctx.fill();
-      // 背光的一面：自山顶沿着背光的一侧下到山脚
+      // 迎光的一面稍亮；背光的一面：自山顶沿着背光的一侧下到山脚
       const pk = R.p[R.pk];
-      ctx.fillStyle = sh([96, 58, 54], R.d, 0.6);
+      ctx.fillStyle = sh([236, 170, 132], R.d, 0.3 * W.daylight);
+      ctx.beginPath();
+      let v0 = P(pk); ctx.moveTo(v0[0], v0[1]);
+      if (sd > 0) for (let i = R.pk - 1; i >= 0; i--) { v0 = P(R.p[i]); ctx.lineTo(v0[0], v0[1]); }
+      else for (let i = R.pk + 1; i < R.p.length; i++) { v0 = P(R.p[i]); ctx.lineTo(v0[0], v0[1]); }
+      v0 = P([pk[0] - sd * 0.25, 0]); ctx.lineTo(v0[0], v0[1]);
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle = sh([84, 46, 42], R.d, 0.72);
       ctx.beginPath();
       let v = P(pk); ctx.moveTo(v[0], v[1]);
       if (sd > 0) for (let i = R.pk + 1; i < R.p.length; i++) { v = P(R.p[i]); ctx.lineTo(v[0], v[1]); }
@@ -1008,20 +1037,20 @@
       else for (let i = R.pk + 1; i <= Math.min(R.p.length - 1, R.pk + 4); i++) { v = P(R.p[i]); ctx.lineTo(v[0], v[1]); }
       ctx.stroke();
     }
-    // 岩缝：自山腰的小峰斜斜落下
-    ctx.strokeStyle = sh([70, 44, 40], 0.7, 0.5);
-    ctx.lineWidth = Math.max(0.6, 0.7 * f);
+    // 岩缝与崖壁上直直的纹：自山腰的小峰落下
+    ctx.strokeStyle = sh([70, 40, 36], 0.55, 0.55);
+    ctx.lineWidth = Math.max(0.6, 0.8 * f);
     ctx.beginPath();
-    for (const q of [[-0.5, 0.58, -0.62], [0.3, 0.77, 0.42], [-0.22, 0.86, -0.3]]) {
+    for (const q of [[-0.66, 0.6, -0.72], [0.3, 0.88, 0.36], [-0.36, 0.84, -0.4], [0.56, 0.6, 0.6], [-0.84, 0.52, -0.88], [0.12, 0.9, 0.18]]) {
       const v0 = P([q[0], q[1]]), v1 = P([q[2], q[1] * 0.35]);
       ctx.moveTo(v0[0], v0[1]); ctx.quadraticCurveTo((v0[0] + v1[0]) / 2 + 2 * f, (v0[1] + v1[1]) / 2, v1[0], v1[1]);
     }
     ctx.stroke();
     // 山穴（住在山穴中的）
     for (const q of CLEFTS) {
-      const v = P([q[0], q[1]]), w = 5 * f * q[2] * Math.min(1, c * 1.5), h = 7 * f * q[2] * c;
+      const v = P([q[0], q[1]]), w = 8 * f * q[2] * Math.min(1, c * 1.5), h = 11 * f * q[2] * c;
       if (h < 0.8) continue;
-      ctx.fillStyle = sh([40, 26, 26], 0.6, 0.85);
+      ctx.fillStyle = sh([34, 20, 20], 0.45, 0.9);
       ctx.beginPath(); ctx.moveTo(v[0] - w / 2, v[1] + h / 2); ctx.lineTo(v[0] - w / 2, v[1]); ctx.quadraticCurveTo(v[0], v[1] - h, v[0] + w / 2, v[1]); ctx.lineTo(v[0] + w / 2, v[1] + h / 2); ctx.closePath(); ctx.fill();
     }
     // 山脚没入远山的雾气（与远山同色）
@@ -1029,9 +1058,9 @@
     outline(); ctx.clip();
     const hz = ctx.createLinearGradient(0, g.top, 0, g.base);
     const hc = W.haze || [178, 204, 228];
-    hz.addColorStop(0, rgba(hc, 0)); hz.addColorStop(0.55, rgba(hc, 0.12)); hz.addColorStop(1, rgba(hc, 0.55));
+    hz.addColorStop(0, rgba(hc, 0)); hz.addColorStop(0.6, rgba(hc, 0.06)); hz.addColorStop(1, rgba(hc, 0.4));
     ctx.fillStyle = hz; ctx.globalAlpha = a;
-    ctx.fillRect(g.cx - 1.5 * g.hw, g.top - 2, 3 * g.hw, g.H + 4);
+    ctx.fillRect(g.cx - 1.6 * g.hw, g.top - 2, 3.2 * g.hw, g.H + 4);
     ctx.restore();
     // 崩塌：碎石自山上滚落，尘土扬起
     const cr = L('taCrumble');
@@ -2172,8 +2201,11 @@
     ctx.globalAlpha = 1;
   }
   // 万民流归这山：三道暖光的人流沿着山的两坡与中丘的路，慢慢爬上殿去（弥 4:1–2）
+  let STREAM_C = null;
   function streamPaths() {
-    const g = zionGeom(), m = g.m, out = [];
+    const g = zionGeom(), key = W.w + 'x' + W.h + ':' + Math.round(g.up * 500);
+    if (STREAM_C && STREAM_C.key === key) return STREAM_C.P;
+    const m = g.m, out = [];
     const flank = (side) => {
       const pts = [];
       const x0 = g.cx + side * g.hw * 1.35;
@@ -2192,18 +2224,17 @@
     const xa = 0.56 * W.w, xb = g.cx - g.hw * 1.35;
     for (let i = 0; i <= 10; i++) { const x = lerp(xa, xb, i / 10); road.push([x, gYb(x, 1) - 1.5 * m]); }
     out.push(road.concat(out[0].slice(1)));
-    return out;
+    // 每条路的累计长度（沿路取点用）
+    const P = out.map(pts => { const seg = [0]; for (let i = 1; i < pts.length; i++) seg.push(seg[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1])); return { pts, seg }; });
+    STREAM_C = { key, P };
+    return P;
   }
-  function alongPath(pts, u) {
-    let tot = 0;
-    const seg = [];
-    for (let i = 1; i < pts.length; i++) { const d = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); seg.push(d); tot += d; }
-    let rem = tot * u;
-    for (let i = 1; i < pts.length; i++) {
-      if (rem <= seg[i - 1]) { const f = rem / Math.max(1e-3, seg[i - 1]); return [lerp(pts[i - 1][0], pts[i][0], f), lerp(pts[i - 1][1], pts[i][1], f)]; }
-      rem -= seg[i - 1];
-    }
-    return pts[pts.length - 1];
+  function alongPath(R, u) {
+    const pts = R.pts, seg = R.seg, d = u * seg[seg.length - 1];
+    let i = 1;
+    while (i < pts.length - 1 && seg[i] < d) i++;
+    const f = clamp((d - seg[i - 1]) / Math.max(1e-3, seg[i] - seg[i - 1]), 0, 1);
+    return [lerp(pts[i - 1][0], pts[i][0], f), lerp(pts[i - 1][1], pts[i][1], f)];
   }
   function drawStreams(ctx) {
     const k = L('taStream') * L('taIsrael');
@@ -2211,13 +2242,13 @@
     const m = MU(), P = streamPaths(), t = templeTop();
     ctx.globalCompositeOperation = 'lighter';
     for (let p = 0; p < P.length; p++) {
-      const N = p === 2 ? 16 : 12, per = p === 2 ? 14 : 9;
+      const N = p === 2 ? 14 : 10, per = p === 2 ? 14 : 9;
       for (let i = 0; i < N; i++) {
         const u = U.fract(S.clock / per + i / N + p * 0.17);
         const q = alongPath(P[p], u);
         const a = k * Math.min(1, u * 10) * (1 - ss(0.9, 1, u));
-        glow(ctx, 'g', q[0], q[1] - 2 * m, 5 * m, 0.75 * a);
-        glow(ctx, 'w', q[0], q[1] - 2 * m, 1.8 * m, 0.95 * a);
+        glow(ctx, 'g', q[0], q[1] - 2 * m, 8 * m, 0.8 * a);
+        glow(ctx, 'w', q[0], q[1] - 2 * m, 2.8 * m, 1 * a);
       }
     }
     // 殿前聚着的光
@@ -2261,17 +2292,27 @@
   }
   // 罪：每人头上一块黑石，被抛入深海（弥 7:19）
   // 落点：经文框之下、近岸的海面（按画面的比例；落在陆上的往海里挪）
+  let SIN_T = null;
   function sinTarget(i) {
+    const key = W.w + 'x' + W.h;
+    if (!SIN_T || SIN_T.key !== key) SIN_T = { key, t: [] };
+    if (SIN_T.t[i]) return SIN_T.t[i];
     const s = X('sea');
     let x = (s[0] + (s[1] - s[0]) * hsh(i + 800)) * W.w;
     const y = (s[2] + (s[3] - s[2]) * hsh(i + 801)) * W.h;
     for (let j = 0; j < 40 && x > 0.04 * W.w && !W.isSea(x, y); j++) x -= 0.012 * W.w;
-    return [x, y];
+    return (SIN_T.t[i] = [x, y]);
   }
   const SIN_N = 12;
-  function stonePath(ctx, r) {
-    ctx.beginPath(); ctx.moveTo(-r, -r * 0.35); ctx.quadraticCurveTo(-r * 0.7, -r * 0.95, -r * 0.1, -r); ctx.quadraticCurveTo(r * 0.8, -r * 0.8, r, -r * 0.1);
-    ctx.quadraticCurveTo(r * 0.95, r * 0.7, r * 0.3, r * 0.85); ctx.quadraticCurveTo(-r * 0.6, r * 0.95, -r * 0.9, r * 0.4); ctx.closePath();
+  // 一块有棱角的石头（每块的形状不同）
+  function stonePath(ctx, r, seed) {
+    ctx.beginPath();
+    for (let j = 0; j < 7; j++) {
+      const an = (j / 7) * TAU + 0.35 * hsh(seed * 7 + j), rr = r * (0.72 + 0.34 * hsh(seed * 11 + j));
+      const x = Math.cos(an) * rr * 1.12, y = Math.sin(an) * rr * 0.82;
+      if (j) ctx.lineTo(x, y); else ctx.moveTo(x, y);
+    }
+    ctx.closePath();
   }
   function drawSins(ctx, where) {
     const k = L('taSins');
@@ -2285,35 +2326,35 @@
       const p = list[i];
       const sx = p._x, sy = p._y - p._h * 1.35;
       const tg = sinTarget(i);
-      const own = clamp((k - 0.3) / 0.7 * 1.25 - i * 0.025, 0, 1);
-      const r = 5 * n;
+      const own = clamp((k - 0.3) / 0.7 * 1.45 - (i % 6) * 0.05 - (i > 5 ? 0.02 : 0), 0, 1);
+      const r = (5.5 + 1.5 * hsh(i + 820)) * n;
       if (where === 'air' && own < 0.7) {
         let x, y, a;
         if (k < 0.3) { const q = k / 0.3; x = sx; y = sy + (1 - q) * 10 * n; a = q; }
         else {
-          const q = own / 0.7;
-          // 弧顶不高过经文框的下沿（横屏）
-          const lift = clamp((sy + tg[1]) / 2 - topY, 0.02 * W.h, 0.14 * W.h);
-          x = lerp(sx, tg[0], ease(q)); y = lerp(sy, tg[1], q) - Math.sin(Math.PI * q) * lift; a = 1;
+          // 抛起：先高高扬过陆地，再斜斜落进海里；经文框下沿以上不去（横屏）
+          const q = own / 0.7, A = (0.11 + 0.05 * hsh(i + 821)) * W.h;
+          x = lerp(sx, tg[0], q);
+          y = sy + (tg[1] - sy) * Math.pow(q, 1.6) - A * 6.75 * q * (1 - q) * (1 - q);
+          if (topY > 0 && x < 0.5 * W.w) y = Math.max(y, topY);
+          a = 1;
         }
         // 柔和的暗影，衬在渐亮的天上
         glow(ctx, 'k', x + 1.5 * n, y + 2 * n, r * 2.8, 0.45 * a);
         const rot = own * 8 + i;
         ctx.save(); ctx.translate(x, y); ctx.rotate(rot);
         ctx.globalAlpha = a;
-        ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 5 * n;
         ctx.fillStyle = 'rgb(40,32,32)';
-        stonePath(ctx, r); ctx.fill();
-        ctx.shadowBlur = 0; ctx.shadowColor = 'rgba(0,0,0,0)';
+        stonePath(ctx, r, i + 1); ctx.fill();
         // 迎着晨光的一侧：一道暖色的边
         ctx.clip();
         const ang = Math.atan2(sunY - y, sunX - x) - rot, ox = Math.cos(ang) * r, oy = Math.sin(ang) * r;
-        ctx.fillStyle = rgba([255, 184, 120], 0.9 * rim);
-        ctx.beginPath(); ctx.arc(ox * 0.55, oy * 0.55, r * 0.95, 0, TAU); ctx.fill();
+        ctx.fillStyle = rgba([255, 190, 128], 0.95 * rim);
+        ctx.beginPath(); ctx.arc(ox * 0.6, oy * 0.6, r * 1.05, 0, TAU); ctx.fill();
+        ctx.fillStyle = rgba([150, 96, 70], 0.9 * rim);
+        ctx.beginPath(); ctx.arc(ox * 0.1, oy * 0.1, r * 1.0, 0, TAU); ctx.fill();
         ctx.fillStyle = 'rgb(40,32,32)';
-        ctx.beginPath(); ctx.arc(-ox * 0.16, -oy * 0.16, r * 0.98, 0, TAU); ctx.fill();
-        ctx.fillStyle = 'rgba(92,74,70,0.55)';
-        ctx.beginPath(); ctx.arc(ox * 0.1, oy * 0.1 - r * 0.2, r * 0.35, 0, TAU); ctx.fill();
+        ctx.beginPath(); ctx.arc(-ox * 0.32, -oy * 0.32, r * 1.02, 0, TAU); ctx.fill();
         ctx.restore();
       } else if (where === 'sea' && own >= 0.7) {
         const q = (own - 0.7) / 0.3, s = W.seaScale(tg[1]) / Math.max(0.1, W.unit);
@@ -2342,11 +2383,12 @@
       const tg = sinTarget(i), s = W.seaScale(tg[1]) / Math.max(0.1, W.unit);
       mx += tg[0] / N; my += tg[1] / N;
       const br = 0.8 + 0.2 * Math.sin(S.clock * 1.3 + i * 1.9);
-      glow(ctx, 'g', tg[0], tg[1], (26 + 40 * k) * n * s, 0.4 * k * sun * br, (6 + 9 * k) * n * s);
-      glow(ctx, 'w', tg[0], tg[1], 7 * n * s, 0.5 * k * sun * br, 2.2 * n * s);
+      glow(ctx, 'g', tg[0], tg[1], (36 + 60 * k) * n * s, 0.6 * k * sun * br, (8 + 12 * k) * n * s);
+      glow(ctx, 'w', tg[0], tg[1], 9 * n * s, 0.7 * k * sun * br, 2.6 * n * s);
     }
     // 连成一片的金色水带
-    glow(ctx, 'g', mx, my, (0.12 + 0.1 * k) * W.w, 0.4 * k * sun, 0.045 * W.h);
+    glow(ctx, 'g', mx, my, (0.13 + 0.1 * k) * W.w, 0.6 * k * sun, 0.05 * W.h);
+    glow(ctx, 'w', mx, my, (0.06 + 0.05 * k) * W.w, 0.3 * k * sun, 0.02 * W.h);
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
   }
@@ -2362,14 +2404,14 @@
       glow(ctx, 'g', sx, W.horizonY + 0.05 * W.h, 0.6 * W.w, 0.45 * k * sun, 0.16 * W.h);
       glow(ctx, 'g', 0.26 * W.w, 0.84 * W.h, 0.36 * W.w, 0.3 * k * sun, 0.12 * W.h);
       // 日下的一条金路
-      for (let i = 0; i < 90; i++) {
+      for (let i = 0; i < 64; i++) {
         const dd = Math.pow(hsh(i + 950), 0.9), y = W.horizonY + (0.005 + 0.4 * dd) * W.h;
         const x = sx + (hsh(i + 951) - 0.5) * (0.02 + 0.2 * dd) * W.w;
         if (!W.isSea(x, y)) continue;
         const tw = Math.max(0, Math.sin(S.clock * (1.5 + hsh(i) * 2.5) + i * 1.3));
         glow(ctx, 'g', x, y, (5 + 16 * dd) * W.unit, 0.7 * k * tw, (1.2 + 3 * dd) * W.unit);
       }
-      for (let i = 0; i < 70; i++) {
+      for (let i = 0; i < 50; i++) {
         const x = (0.02 + 0.46 * hsh(i + 900)) * W.w, y = W.horizonY + (0.01 + 0.38 * Math.pow(hsh(i + 901), 0.8)) * W.h;
         if (!W.isSea(x, y)) continue;
         const tw = Math.max(0, Math.sin(S.clock * (1.2 + hsh(i) * 2) + i));
@@ -2441,9 +2483,8 @@
           ctx.globalCompositeOperation = 'source-over';
         } else if (e.type === 'pulse') {
           // 一道柔和的光波自天上的慈爱之处向外漾开（只在画面的右半）
-          const c = anchor(), R = 0.35 * W.w;
+          const c = anchor(), R = Math.max(0.1 * W.w, Math.min(0.35 * W.w, c[0] - 0.5 * W.w));
           ctx.save();
-          ctx.beginPath(); ctx.rect(0.5 * W.w, 0, W.w * 0.5 + 2, W.h); ctx.clip();
           ctx.globalCompositeOperation = 'lighter';
           for (let r = 0; r < 2; r++) {
             const qq = clamp(q * 1.25 - r * 0.25, 0, 1);
@@ -2732,7 +2773,7 @@
   function setup() {
     S = fresh();
     FXL.length = 0;
-    NIN_L = null;
+    NIN_L = null; SIN_T = null; STREAM_C = null; ZC = null;
     const base = { deep: 1, light: 1, gather: 1, dayNight: 1, vault: 1, clouds: 0.42, land: 1, grass: 1, herbs: 0.9, trees: 0.9,
       lights: 1, moon: 1, stars: 1, life: 1, good: 0, sabbath: 0, given: 1 };
     for (const k in base) if (W.hasLevel(k)) W.set(k, base[k], true);
@@ -3361,7 +3402,7 @@
         ]);
       },
     },
-    // ── 弥迦书 5—7：又将我们的一切罪投于深海 ─────────────────
+    // ── 弥迦书 5—7：将我们的一切罪投于深海 ───────────────────
     {
       kind: 'act', utter: '将我们的一切罪投于深海', cmd: 'mv 罪/* /dev/深海  # 喜爱施恩', ref: '弥迦书 7:19', tint: [255, 236, 200], hold: 3.4,
       verse: [
@@ -3393,7 +3434,7 @@
             lv('taSins', 1, b);
             time(0.275, 5, b);
             lv('taBeth', 0.35, b);
-            if (!inst(b)) for (let i = 0; i < 3; i++) GS.book.after(3.3 + i * 0.7, () => sfx(null, 'splash', { soft: i > 0 }));
+            if (!inst(b)) for (let i = 0; i < 3; i++) GS.book.after(2.9 + i * 0.6, () => sfx(null, 'splash', { soft: i > 0 }));
           }],
           // 日出：罪沉下去的深海一片金光
           [24.5, b => {
@@ -3473,7 +3514,7 @@
     },
     scene: {
       init() { sprites(); loadFonts(); },
-      resize() { NIN_L = null; },
+      resize() { NIN_L = null; SIN_T = null; STREAM_C = null; ZC = null; },
       update,
       drawUnder,
       draw,
