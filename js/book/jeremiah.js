@@ -468,10 +468,13 @@
     add1(ctx);
     glowSp(ctx, SP.red, G.x, G.y + D * 0.4, PS * 1.8, 0.16 * k);
     glowSp(ctx, SP.fire, G.x, G.y + D * 0.8, PS * 1.1, 0.4 * kf * fl);
-    // 锅底的火：自腹下舔上两侧
+    // 锅底的火：自腹下舔上两侧（随锅倾侧移动，火苗仍向上）
+    const ca = Math.cos(ang), sa = Math.sin(ang);
     for (let i = 0; i < 6; i++) {
-      const u = (i - 2.5) / 2.5;
-      flame(ctx, G.x + u * bw * 0.95, G.y + D * (0.95 - 0.12 * Math.abs(u)), PS * (0.3 + 0.14 * hsh(i + 3)), 0.85 * kf, 60 + i);
+      const u = (i - 2.5) / 2.5, lx = u * bw * 0.9, ly = -D * (0.08 + 0.12 * Math.abs(u));
+      const fx0 = G.x + lx * ca - ly * sa, fy0 = G.y + D + lx * sa + ly * ca;
+      glowSp(ctx, SP.fire, fx0, fy0 - PS * 0.08, PS * 0.3, 0.35 * kf * fl);
+      flame(ctx, fx0, fy0, PS * (0.24 + 0.12 * hsh(i + 3)), 0.6 * kf, 60 + i);
     }
     norm(ctx);
     ctx.save();
@@ -804,7 +807,7 @@
       for (let i = 0; i < 4; i++) { const q = R[i]; ctx.rect(q[0], q[1] + q[3] - Math.max(1, hf * 0.08), q[2], Math.max(1, hf * 0.08)); }
       ctx.fill();
       // 檐上与迎光边的光
-      ctx.strokeStyle = W.shadeCSS(lit(BRICK), DB, rimA(), 0.12);
+      ctx.strokeStyle = W.shadeCSS(lit(BRICK), DB, rimA() * 0.6, 0.12);
       ctx.lineWidth = Math.max(0.6, un * 0.8);
       ctx.beginPath();
       for (const q of R) { const ex = sl ? q[0] : q[0] + q[2]; ctx.moveTo(ex, q[1] + q[3] * 0.8); ctx.lineTo(ex, q[1]); ctx.lineTo(sl ? q[0] + q[2] * 0.7 : q[0] + q[2] * 0.3, q[1]); }
@@ -817,7 +820,7 @@
         for (const q of BABEL.gardens) {
           const r = q.s * hf * 1.25 * sm(0, 1, kg * 1.4 - Math.abs(q.dx) / 8);
           if (r < 0.5) continue;
-          glowSp(ctx, SP.leaf, x + q.dx * hf, g - r * 0.35, r, kb * 0.75 * dl);
+          glowSp(ctx, SP.leaf, x + q.dx * hf, g - r * 0.3, r * 0.8, kb * 0.5 * dl);
         }
         ctx.globalAlpha = 1;
       }
@@ -851,13 +854,13 @@
       }
       norm(ctx);
     }
-    // 归来的灯（31:16–17）：一队提灯的人，沿着北方的远山缓缓向城走来
+    // 归来的灯（31:16–17）：一队提灯的人，自巴比伦那边出来，沿着远山缓缓向城走来
     const kh = lv('jrHope');
     if (kh > 0.01) {
       const hf0 = PH(0);
       for (let i = 0; i < 11; i++) {
         const u = fract(W.t * 0.007 + i * 0.043);
-        const xf = 1.0 - u * 0.24, x = xf * W.w, g = gY(0, xf) + 1;
+        const xf = 0.87 - u * 0.23, x = xf * W.w, g = gY(0, xf) + 1;
         const a = kh * Math.pow(Math.sin(u * Math.PI), 0.6);
         if (a < 0.01) continue;
         const bob = Math.sin(W.t * 2.4 + i * 1.3) * 0.04 * hf0;
@@ -1204,7 +1207,7 @@
     const B = [];
     for (const row of [0, 1]) for (const q of houseRects(row, 0, true)) { const h = q[3] * rise; B.push([q[0], q[1] + q[3] - h, q[2], h, 0.18 + 0.12 * q[4].dx, q[4].win]); }
     const wh = hm * 0.72 * rise, x0 = X.city[0] * W.w, x1 = X.city[1] * W.w, seg = hm * 0.4;
-    for (let x = x0; x < x1; x += seg) { const g0 = gY(1, x / W.w) + hm * 0.12; B.push([x, g0 - wh, Math.min(seg, x1 - x) + 0.5, wh + 2, 0, false]); }
+    for (let x = x0; x < x1; x += seg) { const g0 = gY(1, x / W.w) + hm * 0.12; B.push([x, g0 - wh, Math.min(seg, x1 - x) + 0.5, wh + 2, 0, false, true]); }
     for (const f of TOWERS) { const gx = f * W.w, g0 = gY(1, f) + hm * 0.12, th = hm * 0.72 * 1.7 * rise; B.push([gx - hm * 0.31, g0 - th, hm * 0.62, th, 0.3, true]); }
     const TB = [
       [t.x - t.pw / 2, t.g - t.ph * rise, t.pw, t.ph * rise + 2, 0, false],
@@ -1228,7 +1231,7 @@
     // 屋顶迎光的一道亮
     ctx.fillStyle = U.rgba(255, 248, 230, 0.5 * e);
     ctx.beginPath();
-    for (const q of B.concat(TB)) ctx.rect(q[0], q[1], q[2], Math.max(1, un * 1.1));
+    for (const q of B.concat(TB)) if (!q[6]) ctx.rect(q[0], q[1], q[2], Math.max(1, un * 1.1));
     ctx.fill();
     // 一排排温暖的窗光
     const ws = Math.max(1, hm * 0.075);
@@ -1243,14 +1246,14 @@
     ctx.fill();
     // 殿最亮：殿身上再加一层光，一道光柱升上去
     const tg = ctx.createLinearGradient(0, t.g, 0, t.top - hm * 2.5);
-    tg.addColorStop(0, U.rgba(255, 230, 180, 0.25 * e)); tg.addColorStop(1, U.rgba(255, 250, 236, 0.55 * e));
+    tg.addColorStop(0, U.rgba(255, 230, 180, 0.1 * e)); tg.addColorStop(1, U.rgba(255, 250, 236, 0.26 * e));
     ctx.fillStyle = tg;
     ctx.beginPath();
     for (const q of TB) ctx.rect(q[0], q[1], q[2], q[3]);
     ctx.fill();
-    ctx.globalAlpha = 0.5 * e;
+    ctx.globalAlpha = 0.4 * e;
     ctx.drawImage(SP.beam, t.x - hm * 1.2, t.top - W.h * 0.62, hm * 2.4, W.h * 0.62 - hm * 1.2);
-    glowSp(ctx, SP.white, t.x, t.top - hm * 1.4 * rise, hm * 2.8, 0.5 * e);
+    glowSp(ctx, SP.white, t.x, t.top - hm * 1.6 * rise, hm * 2.4, 0.26 * e);
     // 天际线上的一串柔光
     for (let i = 0; i < 11; i++) {
       const xf = X.city[0] + (X.city[1] - X.city[0]) * (i + 0.5) / 11, gy = gY(1, xf) - hm * (1.2 + 0.5 * hsh(i + 30)) * rise;
@@ -1272,7 +1275,7 @@
     const hm = PH(1), un = UN(), a = lerp(X.hananel, 0.535, sm(0, 1, k)), b = lerp(X.hananel, 0.997, sm(0, 1, k));
     add1(ctx);
     ctx.lineWidth = Math.max(1, un * 1.3);
-    ctx.strokeStyle = U.rgba(255, 238, 190, 0.75 * Math.min(1, k * 2));
+    ctx.strokeStyle = U.rgba(255, 238, 190, 0.75 * Math.min(1, k * 2) * (1 - 0.65 * lv('jrNew')));
     ctx.beginPath();
     for (let i = 0; i <= 40; i++) { const xf = lerp(a, b, i / 40), y = gY(1, xf) + hm * 0.3; if (i === 0) ctx.moveTo(xf * W.w, y); else ctx.lineTo(xf * W.w, y); }
     ctx.stroke();
@@ -1446,13 +1449,13 @@
     // 剖开的土：几层渐宽渐淡的土色，边是柔的
     ctx.lineJoin = 'round';
     for (const [lw, a] of [[hn * 0.62, 0.14], [hn * 0.4, 0.22], [hn * 0.22, 0.34]]) {
-      ctx.strokeStyle = css([112, 88, 62], 2, a * k, 0.06);
+      ctx.strokeStyle = css([118, 92, 64], 2, a * k, 0.2);
       ctx.lineWidth = lw;
       ctx.stroke(Q.p);
     }
     // 池子的里面：土的暖褐，越深越暗
     const gr = ctx.createLinearGradient(0, top, 0, bot);
-    gr.addColorStop(0, css([98, 76, 56], 2, k, 0.1)); gr.addColorStop(0.5, css([66, 50, 38], 2, k, 0.06)); gr.addColorStop(1, css([38, 29, 23], 2, k));
+    gr.addColorStop(0, css([104, 80, 58], 2, k, 0.24)); gr.addColorStop(0.5, css([72, 55, 41], 2, k, 0.16)); gr.addColorStop(1, css([44, 33, 26], 2, k, 0.08));
     ctx.fillStyle = gr;
     ctx.fill(Q.p);
     ctx.save(); ctx.clip(Q.p);
@@ -1519,9 +1522,17 @@
         ctx.strokeStyle = css([226, 204, 160], 2, kr, 0.25);
         ctx.lineWidth = Math.max(1.5, un * 1.5);
         ctx.lineCap = 'round';
+        // 绳子自池口垂下；口上的一段拉到握绳的人手里（首领或那三十人）
+        const hold = members(hasCrowd('jr:men') ? 'jr:men' : 'jr:princes').filter(m => m._vis);
+        const ax = G.x + G.rx * 0.3, ay = G.y - hn * 0.06;
         ctx.beginPath();
-        ctx.moveTo(G.x - G.rx * 0.45, G.y - hn * 0.9); ctx.lineTo(p[0] - hn * 0.05, p[1]);
-        ctx.moveTo(G.x + G.rx * 0.45, G.y - hn * 0.9); ctx.lineTo(p[0] + hn * 0.05, p[1]);
+        ctx.moveTo(ax, ay); ctx.lineTo(p[0] + hn * 0.04, p[1]);
+        ctx.moveTo(ax - G.rx * 0.5, ay); ctx.lineTo(p[0] - hn * 0.04, p[1]);
+        if (hold.length) {
+          hold.sort((m1, m2) => Math.abs(m1._x - G.x) - Math.abs(m2._x - G.x));
+          const m = hold[0];
+          ctx.moveTo(ax, ay); ctx.quadraticCurveTo((ax + m._x) / 2, ay + hn * 0.05, m._x - hn * 0.1, m._y - m._h * 0.5);
+        }
         ctx.stroke();
         ctx.lineCap = 'butt';
       }
@@ -2310,6 +2321,17 @@
     }
     norm(ctx);
   }
+  // 拉结：被记念的母亲，身旁一圈淡的月光
+  function drawRachel(ctx) {
+    const f = fig('jr:rachel');
+    if (!f || !f._vis || !(f.alpha > 0.02)) return;
+    sprites();
+    const h = f._h || HN();
+    add1(ctx);
+    glowSp(ctx, SP.pale, f._x, f._y - h * 0.55, h * 1.1, 0.3 * f.alpha);
+    glowSp(ctx, SP.white, f._x, f._y - h * 0.62, h * 0.35, 0.18 * f.alpha);
+    norm(ctx);
+  }
   // 写在心上（31:33）：胸中一点金光
   function drawHearts(ctx) {
     const k = lv('jrHeart');
@@ -2321,8 +2343,8 @@
     for (const id of ['jr:jer', 'jr:rachel', 'jr:potter']) { const f = fig(id); if (f && f._vis) pts.push([f._x, f._y - f._h * (f.pose === 'sit' || f.pose === 'seat' || f.pose === 'kneel' ? 0.36 : 0.62), f._h, f.alpha || 1]); }
     for (let i = 0; i < pts.length; i++) {
       const q = pts[i], pulse = 0.85 + 0.15 * Math.sin(W.t * 2.2 + i * 1.7);
-      glowSp(ctx, SP.gold, q[0], q[1], q[2] * 0.42 * pulse, k * 0.7 * q[3]);
-      glowSp(ctx, SP.white, q[0], q[1], q[2] * 0.1, k * 0.9 * q[3]);
+      glowSp(ctx, SP.gold, q[0], q[1], q[2] * 0.4 * pulse, k * 0.55 * q[3]);
+      glowSp(ctx, SP.white, q[0], q[1], q[2] * 0.08, k * 0.55 * q[3]);
     }
     norm(ctx);
   }
@@ -2376,19 +2398,19 @@
       const T = W.t * (0.32 + 0.12 * hsh(i * 4.1 + seed)) + hsh(i * 2.1 + seed), cyc = Math.floor(T), ph = T - cyc;
       const x = (0.02 + 0.46 * hsh(i * 3.3 + cyc * 7.1 + seed)) * W.w - ph * 18 * s;
       if (!W.isSea(x, y)) continue;
-      const len = (16 + 26 * hsh(i * 5.5 + seed)) * s * (0.6 + 0.6 * kk) * Math.sin(ph * Math.PI);
+      const len = (26 + 40 * hsh(i * 5.5 + seed)) * s * (0.6 + 0.6 * kk) * Math.sin(ph * Math.PI);
       if (len < 1) continue;
-      ctx.moveTo(x - len / 2, y); ctx.quadraticCurveTo(x - len * 0.1, y - 3.2 * s, x + len / 2, y + 0.6 * s);
+      ctx.moveTo(x - len / 2, y + 0.8 * s); ctx.quadraticCurveTo(x - len * 0.15, y - 4.5 * s, x + len / 2, y + 1.2 * s);
       if (ph > 0.3 && ph < 0.7) tops.push([x - len * 0.1, y - 1.8 * s, s]);
     }
     ctx.lineCap = 'round';
-    ctx.strokeStyle = W.shadeCSS([244, 248, 252], 0.05, 0.6 * kk * lt, 0.2);
-    ctx.lineWidth = Math.max(1, 1.7 * (W.unit || 1) * (pass === 'seaNear' ? 1 : 0.7));
+    ctx.strokeStyle = W.shadeCSS([244, 248, 252], 0.05, 0.8 * kk * lt, 0.35);
+    ctx.lineWidth = Math.max(1.2, 2.4 * (W.unit || 1) * (pass === 'seaNear' ? 1 : 0.7));
     ctx.stroke();
     ctx.lineCap = 'butt';
     sprites();
     add1(ctx);
-    for (const [x, y, s] of tops) glowSp(ctx, SP.white, x, y, 5 * s, 0.35 * kk * lt);
+    for (const [x, y, s] of tops) glowSp(ctx, SP.white, x, y, 7 * s, 0.45 * kk * lt);
     norm(ctx);
   }
 
@@ -2397,7 +2419,7 @@
   const NEAR_UNDER = [drawField, drawBrook, drawShed, drawCourt, drawAnathoth, drawSeats, drawAlmond, drawCisterns, drawVisionHouses];
   function drawNearUnder(ctx) { each(ctx, NEAR_UNDER); }
   // ── 近地：人之后 ──
-  const AIR = [drawClayThread, drawWheel, drawPitFront, drawStocks, drawJar, drawBrazier, drawScrolls, drawDeed, drawSilver, drawBone, drawCall, drawHearts, drawThread, drawPour, drawLove];
+  const AIR = [drawClayThread, drawWheel, drawPitFront, drawStocks, drawJar, drawBrazier, drawScrolls, drawDeed, drawSilver, drawBone, drawCall, drawHearts, drawThread, drawPour, drawLove, drawRachel];
   function drawAir(ctx) { each(ctx, AIR); }
 
   // ════════════════════════════════════════════════════════════
@@ -3045,6 +3067,7 @@
               W.set('jrTFire', 0, b.instant);
               W.set('jrEmber', 0.45, b.instant);
               W.set('jrLove', 1, b.instant);
+              W.set('jrBabylon', 0.3, b.instant);
               pose('jr:jer', 'sit');
               face('jr:jer', 1);
               glowP('jr:jer', 0.5);
@@ -3083,7 +3106,9 @@
               W.set('jrEmber', 0.15, b.instant);
               W.set('jrHope', 0, b.instant);
               W.set('jrSpring', 1, b.instant);
-              // 活水重新流淌；那破裂的池子渐渐隐去
+              // 巴比伦沉下去，不再兴起（51:64）；活水重新流淌；那破裂的池子渐渐隐去
+              W.set('jrBabylon', 0, b.instant);
+              W.set('jrGardens', 0, b.instant);
               W.set('jrCistern', 0, b.instant);
               W.set('jrCrack', 0, b.instant);
               W.set('jrWater', 0, b.instant);
