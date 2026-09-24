@@ -98,7 +98,7 @@
     tx0: 0.72, tuW: 0.25, tuH: 0.42, flat: 0.55,
     plat: 0.59, platK: 0.26,
     pr: [0.468, 0.548], prK: 0.13, sg: [0.474, 0.554], sgK: 0,
-    isr: [[0.405, 0.485, 0.38], [0.388, 0.55, 0.63], [0.37, 0.63, 0.9]],
+    isr: [[0.405, 0.49, 0.38], [0.388, 0.55, 0.63], [0.37, 0.574, 0.9]],
     tent: 0.5, obed: 0.93, jabez: 0.58, dav: 0.565, dav2: 0.668, king: 0.598, kingK: 0.3,
     gil: 0.527, palace: 0.625, city: [0.566, 0.9], camp: [0.494, 0.562], shore: [0.372, 0.43], shoreK: 0.84,
     eld: [[0.445, 0.535, 0.3], [0.435, 0.55, 0.62]],
@@ -144,7 +144,7 @@
     const g = gY(2, xf), f = Math.max(1, W.h - g) * 0.8;
     return clamp((rowY(K) - g) / f, 0, 0.98);
   }
-  const PK = () => (tall() ? 1.12 : 1);      // 竖屏上人稍大一些
+  const PK = () => (tall() ? 1.18 : 1);      // 竖屏上人稍大一些
   const say = (b, lines) => { if (!b.instant && GS.ui) safe('ch.narrate', () => GS.ui.narrate(lines, { replace: false })); };
   const sfx = (b, name, o) => { if (b && b.instant) return; if (W.replaying) return; const a = au(); if (a && a.sfx) safe('ch.sfx', () => a.sfx(name, o || {})); };
   const avoid = (...rs) => { W.beastAvoid = rs.map(r => [clamp(Math.min(r[0], r[1]), 0, 1), clamp(Math.max(r[0], r[1]), 0, 1)]); };
@@ -368,7 +368,7 @@
     });
     R_W1.forEach(n => RIVER.push({ s: n[1], k: n[2] || 1, br: 0, t: n[0], w1: true, u: 0 }));
   })();
-  const rLife = () => (tall() ? 5.5 : 7);
+  const rLife = () => (tall() ? 4.8 : 5.8);
   const rPx = () => clamp(15 * W.unit, 12, 19);
   // 众名像一行字写在河上：自源头（左）向锡安（右）一个接一个写出，从左往右读是由古至今；
   // 写到河尾就回到源头接着写（前面的早已淡去）。沿弧长排好位置（按字宽，不相挤）。
@@ -1515,8 +1515,9 @@
   // 城中各处拐角的坛（代下 28:24）：房顶上一座一座小石坛，暗红的火，黑烟
   function cornerHouses() {
     const L = cityLayout(), k = lv('chCity'), out = [];
-    const hs = L.houses.filter(q => q.row === 0 && k >= q.th + 0.1).sort((a, b) => a.xf - b.xf);
-    const n = Math.min(7, hs.length);
+    // 只取殿前露出来的那一段城（殿身后面的看不见）
+    const hs = L.houses.filter(q => q.row === 0 && k >= q.th + 0.1 && q.xf < X('tx0') - 0.012).sort((a, b) => a.xf - b.xf);
+    const n = Math.min(5, hs.length);
     for (let i = 0; i < n; i++) out.push(hs[Math.floor((i + 0.5) * hs.length / n)]);
     return out;
   }
@@ -2083,7 +2084,7 @@
     ctx.beginPath();
     for (const c of CAMP) {
       if (c.kind !== 'tent') continue;
-      const [x, g] = at(c), w = hm * 0.85 * c.s, h = hm * 0.62 * c.s;
+      const [x, g] = at(c), w = hm * 1.1 * c.s, h = hm * 0.78 * c.s;
       ctx.moveTo(x - w / 2, g); ctx.lineTo(x - w * 0.1, g - h); ctx.lineTo(x + w * 0.1, g - h); ctx.lineTo(x + w / 2, g); ctx.closePath();
     }
     ctx.fill();
@@ -2111,7 +2112,7 @@
       if (c.kind !== 'fire') continue;
       const al = alive(c);
       const [x, g] = at(c);
-      if (al > 0.01) flame(ctx, x, g, hm * 0.5 * c.s * (0.6 + 0.4 * al), k * al, 70 + c.ph, hm * 0.16);
+      if (al > 0.01) flame(ctx, x, g, hm * 0.62 * c.s * (0.6 + 0.4 * al), k * al, 70 + c.ph, hm * 0.18);
       else if (o - c.out < 0.25) smoke(ctx, x, g - hm * 0.2, k * (1 - (o - c.out) / 0.25), hm * 2.5, hm * 0.15, 70 + c.ph, false, 0.1);
     }
     ctx.globalAlpha = 1;
@@ -2634,8 +2635,8 @@
             }],
             [8, () => { pose('jabez', 'stand'); }],
             [13, b => {
-              // 基利波山上的扫罗（手里是寻常的刀）：头上一盏将熄的灯
-              add('saul', { label: '扫罗', layer: 1, x: X('gil'), facing: -1, robe: [128, 52, 56], hair: 'cloth', accent: [210, 170, 90], glow: 0.5, prop: 'blade' });
+              // 基利波山上的扫罗（不画刀剑：他的死只用光来讲）：头上一盏将熄的灯
+              add('saul', { label: '扫罗', layer: 1, x: X('gil'), facing: -1, robe: [128, 52, 56], hair: 'cloth', accent: [210, 170, 90], glow: 0.5, prop: null });
               W.set('chSaul', 1, b.instant);
               W.set('chBorderA', 0.3, b.instant);
               walk('jabez', 0.47, { speed: 0.02 });

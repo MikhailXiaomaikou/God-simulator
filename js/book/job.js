@@ -79,7 +79,7 @@
   // ── 地上的位置（画面宽度的比例）───────────────────────────────
   const X = {
     stump: 0.545, zophar: 0.583, job: 0.622, eliphaz: 0.66, bildad: 0.692, rock: 0.728, elihu: 0.774,
-    son: 0.792, altar: 0.853, house: 0.928, fire: 0.642, open: 0.68,
+    son: 0.792, altar: 0.853, house: 0.928, fire: 0.642, open: 0.665,
     whirl: 0.8, crag: 0.962, behe: 0.53,
   };
   const ROBE = {
@@ -240,7 +240,7 @@
       warm: radial([255, 172, 92], 1), gold: radial([255, 226, 160], 1), white: radial([236, 242, 255], 1), pale: radial([255, 250, 236], 1, 0.2),
       ember: radial([255, 92, 36], 1), smoke: radial([132, 124, 118], 0.8, 0.55), soot: radial([34, 28, 34], 0.85, 0.55),
       cold: radial([120, 108, 150], 0.9, 0.5), green: radial([170, 236, 150], 1), blue: radial([150, 190, 255], 1),
-      dust: radial([196, 170, 132], 0.7, 0.5), grey: radial([170, 166, 160], 0.7, 0.5),
+      dust: radial([196, 170, 132], 0.7, 0.5), grey: radial([170, 166, 160], 0.7, 0.5), dustDk: radial([128, 106, 84], 0.9, 0.6),
       beam: beamSprite([255, 247, 226]), beamGold: beamSprite([255, 214, 140]),
       cDark: radial([34, 36, 50], 0.95, 0.55), cMid: radial([104, 108, 124], 0.9, 0.55), cLit: radial([214, 210, 202], 0.85, 0.5),
     };
@@ -625,7 +625,7 @@
   const CRAG = [[-1.6, 0], [-1.1, -0.18], [-0.95, -0.34], [-0.7, -0.42], [-0.62, -0.6], [-0.44, -0.7], [-0.4, -0.86], [-0.22, -0.97], [0.06, -1], [0.22, -0.9],
     [0.3, -0.76], [0.52, -0.66], [0.56, -0.5], [0.8, -0.38], [0.9, -0.2], [1.3, -0.06], [1.8, 0]];
   // 石阶上的野山羊：[x/w, y/H, 朝向, 大小, 出现的先后]
-  const IBEX = [[-0.84, -0.375, -1, 1, 0], [-0.52, -0.656, 1, 0.9, 0.8], [0.42, -0.705, 1, 0.8, 1.4], [0.7, -0.45, -1, 0.95, 1.8], [1.06, -0.144, 1, 0.85, 2.2]];
+  const IBEX = [[-0.7, -0.37, -1, 1, 0], [-0.4, -0.65, 1, 0.9, 0.8], [0.3, -0.7, 1, 0.8, 1.4], [0.58, -0.44, -1, 0.95, 1.8], [0.92, -0.14, 1, 0.85, 2.2]];
   function drawIbex(ctx, x, y, u, dir, a, seed, l) {
     if (a < 0.01) return;
     const bob = Math.max(0, Math.sin(W.t * 0.7 + seed)) * 0.25;
@@ -676,7 +676,7 @@
     ctx.stroke();
     // 山岩间的野山羊（39:1）：立在石阶上
     const ib = W.lv.ybIbex;
-    if (ib > 0.01) for (const q of IBEX) drawIbex(ctx, x + q[0] * w, y + q[1] * H, 6.5 * s * (q[3] || 1), q[2], ib * c01(ib * 3 - (q[4] || 0)), q[0] * 7, l);
+    if (ib > 0.01) for (const q of IBEX) drawIbex(ctx, x + q[0] * w, y + q[1] * H, Math.max(3.2, 8.5 * s) * (q[3] || 1), q[2], ib * c01(ib * 3 - (q[4] || 0)), q[0] * 7, l);
     // 窝
     const [nx, ny] = g.top;
     ctx.strokeStyle = css([96, 74, 52], l); ctx.lineWidth = Math.max(0.6, 0.8 * s);
@@ -902,7 +902,11 @@
         const x = f.xf * W.w, gy = gY(1, f.xf), cy = Math.max(W.h * 0.12, gy - 0.34 * W.h), cx = x + 0.025 * W.w;
         const a = u < 0.08 ? u / 0.08 : 1 - sstep(0.35, 1, u);
         const cloud = u < 0.05 ? u / 0.05 : 1 - sstep(0.55, 1, u);
-        for (let i = 0; i < 7; i++) glowAt(ctx, SP.soot, cx + (hsh(i * 3.7) - 0.5) * 0.12 * W.w, cy + (hsh(i * 5.1) - 0.5) * 0.04 * W.h, (0.04 + 0.03 * hsh(i)) * W.w, cloud * 0.75);
+        for (let i = 0; i < 11; i++) {
+          const rw = (0.035 + 0.03 * hsh(i * 2.2)) * W.w, rh = rw * (0.42 + 0.15 * hsh(i * 4.4));
+          ctx.globalAlpha = cloud * 0.7;
+          ctx.drawImage(SP.soot, cx + (hsh(i * 3.7) - 0.5) * 0.16 * W.w - rw, cy + (hsh(i * 5.1) - 0.5) * 0.035 * W.h - rh, rw * 2, rh * 2);
+        }
         const fl = u < 0.45 ? (0.55 + 0.45 * Math.abs(Math.sin(f.t * 31))) : 1;
         ctx.globalCompositeOperation = 'lighter';
         glowAt(ctx, SP.ember, cx, cy + 0.01 * W.h, 0.05 * W.w, a * 0.45 * fl);
@@ -939,19 +943,19 @@
           const back = i * 13 * s, xx = x + back + Math.sin(i * 2.1 + W.t * 4) * 6 * s;
           if (xx > W.w * 1.1) continue;
           const yy = Math.min(g0, gY(2, clamp(xx / W.w, 0, 1))) - (8 + 44 * hsh(i * 3.3)) * s * (0.6 + 0.4 * Math.sin(W.t * 3 + i));
-          const rw = (34 - i * 0.6) * s, rh = (13 + 6 * hsh(i * 1.9)) * s, al = a * (0.55 - i * 0.018);
+          const rw = (40 - i * 0.7) * s, rh = (15 + 7 * hsh(i * 1.9)) * s, al = a * (0.8 - i * 0.026);
           if (al < 0.01) continue;
           ctx.globalAlpha = al;
-          ctx.drawImage(SP.dust, xx - rw, yy - rh, rw * 2, rh * 2);
+          ctx.drawImage(i % 2 ? SP.dust : SP.dustDk, xx - rw, yy - rh, rw * 2, rh * 2);
         }
       } else if (f.type === 'veil' && pass === 'air') {
         // 房屋倒塌：一层低低的尘土遮住长子的房屋与院中（只以尘土与缺席讲述）
         const s = LS(2), a = sstep(0, 0.08, u) * (1 - sstep(0.45, 1, u)), cx = f.xf * W.w, g0 = gY(2, f.xf);
-        for (let i = 0; i < 16; i++) {
-          const ox = (hsh(i * 4.1) - 0.5) * 0.15 * W.w * (0.7 + 0.5 * u), oy = (6 + 34 * hsh(i * 2.3)) * s * (0.6 + 0.8 * u);
-          const rw = (32 + 22 * hsh(i * 7.7)) * s * (0.8 + 0.5 * u), rh = rw * 0.42;
-          ctx.globalAlpha = a * 0.62;
-          ctx.drawImage(i % 3 ? SP.dust : SP.grey, cx + ox + W.wind * u * 20 * s - rw, g0 - oy - rh, rw * 2, rh * 2);
+        for (let i = 0; i < 24; i++) {
+          const ox = (hsh(i * 4.1) - 0.5) * 0.13 * W.w * (0.7 + 0.5 * u), oy = (4 + 40 * hsh(i * 2.3)) * s * (0.6 + 0.8 * u);
+          const rw = (30 + 24 * hsh(i * 7.7)) * s * (0.8 + 0.5 * u), rh = rw * 0.5;
+          ctx.globalAlpha = Math.min(1, a * 0.95);
+          ctx.drawImage(i % 3 === 0 ? SP.dust : i % 3 === 1 ? SP.dustDk : SP.smoke, cx + ox + W.wind * u * 20 * s - rw, g0 - oy - rh, rw * 2, rh * 2);
         }
       } else if (f.type === 'sweep' && pass === 'air') {
         // 晨光掠过全地（38:12–14）
@@ -1140,10 +1144,11 @@
       const edge = Math.abs(cs);
       // 外缘稍暗，近轴处被其中的光照亮；白昼是明亮的白云，夜里是被内里的光照着的云
       let spr, al;
-      if (!front) { spr = p.dk < 0.3 ? SP.cDark : SP.cMid; al = p.dk < 0.3 ? 0.3 * dayDim : 0.3; }
-      else if (edge > 0.8 && p.dk < 0.6) { spr = SP.cDark; al = 0.34 * dayDim; }
+      const dayLit = day > 0.5;                 // 白昼：暗的云团换成灰白，灰的换成亮白
+      if (!front) { spr = p.dk < 0.3 ? (dayLit ? SP.cMid : SP.cDark) : (dayLit ? SP.cLit : SP.cMid); al = p.dk < 0.3 ? 0.3 * dayDim : 0.3; }
+      else if (edge > 0.8 && p.dk < 0.6) { spr = dayLit ? SP.cMid : SP.cDark; al = 0.34 * dayDim; }
       else if (p.dk > 0.55 - 0.35 * day || edge < 0.4) { spr = SP.cLit; al = 0.34 + 0.2 * day; }
-      else { spr = SP.cMid; al = 0.36 * (1 - 0.3 * day); }
+      else { spr = dayLit ? SP.cLit : SP.cMid; al = 0.36 * (1 - 0.3 * day); }
       ctx.globalAlpha = Math.min(1, k * al * (0.55 + 0.45 * (1 - p.f * 0.4)));
       ctx.drawImage(spr, x - size, y - size * 0.62, size * 2, size * 1.24);
     };
@@ -1219,7 +1224,7 @@
       ctx.beginPath();
       for (let i = 0; i <= M2; i++) {
         const f = 0.03 + (grow - 0.03) * i / M2;
-        const ang = -W.t * (0.9 + 1.6 * f) + bd * TAU / 4 + f * 7.5;
+        const ang = -W.t * 1.4 + bd * TAU / 4 + f * 5.2;
         const sn = Math.sin(ang), r = rAt(f) * 0.86;
         if (sn < 0.05) { pen = false; continue; }
         const x = whirlAxis(g, f, k) + Math.cos(ang) * r, y = g.top + g.H * f + sn * r * 0.2;
@@ -1424,38 +1429,48 @@
     ctx.globalAlpha = 1;
     ctx.lineCap = 'butt';
   }
-  // 一排一排翻滚的浪头涌向近岸；有了界限（38:10–11）之后，浪头到那道金线便止住、碎成白沫
+  // 一排一排翻滚的浪头涌向近岸（浪脊与岸平行，向岸推进）；有了界限（38:10–11）之后，浪到那道金线便止住、碎成白沫
   const boundGap = ss => 12 * ss;              // 金线离岸的距离（在水里）
-  function crestState(i, n) {
-    const P = 6.4, cyc = W.t / P + i / n, ph = U.fract(cyc), rnd = Math.floor(cyc) * 13.7 + i * 3.1;
-    const b = W.waterlineY(1), y = b + (W.h - b) * (0.1 + 0.8 * ((i + 0.5) / n) + (hsh(rnd) - 0.5) * 0.08);
-    return { ph, rnd, y };
-  }
   function drawCrests(ctx, k, lit) {
     const n = 5, bound = W.lv.ybBound, env0 = Math.min(1, k * 1.7);
     if (env0 < 0.02) return;
+    const b = W.waterlineY(1), P = port(), sK = P ? 1.5 : 1;
     ctx.lineCap = 'round'; ctx.lineJoin = 'round';
     for (let i = 0; i < n; i++) {
-      const { ph, rnd, y } = crestState(i, n);
-      const sx = shoreX(y);
-      if (sx == null) continue;
-      const ss = W.seaScale(y) * (port() ? 1.5 : 1);
-      const stopX = bound > 0.5 ? sx - boundGap(ss) - 10 * ss : sx + 20 * ss;
-      const len = (0.16 + 0.1 * hsh(rnd)) * W.w * (0.5 + 0.5 * W.seaDepth(y));
-      const free = lerp(-0.05 * W.w, sx + 30 * ss, ph);
-      const head = Math.min(free, stopX), over = free > stopX ? c01((free - stopX) / (0.12 * W.w)) : 0;
-      const tail = Math.max(-0.1 * W.w, head - len * (1 - 0.8 * over));
-      const env = env0 * Math.min(1, ph * 6) * (1 - over) * (0.75 + 0.25 * lit);
-      if (env < 0.01 || head - tail < 4) continue;
-      const amp = (5 + 7 * k) * ss;
-      ctx.beginPath();
-      ctx.moveTo(tail, y + amp * 0.3);
-      ctx.quadraticCurveTo((tail + head) / 2, y - amp * 0.6, head - 6 * ss, y - amp);
-      ctx.quadraticCurveTo(head, y - amp * 1.05, head + 2 * ss, y - amp * 0.35);
-      ctx.strokeStyle = rgba([214, 230, 250], 0.22 * env); ctx.lineWidth = Math.max(4, 11 * ss); ctx.stroke();
-      ctx.strokeStyle = rgba([246, 250, 255], 0.9 * env); ctx.lineWidth = Math.max(1.5, 3.5 * ss); ctx.stroke();
-      // 浪头前的一团白沫
-      glowAt(ctx, SP.white, head, y - amp * 0.7, (9 + 10 * over) * ss, 0.55 * env + 0.4 * over * env0);
+      const cyc = W.t / 5.6 + i / n, ph = U.fract(cyc), rnd = Math.floor(cyc) * 13.7 + i * 3.1;
+      const yc = b + (W.h - b) * (0.22 + 0.6 * hsh(rnd)), hl = (W.h - b) * (0.14 + 0.1 * hsh(rnd + 1.3));
+      const sc = W.seaScale(yc) * sK;
+      const dFree = lerp(P ? 150 : 250, -12, eio(ph)), dStop = bound > 0.5 ? 12 + 9 : -12;
+      const d = Math.max(dFree, dStop), over = dFree < dStop ? c01((dStop - dFree) / 40) : 0;
+      const env = env0 * Math.min(1, ph * 5) * (1 - over) * (0.75 + 0.25 * lit);
+      if (env < 0.01) continue;
+      const pts = [];
+      for (let q = 0; q <= 14; q++) {
+        const yy = yc - hl + 2 * hl * q / 14, sx = shoreX(yy);
+        if (sx == null) continue;
+        const ss = W.seaScale(yy) * sK;
+        pts.push([sx - d * ss + Math.sin(q * 1.3 + rnd + W.t * 1.7) * 2.5 * ss, yy, q / 14]);
+      }
+      if (pts.length < 3) continue;
+      const line = (from, to, lw, col, al) => {
+        ctx.strokeStyle = rgba(col, al); ctx.lineWidth = lw;
+        ctx.beginPath(); let st = false;
+        for (const p of pts) { if (p[2] < from || p[2] > to) continue; if (st) ctx.lineTo(p[0], p[1]); else { ctx.moveTo(p[0], p[1]); st = true; } }
+        ctx.stroke();
+      };
+      line(0, 1, Math.max(4, 12 * sc), [210, 228, 250], 0.14 * env);
+      line(0.05, 0.95, Math.max(1, 1.6 * sc), [240, 246, 255], 0.55 * env);
+      line(0.22, 0.78, Math.max(1.6, 3.6 * sc), [248, 251, 255], 0.9 * env);
+    }
+    // 浪撞在金线上碎开的白沫（有了界限之后）
+    if (bound > 0.3) {
+      const k2 = env0 * c01((bound - 0.3) / 0.4);
+      for (let i = 0; i < 12; i++) {
+        const yy = b + (W.h - b) * (0.12 + 0.075 * i), sx = shoreX(yy);
+        if (sx == null) continue;
+        const ss = W.seaScale(yy) * sK, ph = U.fract(W.t * 0.5 + hsh(i * 3.3));
+        glowAt(ctx, SP.white, sx - boundGap(ss) - 8 * ss, yy - ph * 10 * ss, (6 + 10 * ph) * ss, k2 * 0.5 * Math.sin(ph * Math.PI));
+      }
     }
     ctx.lineCap = 'butt'; ctx.lineJoin = 'miter';
   }
@@ -1535,9 +1550,11 @@
     for (const l of [1, 0]) {
       const sp = W.landSpan(l, 1);
       if (!sp) continue;
-      const wl = W.waterlineY(l) - 1, pts = [];
-      for (let x = sp[0]; x <= W.w + 2; x += Math.max(6, W.w / 120)) pts.push([x, wl]);
-      glowLine(pts, k * 1.3 - (l === 1 ? 0.2 : 0.35), l === 1 ? 0.9 : 0.6);
+      const wl = W.waterlineY(l) - 1, step = Math.max(6, W.w / 120);
+      let pts = [];
+      const flush = () => { if (pts.length > 2) glowLine(pts, k * 1.3 - (l === 1 ? 0.2 : 0.35), l === 1 ? 0.9 : 0.6); pts = []; };
+      for (let x = sp[0]; x <= W.w + 2; x += step) { if (W.hasLandBase(l, x, 1)) pts.push([x, wl]); else flush(); }
+      flush();
     }
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
@@ -1741,7 +1758,7 @@
   // ════════════════════════════════════════════════════════════
   function beheGeo() {
     const P = port(), wl = W.waterlineY(1), L = (P ? 0.34 : 0.155) * W.w;
-    return { P, wl, L, x: (P ? 0.6 : X.behe) * W.w, H: L * 0.36 };
+    return { P, wl, L, x: (P ? 0.6 : X.behe) * W.w, H: L * 0.42 };
   }
   function drawBehemoth(ctx) {
     const b = W.lv.ybBehe;
@@ -1749,12 +1766,12 @@
     const g = beheGeo(), { wl, L, x, H } = g;
     const rise = eio(c01(b / 0.8)), head = eio(c01((b - 0.45) / 0.55));
     const flood = W.lv.ybFlood;
-    const water = wl - flood * H * 0.5;                // 水涨到它口边（40:23）
+    const water = wl - flood * H * 0.42;               // 水涨到它口边（40:23）
     const base = wl + H * 0.25 + (1 - rise) * H * 1.3; // 腹下（在水下）
     const dep = 0.18, lit = 0.3 + 0.7 * W.daylight;
     const col = [88, 78, 82], belly = [132, 116, 110], dk = [42, 36, 40], hi = [214, 198, 182];
     const hl = -0.16 * H * head;                        // 头抬起
-    const P = (u, v) => [x + u * L, base + v * H];
+    const P = (u, v) => [x + u * L * 0.86, base + v * H];
     const body = new Path2D();
     {
       const m = (u, v) => P(u, v), mv = (u, v) => { const q = m(u, v); body.moveTo(q[0], q[1]); };
@@ -1775,7 +1792,7 @@
       body.closePath();
     }
     ctx.save();
-    ctx.beginPath(); ctx.rect(x - L, -10, L * 2.2, water + 11); ctx.clip();
+    ctx.beginPath(); ctx.rect(x - L, -10, L * 2.2, wl + 11); ctx.clip();
     // 尾：短而粗，摇动如香柏树（40:17）
     const sway = Math.sin(W.t * 0.55) * 0.35;
     {
@@ -1822,34 +1839,40 @@
     for (const q of [0.24, 0.29]) { const a1 = P(q, -1.08), a2 = P(q + 0.03, -0.75), a3 = P(q, -0.42); ctx.moveTo(a1[0], a1[1]); ctx.quadraticCurveTo(a2[0], a2[1], a3[0], a3[1]); }
     ctx.stroke();
     // 迎光的背脊与头顶
-    ctx.strokeStyle = W.shadeCSS(hi, dep, 0.65 * lit, 0.25); ctx.lineWidth = Math.max(1, L * 0.009); ctx.lineCap = 'round';
+    ctx.strokeStyle = W.shadeCSS(hi, dep, 0.4 * lit, 0.15); ctx.lineWidth = Math.max(1, L * 0.007); ctx.lineCap = 'round';
     ctx.beginPath();
-    { const q = [P(-0.49, -0.7), P(-0.5, -1.02), P(-0.3, -1.18), P(-0.12, -1.34), P(0.12, -1.3), P(0.24, -1.12)];
-      ctx.moveTo(q[0][0], q[0][1]); ctx.bezierCurveTo(q[1][0], q[1][1], q[1][0], q[2][1], q[2][0], q[2][1]); ctx.bezierCurveTo(q[3][0], q[3][1], q[4][0], q[4][1], q[5][0], q[5][1]); }
+    { const q = [P(-0.3, -1.18), P(-0.12, -1.34), P(0.12, -1.3), P(0.24, -1.12)];
+      ctx.moveTo(q[0][0], q[0][1]); ctx.bezierCurveTo(q[1][0], q[1][1], q[2][0], q[2][1], q[3][0], q[3][1]); }
     { const a1 = P(0.38, -1.06), a2 = P(0.45, -1.04), a3 = P(0.56, -0.98), a4 = P(0.64, -0.86);
       ctx.moveTo(a1[0], a1[1] + hl); ctx.quadraticCurveTo(a1[0], a1[1] + hl, a2[0], a2[1] + hl); ctx.quadraticCurveTo(a3[0], a3[1] + hl, a4[0], a4[1] + hl); }
     ctx.stroke();
     ctx.lineCap = 'butt';
-    ctx.restore();
-    // 水面：涨上来的水只在它周围的水洼里，边缘柔和地淡去（不盖住岛上的草）
+    // 河水涨到它口边（40:23）：水只画在它的身上（身子下半没在水里），不铺到岛上的草地
     if (flood > 0.02 && wl - water > 1) {
-      const x0 = x - 1.0 * L, x1 = x + 0.95 * L;
-      const hg = ctx.createLinearGradient(x0, 0, x1, 0);
-      const wc = W.shade([70, 104, 128], 0.3);
-      hg.addColorStop(0, rgba(wc, 0)); hg.addColorStop(0.18, rgba(wc, 0.72 * flood)); hg.addColorStop(0.7, rgba(wc, 0.72 * flood)); hg.addColorStop(1, rgba(wc, 0));
-      ctx.fillStyle = hg;
-      ctx.beginPath();
-      ctx.moveTo(x0, wl + 3);
-      for (let i = 0; i <= 16; i++) { const u = i / 16, xx = lerp(x0, x1, u); ctx.lineTo(xx, water + Math.sin(u * 9 + W.t * 1.3) * 0.8); }
-      ctx.lineTo(x1, wl + 3);
-      ctx.closePath(); ctx.fill();
+      ctx.save();
+      ctx.clip(body);
+      const deep = W.shade([34, 66, 92], 0.3), top = W.shade([96, 136, 164], 0.3);
+      const vg = ctx.createLinearGradient(0, water, 0, wl + 4);
+      vg.addColorStop(0, rgba(top, 0.6 * flood)); vg.addColorStop(0.12, rgba(deep, 0.5 * flood)); vg.addColorStop(1, rgba(deep, 0.72 * flood));
+      ctx.fillStyle = vg;
+      ctx.beginPath(); ctx.moveTo(x - L, wl + 6);
+      for (let i = 0; i <= 20; i++) { const u = i / 20; ctx.lineTo(lerp(x - L, x + L, u), water + Math.sin(u * 14 + W.t * 1.3) * 0.9); }
+      ctx.lineTo(x + L, wl + 6); ctx.closePath(); ctx.fill();
+      ctx.restore();
     }
+    ctx.restore();
     const lit2 = 0.35 + 0.65 * W.daylight;
+    if (flood > 0.05) {          // 涨起的水面：一道亮线，两端淡去
+      const x0 = x - 0.62 * L, x1 = x + 0.8 * L, lg = ctx.createLinearGradient(x0, 0, x1, 0), c = W.shade([236, 244, 250], 0.25);
+      lg.addColorStop(0, rgba(c, 0)); lg.addColorStop(0.2, rgba(c, 0.75 * lit2 * flood)); lg.addColorStop(0.8, rgba(c, 0.75 * lit2 * flood)); lg.addColorStop(1, rgba(c, 0));
+      ctx.strokeStyle = lg; ctx.lineWidth = Math.max(1, L * 0.008);
+      ctx.beginPath(); for (let i = 0; i <= 20; i++) { const u = i / 20; ctx[i ? 'lineTo' : 'moveTo'](lerp(x0, x1, u), water + Math.sin(u * 14 + W.t * 1.3) * 0.9); } ctx.stroke();
+    }
     ctx.strokeStyle = W.shadeCSS([226, 238, 246], 0.25, 0.6 * lit2); ctx.lineWidth = Math.max(0.8, L * 0.005);
     ctx.beginPath();
     for (let i = 0; i < 4; i++) {
-      const rr = L * (0.5 + 0.1 * i + 0.03 * Math.sin(W.t * 0.8 + i));
-      ctx.moveTo(x + 0.1 * L - rr, water + i * 1.5); ctx.quadraticCurveTo(x + 0.1 * L, water + 3 + i * 2, x + 0.1 * L + rr * 0.8, water + i * 1.5);
+      const rr = L * (0.46 + 0.06 * i + 0.03 * Math.sin(W.t * 0.8 + i)), yy = water + i * (1.2 + 2 * (1 - flood));
+      ctx.moveTo(x + 0.1 * L - rr, yy); ctx.quadraticCurveTo(x + 0.1 * L, yy + 3, x + 0.1 * L + rr * 0.8, yy);
     }
     ctx.stroke();
     drawReeds(ctx, g, water);
@@ -1893,7 +1916,7 @@
   // 自近处的海（左下）游来，贴着近岸，到中景小岛前的水道里起来：头与颈立在画面右半（经文在左下）
   function leviPath(u) {
     const P = port();
-    const p0 = P ? [0.0, 0.95] : [0.02, 0.975], p1 = P ? [0.2, 0.93] : [0.3, 0.97], p2 = P ? [0.35, 0.88] : [0.42, 0.86], p3 = P ? [0.5, 0.79] : [0.535, 0.8];
+    const p0 = P ? [0.0, 0.95] : [0.02, 0.975], p1 = P ? [0.2, 0.93] : [0.3, 0.97], p2 = P ? [0.35, 0.88] : [0.4, 0.83], p3 = P ? [0.5, 0.79] : [0.535, 0.8];
     const v = 1 - u;
     return [(v * v * v * p0[0] + 3 * v * v * u * p1[0] + 3 * v * u * u * p2[0] + u * u * u * p3[0]) * W.w,
       (v * v * v * p0[1] + 3 * v * v * u * p1[1] + 3 * v * u * u * p2[1] + u * u * u * p3[1]) * W.h];
@@ -2282,7 +2305,7 @@
         { text: '耶和华对撒但说：「凡他所有的都在你手中；只是不可伸手加害于他。」<br>于是撒但从耶和华面前退去。', ref: '约伯记 1:12', hold: 6 },
         { text: '有报信的来见约伯，说：「……示巴人忽然闯来，把牲畜掳去……」<br>又有人来说：「神从天上降下火来，将群羊和仆人都烧灭了……」', ref: '约伯记 1:14–16', hold: 7 },
         { text: '又有人来说：「迦勒底人分作三队忽然闯来，把骆驼掳去……」', ref: '约伯记 1:17', hold: 5.2 },
-        { text: '又有人来说：「你的儿女正在他们长兄的家里吃饭喝酒，<br>不料，有狂风从旷野刮来，击打房屋的四角，<br>房屋倒塌在少年人身上，他们就都死了……」', ref: '约伯记 1:18–19', hold: 7.2 },
+        { text: '又有人来说：「你的儿女正在他们长兄的家里吃饭喝酒，<br>不料，有狂风从旷野刮来，击打房屋的四角，<br>房屋倒塌在少年人身上，他们就都死了……」', ref: '约伯记 1:18–19', hold: 7.6 },
       ],
       apply(c) {
         T(c, [
@@ -2694,7 +2717,7 @@
             sfx(b, 'bleat'); sfx(b, 'camel');
           }],
           [13, () => { pose('job', 'stand'); pose('eliphaz', 'stand'); pose('bildad', 'stand'); pose('zophar', 'stand'); }],
-          [14.5, b => { walk('eliphaz', 1.1, { speed: 0.03 }); walk('bildad', 1.12, { speed: 0.03 }); walk('zophar', 1.14, { speed: 0.03 }); W.goTo(0.7, 15, b.instant); }],
+          [14.5, b => { walk('eliphaz', 1.1, { speed: 0.03 }); walk('bildad', 1.12, { speed: 0.03 }); walk('zophar', 1.14, { speed: 0.03 }); W.goTo(0.725, 15, b.instant); }],
           // 又有七个儿子、三个女儿：分立在约伯两旁（不挡住他，也不挡住磐石上的字）
           [17.8, b => {
             const kid = (off) => (m, i) => { const j = i + off; m.sex = j >= 7 ? 'f' : 'm'; m.age = 'adult'; m.robe = KIDS[(j + 3) % KIDS.length]; m.accent = null; m.v = 0.05 + 0.1 * ((j * 0.618) % 1); };

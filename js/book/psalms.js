@@ -8,10 +8,11 @@
  *     青草地上、可安歇的水边，羊群躺卧（23:1–3）；死荫的幽谷——遍地昏暗，一条光的路，
  *     「你与我同在」的光随着他；筵席与满溢的福杯，耶和华的殿在山上亮起（23:4–6，32:8）；
  *     耶和华的声音发在水上：暴风、雷、火焰分岔（29）。
- *   卷二（42–72）：「你们要休息，要知道我是神」——风息浪静，天光破云；一只鹿来到水边饮水（46:10，42:1）。
- *   卷三（73–89）：一棵葡萄树从埃及挪来，爬满了地，枝子长到大海，蔓子延到溪水；「使你的脸发光」——落日的荣光（80）。
- *   卷四（90–106）：千年如已过的昨日——日夜飞转，草早晨发芽、晚上枯干，牧人老了（90）；
- *     「你发出你的灵，它们便受造」——灵在哪里，飞鸟就从那里生出；泉源涌在山间，野山羊上了高山，鲸在海中（104）。
+ *   卷二（42–72）：「你们要休息，要知道我是神」——风息浪静，天光破云；清洁的心；一只鹿来到水边饮水（46:10，51:10，42:1）。
+ *   卷三（73–89）：一棵葡萄树从埃及挪来，爬满了地；「你要大大张口，我就给你充满」——葡萄满了枝子；
+ *     「使你的脸发光」——落日的荣光（80，81:10）。
+ *   卷四（90–106）：「你们世人要归回」——千年如已过的昨日，日夜飞转，草早晨发芽、晚上枯干，牧人老了（90）；
+ *     「山中的飞鸟，我都知道」——灵在哪里，飞鸟就从那里生出；泉源涌在山间，野山羊上了高山，鲸在海中（50:11，104）。
  *   卷五（107–150）：上行的人提着灯往耶和华的殿去，夜里睡在山上；保护以色列的不打盹也不睡觉（119，121，122）；
  *     清晨的翅膀自日出之处展开，一只光的鸟飞到海极（139）；
  *     「凡有气息的都要赞美耶和华！」——万物一齐动起来：众民举手跳舞、击鼓吹角，牧人弹琴，
@@ -19,6 +20,9 @@
  *
  * 画面的方位：左 = 海（东，日出），右 = 陆地（西，日落）。近地上：溪水自右边的山脊（0.905）流下，
  *   经过树旁（0.705）、汇成水池（0.585），流入左边的海；耶和华的殿在中丘（0.8）上。
+ * 话语都是神自己的话（147:4 称星宿的名、以西结书 34:15 亲自作羊的牧人、32:8、46:10、81:10、90:3、50:11），
+ *   或是说神作为的一句（1:6、19:1、29:3、121:4、139:12、150:6）；诗人向神说的话只在经文里出现。
+ * 大卫总在羊群之外、纵深在羊之前；上行的人、众民都不站在羊群里；走兽只在海边那一头。
  * 规矩：一切状态只在 setup / apply / 情节里设定（瞬间重演得到同样的世界）；布景只在本卷进行时绘制。
  * ───────────────────────────────────────────────────────────── */
 (function (GS) {
@@ -62,15 +66,19 @@
     'psWings', 'psFlight', 'psPraise', 'psBreath'];
 
   // ── 地上的位置（画面宽度的比例；近地的纵深 v：0 = 脊线，1 = 画面底）──
+  // 大卫总站在羊群之外（x 相距 ≥ 0.04），纵深 v 大于每一只羊（羊的 v 在 0.01–0.08）：不被羊群遮住
   const X = {
     src: 0.905, tree: 0.705, treeV: 0.035, pool: 0.572, poolV: 0.49,
-    dav: 0.615, davV: 0.06, table: 0.84, tableV: 0.13, zion: 0.8, deerV: 0.44,
+    dav: 0.64, davV: 0.16,            // 起初：羊群（0.5–0.59）右边
+    davP: 0.664, davPV: 0.46,         // 23:2 跪在可安歇的水边（水池的右岸）
+    dav2: 0.72, dav2V: 0.2,           // 29 篇以后：树前、溪水后
+    table: 0.845, tableV: 0.2, zion: 0.8, deerV: 0.44,
   };
   // 溪水：[x, v]，自右边的山脊流下，经过树前，汇成水池，流入左边的海
   const STREAM = [[0.905, 0.0], [0.875, 0.06], [0.835, 0.13], [0.785, 0.19], [0.74, 0.23], [0.695, 0.25], [0.655, 0.3],
     [0.625, 0.39], [0.596, 0.46], [0.572, 0.49], [0.54, 0.485], [0.508, 0.44], [0.478, 0.37], [0.45, 0.29], [0.422, 0.2], [0.392, 0.12], [0.37, 0.06]];
-  // 光的路（32:8）：自水池旁穿过幽谷，到筵席那里
-  const PATH = [[0.618, 0.07], [0.648, 0.1], [0.685, 0.125], [0.725, 0.12], [0.765, 0.105], [0.8, 0.11], [0.83, 0.125]];
+  // 光的路（32:8）：自水池旁（大卫跪的地方）穿过幽谷，在溪水之前，到筵席那里
+  const PATH = [[0.672, 0.43], [0.69, 0.37], [0.715, 0.335], [0.748, 0.318], [0.78, 0.306], [0.808, 0.296], [0.83, 0.29]];
 
   const ROBE_D = [92, 104, 146];
   const TRUNK = [70, 52, 36], LEAF = [74, 124, 60], LEAF_D = [42, 80, 46], LEAF_H = [150, 190, 104], FRUIT = [214, 96, 60];
@@ -159,6 +167,14 @@
       if (W.replaying) m.fd = m.facing;
     }
   }
+  // 群中各人 / 各羊的纵深按序号定下（不随机：重演、恢复都一样），排成前后两三排，不站成一条线
+  function spreadV(gid, v0, v1) {
+    cmembers(gid).forEach((m, i) => { m.v = v0 + (v1 - v0) * ((i * 0.618034 + 0.17) % 1); });
+  }
+  // 群中各人的位置按序号定下（避开大卫与筵席）
+  function placeX(gid, xs) {
+    cmembers(gid).forEach((m, i) => { if (xs[i] != null) { m.nx = xs[i]; m.tx = null; } });
+  }
   function avoid(...rs) { W.beastAvoid = rs.map(r => [clamp(Math.min(r[0], r[1]), 0, 1), clamp(Math.max(r[0], r[1]), 0, 1)]); }
   // 人在近地纵深里前后挪动（v 缓动；重演时直接到位）
   const VT = new Map();
@@ -171,7 +187,7 @@
   function headOf(id, frac) {
     const f = fig(id);
     const k = frac == null ? 1 : frac;
-    if (!f) return [W.w * X.dav, fY(X.dav, X.davV) - 34 * LS(2) * k];
+    if (!f) return [W.w * X.dav2, fY(X.dav2, X.dav2V) - 34 * LS(2) * k];
     if (f._vis && isFinite(f._x) && isFinite(f._y)) return [f._x, f._y - (f._h || 30) * k];
     const l = f.layer == null ? 2 : f.layer;
     return [f.nx * W.w, fY(f.nx, f.v, l) - 34 * LS(l) * k];
@@ -202,8 +218,32 @@
         return c;
       };
       SP.mote = mote([255, 244, 226]); SP.moteW = mote([255, 214, 140]);
+      // 柔光的光束：自源头渐宽、渐淡，两边柔化（不是硬边的扇形）；逐像素画成一次
+      const beam = (rgb) => {
+        const bw = 192, bh = 48, c = document.createElement('canvas'); c.width = bw; c.height = bh;
+        const g = c.getContext('2d'), im = g.createImageData(bw, bh), d = im.data;
+        for (let y = 0; y < bh; y++) for (let x = 0; x < bw; x++) {
+          const t = (x + 0.5) / bw, dy = Math.abs(y + 0.5 - bh / 2) / (bh / 2);
+          const hw = 0.16 + 0.84 * t, q = dy / hw;
+          const a = Math.pow(1 - t, 1.7) * Math.min(1, t * 14) * Math.exp(-q * q * 2.6);
+          const i = (y * bw + x) * 4;
+          d[i] = rgb[0]; d[i + 1] = rgb[1]; d[i + 2] = rgb[2]; d[i + 3] = Math.round(255 * Math.min(1, a));
+        }
+        g.putImageData(im, 0, 0);
+        return c;
+      };
+      SP.beam = beam([255, 238, 206]); SP.beamW = beam([255, 214, 150]);
     } catch (e) { /* 无画布时略过 */ }
     return SP;
+  }
+  // 一道柔光：自 (x, y) 朝 ang 方向，长 len，末端宽 wid
+  function beamAt(ctx, img, x, y, ang, len, wid, a) {
+    if (!img || !(a > 0.004) || !(len > 1) || !isFinite(x) || !isFinite(y)) return;
+    ctx.save();
+    ctx.translate(x, y); ctx.rotate(ang);
+    ctx.globalAlpha = Math.min(1, a);
+    ctx.drawImage(img, 0, -wid / 2, len, wid);
+    ctx.restore();
   }
   function glowAt(ctx, img, x, y, r, a) {
     if (!img || !(a > 0.004) || !(r > 0.5) || !isFinite(x) || !isFinite(y)) return;
@@ -269,7 +309,7 @@
     const raw = catmull(cp, 7).filter(q => q[0] >= shore * W.w && gY(2, q[0] / W.w) < W.h * 0.975);
     g.stream = arcify(raw, v => (2.4 + 9 * v) * s * 0.55);
     // 水池
-    const prx = Math.max(0.054 * W.w, 36 * s);
+    const prx = Math.max(0.075 * W.w, 40 * s);
     g.pool = { x: X.pool * W.w, y: fY(X.pool, X.poolV), rx: prx, ry: prx * 0.21 };
     // 树
     g.tree = { x: X.tree * W.w, y: fY(X.tree, X.treeV) + 1, H: 115 * s };
@@ -421,22 +461,38 @@
     const k = LV.psPool;
     if (k < 0.004) return;
     const p = g.pool, e = 0.3 + 0.7 * k, rx = p.rx * e, ry = p.ry * e;
-    ctx.globalAlpha = Math.min(1, k * 1.6);
-    // 草岸
-    ctx.fillStyle = css([46, 70, 40], 2, 0.9);
-    ctx.beginPath(); ctx.ellipse(p.x, p.y + ry * 0.12, rx * 1.12, ry * 1.34, 0, 0, TAU); ctx.fill();
-    // 静水：上半映着天，近处深些
+    const A = Math.min(1, k * 1.6);
+    // 草岸：柔和的一圈，边上渐渐没入草地（不是硬边）
+    ctx.save();
+    ctx.translate(p.x, p.y + ry * 0.14); ctx.scale(1, (ry * 1.5) / (rx * 1.2));
+    const bk = ctx.createRadialGradient(0, 0, rx * 0.7, 0, 0, rx * 1.2);
+    bk.addColorStop(0, css([40, 66, 38], 2, 0.9 * A)); bk.addColorStop(0.55, css([46, 74, 40], 2, 0.6 * A)); bk.addColorStop(1, css([52, 82, 44], 2, 0));
+    ctx.fillStyle = bk;
+    ctx.beginPath(); ctx.arc(0, 0, rx * 1.2, 0, TAU); ctx.fill();
+    ctx.restore();
+    ctx.globalAlpha = A;
+    // 静水：远岸映着天（亮），近处深些
     const sky = skyRGB(), wc = waterRGB();
     const gr = ctx.createLinearGradient(0, p.y - ry, 0, p.y + ry);
-    gr.addColorStop(0, rgba(mix(sky, wc, 0.2), 1)); gr.addColorStop(1, rgba(mix(wc, [8, 14, 24], 0.25), 1));
+    gr.addColorStop(0, rgba(mix(sky, [255, 252, 240], 0.18 * W.daylight), 1)); gr.addColorStop(0.45, rgba(mix(sky, wc, 0.35), 1));
+    gr.addColorStop(1, rgba(mix(wc, [8, 14, 24], 0.25), 1));
     ctx.fillStyle = gr;
     ctx.beginPath(); ctx.ellipse(p.x, p.y, rx, ry, 0, 0, TAU); ctx.fill();
-    // 月的倒影
+    // 水边的一圈柔影（近岸），远岸一线天光
+    ctx.lineWidth = Math.max(1, 2.2 * g.s * 0.6);
+    ctx.strokeStyle = rgba([12, 22, 30], 0.18);
+    ctx.beginPath(); ctx.ellipse(p.x, p.y + 0.5, rx - 1, ry - 1, 0, 0.1, Math.PI - 0.1); ctx.stroke();
+    ctx.strokeStyle = rgba(mix(sky, [255, 252, 240], 0.6), 0.35 * (0.3 + 0.7 * W.daylight));
+    ctx.lineWidth = Math.max(0.6, 1 * g.s * 0.6);
+    ctx.beginPath(); ctx.ellipse(p.x, p.y + 0.5, rx - 1.5, ry - 1.2, 0, Math.PI + 0.25, TAU - 0.25); ctx.stroke();
+    // 日与月的倒影
     const mk = nightK() * LV.moon;
-    if (mk > 0.05 && SP) {
+    if (SP) {
       ctx.save(); ctx.globalCompositeOperation = 'lighter';
-      glowAt(ctx, SP.cool, p.x - rx * 0.25, p.y, ry * 1.6, 0.35 * mk);
+      if (mk > 0.05) glowAt(ctx, SP.cool, p.x - rx * 0.25, p.y, ry * 1.6, 0.35 * mk * A);
+      if (W.daylight > 0.2) glowAt(ctx, SP.pale, p.x + rx * 0.2, p.y - ry * 0.25, ry * 1.8, 0.16 * W.daylight * A);
       ctx.restore();
+      ctx.globalAlpha = A;
     }
     // 静水的亮线
     const lit = 0.3 + 0.7 * W.daylight;
@@ -457,7 +513,7 @@
       const N = LV.rain > 0.08 ? 7 : 2;
       for (let i = 0; i < N; i++) {
         const ph = W.t * (drink && i < 2 ? 0.45 : 1.3) + hsh(i * 5.1), f = ph - Math.floor(ph);
-        const cx = drink && i < 2 ? p.x + rx * 0.55 : p.x + (hsh(i * 2.7 + Math.floor(ph)) - 0.5) * rx * 1.4;
+        const cx = drink && i < 2 ? p.x + rx * 0.8 : p.x + (hsh(i * 2.7 + Math.floor(ph)) - 0.5) * rx * 1.4;
         const cy = drink && i < 2 ? p.y + ry * 0.05 : p.y + (hsh(i * 4.3 + Math.floor(ph)) - 0.5) * ry;
         const r = (1 + f * 7) * g.s * 0.6;
         ctx.moveTo(cx + r, cy); ctx.ellipse(cx, cy, r, r * 0.3, 0, 0, TAU);
@@ -624,20 +680,15 @@
       glowAt(ctx, SP.warm, x - 9.5 * s, y - 16 * s, 7 * s, Math.max(zk, nk * 0.5) * 0.9);
       glowAt(ctx, SP.gold, x, y - 20 * s, (46 + 50 * LV.psPraise) * s, 0.32 * zk);
       if (LV.psPraise > 0.02) {
-        // 荣光的光芒：自圣所向上
-        ctx.globalAlpha = 1;
-        const gl = ctx.createRadialGradient(x, y - 20 * s, 0, x, y - 20 * s, 150 * s);
-        gl.addColorStop(0, rgba([255, 236, 190], 0.2 * LV.psPraise)); gl.addColorStop(1, rgba([255, 236, 190], 0));
-        ctx.fillStyle = gl;
-        ctx.beginPath();
-        for (let i = 0; i < 9; i++) {
-          const a = -Math.PI / 2 + (i - 4) * 0.2 + 0.03 * Math.sin(W.t * 0.4 + i), w = 0.035;
-          ctx.moveTo(x, y - 20 * s);
-          ctx.lineTo(x + Math.cos(a - w) * 150 * s, y - 20 * s + Math.sin(a - w) * 150 * s);
-          ctx.lineTo(x + Math.cos(a + w) * 150 * s, y - 20 * s + Math.sin(a + w) * 150 * s);
-          ctx.closePath();
+        // 荣光：自圣所升起的一柱柔光，和几道短而柔的光（不是条纹的扇）
+        const pk = LV.psPraise, cy = y - 20 * s;
+        ctx.save(); ctx.translate(x, cy - 30 * s); ctx.scale(0.32, 1);
+        glowAt(ctx, SP.gold, 0, 0, 70 * s, 0.3 * pk);
+        ctx.restore();
+        for (let i = 0; i < 5; i++) {
+          const a = -Math.PI / 2 + (i - 2) * 0.3 + 0.03 * Math.sin(W.t * 0.4 + i), len = (70 + 30 * hsh(i + 1)) * s;
+          beamAt(ctx, SP.beamW, x, cy, a, len, len * 0.22, 0.26 * pk);
         }
-        ctx.fill();
       }
       ctx.restore();
     }
@@ -750,7 +801,7 @@
   }
   function vineMid(ctx, g, k) { drawVinePath(ctx, g.vine.mid, clamp((k - 0.15) / 0.75, 0, 1) * g.vine.mid.len, 1, g.s1); }
   // 长成的葡萄树画进离屏画布，光色明显改变时才重画（一帧几百片叶子太贵）
-  const VC = { near: { c: null, key: '', f: 0 }, mid: { c: null, key: '', f: 0 } };
+  const VC = { near: { c: null, key: '', f: 0 }, mid: { c: null, key: '', f: 0 }, lastF: -1 };
   function drawVine(ctx, g, which) {
     const k = LV.psVine;
     if (k < 0.002) return;
@@ -759,10 +810,13 @@
     const C2 = VC[which], bx = which === 'mid' ? g.vine.boxM : g.vine.boxN;
     const bw = bx[2] - bx[0], bh = bx[3] - bx[1];
     if (!(bw > 2 && bh > 2)) { fn(ctx, g, k); return; }
-    const key = [W.w, W.h, Math.round(W.daylight * 24), Math.round(W.dusk * 14), Math.round(W.night * 14), Math.round(LV.psGrape * 10), Math.round(LV.storm * 10)].join(',');
+    const key = [W.w, W.h, Math.round(W.daylight * 16), Math.round(W.dusk * 10), Math.round(W.night * 10), Math.round(LV.psGrape * 10), Math.round(LV.storm * 10)].join(',');
     const dpr = Math.min(2, W.dpr || 1);
-    // 光色变了才重画；天光飞转时（90 篇的日夜）至多每 6 帧重画一次
-    const stale = C2.c && C2.key !== key && C2.key.split(',', 2).join() === key.split(',', 2).join() && W.frame - C2.f < 6 && W.frame >= C2.f;
+    // 光色变了才重画；天光飞转时（90 篇的日夜）至多每 12 帧重画一次
+    // 近、中两张缓存不在同一帧里重画（天光飞转时把重画分到不同的帧上）
+    const sameSize = C2.c && C2.key.split(',', 2).join() === key.split(',', 2).join();
+    const age = W.frame - C2.f;
+    const stale = sameSize && C2.key !== key && age >= 0 && (age < 12 || (VC.lastF === W.frame && age < 40));
     if ((C2.key !== key || !C2.c) && !stale) {
       try {
         if (!C2.c) C2.c = document.createElement('canvas');
@@ -772,7 +826,7 @@
         cc.setTransform(1, 0, 0, 1, 0, 0); cc.clearRect(0, 0, cw, ch);
         cc.setTransform(dpr, 0, 0, dpr, -bx[0] * dpr, -bx[1] * dpr);
         fn(cc, g, k);
-        C2.key = key; C2.f = W.frame;
+        C2.key = key; C2.f = W.frame; VC.lastF = W.frame;
       } catch (e) { C2.c = null; fn(ctx, g, k); return; }
     }
     ctx.drawImage(C2.c, bx[0], bx[1], bw, bh);
@@ -843,7 +897,7 @@
   }
   function deerPos(g) {
     const k = LV.psDeer, e = 1 - (1 - k) * (1 - k);
-    const x1 = (g.pool.x + g.pool.rx * 0.95) / W.w;
+    const x1 = (g.pool.x + g.pool.rx * 1.02) / W.w;
     const xf = lerp(1.06, x1, e), v = lerp(0.2, X.deerV, e);
     const s = g.s * (0.92 + 0.35 * v);
     return { xf, x: xf * W.w, y: fY(Math.min(xf, 1), v), s, walkD: e * (1.06 - x1) * W.w };
@@ -962,13 +1016,20 @@
       }
       ctx.stroke();
     }
-    // 众星
+    // 众星：一颗一颗自灵所在之处飞出，落到各自的位置（柔光，不是方点），落定时一闪
+    const O = S.lyre ? [S.lyre[0] * W.w, S.lyre[1] * W.h] : [G2.cx, G2.cy];
     for (let i = 0; i < N; i++) {
-      const a = clamp(k * (N + 2) - i, 0, 1) * vis;
-      if (a < 0.01) continue;
-      const st = LYRE[i], x = G2.cx + st[0] * G2.R, y = G2.cy + st[1] * G2.R;
+      const pr = clamp((k * (N + 3) - i) / 3, 0, 1);
+      if (pr <= 0) continue;
+      const a = (0.35 + 0.65 * pr) * vis;
+      const st = LYRE[i], X1 = G2.cx + st[0] * G2.R, Y1 = G2.cy + st[1] * G2.R;
+      const at = t => { const e = easeOut(t), dx = X1 - O[0], dy = Y1 - O[1], bow = Math.sin(Math.PI * e) * 0.18 * (hsh(i + 3) - 0.5) * 2;
+        return [O[0] + dx * e - dy * bow, O[1] + dy * e + dx * bow]; };
+      const [x, y] = pr < 1 ? at(pr) : [X1, Y1];
+      if (pr < 1) for (let j = 1; j <= 4; j++) { const q = at(Math.max(0, pr - j * 0.07)); glowAt(ctx, SP.pale, q[0], q[1], (2.6 - j * 0.4) * u, 0.3 * (1 - j / 5) * vis); }
+      const flare = pr >= 1 ? clamp(1 - (k * (N + 3) - i - 3) * 0.45, 0, 1) : 0;
       const tw = 0.86 + 0.14 * Math.sin(W.t * (1.7 + i * 0.23) + i * 1.9);
-      glowAt(ctx, SP.cool, x, y, (4 + 3.2 * st[2]) * u, 0.5 * a * tw);
+      glowAt(ctx, SP.cool, x, y, (4 + 3.2 * st[2]) * u * (1 + 0.8 * flare), (0.5 * tw + 0.4 * flare) * a);
       glowAt(ctx, SP.pale, x, y, (1.4 + 0.9 * st[2]) * u, 0.95 * a);
       if (st[2] >= 2) {
         ctx.globalAlpha = 0.45 * a * tw;
@@ -984,62 +1045,96 @@
     const k = LV.psLine;
     if (k < 0.01 || !SP) return;
     const hz = W.horizonY, u = Math.max(0.6, W.unit);
-    ctx.save(); ctx.globalCompositeOperation = 'lighter';
-    for (let i = 0; i < 3; i++) {
-      const rx = W.w * (0.56 - i * 0.07), ry = hz * (0.86 - i * 0.16);
-      ctx.globalAlpha = 1;
-      ctx.strokeStyle = rgba([255, 226, 172], (0.14 + 0.05 * i) * k);
-      ctx.lineWidth = Math.max(0.6, 1.1 * u);
-      ctx.beginPath(); ctx.ellipse(W.w * 0.5, hz, rx, ry, 0, Math.PI, TAU); ctx.stroke();
-      // 言语之光沿量带奔走，从地极到地极（无言无语）
+    // 星宿之琴在天上时，量带不从琴上划过
+    let box = null;
+    if (LV.psLyre > 0.3 && lyreVis() > 0.05) { const L = lyreGeo(); box = [L.cx - 0.95 * L.R, L.cy - 1.1 * L.R, L.cx + 0.95 * L.R, L.cy + 1.0 * L.R]; }
+    const inBox = (x, y) => box && x > box[0] && x < box[2] && y > box[1] && y < box[3];
+    ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.lineCap = 'round';
+    const N = 40;
+    for (let i = 0; i < 2; i++) {
+      const rx = W.w * (0.56 - i * 0.09), ry = hz * (0.84 - i * 0.2), cx = W.w * 0.5;
+      const pt = t => { const a = Math.PI + t * Math.PI; return [cx + Math.cos(a) * rx, hz + Math.sin(a) * ry]; };
+      // 一道宽而淡的光带，中间一线细芯；向两端的地极渐渐隐去
+      for (const [lw, al] of [[Math.max(4, 9 * u), 0.05], [Math.max(0.8, 1.1 * u), 0.2]]) {
+        ctx.lineWidth = lw;
+        for (let j = 0; j < N; j++) {
+          const t0 = j / N, t1 = (j + 1) / N, p0 = pt(t0), p1 = pt(t1);
+          if (inBox(p0[0], p0[1]) || inBox(p1[0], p1[1])) continue;
+          const f = Math.pow(Math.sin(Math.PI * (t0 + t1) / 2), 1.3);
+          ctx.strokeStyle = rgba([255, 226, 172], al * f * k * (1 - 0.25 * i));
+          ctx.beginPath(); ctx.moveTo(p0[0], p0[1]); ctx.lineTo(p1[0], p1[1]); ctx.stroke();
+        }
+      }
+      // 言语之光沿量带奔走，从地极到地极（无言无语）：带着短短的彗尾
       for (let q = 0; q < 2; q++) {
-        const ph = (W.t * 0.07 + i * 0.29 + q * 0.5) % 1, a = Math.PI + ph * Math.PI;
-        glowAt(ctx, SP.gold, W.w * 0.5 + Math.cos(a) * rx, hz + Math.sin(a) * ry, 9 * u, 0.75 * k * Math.sin(ph * Math.PI));
+        const ph = (W.t * 0.07 + i * 0.29 + q * 0.5) % 1;
+        for (let j = 0; j < 7; j++) {
+          const tt = ph - j * 0.006;
+          if (tt < 0) break;
+          const c = pt(tt);
+          if (inBox(c[0], c[1])) continue;
+          glowAt(ctx, SP.gold, c[0], c[1], (9 - j * 0.9) * u, (j ? 0.3 * (1 - j / 7) : 0.75) * k * Math.sin(tt * Math.PI));
+        }
       }
     }
     ctx.restore();
     ctx.globalAlpha = 1;
   }
+  // 清晨的翅膀（139:9）：两只柔光的翼自日出之处的霞光里展开——上翼扬起、下翼贴着海面；
+  // 每翼六片弯弯的长羽，低透明、彼此交叠，画在四分之一大小的画布上再放大（边缘自然柔和）
+  const WG = { c: null, w: 0, h: 0 };
   function drawWings(ctx) {
     const k = LV.psWings;
-    if (k < 0.01) return;
-    const sx = W.sun.x, sy = Math.min(W.sun.y, W.horizonY - 2), Lw = Math.max(W.w, W.h * 1.1);
-    ctx.save(); ctx.globalCompositeOperation = 'lighter';
-    const gr = ctx.createRadialGradient(sx, sy, 0, sx, sy, Lw * 0.8);
-    gr.addColorStop(0, rgba([255, 240, 206], 0.34 * k)); gr.addColorStop(0.3, rgba([255, 226, 176], 0.14 * k)); gr.addColorStop(1, rgba([255, 214, 160], 0));
-    ctx.fillStyle = gr;
-    // 两翼：上翼扬向天，下翼贴着海面；每翼一扇长羽（细长的羽片，由日出之处向外展开）
-    const wings = [{ a0: -0.16, a1: -1.2, L: 0.72, n: 10, bend: -0.12 }, { a0: 0.0, a1: 0.2, L: 0.6, n: 6, bend: 0.06 }];
-    ctx.beginPath();
+    if (k < 0.01 || typeof document === 'undefined') return;
+    const sx = W.sun.x, sy = Math.min(W.sun.y, W.horizonY - 2), Lw = Math.min(W.w, W.h * 1.7);
+    const q = 4, cw = Math.max(8, Math.ceil(W.w / q)), ch = Math.max(8, Math.ceil(W.h / q));
+    try {
+      if (!WG.c) WG.c = document.createElement('canvas');
+      if (WG.c.width !== cw || WG.c.height !== ch) { WG.c.width = cw; WG.c.height = ch; }
+    } catch (e) { return; }
+    const g = WG.c.getContext('2d');
+    g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, cw, ch);
+    g.setTransform(1 / q, 0, 0, 1 / q, 0, 0);
+    g.globalCompositeOperation = 'lighter';
+    // 以日为身，两翼向右展开：上翼的「臂」自日边弯弯地扬起，长羽自臂上向后（右）垂下，越近翼尖越长；
+    // 下翼如上翼在水面上的倒影（淡些）。羽尖不高过画面的三分之一。
+    const open = 0.3 + 0.7 * k, top = W.h * 0.34;
+    const rise = Math.min(W.h * 0.13, Math.max(W.h * 0.04, sy - top - W.h * 0.03));
+    const wings = [{ dir: -1, al: 0.3 }, { dir: 1, al: 0.15 }];
     for (const wg of wings) {
-      for (let i = 0; i < wg.n; i++) {
-        const t = i / (wg.n - 1);
-        const a = lerp(wg.a0, lerp(wg.a0, wg.a1, 0.15 + 0.85 * k), t) + 0.01 * Math.sin(W.t * 0.5 + i);
-        const len = Lw * wg.L * (0.6 + 0.4 * Math.sin(Math.PI * (0.2 + 0.7 * t))) * (0.35 + 0.65 * k);
-        const ca = Math.cos(a), sa = Math.sin(a), nx = -sa, ny = ca, w = len * (0.05 - 0.015 * t);
-        const tx = sx + ca * len, ty = sy + sa * len;
-        const mx = sx + Math.cos(a + wg.bend) * len * 0.5, my = sy + Math.sin(a + wg.bend) * len * 0.5;
-        ctx.moveTo(sx, sy);
-        ctx.quadraticCurveTo(mx + nx * w, my + ny * w, tx, ty);
-        ctx.quadraticCurveTo(mx - nx * w * 0.6, my - ny * w * 0.6, sx, sy);
+      const d = wg.dir, wx = sx + Lw * 0.2 * open, wy = sy + d * rise * open;
+      const cx = sx + Lw * 0.08 * open, cy = sy + d * rise * 0.95 * open;
+      const arm = t => { const u = 1 - t; return [u * u * sx + 2 * u * t * cx + t * t * wx, u * u * sy + 2 * u * t * cy + t * t * wy]; };
+      const n = 7;
+      for (let i = 0; i < n; i++) {
+        const t = i / (n - 1), [bx, by] = arm(0.22 + 0.78 * t);
+        const a = -d * lerp(0.3, -0.25, t) + 0.012 * Math.sin(W.t * 0.6 + i);
+        const len = Lw * lerp(0.09, 0.25, t) * open, wd = len * 0.13;
+        const ca = Math.cos(a), sa = Math.sin(a), nx = -sa, ny = ca, bend = d * 0.09;
+        const tx = bx + Math.cos(a + bend) * len, ty = by + Math.sin(a + bend) * len;
+        const mx = bx + ca * len * 0.5, my = by + sa * len * 0.5;
+        const gr = g.createLinearGradient(bx, by, tx, ty);
+        gr.addColorStop(0, rgba([255, 238, 208], wg.al * k)); gr.addColorStop(0.55, rgba([255, 212, 178], wg.al * 0.6 * k)); gr.addColorStop(1, rgba([255, 196, 172], 0));
+        g.fillStyle = gr;
+        g.beginPath();
+        g.moveTo(bx, by);
+        g.quadraticCurveTo(mx + nx * wd, my + ny * wd, tx, ty);
+        g.quadraticCurveTo(mx - nx * wd * 0.35, my - ny * wd * 0.35, bx, by);
+        g.fill();
       }
+      // 翼的前缘：一道柔亮的弧
+      g.strokeStyle = rgba([255, 244, 222], wg.al * 0.9 * k);
+      g.lineWidth = Math.max(4, 7 * W.unit); g.lineCap = 'round';
+      g.beginPath(); g.moveTo(sx, sy); g.quadraticCurveTo(cx, cy, wx, wy); g.stroke();
     }
-    ctx.fill();
-    // 羽轴：细细一线
-    ctx.strokeStyle = rgba([255, 246, 226], 0.16 * k);
-    ctx.lineWidth = Math.max(0.6, 0.9 * W.unit);
-    ctx.beginPath();
-    for (const wg of wings) {
-      for (let i = 0; i < wg.n; i++) {
-        const t = i / (wg.n - 1);
-        const a = lerp(wg.a0, lerp(wg.a0, wg.a1, 0.15 + 0.85 * k), t) + 0.01 * Math.sin(W.t * 0.5 + i);
-        const len = Lw * wg.L * (0.6 + 0.4 * Math.sin(Math.PI * (0.2 + 0.7 * t))) * (0.35 + 0.65 * k) * 0.8;
-        ctx.moveTo(sx, sy);
-        ctx.quadraticCurveTo(sx + Math.cos(a + wg.bend) * len * 0.5, sy + Math.sin(a + wg.bend) * len * 0.5, sx + Math.cos(a) * len, sy + Math.sin(a) * len);
-      }
-    }
-    ctx.stroke();
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    if (SP) glowAt(ctx, SP.warm, sx, sy, M() * 0.32, 0.3 * k);
+    ctx.globalAlpha = 1;
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(WG.c, 0, 0, cw * q, ch * q);
     ctx.restore();
+    ctx.globalAlpha = 1;
   }
 
   // ════════════════════════════════════════════════════════════
@@ -1047,47 +1142,37 @@
   // ════════════════════════════════════════════════════════════
   function drawRays(ctx) {
     const k = LV.psRay;
-    if (k < 0.01) return;
+    if (k < 0.01 || !SP) return;
     const sx = W.sun.x, sy = W.sun.y;
     if (sy > W.horizonY) return;
-    const L = Math.hypot(W.w, W.h);
+    const L = Math.hypot(W.w, W.h) * 0.62;
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
-    const gr = ctx.createRadialGradient(sx, sy, 0, sx, sy, L * 0.9);
-    gr.addColorStop(0, rgba([255, 244, 214], 0.1 * k)); gr.addColorStop(0.6, rgba([255, 240, 206], 0.035 * k)); gr.addColorStop(1, rgba([255, 240, 206], 0));
-    ctx.fillStyle = gr;
-    ctx.beginPath();
-    for (let i = 0; i < 7; i++) {
-      const a = Math.PI * (0.52 + i * 0.05) + 0.02 * Math.sin(W.t * 0.3 + i), w = 0.016 + 0.012 * hsh(i);
-      ctx.moveTo(sx, sy);
-      ctx.lineTo(sx + Math.cos(a - w) * L, sy + Math.sin(a - w) * L);
-      ctx.lineTo(sx + Math.cos(a + w) * L, sy + Math.sin(a + w) * L);
-      ctx.closePath();
+    glowAt(ctx, SP.pale, sx, sy, M() * 0.4, 0.22 * k);
+    // 天光破云：几道柔光斜斜落下（宽窄不一，边缘柔和）
+    for (let i = 0; i < 6; i++) {
+      const a = Math.PI * (0.53 + i * 0.058) + 0.02 * Math.sin(W.t * 0.3 + i), len = L * (0.7 + 0.3 * hsh(i + 2));
+      beamAt(ctx, SP.beam, sx, sy, a, len, len * (0.08 + 0.07 * hsh(i)), 0.2 * k);
     }
-    ctx.fill();
     ctx.restore();
+    ctx.globalAlpha = 1;
   }
+  // 使你的脸发光（80:19）：落日周围一团暖光，四五道短而柔的光
   function drawFace(ctx) {
     const k = LV.psFace * clamp(1 - W.night * 1.6, 0, 1);
-    if (k < 0.01) return;
-    const sx = W.sun.x, sy = Math.min(W.sun.y, W.horizonY), L = Math.hypot(W.w, W.h);
+    if (k < 0.01 || !SP) return;
+    const sx = W.sun.x, sy = Math.min(W.sun.y, W.horizonY), m = M();
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
-    const gr = ctx.createRadialGradient(sx, sy, 0, sx, sy, L * 0.75);
-    gr.addColorStop(0, rgba([255, 222, 160], 0.34 * k)); gr.addColorStop(0.3, rgba([255, 196, 130], 0.12 * k)); gr.addColorStop(1, rgba([255, 180, 120], 0));
-    ctx.fillStyle = gr;
-    ctx.fillRect(0, 0, W.w, W.h);
-    ctx.beginPath();
-    for (let i = 0; i < 11; i++) {
-      const a = Math.PI * (0.8 + i * 0.055) + 0.015 * Math.sin(W.t * 0.25 + i * 1.3), w = 0.012 + 0.01 * hsh(i + 4);
-      ctx.moveTo(sx, sy);
-      ctx.lineTo(sx + Math.cos(a - w) * L, sy + Math.sin(a - w) * L);
-      ctx.lineTo(sx + Math.cos(a + w) * L, sy + Math.sin(a + w) * L);
-      ctx.closePath();
+    glowAt(ctx, SP.gold, sx, sy, m * 0.9, 0.22 * k);
+    glowAt(ctx, SP.warm, sx, sy, m * 0.45, 0.42 * k);
+    for (let i = 0; i < 5; i++) {
+      const a = Math.PI * (0.94 + i * 0.085) + 0.02 * Math.sin(W.t * 0.25 + i * 1.3), len = m * 0.45 * (0.7 + 0.3 * hsh(i + 4)) * (0.6 + 0.4 * k);
+      beamAt(ctx, SP.beamW, sx, sy, a, len, len * (0.14 + 0.06 * hsh(i + 9)), 0.55 * k);
     }
-    ctx.fill();
     ctx.restore();
+    ctx.globalAlpha = 1;
   }
   function flightGeo(t) {
-    const x0 = X.dav * W.w, y0 = fY(X.dav, X.davV) - 34 * LS(2) * 1.25;
+    const h0 = headOf('david', 1.25), x0 = h0[0], y0 = h0[1];
     const x1 = W.w * 0.44, y1 = W.h * 0.18, x2 = W.w * 0.2, y2 = W.h * 0.47;
     const u = 1 - t;
     return [u * u * x0 + 2 * u * t * x1 + t * t * x2, u * u * y0 + 2 * u * t * y1 + t * t * y2];
@@ -1129,13 +1214,27 @@
       // 一穹柔光覆庇着他们（121:5「耶和华在你右边荫庇你」）：不闪、不动
       const R = Math.max(0.12 * W.w, 70 * g.s);
       ctx.save(); ctx.translate(cx, gy); ctx.scale(1, 0.62);
-      glowAt(ctx, SP.pale, 0, 0, R * 1.25, 0.26 * k);
-      glowAt(ctx, SP.warm, 0, 0, R * 0.7, 0.14 * k);
+      glowAt(ctx, SP.pale, 0, 0, R * 1.25, 0.45 * k);
+      glowAt(ctx, SP.warm, 0, 0, R * 0.7, 0.2 * k);
       ctx.globalAlpha = 1;
-      ctx.strokeStyle = rgba([236, 240, 255], 0.09 * k);
-      ctx.lineWidth = Math.max(1.2, 2.4 * g.s);
+      ctx.lineWidth = Math.max(3, 7 * g.s);
+      ctx.strokeStyle = rgba([236, 240, 255], 0.06 * k);
       ctx.beginPath(); ctx.arc(0, 0, R * 0.95, Math.PI * 1.08, Math.PI * 1.92); ctx.stroke();
+      ctx.lineWidth = Math.max(1.2, 2.2 * g.s);
+      ctx.strokeStyle = rgba([236, 240, 255], 0.2 * k);
+      ctx.stroke();
       ctx.restore();
+      // 一颗不眨眼的星守在睡着的人上方，一线微光连到他们那里（不闪、不动）
+      const stx = cx, sty = gy - Math.max(R * 1.6, W.h * 0.3), sr = Math.max(0.6, W.unit);
+      const lg = ctx.createLinearGradient(0, sty, 0, gy);
+      lg.addColorStop(0, rgba([236, 240, 255], 0.26 * k)); lg.addColorStop(1, rgba([236, 240, 255], 0.02 * k));
+      ctx.fillStyle = lg;
+      ctx.fillRect(stx - Math.max(0.6, 0.8 * sr), sty, Math.max(1.2, 1.6 * sr), gy - sty);
+      glowAt(ctx, SP.cool, stx, sty, 22 * sr, 0.55 * k);
+      glowAt(ctx, SP.pale, stx, sty, 6 * sr, 1 * k);
+      ctx.globalAlpha = 0.6 * k; ctx.strokeStyle = 'rgb(240,244,255)'; ctx.lineWidth = Math.max(0.6, 0.8 * sr);
+      ctx.beginPath(); ctx.moveTo(stx - 13 * sr, sty); ctx.lineTo(stx + 13 * sr, sty); ctx.moveTo(stx, sty - 13 * sr); ctx.lineTo(stx, sty + 13 * sr); ctx.stroke();
+      ctx.globalAlpha = 1;
     }
     // 清晨的翅膀：一只光的鸟飞到海极；到了那里，一只手般的光扶持它
     if (LV.psFlight > 0.001 && LV.psWings > 0.02) {
@@ -1231,14 +1330,21 @@
   const PT = [];
   let breathAcc = 0, danceT = 0, danceP = false;
   const CAND = [];
-  function addPt(p) { if (PT.length > 400) PT.shift(); p.t = 0; PT.push(p); }
+  function addPt(p) { if (PT.length > 420) PT.shift(); p.t = 0; PT.push(p); }
   function chaff(b) {
     if (inst(b)) return;
-    const g = layout();
-    for (let i = 0; i < 70; i++) {
-      const xf = 0.62 + Math.random() * 0.36;
-      addPt({ kind: 'chaff', x: xf * W.w, y: fY(xf, Math.random() * 0.4) - Math.random() * 20 * g.s, vx: -(70 + Math.random() * 120) * Math.max(0.5, W.unit),
-        vy: -(10 + Math.random() * 30) * Math.max(0.5, W.unit), max: 3 + Math.random() * 3, size: (0.8 + Math.random() * 1.2) * g.s * 0.7, rot: Math.random() * TAU, spin: (Math.random() - 0.5) * 8 });
+    const g = layout(), u = Math.max(0.6, W.unit), sz = Math.max(0.8, g.s * 0.7);
+    // 一阵风自右边的山脊吹过海面，把糠秕卷走（风是几道弯弯的淡光）
+    for (let i = 0; i < 5; i++) {
+      const xf = 0.84 + Math.random() * 0.14;
+      addPt({ kind: 'gust', x: xf * W.w, y: fY(xf, 0) - (10 + Math.random() * 50) * g.s, vx: -(150 + Math.random() * 60) * u, vy: -(4 + Math.random() * 8) * u,
+        max: 5 + Math.random() * 1.5, size: (60 + Math.random() * 60) * u, delay: i * 0.35, curl: Math.random() < 0.5 ? -1 : 1, seed: Math.random() * 10 });
+    }
+    for (let i = 0; i < 120; i++) {
+      const xf = 0.8 + Math.random() * 0.2;
+      addPt({ kind: 'chaff', x: xf * W.w, y: fY(Math.min(xf, 1), Math.random() * 0.3) - Math.random() * 24 * g.s, vx: -(120 + Math.random() * 90) * u,
+        vy: -(16 + Math.random() * 30) * u, max: 5 + Math.random() * 2, size: (1.2 + Math.random() * 1.4) * sz, rot: Math.random() * TAU, spin: (Math.random() - 0.5) * 8,
+        delay: Math.random() * 1.6, seed: Math.random() * 10 });
     }
   }
   function gatherCands() {
@@ -1252,19 +1358,28 @@
     if (r < 0.4 && CAND.length) return CAND[Math.floor(Math.random() * CAND.length)];
     if (r < 0.58 && GS.beasts && GS.beasts._ents) { const A = GS.beasts._ents.AN; const a = A && A[Math.floor(Math.random() * A.length)]; if (a && isFinite(a.x) && isFinite(a.y)) return [a.x, a.y - 10 * Math.max(0.5, W.unit)]; }
     if (r < 0.8 && GS.air && GS.air._birds) { const B = GS.air._birds; const bd = B[Math.floor(Math.random() * B.length)]; if (bd && isFinite(bd.x) && isFinite(bd.y) && bd.a > 0.5) return [bd.x, bd.y]; }
-    if (GS.sea && GS.sea._fish) { const F = GS.sea._fish; const f = F[Math.floor(Math.random() * F.length)]; if (f && isFinite(f.x) && isFinite(f.y)) return [f.x, f.y]; }
+    if (GS.sea && GS.sea._fish) { const F = GS.sea._fish; const f = F[Math.floor(Math.random() * F.length)]; if (f && isFinite(f.x) && isFinite(f.y) && f.x >= W.w * 0.4) return [f.x, f.y]; }
     return CAND.length ? CAND[Math.floor(Math.random() * CAND.length)] : null;
+  }
+  // 横屏时经文在左边海上（约 0.04–0.48 W、0.55–0.82 H）：显出经文时，那里的光点淡下去
+  const narrQuiet = () => !port() && !!(GS.ui && GS.ui.narrating && U.safe('psalms.narr', () => GS.ui.narrating()));
+  function narrDim(x, y) {
+    const dx = Math.max(0, x - W.w * 0.5, W.w * 0.02 - x), dy = Math.max(0, W.h * 0.5 - y, y - W.h * 0.86);
+    return 0.3 + 0.7 * clamp(Math.hypot(dx, dy) / (0.06 * W.w), 0, 1);
   }
   function emitBreath(dt) {
     const k = LV.psBreath;
     if (k < 0.2 || W.replaying || !(dt > 0)) return;
     if ((W.frame & 7) === 0 || !CAND.length) gatherCands();
     breathAcc += dt * (22 + 72 * k) * (W.quality || 1);
+    const quiet = narrQuiet();
     let guard = 16;
     while (breathAcc >= 1 && guard--) {
       breathAcc -= 1;
       const src = breathSource();
       if (!src) continue;
+      // 经文在左边海上显出时，那一片保持安静（诗句不淹没在光点里）
+      if (quiet && src[0] < W.w * 0.47) continue;
       const u = Math.max(0.55, W.unit);
       addPt({ kind: 'breath', x: src[0] + (Math.random() - 0.5) * 4, y: src[1], vx: (Math.random() - 0.5) * 12 * u, vy: -(16 + Math.random() * 30) * u,
         max: 4 + Math.random() * 3.5, size: (1.3 + Math.random() * 1.7) * u, warm: Math.random() < 0.6 });
@@ -1274,26 +1389,44 @@
   function updatePts(dt) {
     for (let i = PT.length - 1; i >= 0; i--) {
       const p = PT[i];
+      if (p.delay > 0) { p.delay -= dt; continue; }
       p.t += dt;
       if (p.t >= p.max) { PT.splice(i, 1); continue; }
       p.x += p.vx * dt; p.y += p.vy * dt;
-      if (p.kind === 'chaff') { p.vy += 8 * dt; p.rot += p.spin * dt; }
+      if (p.kind === 'chaff') { p.vy += (5 + 14 * Math.sin(p.t * 2.2 + p.seed)) * dt; p.rot += p.spin * dt; }
+      else if (p.kind === 'gust') { /* 风：匀速掠过 */ }
       else { p.vx += (W.w * 0.6 - p.x) * 0.05 * dt; p.vy -= 3 * dt; }
     }
   }
   function drawPts(ctx) {
     if (!PT.length) return;
-    ctx.fillStyle = css([206, 180, 126], 2, 0.9, 0.1);
+    // 风
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = 'rgb(240,236,222)';
+    ctx.lineWidth = Math.max(0.8, 1.2 * Math.max(0.6, W.unit));
     for (const p of PT) {
-      if (p.kind !== 'chaff') continue;
-      ctx.globalAlpha = clamp(1 - p.t / p.max, 0, 1) * 0.9;
+      if (p.kind !== 'gust' || p.delay > 0) continue;
+      const f = p.t / p.max, L = p.size, c = p.curl, wv = Math.sin(p.t * 1.6 + p.seed) * 6;
+      ctx.globalAlpha = 0.22 * Math.sin(Math.PI * clamp(f, 0, 1)) * dayA();
+      ctx.beginPath(); ctx.moveTo(p.x + L, p.y + wv * 0.3);
+      ctx.bezierCurveTo(p.x + L * 0.6, p.y - 8 * c + wv, p.x + L * 0.25, p.y + 6 * c, p.x, p.y);
+      ctx.quadraticCurveTo(p.x - L * 0.12, p.y - 5 * c, p.x - L * 0.05, p.y - 9 * c);
+      ctx.stroke();
+    }
+    // 糠秕：淡淡的麦秆色，被风卷着越过海面
+    ctx.fillStyle = css([238, 218, 166], 2, 1, 0.16);
+    for (const p of PT) {
+      if (p.kind !== 'chaff' || p.delay > 0) continue;
+      const f = p.t / p.max;
+      ctx.globalAlpha = clamp(Math.min(f * 8, (1 - f) * 3), 0, 1);
       ctx.beginPath(); ctx.ellipse(p.x, p.y, p.size * 1.8, p.size * 0.6, p.rot, 0, TAU); ctx.fill();
     }
     if (!SP) { ctx.globalAlpha = 1; return; }
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    const quiet = narrQuiet();
     for (const p of PT) {
       if (p.kind !== 'breath') continue;
-      const f = p.t / p.max, a = Math.sin(Math.PI * Math.sqrt(clamp(f, 0, 1))) * (0.6 + 0.4 * LV.psBreath);
+      const f = p.t / p.max, a = Math.sin(Math.PI * Math.sqrt(clamp(f, 0, 1))) * (0.6 + 0.4 * LV.psBreath) * (quiet ? narrDim(p.x, p.y) : 1);
       if (a > 0.02) glowAt(ctx, p.warm ? SP.moteW : SP.mote, p.x, p.y, p.size * 4.5, a);
     }
     ctx.restore();
@@ -1433,42 +1566,46 @@
   //  幕的开端：诗篇的世界（与上一卷怎样结束无关）
   // ════════════════════════════════════════════════════════════
   function setup() {
-    const L = { deep: 1, light: 1, gather: 1, dayNight: 1, vault: 1, clouds: 0.35, land: 1, grass: 0.9, herbs: 0.75, trees: 0.24,
+    // 起初的地稍干、稍淡（青草与菜蔬只绿到一半，花还少）：到「我必亲自作我羊的牧人」时，才自可安歇的水边向外绿起来（23:2）
+    const L = { deep: 1, light: 1, gather: 1, dayNight: 1, vault: 1, clouds: 0.35, land: 1, grass: 0.62, herbs: 0.4, trees: 0.24,
       lights: 1, moon: 1, stars: 1, life: 1, good: 0, sabbath: 0, given: 1 };
     for (const k in L) if (W.hasLevel(k)) W.set(k, L[k], true);
     for (const k of MY) W.set(k, 0, true);
-    W.set('bloom', 0.55, true); W.set('bare', 0, true);
+    W.set('bloom', 0.15, true); W.set('bare', 0.5, true);
     W.freeClock = false;
-    const ox = W.w * 0.7, oy = W.ridgeBaseY(2, ox);
+    const ox = W.w * X.pool, oy = W.ridgeBaseY(2, ox);
     W.setOrigin('grass', ox, oy); W.setOrigin('herbs', ox, oy);
     W.setOrigin('trees', W.w * 0.99, W.ridgeBaseY(2, W.w * 0.99));
     W.goTo(0.31, 0, true);
+    const bx = W.w * 0.95, by = W.ridgeBaseY(2, bx);
     W.setPop('fish', 110, W.w * 0.16, W.h * 0.8, true);
     W.setPop('whale', 2, W.w * 0.14, W.h * 0.78, true);
     W.setPop('bird', 28, W.w * 0.62, W.h * 0.3, true);
-    W.setPop('cattle', 2, W.w * 0.95, oy, true);
-    W.setPop('beast', 3, W.w * 0.95, oy, true);
-    W.setPop('creeper', 14, W.w * 0.93, oy, true);
+    W.setPop('cattle', 2, bx, by, true);
+    W.setPop('beast', 2, bx, by, true);      // 只有两只鹿：牧场上没有狮子卧在羊群旁（23 篇不该有威胁）
+    W.setPop('creeper', 14, W.w * 0.93, by, true);
     W.setPop('human', 0, ox, oy, true);
     S = fresh();
     PT.length = 0; VT.clear(); danceT = 0; danceP = false;
     const c = C();
     c.clear({ fade: false });
     add('david', { label: '大卫', sex: 'm', age: 'adult', layer: 2, x: X.dav, v: X.davV, facing: -1, pose: 'stand', robe: ROBE_D, glow: 0.35, prop: 'staff', from: 'none' });
-    herd('flock', { kind: 'sheep', n: port() ? 6 : 8, x0: 0.5, x1: 0.665, layer: 2, label: '羊群', from: 'none', mill: true });
+    herd('flock', { kind: 'sheep', n: port() ? 6 : 8, x0: 0.5, x1: 0.59, layer: 2, label: '羊群', from: 'none', mill: true });
+    spreadV('flock', 0.01, 0.08);
     avoid([0.5, 0.9]);
   }
 
   // ════════════════════════════════════════════════════════════
   //  话语（每一句的故事约二十至三十秒）
+  //  经文的每一行（<br> 之间）不过十八九个字，在分句处断开：宽屏的经文框里不会把一个词（如「耶和华」）拆在两行
   // ════════════════════════════════════════════════════════════
   const STAGES = [
     // ── 卷一 · 1：溪水旁的树 ─────────────────────────────────
     {
       kind: 'act', utter: '耶和华知道义人的道路', cmd: 'git log --follow 义人的道路  # 溪水旁的一棵树', ref: '1:6',
       verse: [
-        { text: '他要像一棵树栽在溪水旁，按时候结果子，<br>叶子也不枯干。凡他所做的尽都顺利。', ref: '诗篇 1:3', hold: 7.5 },
-        { text: '恶人并不是这样，乃像糠秕被风吹散。', ref: '诗篇 1:4', hold: 5.5 },
+        { text: '他要像一棵树栽在溪水旁，<br>按时候结果子，叶子也不枯干。<br>凡他所做的尽都顺利。', ref: '诗篇 1:3', hold: 7.5 },
+        { text: '恶人并不是这样，<br>乃像糠秕被风吹散。', ref: '诗篇 1:4', hold: 5.5 },
         { text: '因为耶和华知道义人的道路；<br>恶人的道路却必灭亡。', ref: '诗篇 1:6', hold: 6 },
       ],
       apply(c) {
@@ -1490,28 +1627,24 @@
       },
     },
 
-    // ── 卷一 · 8：你所陈设的月亮星宿（灵的星宿：一张琴）──────────
+    // ── 卷一 · 8（147:4）：你所陈设的月亮星宿（灵的星宿：一张琴）──────
     {
-      kind: 'act', utter: '你所陈设的月亮星宿', cmd: 'ls ~/天 | grep 月亮星宿', ref: '8:3',
+      kind: 'name', utter: '他数点星宿的数目，一一称它的名', cmd: 'ls ~/天/星宿 | wc -l && name --each  # 一一称它的名', ref: '147:4',
       verse: [
-        { text: '耶和华我们的主啊，你的名在全地何其美！<br>你将你的荣耀彰显于天。', ref: '诗篇 8:1', hold: 7 },
-        { text: '我观看你指头所造的天，并你所陈设的月亮星宿，<br>便说：人算什么，你竟顾念他！世人算什么，你竟眷顾他！', ref: '诗篇 8:3–4', hold: 9 },
-        { text: '你叫他比天使微小一点，并赐他荣耀尊贵为冠冕。', ref: '诗篇 8:5', hold: 6 },
+        { text: '耶和华我们的主啊，<br>你的名在全地何其美！<br>你将你的荣耀彰显于天。', ref: '诗篇 8:1', hold: 6.5 },
+        { text: '我观看你指头所造的天，<br>并你所陈设的月亮星宿，便说：<br>人算什么，你竟顾念他！<br>世人算什么，你竟眷顾他！', ref: '诗篇 8:3–4', hold: 8 },
+        { text: '你叫他比天使微小一点，<br>并赐他荣耀尊贵为冠冕。', ref: '诗篇 8:5', hold: 6 },
       ],
       apply(c) {
         const L = c.choice && c.choice.lyre ? c.choice.lyre : [clamp(c.x / W.w, 0, 1), clamp(c.y / W.h, 0, 1)];
         T(c, [
           [0, b => { W.goTo(0.015, 11, inst(b)); S.lyre = L.slice(); }],
-          [1.5, () => walk('david', 0.63, { speed: 0.02, pose: 'sit' })],
+          [1.5, () => walk('david', X.dav, { speed: 0.02, pose: 'sit' })],
           [5, b => { cpose('flock', 'lie'); sfx(b, 'bleat', { soft: true, far: true }); }],
           [6.5, b => { S.harp = true; face('david', 1); sfx(b, 'harp', { soft: true }); }],
           [7, b => {
             lv('psLyre', 1, b);
-            if (!inst(b)) {
-              const G2 = lyreGeo();
-              fx().sow(W.spirit.x, W.spirit.y, LYRE.map(p => [G2.cx + p[0] * G2.R, G2.cy + p[1] * G2.R, 1.4 + p[2] * 0.5]), [236, 240, 255], { stagger: 1.4, dur: 2.6, pass: 'sky' });
-              sfx(b, 'stars');
-            }
+            if (!inst(b)) { fx().ring(W.spirit.x, W.spirit.y, [214, 226, 255], M() * 0.18, 2.2, 1); sfx(b, 'stars'); }
           }],
           [11, () => { S.harp = false; pose('david', 'gaze'); face('david', 1); }],
           [20.5, b => { S.harp = true; pose('david', 'sit'); sfx(b, 'harp', { soft: true }); }],
@@ -1524,9 +1657,9 @@
     {
       kind: 'act', utter: '诸天述说神的荣耀', cmd: 'broadcast --silent 荣耀 | tee 地极', ref: '19:1',
       verse: [
-        { text: '诸天述说神的荣耀；穹苍传扬他的手段。<br>这日到那日发出言语；这夜到那夜传出知识。', ref: '诗篇 19:1–2', hold: 7.5 },
+        { text: '诸天述说神的荣耀；穹苍传扬他的手段。<br>这日到那日发出言语；<br>这夜到那夜传出知识。', ref: '诗篇 19:1–2', hold: 7.5 },
         { text: '无言无语，也无声音可听。<br>它的量带通遍天下，它的言语传到地极。', ref: '诗篇 19:3–4', hold: 7 },
-        { text: '神在其间为太阳安设帐幕；<br>太阳如同新郎出洞房，又如勇士欢然奔路。', ref: '诗篇 19:4–5', hold: 7 },
+        { text: '神在其间为太阳安设帐幕；<br>太阳如同新郎出洞房，<br>又如勇士欢然奔路。', ref: '诗篇 19:4–5', hold: 7 },
       ],
       apply(c) {
         T(c, [
@@ -1548,21 +1681,30 @@
       },
     },
 
-    // ── 卷一 · 23:1–3：青草地、可安歇的水边 ───────────────────
+    // ── 卷一 · 23:1–3（以西结书 34:15）：青草地、可安歇的水边 ─────────
     {
-      kind: 'act', utter: '耶和华是我的牧者', cmd: 'shepherd --pasture=青草地 --water=可安歇的', ref: '23:1',
+      kind: 'promise', utter: '我必亲自作我羊的牧人', cmd: 'shepherd --pasture=青草地 --water=可安歇的', ref: '以西结书 34:15',
       verse: [
-        { text: '耶和华是我的牧者，我必不致缺乏。<br>他使我躺卧在青草地上，领我在可安歇的水边。', ref: '诗篇 23:1–2', hold: 8 },
-        { text: '他使我的灵魂苏醒，为自己的名引导我走义路。', ref: '诗篇 23:3', hold: 6.5 },
+        { text: '耶和华是我的牧者，我必不致缺乏。<br>他使我躺卧在青草地上，<br>领我在可安歇的水边。', ref: '诗篇 23:1–2', hold: 7.5 },
+        { text: '他使我的灵魂苏醒，<br>为自己的名引导我走义路。', ref: '诗篇 23:3', hold: 6 },
       ],
       apply(c) {
         T(c, [
           [0, b => {
-            lv('psPool', 1, b); W.set('grass', 1, inst(b)); W.set('herbs', 1, inst(b)); W.set('bloom', 1, inst(b)); W.goTo(0.4, 10, inst(b));
-            if (!inst(b)) { const p = layout().pool; fx().sparkle(p.x, p.y, 36, [214, 236, 255], p.rx * 0.8, 'near'); sfx(b, 'splash', { soft: true }); }
+            // 静水涌成一池，青草与花自水边向外绿遍全地
+            lv('psPool', 1, b); W.set('grass', 1, inst(b)); W.set('herbs', 1, inst(b)); W.set('bloom', 1, inst(b)); W.set('bare', 0, inst(b));
+            W.goTo(0.4, 10, inst(b));
+            if (!inst(b)) {
+              const p = layout().pool;
+              fx().sparkle(p.x, p.y, 36, [214, 236, 255], p.rx * 0.8, 'near');
+              fx().ring(p.x, p.y, [206, 244, 190], M() * 0.9, 4.5, 1.4);
+              bless(p.x, p.y, M() * 0.45);
+              sfx(b, 'splash', { soft: true });
+            }
           }],
-          [1.2, () => walk('david', 0.612, { speed: 0.018 })],
-          [1.6, b => { cwalk('flock', 0.52, 0.665, { speed: 0.022, pose: 'graze' }); sfx(b, 'bleat', { soft: true }); }],
+          [1.2, () => { walk('david', X.davP, { speed: 0.018 }); sink('david', X.davPV); }],
+          [1.6, b => { cwalk('flock', 0.5, 0.595, { speed: 0.022, pose: 'graze' }); sfx(b, 'bleat', { soft: true }); }],
+          [4.5, b => { if (!inst(b)) bless(W.w * 0.78, W.h * 0.82, M() * 0.4); }],
           [9, () => cpose('flock', 'lie')],
           [9.5, () => { face('david', -1); pose('david', 'kneel'); }],
           [12, b => {
@@ -1578,9 +1720,10 @@
     {
       kind: 'promise', utter: '我要教导你，指示你当行的路', cmd: 'route --through 死荫的幽谷 --light=on', ref: '32:8',
       verse: [
-        { text: '我虽然行过死荫的幽谷，也不怕遭害，因为你与我同在；<br>你的杖，你的竿，都安慰我。', ref: '诗篇 23:4', hold: 8.5 },
+        { text: '我虽然行过死荫的幽谷，也不怕遭害，<br>因为你与我同在；<br>你的杖，你的竿，都安慰我。', ref: '诗篇 23:4', hold: 7.5 },
         { text: '我要教导你，指示你当行的路；<br>我要定睛在你身上劝戒你。', ref: '诗篇 32:8', hold: 6 },
-        { text: '在我敌人面前，你为我摆设筵席；你用油膏了我的头，使我的福杯满溢。<br>我一生一世必有恩惠慈爱随着我；我且要住在耶和华的殿中，直到永远。', ref: '诗篇 23:5–6', hold: 10 },
+        { text: '在我敌人面前，你为我摆设筵席；<br>你用油膏了我的头，使我的福杯满溢。', ref: '诗篇 23:5', hold: 6.5 },
+        { text: '我一生一世必有恩惠慈爱随着我；<br>我且要住在耶和华的殿中，直到永远。', ref: '诗篇 23:6', hold: 6 },
       ],
       apply(c) {
         T(c, [
@@ -1589,21 +1732,22 @@
             pose('david', 'stand'); glow('david', 0.35); cpose('flock', 'stand'); avoid([0.5, 0.9]);
             sfx(b, 'wind', { soft: true, low: true });
           }],
-          [3.5, () => { walk('david', 0.65, { speed: 0.012 }); sink('david', 0.09); }],
+          // 牧人在前（纵深在羊群之前），羊群在后跟着
+          [3.5, () => { walk('david', 0.69, { speed: 0.012 }); sink('david', 0.36); }],
           [9.8, b => {
             lv('psPath', 1, b); lv('psWith', 1, b);
             if (!inst(b)) { const h = headOf('david', 0.5); fx().ring(h[0], h[1], [255, 236, 190], M() * 0.35, 2.6, 1.4); sfx(b, 'harp'); }
           }],
-          [11.2, () => { walk('david', 0.72, { speed: 0.02 }); sink('david', 0.12); }],
-          [11.8, () => cwalk('flock', 0.62, 0.72, { speed: 0.02, pose: 'stand' })],
-          [15, () => { walk('david', 0.812, { speed: 0.022 }); sink('david', 0.12); }],
-          [15.6, () => cwalk('flock', 0.68, 0.79, { speed: 0.022, pose: 'graze' })],
+          [11.2, () => { walk('david', 0.75, { speed: 0.02 }); sink('david', 0.31); }],
+          [11.8, () => cwalk('flock', 0.6, 0.69, { speed: 0.02, pose: 'stand' })],
+          [15, () => { walk('david', 0.812, { speed: 0.022 }); sink('david', 0.3); }],
+          [15.6, () => cwalk('flock', 0.64, 0.75, { speed: 0.022, pose: 'graze' })],
           [17.4, b => { W.set('gloom', 0, inst(b)); lv('psTable', 1, b); lv('psZion', 0.55, b); sfx(b, 'harp'); }],
           [20.5, b => {
             face('david', 1); pose('david', 'kneel'); lv('psOil', 1, b); lv('psWith', 0.35, b);
             if (!inst(b)) { const h = headOf('david', 0.95); fx().sparkle(h[0], h[1], 26, [255, 226, 150], 8, 'air'); }
           }],
-          [23.5, b => { if (!inst(b)) { const z = layout().zion; fx().ring(z.x, z.y - 20 * z.s, [255, 232, 190], M() * 0.25, 3, 1.2); } }],
+          [26, b => { if (!inst(b)) { const z = layout().zion; fx().ring(z.x, z.y - 20 * z.s, [255, 232, 190], M() * 0.25, 3, 1.2); } }],
         ]);
       },
     },
@@ -1612,7 +1756,7 @@
     {
       kind: 'act', utter: '耶和华的声音发在水上', cmd: 'echo 声音 > /大水  # 打雷', ref: '29:3',
       verse: [
-        { text: '耶和华的声音发在水上；荣耀的神打雷，耶和华打雷在大水之上。<br>耶和华的声音大有能力；耶和华的声音满有威严。', ref: '诗篇 29:3–4', hold: 8 },
+        { text: '耶和华的声音发在水上；<br>荣耀的神打雷，耶和华打雷在大水之上。<br>耶和华的声音大有能力；<br>耶和华的声音满有威严。', ref: '诗篇 29:3–4', hold: 8 },
         { text: '耶和华的声音震破香柏树……<br>耶和华的声音使火焰分岔。', ref: '诗篇 29:5–7', hold: 6 },
         { text: '洪水氾滥之时，耶和华坐着为王；<br>耶和华坐着为王，直到永远。', ref: '诗篇 29:10', hold: 6 },
       ],
@@ -1625,8 +1769,9 @@
           }],
           [1, b => bolt(b, 0.18)],
           [2, b => { W.set('rain', 0.85, inst(b)); sfx(b, 'rain'); }],
-          [2.5, () => { pose('david', 'stand'); walk('david', 0.685, { speed: 0.032, pose: 'kneel' }); sink('david', 0.07); }],
-          [3, () => cwalk('flock', 0.6, 0.72, { speed: 0.03, pose: 'lie' })],
+          // 牧人跪在树前（羊群伏在他的左边，不遮住他）
+          [2.5, () => { pose('david', 'stand'); walk('david', X.dav2, { speed: 0.032, pose: 'kneel' }); sink('david', X.dav2V); }],
+          [3, () => cwalk('flock', 0.6, 0.665, { speed: 0.03, pose: 'lie' })],
           [5, b => bolt(b, 0.34)],
           [9.4, b => {
             bolt(b, 0.93, true);
@@ -1639,13 +1784,14 @@
       },
     },
 
-    // ── 卷二 · 46:10，42:1：你们要休息；鹿切慕溪水 ────────────
+    // ── 卷二 · 46:10，51:10，42:1：你们要休息；清洁的心；鹿切慕溪水 ───
     {
       kind: 'cmd', utter: '你们要休息，要知道我是神', cmd: 'kill -STOP 狂风 波浪  # 休息', ref: '46:10',
       verse: [
-        { text: '你们要休息，要知道我是神！<br>我必在外邦中被尊崇，在遍地上也被尊崇。', ref: '诗篇 46:10', hold: 7 },
-        { text: '神是我们的避难所，是我们的力量，<br>是我们在患难中随时的帮助。', ref: '诗篇 46:1', hold: 6 },
-        { text: '神啊，我的心切慕你，如鹿切慕溪水。<br>我的心渴想神，就是永生神；我几时得朝见神呢？', ref: '诗篇 42:1–2', hold: 7.5 },
+        { text: '你们要休息，要知道我是神！<br>我必在外邦中被尊崇，<br>在遍地上也被尊崇。', ref: '诗篇 46:10', hold: 6.5 },
+        { text: '神是我们的避难所，是我们的力量，<br>是我们在患难中随时的帮助。', ref: '诗篇 46:1', hold: 5.5 },
+        { text: '神啊，求你为我造清洁的心，<br>使我里面重新有正直的灵。', ref: '诗篇 51:10', hold: 5.5 },
+        { text: '神啊，我的心切慕你，如鹿切慕溪水。<br>我的心渴想神，就是永生神；<br>我几时得朝见神呢？', ref: '诗篇 42:1–2', hold: 7 },
       ],
       apply(c) {
         T(c, [
@@ -1655,47 +1801,53 @@
             if (!inst(b)) { fx().ring(W.spirit.x, W.spirit.y, [255, 246, 226], Math.hypot(W.w, W.h), 4.5, 1.2); sfx(b, 'harp', { soft: true }); }
           }],
           [2.5, () => pose('david', 'stand')],
-          [3.5, () => cwalk('flock', 0.49, 0.61, { speed: 0.018, pose: 'graze' })],
-          [7.5, b => { lv('psDeer', 1, b); avoid([0.5, 0.9]); }],
+          [3.5, () => cwalk('flock', 0.49, 0.58, { speed: 0.018, pose: 'graze' })],
+          [9, b => { lv('psDeer', 1, b); avoid([0.5, 0.9]); }],
           [10, () => { face('david', 1); pose('david', 'sit'); }],
           [20.5, () => face('david', -1)],
-          [22, b => lv('psRay', 0.2, b)],
+          [24, b => lv('psRay', 0.2, b)],
         ]);
       },
     },
 
-    // ── 卷三 · 80：葡萄树爬满了地；使你的脸发光 ──────────────
+    // ── 卷三 · 80，81:10：葡萄树爬满了地；你要大大张口；使你的脸发光 ─
     {
-      kind: 'act', utter: '你从埃及挪出一棵葡萄树', cmd: 'mv 葡萄树 埃及/ 迦南/ && grow --to 大海', ref: '80:8',
+      kind: 'promise', utter: '你要大大张口，我就给你充满', cmd: 'mv 葡萄树 埃及/ 迦南/ && fill --mouth=大大张口', ref: '81:10',
       verse: [
-        { text: '你从埃及挪出一棵葡萄树，赶出外邦人，把这树栽上。<br>你在这树根前预备了地方，它就深深扎根，爬满了地。', ref: '诗篇 80:8–9', hold: 8 },
-        { text: '它的影子遮满了山，枝子好像佳美的香柏树。<br>它发出枝子，长到大海，发出蔓子，延到大河。', ref: '诗篇 80:10–11', hold: 7.5 },
-        { text: '耶和华万军之神啊，求你使我们回转，<br>使你的脸发光，我们便要得救！', ref: '诗篇 80:19', hold: 6.5 },
+        { text: '你从埃及挪出一棵葡萄树，<br>赶出外邦人，把这树栽上。<br>你在这树根前预备了地方，<br>它就深深扎根，爬满了地。', ref: '诗篇 80:8–9', hold: 7 },
+        { text: '它的影子遮满了山，<br>枝子好像佳美的香柏树。<br>它发出枝子，长到大海，<br>发出蔓子，延到大河。', ref: '诗篇 80:10–11', hold: 6 },
+        { text: '我是耶和华你的神，<br>曾把你从埃及地领上来；<br>你要大大张口，我就给你充满。', ref: '诗篇 81:10', hold: 5.5 },
+        { text: '耶和华万军之神啊，求你使我们回转，<br>使你的脸发光，我们便要得救！', ref: '诗篇 80:19', hold: 6 },
       ],
       apply(c) {
         T(c, [
           [0, b => {
-            lv('psVine', 1, b); lv('psRay', 0, b); W.goTo(0.74, 18, inst(b));
+            lv('psVine', 1, b); lv('psRay', 0, b); W.goTo(0.74, 20, inst(b));
             if (!inst(b)) { fx().sparkle(W.w * 0.99, fY(0.99, 0.02), 30, [200, 236, 170], 20, 'near'); sfx(b, 'harp'); }
           }],
-          [8.5, b => lv('psGrape', 1, b)],
           [10, () => pose('david', 'stand')],
-          [17.2, b => {
-            lv('psFace', 1, b);
-            if (!inst(b)) { fx().ring(W.sun.x, Math.min(W.sun.y, W.horizonY), [255, 214, 150], M() * 0.7, 3.5, 2); sfx(b, 'angel', { soft: true }); }
+          // 「我就给你充满」：葡萄满了枝子
+          [15.5, b => {
+            lv('psGrape', 1, b);
+            if (!inst(b)) { const t = layout().tree; fx().sparkle(W.w * 0.62, fY(0.62, 0.02) - 6, 40, [214, 170, 236], W.w * 0.25, 'near'); bless(t.x, t.y, M() * 0.35); sfx(b, 'harp', { soft: true }); }
           }],
-          [18, () => { face('david', 1); pose('david', 'raise'); }],
-          [24, () => pose('david', 'stand')],
+          [22, b => {
+            lv('psFace', 1, b);
+            if (!inst(b)) { fx().ring(W.sun.x, Math.min(W.sun.y, W.horizonY), [255, 214, 150], M() * 0.6, 3.5, 2); sfx(b, 'angel', { soft: true }); }
+          }],
+          [22.8, () => { face('david', 1); pose('david', 'raise'); }],
+          [28, () => pose('david', 'stand')],
         ]);
       },
     },
 
     // ── 卷四 · 90：千年如已过的昨日 ───────────────────────────
     {
-      kind: 'act', utter: '从亘古到永远，你是神', cmd: 'uptime  # 从亘古到永远', ref: '90:2',
+      kind: 'cmd', utter: '你们世人要归回', cmd: 'uptime  # 千年如已过的昨日', ref: '90:3',
       verse: [
-        { text: '主啊，你世世代代作我们的居所。<br>诸山未曾生出，地与世界你未曾造成，从亘古到永远，你是神。', ref: '诗篇 90:1–2', hold: 8 },
-        { text: '在你看来，千年如已过的昨日，又如夜间的一更。……<br>早晨发芽生长，晚上割下枯干。', ref: '诗篇 90:4–6', hold: 7.5 },
+        { text: '主啊，你世世代代作我们的居所。<br>诸山未曾生出，地与世界你未曾造成，<br>从亘古到永远，你是神。', ref: '诗篇 90:1–2', hold: 7.5 },
+        { text: '你使人归于尘土，<br>说：你们世人要归回。<br>在你看来，千年如已过的昨日，<br>又如夜间的一更。', ref: '诗篇 90:3–4', hold: 7 },
+        { text: '早晨发芽生长，晚上割下枯干。', ref: '诗篇 90:6', hold: 5 },
         { text: '求你指教我们怎样数算自己的日子，<br>好叫我们得着智慧的心。', ref: '诗篇 90:12', hold: 6 },
       ],
       apply(c) {
@@ -1716,19 +1868,19 @@
           [20.2, b => lv('psField', 0, b)],
           [22.5, b => W.goTo(0.33, 3.5, inst(b))],
           [23.2, b => { W.set('psWither', 0, true); lv('psField', 1, b); }],
-          [25, b => hint(b, '按住言说时，灵在哪里，受造之物就从那里生出', 6)],
+          [26, b => hint(b, '按住言说时，灵在哪里，受造之物就从那里生出', 6)],
         ]);
       },
     },
 
-    // ── 卷四 · 104：你发出你的灵，它们便受造 ─────────────────
+    // ── 卷四 · 104（50:11）：你发出你的灵，它们便受造 ──────────────
     {
-      kind: 'act', utter: '你发出你的灵，它们便受造', cmd: 'spawn --from 灵 && renew 地面', ref: '104:30',
+      kind: 'cmd', utter: '山中的飞鸟，我都知道', cmd: 'spawn --from 灵 && renew 地面', ref: '50:11',
       verse: [
         { text: '你发出你的灵，它们便受造；<br>你使地面更换为新。', ref: '诗篇 104:30', hold: 5.5 },
         { text: '耶和华使泉源涌在山谷，流在山间……<br>天上的飞鸟在水旁住宿，在树枝上啼叫。', ref: '诗篇 104:10–12', hold: 6.5 },
-        { text: '那里有海，又大又广；其中有无数的动物，大小活物都有。<br>那里有船行走，有你所造的鳄鱼游泳在其中。', ref: '诗篇 104:25–26', hold: 6.5 },
-        { text: '耶和华啊，你所造的何其多！都是你用智慧造成的；<br>遍地满了你的丰富。', ref: '诗篇 104:24', hold: 6 },
+        { text: '那里有海，又大又广；<br>其中有无数的动物，大小活物都有。', ref: '诗篇 104:25', hold: 5.5 },
+        { text: '耶和华啊，你所造的何其多！<br>都是你用智慧造成的；<br>遍地满了你的丰富。', ref: '诗篇 104:24', hold: 6 },
       ],
       apply(c) {
         const R = c.choice && c.choice.renew ? c.choice.renew : [clamp(c.x / W.w, 0.02, 0.98), clamp(c.y / W.h, 0.05, 0.95)];
@@ -1760,38 +1912,40 @@
     {
       kind: 'act', utter: '保护以色列的，也不打盹也不睡觉', cmd: 'watch -n 0 以色列  # 不打盹也不睡觉', ref: '121:4',
       verse: [
-        { text: '万军之耶和华啊，你的居所何等可爱！<br>我羡慕渴想耶和华的院宇；', ref: '诗篇 84:1–2', hold: 5.5 },
-        { text: '你的话是我脚前的灯，是我路上的光。', ref: '诗篇 119:105', hold: 5 },
+        { text: '万军之耶和华啊，<br>你的居所何等可爱！', ref: '诗篇 84:1', hold: 5 },
+        { text: '你的话是我脚前的灯，<br>是我路上的光。', ref: '诗篇 119:105', hold: 5 },
         { text: '我要向山举目；我的帮助从何而来？<br>我的帮助从造天地的耶和华而来。', ref: '诗篇 121:1–2', hold: 6.5 },
-        { text: '他必不叫你的脚摇动；保护你的必不打盹！<br>保护以色列的，也不打盹也不睡觉。', ref: '诗篇 121:3–4', hold: 6.5 },
+        { text: '他必不叫你的脚摇动；<br>保护你的必不打盹！<br>保护以色列的，也不打盹也不睡觉。', ref: '诗篇 121:3–4', hold: 6.5 },
       ],
       apply(c) {
         T(c, [
           [0, b => {
             W.goTo(0.785, 8, inst(b)); W.set('good', 0, inst(b));
-            crowd('pilgrims', { n: port() ? 5 : 7, x0: 0.5, x1: 0.585, label: '上行的人', pose: 'stand' });
+            // 上行的人在羊群的右边出现（不在羊群里），往殿那边走去
+            crowd('pilgrims', { n: port() ? 5 : 7, x0: 0.6, x1: 0.672, label: '上行的人', pose: 'stand' });
+            spreadV('pilgrims', 0.01, 0.1);
             cface('pilgrims', 1);
             lv('psLamp', 1, b); lv('psZion', 0.8, b);
-            avoid([0.48, 0.94]);
+            avoid([0.47, 1]);
             sfx(b, 'crowd', { soft: true, far: true });
           }],
-          [1.5, () => cwalk('pilgrims', 0.73, 0.92, { speed: 0.022, pose: 'stand' })],
-          [2.2, () => walk('david', 0.618, { speed: 0.02, pose: 'sit' })],
+          [1.5, () => cwalk('pilgrims', 0.78, 0.96, { speed: 0.022, pose: 'stand' })],
+          [2.2, () => { walk('david', X.dav2, { speed: 0.02, pose: 'sit' }); sink('david', X.dav2V); }],
           [8, b => W.goTo(0.965, 9, inst(b))],
           [12.6, b => { S.harp = true; face('david', 1); sfx(b, 'harp', { soft: true }); }],
-          [17.5, b => { cpose('pilgrims', 'lie'); lv('psLamp', 0.45, b); }],
-          [20.4, b => { lv('psKeep', 1, b); sfx(b, 'harp', { soft: true, low: true }); }],
+          [14.5, b => { cpose('pilgrims', 'lie'); lv('psLamp', 0.6, b); }],
+          [16, b => { lv('psKeep', 1, b); sfx(b, 'harp', { soft: true, low: true }); }],
         ]);
       },
     },
 
     // ── 卷五 · 139：清晨的翅膀，飞到海极 ─────────────────────
     {
-      kind: 'act', utter: '就是在那里，你的手必引导我', cmd: 'find / -name 我  # 海极也在你手中', ref: '139:10',
+      kind: 'act', utter: '黑夜却如白昼发亮', cmd: 'find / -name 我  # 海极也在你手中', ref: '139:12',
       verse: [
-        { text: '我往哪里去躲避你的灵？我往哪里逃、躲避你的面？<br>我若升到天上，你在那里；我若在阴间下榻，你也在那里。', ref: '诗篇 139:7–8', hold: 8 },
-        { text: '黑暗也不能遮蔽我，使你不见，黑夜却如白昼发亮。<br>黑暗和光明，在你看都是一样。', ref: '诗篇 139:12', hold: 6.5 },
-        { text: '我若展开清晨的翅膀，飞到海极居住，<br>就是在那里，你的手必引导我；你的右手也必扶持我。', ref: '诗篇 139:9–10', hold: 8 },
+        { text: '我往哪里去躲避你的灵？<br>我往哪里逃、躲避你的面？<br>我若升到天上，你在那里；<br>我若在阴间下榻，你也在那里。', ref: '诗篇 139:7–8', hold: 8 },
+        { text: '黑暗也不能遮蔽我，使你不见，<br>黑夜却如白昼发亮。<br>黑暗和光明，在你看都是一样。', ref: '诗篇 139:12', hold: 6.5 },
+        { text: '我若展开清晨的翅膀，飞到海极居住，<br>就是在那里，你的手必引导我；<br>你的右手也必扶持我。', ref: '诗篇 139:9–10', hold: 7.5 },
       ],
       apply(c) {
         T(c, [
@@ -1816,8 +1970,9 @@
     {
       kind: 'cmd', utter: '凡有气息的都要赞美耶和华', cmd: 'broadcast 赞美 --to 凡有气息的  # 阿们', ref: '150:6',
       verse: [
-        { text: '所有在地上的，大鱼和一切深洋……大山和小山，结果的树木和一切香柏树，<br>野兽和一切牲畜，昆虫和飞鸟……少年人和处女，老年人和孩童，都当赞美耶和华！', ref: '诗篇 148:7–12', hold: 9 },
-        { text: '要用角声赞美他，鼓瑟弹琴赞美他！<br>击鼓跳舞赞美他！用丝弦的乐器和箫的声音赞美他！', ref: '诗篇 150:3–4', hold: 7 },
+        { text: '所有在地上的，大鱼和一切深洋……<br>大山和小山，结果的树木和一切香柏树，<br>野兽和一切牲畜，昆虫和飞鸟……', ref: '诗篇 148:7–10', hold: 6.5 },
+        { text: '少年人和处女，老年人和孩童，<br>都当赞美耶和华！', ref: '诗篇 148:12', hold: 5 },
+        { text: '要用角声赞美他，鼓瑟弹琴赞美他！<br>击鼓跳舞赞美他！<br>用丝弦的乐器和箫的声音赞美他！', ref: '诗篇 150:3–4', hold: 6.5 },
         { text: '凡有气息的都要赞美耶和华！<br>你们要赞美耶和华！', ref: '诗篇 150:6', hold: 7 },
       ],
       apply(c) {
@@ -1826,20 +1981,24 @@
             W.goTo(0.42, 9, inst(b)); W.set('good', 1, inst(b));
             lv('psPraise', 1, b); lv('psBreath', 0.65, b); lv('psWings', 0, b); lv('psZion', 1, b);
             W.setPop('bird', 84, W.w * 0.62, W.h * 0.32, inst(b));
-            W.setPop('cattle', 4, W.w * 0.95, W.h * 0.84, inst(b)); W.setPop('beast', 5, W.w * 0.95, W.h * 0.84, inst(b));
-            S.harp = true; pose('david', 'carry'); face('david', 1);
+            // 牧人抱琴站在众民之前（纵深在最前）；走兽都在海边那一头，不挤进人群
+            S.harp = true; pose('david', 'carry'); face('david', 1); sink('david', 0.3);
             cpose('flock', 'stand'); cpose('pilgrims', 'raise');
-            avoid([0.56, 0.7]);
+            avoid([0.46, 1]);
             allAtOnce(b, false);
           }],
           [0.6, b => {
-            const from = inst(b) ? 'none' : 'light', n = port() ? 4 : 6;
-            crowd('praiseA', { n, x0: 0.47, x1: 0.97, label: '众民', pose: 'raise', from });
-            crowd('praiseB', { n, x0: 0.5, x1: 0.95, label: '众民', pose: 'stand', from });
+            const from = inst(b) ? 'none' : 'light', P = port(), n = P ? 4 : 6;
+            // 两排人：后排举手、前排站着，避开大卫（0.70–0.745）与筵席（0.825–0.865）
+            crowd('praiseA', { n, x0: 0.6, x1: 0.97, label: '众民', pose: 'raise', from });
+            crowd('praiseB', { n, x0: 0.62, x1: 0.95, label: '众民', pose: 'stand', from });
+            placeX('praiseA', P ? [0.61, 0.775, 0.885, 0.95] : [0.605, 0.65, 0.768, 0.806, 0.886, 0.94]);
+            placeX('praiseB', P ? [0.66, 0.8, 0.905, 0.97] : [0.628, 0.677, 0.755, 0.795, 0.905, 0.962]);
+            spreadV('praiseA', 0.02, 0.09); spreadV('praiseB', 0.13, 0.22);
           }],
           [1.2, () => { S.dance = true; }],
-          [10.3, b => { S.instr = true; sfx(b, 'harp'); sfx(b, 'crowd'); }],
-          [18.6, b => { lv('psBreath', 1, b); allAtOnce(b, true); }],
+          [13, b => { S.instr = true; sfx(b, 'harp'); sfx(b, 'crowd'); }],
+          [21, b => { lv('psBreath', 1, b); allAtOnce(b, true); }],
         ]);
       },
     },
@@ -1852,41 +2011,41 @@
     id: ACT, book: '诗篇', books: [19], title: '诗篇', sub: '诗篇 1 — 150', tint: [255, 240, 210], music: 'eden',
     outro: 20,
     intro: [
-      { text: '不从恶人的计谋，不站罪人的道路，不坐亵慢人的座位，<br>惟喜爱耶和华的律法，昼夜思想，这人便为有福！', ref: '诗篇 1:1–2', hold: 8 },
+      { text: '不从恶人的计谋，不站罪人的道路，<br>不坐亵慢人的座位，<br>惟喜爱耶和华的律法，昼夜思想，<br>这人便为有福！', ref: '诗篇 1:1–2', hold: 8 },
     ],
     setup, stages: STAGES, scene: SCENE,
     // 书成之后，按住本卷的人与物，显出它的经文
     behold: {
-      '大卫': { text: '又拣选他的仆人大卫，从羊圈中将他召来，<br>叫他不再跟从那些带奶的母羊，为要牧养自己的百姓雅各和自己的产业以色列。', ref: '诗篇 78:70–71' },
-      '羊群': { text: '因为他是我们的神；我们是他草场的羊，是他手下的民。', ref: '诗篇 95:7' },
-      '羊': { text: '你们当晓得耶和华是神！我们是他造的，也是属他的；<br>我们是他的民，也是他草场的羊。', ref: '诗篇 100:3' },
-      '溪水旁的树': { text: '他要像一棵树栽在溪水旁，按时候结果子，<br>叶子也不枯干。凡他所做的尽都顺利。', ref: '诗篇 1:3' },
+      '大卫': { text: '又拣选他的仆人大卫，从羊圈中将他召来，<br>叫他不再跟从那些带奶的母羊，<br>为要牧养自己的百姓雅各<br>和自己的产业以色列。', ref: '诗篇 78:70–71' },
+      '羊群': { text: '因为他是我们的神；<br>我们是他草场的羊，是他手下的民。', ref: '诗篇 95:7' },
+      '羊': { text: '你们当晓得耶和华是神！<br>我们是他造的，也是属他的；<br>我们是他的民，也是他草场的羊。', ref: '诗篇 100:3' },
+      '溪水旁的树': { text: '他要像一棵树栽在溪水旁，<br>按时候结果子，叶子也不枯干。<br>凡他所做的尽都顺利。', ref: '诗篇 1:3' },
       '溪水': { text: '有一道河，这河的分汊使神的城欢喜；<br>这城就是至高者居住的圣所。', ref: '诗篇 46:4' },
-      '可安歇的水边': { text: '他使我躺卧在青草地上，领我在可安歇的水边。', ref: '诗篇 23:2' },
-      '月亮星宿': { text: '他数点星宿的数目，一一称它的名。', ref: '诗篇 147:4' },
-      '琴': { text: '我的灵啊，你当醒起！琴瑟啊，你们当醒起！我自己要极早醒起！', ref: '诗篇 57:8' },
+      '可安歇的水边': { text: '他使我躺卧在青草地上，<br>领我在可安歇的水边。', ref: '诗篇 23:2' },
+      '月亮星宿': { text: '我观看你指头所造的天，<br>并你所陈设的月亮星宿，便说：<br>人算什么，你竟顾念他！', ref: '诗篇 8:3–4' },
+      '琴': { text: '我的灵啊，你当醒起！<br>琴瑟啊，你们当醒起！<br>我自己要极早醒起！', ref: '诗篇 57:8' },
       '筵席': { text: '在我敌人面前，你为我摆设筵席；<br>你用油膏了我的头，使我的福杯满溢。', ref: '诗篇 23:5' },
-      '耶和华的殿': { text: '有一件事，我曾求耶和华，我仍要寻求：就是一生一世住在耶和华的殿中，<br>瞻仰他的荣美，在他的殿里求问。', ref: '诗篇 27:4' },
-      '锡安': { text: '锡安山大君王的城，在北面居高华美，为全地所喜悦。', ref: '诗篇 48:2' },
-      '耶路撒冷': { text: '众山怎样围绕耶路撒冷，耶和华也照样围绕他的百姓，从今时直到永远。', ref: '诗篇 125:2' },
+      '耶和华的殿': { text: '有一件事，我曾求耶和华，我仍要寻求：<br>就是一生一世住在耶和华的殿中，<br>瞻仰他的荣美，在他的殿里求问。', ref: '诗篇 27:4' },
+      '锡安': { text: '锡安山大君王的城，<br>在北面居高华美，为全地所喜悦。', ref: '诗篇 48:2' },
+      '耶路撒冷': { text: '众山怎样围绕耶路撒冷，<br>耶和华也照样围绕他的百姓，<br>从今时直到永远。', ref: '诗篇 125:2' },
       '鹿': { text: '神啊，我的心切慕你，如鹿切慕溪水。', ref: '诗篇 42:1' },
-      '葡萄树': { text: '你从埃及挪出一棵葡萄树，赶出外邦人，把这树栽上。', ref: '诗篇 80:8' },
+      '葡萄树': { text: '你从埃及挪出一棵葡萄树，<br>赶出外邦人，把这树栽上。', ref: '诗篇 80:8' },
       '泉源': { text: '耶和华使泉源涌在山谷，流在山间，<br>使野地的走兽有水喝，野驴得解其渴。', ref: '诗篇 104:10–11' },
-      '野山羊': { text: '高山为野山羊的住所；岩石为沙番的藏处。', ref: '诗篇 104:18' },
-      '山羊': { text: '高山为野山羊的住所；岩石为沙番的藏处。', ref: '诗篇 104:18' },
-      '上行的人': { text: '人对我说：我们往耶和华的殿去，我就欢喜。<br>耶路撒冷啊，我们的脚站在你的门内。', ref: '诗篇 122:1–2' },
-      '灯': { text: '你的话是我脚前的灯，是我路上的光。', ref: '诗篇 119:105' },
-      '众民': { text: '少年人和处女，老年人和孩童，都当赞美耶和华！', ref: '诗篇 148:12' },
-      '鲸': { text: '那里有船行走，有你所造的鳄鱼游泳在其中。', ref: '诗篇 104:26' },
-      '鱼': { text: '空中的鸟、海里的鱼，凡经行海道的，都服在他的脚下。', ref: '诗篇 8:6' },
+      '野山羊': { text: '高山为野山羊的住所；<br>岩石为沙番的藏处。', ref: '诗篇 104:18' },
+      '山羊': { text: '高山为野山羊的住所；<br>岩石为沙番的藏处。', ref: '诗篇 104:18' },
+      '上行的人': { text: '人对我说：<br>我们往耶和华的殿去，我就欢喜。<br>耶路撒冷啊，我们的脚站在你的门内。', ref: '诗篇 122:1–2' },
+      '灯': { text: '你的话是我脚前的灯，<br>是我路上的光。', ref: '诗篇 119:105' },
+      '众民': { text: '少年人和处女，老年人和孩童，<br>都当赞美耶和华！', ref: '诗篇 148:12' },
+      '鲸': { text: '愿天和地、洋海<br>和其中一切的动物都赞美他！', ref: '诗篇 69:34' },
+      '鱼': { text: '空中的鸟、海里的鱼，<br>凡经行海道的，都服在他的脚下。', ref: '诗篇 8:6' },
       '狮子': { text: '少壮狮子吼叫，要抓食，向神寻求食物。', ref: '诗篇 104:21' },
-      '燕子': { text: '万军之耶和华我的王，我的神啊，在你祭坛那里，<br>麻雀为自己找着房屋，燕子为自己找着抱雏之窝。', ref: '诗篇 84:3' },
-      '雀鸟': { text: '雀鸟在其上搭窝；至于鹤，松树是它的房屋。', ref: '诗篇 104:17' },
-      '鹰': { text: '他用美物使你所愿的得以知足，以致你如鹰返老还童。', ref: '诗篇 103:5' },
-      '牛': { text: '因为，树林中的百兽是我的，千山上的牲畜也是我的。', ref: '诗篇 50:10' },
-      '橄榄树': { text: '至于我，就像神殿中的青橄榄树；我永永远远倚靠神的慈爱。', ref: '诗篇 52:8' },
-      '香柏树': { text: '佳美的树木，就是黎巴嫩的香柏树，是耶和华所栽种的，都满了汁浆。', ref: '诗篇 104:16' },
-      '棕树': { text: '义人要发旺如棕树，生长如黎巴嫩的香柏树。', ref: '诗篇 92:12' },
+      '燕子': { text: '万军之耶和华我的王，我的神啊，<br>在你祭坛那里，麻雀为自己找着房屋，<br>燕子为自己找着抱雏之窝。', ref: '诗篇 84:3' },
+      '雀鸟': { text: '雀鸟在其上搭窝；<br>至于鹤，松树是它的房屋。', ref: '诗篇 104:17' },
+      '鹰': { text: '他用美物使你所愿的得以知足，<br>以致你如鹰返老还童。', ref: '诗篇 103:5' },
+      '牛': { text: '因为，树林中的百兽是我的，<br>千山上的牲畜也是我的。', ref: '诗篇 50:10' },
+      '橄榄树': { text: '至于我，就像神殿中的青橄榄树；<br>我永永远远倚靠神的慈爱。', ref: '诗篇 52:8' },
+      '香柏树': { text: '佳美的树木，就是黎巴嫩的香柏树，<br>是耶和华所栽种的，都满了汁浆。', ref: '诗篇 104:16' },
+      '棕树': { text: '义人要发旺如棕树，<br>生长如黎巴嫩的香柏树。', ref: '诗篇 92:12' },
       '马': { text: '他不喜悦马的力大，不喜爱人的腿快。', ref: '诗篇 147:10' },
     },
   });

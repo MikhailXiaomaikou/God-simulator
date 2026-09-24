@@ -55,6 +55,8 @@
     taNames: ['exp', 0.8],     // 孩子们头上的名字
     taLo: ['exp', 0.45],       // 名字前的「罗」（1 有 → 0 散去）
     taCalf: ['lin', 0.7],      // 金牛犊（1 完好 → 0 打碎）
+    taDull: ['exp', 0.6],      // 金牛犊的金光熄了（我喜爱良善，不喜爱祭祀）
+    taHouse: ['exp', 0.5],     // 认识神的人家里的光（何西阿的家）
     taFire: ['exp', 0.8],      // 邱坛上的火
     taSmoke: ['exp', 0.5],     // 烧香的烟
     taDoor: ['exp', 0.5],      // 亚割谷：指望的门
@@ -82,7 +84,9 @@
     taPlumb: ['lin', 0.3],     // 准绳垂下
     taTilt: ['exp', 0.5],      // 墙是歪的
     taGold: ['exp', 0.25],     // 庄稼金黄
-    taCrag: ['lin', 0.2],      // 以东的山岩
+    taCrag: ['lin', 0.2],      // 以东的山岩（高度）
+    taCragA: ['exp', 0.5],     // 以东的山岩（显隐）
+    taCrumble: ['lin', 0.25],  // 山岩崩塌：碎石落下
     taNest: ['exp', 0.5],      // 星宿之间的鹰窝
     taFall: ['lin', 0.35],     // 鹰窝被拉下
     taCrown: ['exp', 0.35],    // 国度归耶和华：锡安上的光
@@ -96,6 +100,7 @@
     taFishPath: ['lin', 0.08], // 三日三夜：鱼在水下游向岸边
     taSpit: ['lin', 0.35],     // 把约拿吐在旱地上
     taNinLamp: ['exp', 0.5],   // 尼尼微城中的灯
+    taLamp1: ['exp', 0.5],     // 我岂能不爱惜呢：城中先亮起的一盏灯，暖光落在牲畜身上
     taAsh: ['exp', 0.4],       // 披麻蒙灰
     taRelent: ['exp', 0.35],   // 神后悔不降灾：暖光
     taBooth: ['exp', 0.6],     // 城东的棚
@@ -115,7 +120,6 @@
     taWalk: ['exp', 0.5],      // 与神同行的光
     taSins: ['lin', 0.12],     // 罪（0 → 0.3 显出 → 1 投于深海）
     taSea: ['exp', 0.3],       // 深海发光
-    taRain: ['exp', 0.45],     // 本幕的雨（核心的雨出错时由本幕自己画）
   };
   for (const k in LV) W.defineLevel(k, LV[k][0], LV[k][1]);
   const MY = Object.keys(LV);
@@ -132,18 +136,20 @@
     beth: 0.565, crag: 0.63, cragW: 0.045, cragH: 0.2,
     fires: [0.565, 0.64, 0.715, 0.79, 0.855, 0.945],
     anchor: [0.72, 0.25], plumbTop: 0.1, beamTop: 0.07,
-    ship0: [0.37, 0.908], ship1: [0.2, 0.848], ship2: [0.075, 0.705],
-    fishDx: 0.3, fishL: 0.23, fishH: 0.085, spit: [0.392, 0.915], land: 0.456,
+    // 约拿：船停在左下的海上（经文框之下）；约拿自船尾被抛下，大鱼自那里跃起，向岸边（右）弓身入海
+    ship0: [0.37, 0.908], ship1: [0.13, 0.895], ship2: [0.075, 0.705], shipK: 1.5, jonahDx: 0.6,
+    fishDx: 0.19, fishL: 0.19, fishH: 0.1, spit: [0.392, 0.915], land: 0.456,
     nin0: 0.628, nin1: 0.995, palace: 0.862, gate: 0.672, booth: 0.548,
-    forge: 0.598, fold: 0.585, vines: [0.675, 0.73, 0.785, 0.84],
-    sea: [0.06, 0.33, 0.83, 0.96],
+    forge: 0.605, fold: 0.452, vines: [0.675, 0.73, 0.785, 0.84],
+    // 罪投于深海：落点在经文框之下、近岸的海面；抛起的弧不高过 sinTop
+    sea: [0.3, 0.46, 0.8, 0.87], sinTop: 0.745,
   };
   const LAYP = Object.assign({}, LAYL, {
     anchor: [0.7, 0.42], plumbTop: 0.36, beamTop: 0.33,
-    ship1: [0.17, 0.862], ship2: [0.08, 0.745],
-    fishDx: 0.4, fishL: 0.36, fishH: 0.055,
-    zionW: 0.2, cragW: 0.07, cragH: 0.17, beth: 0.6,
-    sea: [0.04, 0.3, 0.84, 0.97],
+    ship1: [0.14, 0.87], ship2: [0.08, 0.745], shipK: 2.5,
+    fishDx: 0.15, fishL: 0.4, fishH: 0.09,
+    zionW: 0.2, cragW: 0.07, cragH: 0.17, beth: 0.6, fold: 0.47,
+    sea: [0.1, 0.36, 0.82, 0.95], sinTop: 0,
   });
   const tall = () => W.w / Math.max(1, W.h) <= 0.75;
   const X = k => (tall() ? LAYP : LAYL)[k];
@@ -198,26 +204,8 @@
     if (a && a.sfx) safe('twelve1.sfx', () => a.sfx(name, o || {}));
   }
   function time(tod, dur, b) { W.goTo(tod, dur, inst(b)); }
-  // 雨：优先交给核心的天气（声音也随之下雨）；若核心画雨出错，改由本幕自己画，免得控制台报错
-  let RAIN_OK = null;
-  function coreRainOK() {
-    if (RAIN_OK != null) return RAIN_OK;
-    RAIN_OK = !!(GS.weather && GS.weather.draw);
-    if (!RAIN_OK) return RAIN_OK;
-    const o = W.lv.rain;
-    try {
-      const c = document.createElement('canvas'); c.width = c.height = 4;
-      W.lv.rain = 0.5;
-      GS.weather.draw(c.getContext('2d'), 'air');
-    } catch (e) { RAIN_OK = false; }
-    W.lv.rain = o;
-    return RAIN_OK;
-  }
-  function rain(v, b) {
-    lv('taRain', v, b);
-    if (coreRainOK()) lv('rain', v, b);
-    else if (v > 0.05) sfx(b, 'rain', { soft: v < 0.4 });
-  }
+  // 雨交给核心的天气（声音也随之下雨）
+  function rain(v, b) { lv('rain', v, b); }
   function avoid(r) { W.beastAvoid = r || []; }
   const C = () => cast();
   function add(id, o) { const c = C(); if (c) c.add(id, Object.assign({ layer: 2, from: 'fade', glow: 0.22 }, o)); }
@@ -273,8 +261,20 @@
       SP.beam = c;
     } catch (e) { SP.beam = null; }
   }
+  // 柔和的光环（一道向外扩散的光波，边缘无硬线）
+  function ringSprite() {
+    try {
+      const c = document.createElement('canvas'); c.width = c.height = 128;
+      const g = c.getContext('2d'), gr = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+      gr.addColorStop(0, 'rgba(255,236,200,0)'); gr.addColorStop(0.55, 'rgba(255,236,200,0.04)'); gr.addColorStop(0.8, 'rgba(255,236,200,0.5)');
+      gr.addColorStop(0.9, 'rgba(255,236,200,0.22)'); gr.addColorStop(1, 'rgba(255,236,200,0)');
+      g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
+      SP.ring = c;
+    } catch (e) { SP.ring = null; }
+  }
   function sprites() {
     if (SP.w) return;
+    ringSprite();
     glowSprite('w', [255, 248, 232]); glowSprite('g', [255, 210, 138]); glowSprite('b', [196, 218, 255]);
     glowSprite('f', [255, 146, 64]); glowSprite('k', [26, 20, 14]); glowSprite('s', [128, 122, 118]); glowSprite('p', [214, 120, 220]);
     beamSprite();
@@ -372,7 +372,7 @@
   // ════════════════════════════════════════════════════════════
   //  以色列的地：葡萄园、村庄、田、邱坛
   // ════════════════════════════════════════════════════════════
-  function drawHouse(ctx, x, w, h, a, lit, seed, dv) {
+  function drawHouse(ctx, x, w, h, a, lit, seed, dv, full) {
     const gy = gY(x) + 2 + (dv || 0);
     const n = NU();
     ctx.globalAlpha = a;
@@ -392,9 +392,11 @@
     ctx.fillRect(x + dx - w * 0.09, gy - h * 0.52, w * 0.18, h * 0.52);
     // 窗：夜里亮灯
     const wx = x - dx * 0.6 + (dx > 0 ? -w * 0.22 : w * 0.18), wy = gy - h * 0.72;
-    const on = lit * (0.25 + 0.75 * W.night);
+    const on = Math.max(lit * (0.25 + 0.75 * W.night), full || 0);
     ctx.fillStyle = on > 0.2 ? rgba(WARM, a * Math.min(1, on * 1.2)) : sh(DOOR, 0, a);
     ctx.fillRect(wx - 1.6 * n, wy - 1.8 * n, 3.2 * n, 3.4 * n);
+    // 认识神的人家里：门里也透出光来
+    if (full > 0.02) { ctx.fillStyle = rgba(WARM, a * full * 0.85); ctx.fillRect(x + dx - w * 0.07, gy - h * 0.48, w * 0.14, h * 0.48); }
     // 迎光的顶边
     ctx.fillStyle = sh([255, 236, 204], 0, a * 0.5 * W.daylight);
     ctx.fillRect(x - w * 0.55, gy - h - 2.2 * n, w * 1.1, 0.8);
@@ -404,10 +406,10 @@
     const A = L('taIsrael');
     if (A < 0.01) return;
     const n = NU(), hs = X('houses');
-    const glows = [];
+    const glows = [], home = L('taHouse');
     for (let i = 0; i < hs.length; i++) {
       const x = hs[i] * W.w, w = (26 + 10 * hsh(i + 3)) * n, h = (21 + 8 * hsh(i + 7)) * n;
-      const r = drawHouse(ctx, x, w, h, A, i === 2 ? 1 : 0.7 + 0.3 * hsh(i), i + 1, (i % 2) * 2.5 * n);
+      const r = drawHouse(ctx, x, w, h, A, i === 2 ? 1 : 0.7 + 0.3 * hsh(i), i + 1, (i % 2) * 2.5 * n, i === 2 ? home : 0);
       if (r[2] > 0.3) glows.push(r);
     }
     if (glows.length) {
@@ -506,15 +508,34 @@
       }
       ctx.stroke();
     }
-    // 禾捆（丰收）
+    // 禾捆（丰收）：田里与田边一排排
     if (gold > 0.5) {
-      ctx.globalAlpha = A * ss(0.5, 1, gold);
-      ctx.fillStyle = sh(CROP_G, 0.02, 1, 0.05);
-      for (let i = 0; i < 5; i++) {
-        const x = lerp(x0, x1, (i + 0.5) / 5), y = gYb(x) + (0.02 + 0.012 * (i % 2)) * W.h;
-        ctx.beginPath(); ctx.moveTo(x - 3 * n, y); ctx.lineTo(x, y - 9 * n); ctx.lineTo(x + 3 * n, y); ctx.closePath(); ctx.fill();
+      const ga = A * ss(0.5, 1, gold);
+      for (let i = 0; i < 11; i++) {
+        const x = lerp(x0 - 0.02 * W.w, x1 + 0.02 * W.w, (i + 0.5) / 11), y = gYb(x) + (0.012 + 0.011 * (i % 3)) * W.h;
+        const s2 = n * (1 + 0.15 * (i % 3));
+        ctx.globalAlpha = ga;
+        ctx.fillStyle = sh(CROP_G, 0.02, 1, 0.06);
+        ctx.beginPath(); ctx.moveTo(x - 4 * s2, y); ctx.quadraticCurveTo(x - 1.5 * s2, y - 6 * s2, x - 2.6 * s2, y - 12 * s2);
+        ctx.lineTo(x + 2.6 * s2, y - 12 * s2); ctx.quadraticCurveTo(x + 1.5 * s2, y - 6 * s2, x + 4 * s2, y); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = sh([176, 132, 64], 0.02);
+        ctx.fillRect(x - 2 * s2, y - 7 * s2, 4 * s2, 1.3 * s2);
       }
     }
+    ctx.globalAlpha = 1;
+  }
+  // 丰收的地发金光（摩 9:13）：只在庄稼全然金黄时
+  function drawHarvestGlow(ctx) {
+    const k = ss(0.72, 1, L('taGold')) * L('taIsrael');
+    if (k < 0.01) return;
+    const n = NU(), x0 = X('field0') * W.w, x1 = X('field1') * W.w, cx = (x0 + x1) / 2;
+    ctx.globalCompositeOperation = 'lighter';
+    glow(ctx, 'g', cx, gYb(cx) + 0.02 * W.h, (x1 - x0) * 1.1, 0.34 * k * (0.5 + 0.5 * W.daylight), 0.05 * W.h);
+    for (let i = 0; i < 7; i++) {
+      const x = (0.42 + 0.085 * i) * W.w;
+      glow(ctx, 'g', x, gYb(Math.min(x, W.w)) + 0.035 * W.h, 0.07 * W.w, 0.16 * k, 0.03 * W.h);
+    }
+    ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
   }
   // 邱坛：石台、坛、柱像、金牛犊（何 4:13；8:5–6）
@@ -523,7 +544,8 @@
     return { n, x, gy, top: gy - 7 * n, ax: x - 9 * n, ay: gy - 17 * n, px: x + 15 * n, cx: x + 3 * n };
   }
   function drawCalf(ctx, cx, by, s, a, k) {
-    const col = sh(GOLD, 0, a, 0.18 + 0.15 * W.night);
+    const dull = L('taDull');
+    const col = sh(mix(GOLD, [132, 116, 90], 0.65 * dull), 0, a, (0.18 + 0.15 * W.night) * (1 - dull));
     if (k < 0.01) {
       ctx.globalAlpha = 1;
       ctx.fillStyle = col;
@@ -537,7 +559,7 @@
       ctx.moveTo(cx - 7.6 * s, by - 11.8 * s); ctx.quadraticCurveTo(cx - 6.8 * s, by - 13.8 * s, cx - 5.6 * s, by - 13.4 * s);
       ctx.moveTo(cx + 6.3 * s, by - 6.5 * s); ctx.quadraticCurveTo(cx + 8 * s, by - 5 * s, cx + 7.6 * s, by - 2.5 * s); ctx.stroke();
       // 金光
-      ctx.fillStyle = rgba([255, 244, 210], a * (0.35 + 0.35 * W.daylight));
+      ctx.fillStyle = rgba([255, 244, 210], a * (0.35 + 0.35 * W.daylight) * (1 - dull));
       ctx.beginPath(); ctx.ellipse(cx - 1 * s, by - 7.8 * s, 4 * s, 0.9 * s, 0, 0, TAU); ctx.fill();
       return;
     }
@@ -610,7 +632,22 @@
     drawCalf(ctx, D.cx + 1 * n, D.top - 5 * n, n, A, 1 - L('taCalf'));
     // 火与烟
     drawSmoke(ctx, D.ax, D.ay - 3 * n, n, A * L('taSmoke'));
-    drawFlame(ctx, D.ax, D.ay, n * 0.9, A * Math.max(L('taFire'), (L('taFires') > 0.95 ? 1 : 0) * L('taFireA')), 1.3);
+    drawFlame(ctx, D.ax, D.ay, n * 0.9, A * Math.max(L('taFire'), (L('taFires') > 0.95 ? 1 : 0) * L('taFireA') * (1 - fireOut(D.ax))), 1.3);
+    ctx.globalAlpha = 1;
+  }
+  // 我喜爱良善，不喜爱祭祀；喜爱认识神，胜于燔祭（何 6:6）：光落在何西阿的家门口，世界变冷时也不减
+  function drawHomeLight(ctx) {
+    const k = L('taHouse') * L('taIsrael');
+    if (k < 0.01) return;
+    const n = NU(), x = X('houses')[2] * W.w, gy = gY(x) + 2;
+    const fx0 = (X('fam').hosea + X('fam').ammi) / 2 * W.w;
+    ctx.globalCompositeOperation = 'lighter';
+    glow(ctx, 'g', (x + fx0) / 2, gy - 12 * n, 60 * n, 0.42 * k, 34 * n);
+    glow(ctx, 'g', x, gy - 10 * n, 26 * n, 0.5 * k);
+    glow(ctx, 'w', x, gy - 8 * n, 9 * n, 0.55 * k * (0.9 + 0.1 * Math.sin(S.clock * 1.7)));
+    // 地上的一片暖光
+    glow(ctx, 'g', (x + fx0) / 2, gy + 2 * n, 70 * n, 0.3 * k, 9 * n);
+    ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
   }
   // 亚割谷：指望的门（何 2:15）
@@ -636,8 +673,8 @@
   function drawNames(ctx) {
     const A = L('taNames');
     if (A < 0.01) return;
-    const lo = L('taLo'), px = tall() ? 13 : 15;
-    const cold = [176, 186, 212], warm = [255, 226, 168];
+    const lo = L('taLo'), px = tall() ? 17 : 20;
+    const cold = [214, 220, 242], warm = [255, 222, 150], preC = [206, 212, 240];
     // 名字排成一列斜阶：以最高的孩子头顶为基线
     let base0 = Infinity;
     for (const k of KIDS) { const p = person(k[0]); if (p && p._vis && !p.dying) base0 = Math.min(base0, p._y - p._h * 1.1); }
@@ -650,10 +687,18 @@
       const col = pre ? mix(cold, warm, 1 - lo) : warm;
       const bs = textSprite(base, px, col);
       if (pre && lo > 0.01) {
-        const ps = textSprite(pre, px, [150, 160, 196]);
+        const ps = textSprite(pre, px, preC);
         const bx = x + lo * ps.w * 0.4;
+        const qx = bx - bs.w * 0.5 - ps.w * 0.3 - (1 - lo) * 10, qy = y - (1 - lo) * 8;
+        // 「罗」散去的一刻：一点光
+        if (lo < 0.97) {
+          ctx.globalCompositeOperation = 'lighter';
+          glow(ctx, 'w', qx, qy, px * 1.6, 0.9 * Math.sin(Math.PI * (1 - lo)) * A * p.alpha);
+          glow(ctx, 'g', qx, qy, px * 3.2, 0.5 * Math.sin(Math.PI * (1 - lo)) * A * p.alpha);
+          ctx.globalCompositeOperation = 'source-over';
+        }
         text(ctx, base, bx, y, px, col, A * p.alpha);
-        text(ctx, pre, bx - bs.w * 0.5 - ps.w * 0.3 - (1 - lo) * 10, y - (1 - lo) * 8, px, [150, 160, 196], A * p.alpha * lo);
+        text(ctx, pre, qx, qy, px, preC, A * p.alpha * lo);
       } else text(ctx, base, x, y, px, col, A * p.alpha);
     }
     ctx.globalAlpha = 1;
@@ -681,15 +726,24 @@
     if (A < 0.01) return;
     const g = zionGeom(), m = g.m, plow = L('taZionPlow'), up = L('taZionUp');
     const step = Math.max(2, g.hw / 30);
+    // 高举的山离人近了：少些雾气，是地的颜色（绿的坡、土色的山脚）
+    const dz = lerp(0.42, 0.2, up);
     ctx.globalAlpha = A;
-    ctx.fillStyle = sh(mix([116, 126, 94], [150, 128, 96], plow * 0.6), 0.42);
+    const base = mix([116, 126, 94], [150, 128, 96], plow * 0.6);
+    if (up > 0.02) {
+      const gr = ctx.createLinearGradient(0, g.top, 0, g.base);
+      gr.addColorStop(0, sh(mix(base, [104, 142, 70], up), dz, 1, 0.05 * up));
+      gr.addColorStop(0.6, sh(mix(base, [92, 124, 64], up), dz));
+      gr.addColorStop(1, sh(mix(base, [138, 116, 82], up), dz));
+      ctx.fillStyle = gr;
+    } else ctx.fillStyle = sh(base, 0.42);
     ctx.beginPath();
     ctx.moveTo(g.cx - g.hw, gYb(g.cx - g.hw, 1) + 2);
     for (let x = g.cx - g.hw; x <= g.cx + g.hw; x += step) ctx.lineTo(x, zionY(g, x));
     ctx.lineTo(g.cx + g.hw, gYb(g.cx + g.hw, 1) + 2);
     ctx.closePath(); ctx.fill();
-    // 背光的一坡与岩脊
-    ctx.fillStyle = sh([70, 78, 70], 0.42, 0.35 + 0.2 * up);
+    // 背光的一坡（随日头的方向）
+    ctx.fillStyle = sh(mix([70, 78, 70], [44, 62, 44], up), dz, 0.35 + 0.15 * up);
     ctx.beginPath();
     const sunL = !W.sun || W.sun.x < g.cx;
     const s0 = sunL ? g.cx + g.hw * 0.05 : g.cx - g.hw, s1 = sunL ? g.cx + g.hw : g.cx - g.hw * 0.05;
@@ -697,15 +751,26 @@
     ctx.lineTo(s1, gYb(s1, 1) + 2); ctx.lineTo(s0, gYb(s0, 1) + 2);
     ctx.closePath(); ctx.fill();
     if (up > 0.05) {
-      ctx.strokeStyle = sh([150, 150, 130], 0.4, 0.5 * up);
-      ctx.lineWidth = Math.max(0.6, 0.9 * m);
+      // 山坡上的梯田与橄榄树
+      ctx.strokeStyle = sh([150, 170, 110], dz, 0.35 * up, 0.05);
+      ctx.lineWidth = Math.max(0.6, 0.7 * m);
       ctx.beginPath();
-      for (let r = 0; r < 5; r++) {
-        const d0 = -0.75 + r * 0.36, x0 = g.cx + d0 * g.hw;
-        ctx.moveTo(x0, zionY(g, x0) + 2);
-        ctx.lineTo(x0 + (d0 < 0 ? -1 : 1) * 0.12 * g.hw, lerp(zionY(g, x0), gYb(x0, 1), 0.7));
+      for (let r = 1; r < 5; r++) {
+        const f = r / 5;
+        let first = true;
+        for (let x = g.cx - g.hw * 0.9; x <= g.cx + g.hw * 0.9; x += step) {
+          const y = lerp(zionY(g, x), gYb(x, 1), f * 0.85);
+          if (y > zionY(g, x) + 2 && y < gYb(x, 1) - 1) { if (first) { ctx.moveTo(x, y); first = false; } else ctx.lineTo(x, y); } else first = true;
+        }
       }
       ctx.stroke();
+      ctx.fillStyle = sh([62, 96, 52], dz, up);
+      for (let i = 0; i < 22; i++) {
+        const d = (hsh(i + 1300) - 0.5) * 1.7, x = g.cx + d * g.hw;
+        const y = lerp(zionY(g, x), gYb(x, 1), 0.2 + 0.7 * hsh(i + 1301));
+        if (y >= gYb(x, 1) - 1) continue;
+        ctx.beginPath(); ctx.ellipse(x, y - 1.6 * m, 2.6 * m, 1.9 * m, 0, 0, TAU); ctx.fill();
+      }
     }
     // 迎光的山脊
     ctx.strokeStyle = sh([255, 236, 204], 0.3, 0.45 * A * W.daylight);
@@ -746,16 +811,24 @@
         ctx.fillStyle = sh(i % 2 ? STONE : ROOF, 0.4);
         ctx.fillRect(x - hw / 2, y - hh, hw, hh);
       }
-      // 殿
+      // 殿（山高举时更大、更亮）
       const tx = g.cx, ty = zionY(g, g.cx) + 1;
-      ctx.fillStyle = sh([226, 214, 188], 0.36, 1, 0.08);
+      if (up > 0.02) {
+        ctx.globalCompositeOperation = 'lighter';
+        glow(ctx, 'g', tx, ty - 8 * m, 46 * m, 0.4 * up * city);
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.globalAlpha = city;
+      }
+      ctx.save(); ctx.translate(tx, ty); ctx.scale(1 + 0.45 * up, 1 + 0.45 * up); ctx.translate(-tx, -ty);
+      ctx.fillStyle = sh([226, 214, 188], lerp(0.36, 0.1, up), 1, 0.08 + 0.3 * up);
       ctx.fillRect(tx - 11 * m, ty - 9 * m, 22 * m, 9 * m);
       ctx.fillRect(tx - 7 * m, ty - 14 * m, 14 * m, 5 * m);
       ctx.fillStyle = sh(GOLD, 0.3, 1, 0.12);
       ctx.fillRect(tx - 7.6 * m, ty - 14.8 * m, 15.2 * m, 1.2 * m);
       ctx.fillRect(tx - 9 * m, ty - 9 * m, 1.3 * m, 9 * m); ctx.fillRect(tx + 7.7 * m, ty - 9 * m, 1.3 * m, 9 * m);
-      ctx.fillStyle = sh(DOOR, 0.3);
+      ctx.fillStyle = up > 0.3 ? rgba(WARM, city * up) : sh(DOOR, 0.3);
       ctx.fillRect(tx - 1.6 * m, ty - 5.5 * m, 3.2 * m, 5.5 * m);
+      ctx.restore();
       // 夜里的灯
       if (W.night > 0.2) {
         ctx.globalCompositeOperation = 'lighter';
@@ -770,8 +843,8 @@
     if (up > 0.02) {
       ctx.globalCompositeOperation = 'lighter';
       const ty = zionY(g, g.cx) - 8 * m;
-      glow(ctx, 'g', g.cx, ty, (30 + 40 * up) * m, 0.45 * up * A);
-      glow(ctx, 'w', g.cx, ty, 14 * m, 0.6 * up * A);
+      glow(ctx, 'g', g.cx, ty, (30 + 50 * up) * m, 0.5 * up * A);
+      glow(ctx, 'w', g.cx, ty, 16 * m, 0.7 * up * A);
       ctx.globalCompositeOperation = 'source-over';
     }
     ctx.globalAlpha = 1;
@@ -784,42 +857,23 @@
     for (let i = 0; i <= 14; i++) { const x = lerp(x0, x1, i / 14); pts.push([x, zionY(g, x) + 1]); }
     const wl = W.waterlineY(1);
     pts.push([x1 - 0.012 * W.w, (gYb(x1, 1) + wl) / 2]);
-    pts.push([x1 - 0.022 * W.w, wl + 2]);
-    for (let i = 1; i <= 8; i++) pts.push([lerp(x1 - 0.022 * W.w, 0.49 * W.w, i / 8), wl + 3 + i * 0.6]);
+    pts.push([x1 - 0.022 * W.w, wl + 1]);
     return pts;
-  }
-  function strokeUpTo(ctx, pts, k) {
-    if (k <= 0 || pts.length < 2) return null;
-    let tot = 0;
-    const seg = [];
-    for (let i = 1; i < pts.length; i++) { const d = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); seg.push(d); tot += d; }
-    let rem = tot * k;
-    ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]);
-    let end = pts[0];
-    for (let i = 1; i < pts.length; i++) {
-      if (rem <= 0) break;
-      const d = seg[i - 1];
-      if (rem >= d) { ctx.lineTo(pts[i][0], pts[i][1]); end = pts[i]; rem -= d; }
-      else { const f = rem / d; end = [lerp(pts[i - 1][0], pts[i][0], f), lerp(pts[i - 1][1], pts[i][1], f)]; ctx.lineTo(end[0], end[1]); rem = 0; }
-    }
-    return end;
   }
   function drawFount(ctx) {
     const a = L('taFountA') * L('taIsrael'), k = L('taFount');
     if (a < 0.01 || k < 0.01) return;
-    const m = MU(), pts = fountPath();
-    ctx.globalCompositeOperation = 'lighter';
-    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-    ctx.strokeStyle = 'rgb(170,210,255)';
-    ctx.globalAlpha = 0.25 * a; ctx.lineWidth = Math.max(2, 4.5 * m);
-    const end = strokeUpTo(ctx, pts, k); ctx.stroke();
-    ctx.strokeStyle = 'rgb(236,246,255)';
-    ctx.globalAlpha = 0.7 * a; ctx.lineWidth = Math.max(0.8, 1.4 * m);
-    strokeUpTo(ctx, pts, k); ctx.stroke();
-    if (end) glow(ctx, 'b', end[0], end[1], 8 * m, 0.6 * a * (k < 0.99 ? 1 : 0.4));
-    glow(ctx, 'w', pts[0][0], pts[0][1], 8 * m, 0.5 * a);
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.globalAlpha = 1;
+    const m = MU(), G = flowGeom(fountPath(), m, 1.4, 5.5);
+    drawFlow(ctx, G, k, a, { glints: 26, src: 0.45, bank: 0.5, depth: 0.3, speed: 1.6 });
+    // 流到海边：一汪发光的水
+    if (k > 0.9) {
+      const e = G.pts[G.pts.length - 1], pa = a * ss(0.9, 1, k);
+      ctx.globalCompositeOperation = 'lighter';
+      glow(ctx, 'b', e[0], e[1] + 2, 34 * m, 0.55 * pa, 9 * m);
+      glow(ctx, 'w', e[0], e[1] + 1, 12 * m, 0.6 * pa * (0.85 + 0.15 * Math.sin(S.clock * 2.2)), 4 * m);
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.globalAlpha = 1;
+    }
   }
   // 大山滴甜酒：中丘坡上的葡萄园发出紫金的光（珥 3:18；摩 9:13）
   function drawWineHills(ctx) {
@@ -827,11 +881,19 @@
     if (a < 0.01) return;
     const m = MU();
     ctx.globalCompositeOperation = 'lighter';
-    for (let i = 0; i < 26; i++) {
+    // 山坡上一层紫金的光
+    for (let i = 0; i < 6; i++) {
+      const x = (0.56 + 0.075 * i) * W.w, y = gYb(x, 1) + 0.012 * W.h;
+      if (y > W.waterlineY(1)) continue;
+      glow(ctx, i % 2 ? 'p' : 'g', x, y, 0.06 * W.w, 0.22 * a, 0.018 * W.h);
+    }
+    for (let i = 0; i < 30; i++) {
       const x = (0.53 + 0.44 * hsh(i + 90)) * W.w, y = gYb(x, 1) + (0.004 + 0.03 * hsh(i + 91)) * W.h;
       if (y > W.waterlineY(1)) continue;
       const tw = 0.55 + 0.45 * Math.sin(S.clock * 1.8 + i * 2.3);
-      glow(ctx, i % 3 ? 'p' : 'g', x, y, 5 * m, 0.45 * a * tw);
+      glow(ctx, i % 3 ? 'p' : 'g', x, y, 9 * m, 0.6 * a * tw);
+      // 滴下的一道
+      glow(ctx, i % 3 ? 'p' : 'g', x, y + 6 * m, 2.2 * m, 0.5 * a * tw, 7 * m);
     }
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
@@ -870,6 +932,12 @@
     if (i === 6) { const t = templeTop(); return [t[0], t[1] + 4 * MU(), MU()]; }
     const D = altarDims(); return [D.ax, D.ay, D.n];
   }
+  // 公义的江河涌流（不是源头初涌的一小股）时，前锋流过哪里，那里的火就熄了
+  function fireOut(px) {
+    if (L('taRiver') < 0.17) return 0;
+    const fr = riverFront() * W.w, d = 0.04 * W.w;
+    return ss(px + 0.2 * d, px - d, fr);
+  }
   function drawFarFires(ctx, pass) {
     const a = L('taFireA');
     if (a < 0.01) return;
@@ -878,8 +946,9 @@
       if (n < i + 0.2) break;
       const layerPass = i < 6 ? 'far' : 'mid';
       if (layerPass !== pass) continue;
-      const k = ss(i + 0.2, i + 0.9, n) * a * (i === 6 ? L('taIsrael') : 1);
       const p = firePos(i), s = p[2] * (i < 6 ? 2.8 : 2);
+      const k = ss(i + 0.2, i + 0.9, n) * a * (i === 6 ? L('taIsrael') : 1) * (1 - fireOut(p[0]));
+      if (k < 0.01) continue;
       ctx.globalCompositeOperation = 'lighter';
       glow(ctx, 'f', p[0], p[1] - 6 * s, 34 * s, 0.5 * k);
       glow(ctx, 'f', p[0], p[1] - 30 * s, 22 * s, 0.18 * k, 40 * s);
@@ -888,8 +957,14 @@
     }
     ctx.globalAlpha = 1;
   }
-  const CRAG = [[-1, 0], [-0.82, 0.16], [-0.66, 0.27], [-0.58, 0.5], [-0.44, 0.58], [-0.36, 0.8], [-0.2, 0.88], [-0.1, 1], [0.08, 0.97],
-    [0.2, 0.85], [0.33, 0.8], [0.41, 0.56], [0.58, 0.46], [0.7, 0.26], [0.86, 0.12], [1, 0]];
+  // 以东的山岩：三道山脊叠成的一座石山（后一道最高），各有迎光与背光的一面，山腰有山穴（俄 3）
+  const CRAG_R = [
+    { d: 0.74, pk: 7, p: [[-1.3, 0], [-1.0, 0.2], [-0.78, 0.34], [-0.62, 0.52], [-0.5, 0.58], [-0.36, 0.78], [-0.22, 0.86], [-0.08, 1.0], [0.06, 0.94],
+      [0.18, 0.82], [0.3, 0.77], [0.42, 0.58], [0.6, 0.47], [0.78, 0.3], [1.0, 0.16], [1.3, 0]] },
+    { d: 0.68, pk: 4, p: [[-1.45, 0], [-1.25, 0.12], [-1.05, 0.2], [-0.88, 0.33], [-0.72, 0.4], [-0.56, 0.31], [-0.4, 0.2], [-0.2, 0.08], [0, 0]] },
+    { d: 0.66, pk: 3, p: [[-0.1, 0], [0.15, 0.14], [0.35, 0.3], [0.52, 0.42], [0.66, 0.36], [0.84, 0.24], [1.05, 0.14], [1.25, 0.07], [1.45, 0]] },
+  ];
+  const CLEFTS = [[-0.3, 0.5, 1], [0.1, 0.62, 0.8], [-0.12, 0.34, 1.2], [0.28, 0.4, 0.7], [-0.52, 0.3, 0.8]];
   function cragGeom() {
     const cx = X('crag') * W.w, hw = X('cragW') * W.w, base = gYb(cx, 0) + 2, H = X('cragH') * W.h * L('taCrag');
     return { cx, hw, base, H, top: base - H };
@@ -899,24 +974,85 @@
     return [g.cx - 0.03 * g.hw + fall * 0.15 * g.hw, g.top - 2 + fall * (g.base - g.top + 0.01 * W.h), k];
   }
   function drawCrag(ctx) {
-    const c = L('taCrag');
-    if (c < 0.01) return;
-    const g = cragGeom(), f = FU(), a = ss(0, 0.15, c);
+    const c = L('taCrag'), A0 = L('taCragA');
+    if (c < 0.01 || A0 < 0.01) return;
+    const g = cragGeom(), f = FU(), a = ss(0, 0.15, c) * A0;
+    const sunL = !W.sun || W.sun.x < g.cx, sd = sunL ? 1 : -1;     // 背光的一侧
+    const P = (q) => [g.cx + q[0] * g.hw, g.base - q[1] * g.H];
     ctx.globalAlpha = a;
-    ctx.fillStyle = sh(ROCK, 0.5, 1, 0.06);
+    const outline = () => {
+      ctx.beginPath();
+      for (const R of CRAG_R) { R.p.forEach((q, i) => { const v = P(q); if (i) ctx.lineTo(v[0], v[1]); else ctx.moveTo(v[0], v[1]); }); ctx.closePath(); }
+    };
+    for (const R of CRAG_R) {
+      // 山身
+      ctx.fillStyle = sh(ROCK, R.d, 1, 0.04);
+      ctx.beginPath();
+      R.p.forEach((q, i) => { const v = P(q); if (i) ctx.lineTo(v[0], v[1]); else ctx.moveTo(v[0], v[1]); });
+      ctx.closePath(); ctx.fill();
+      // 背光的一面：自山顶沿着背光的一侧下到山脚
+      const pk = R.p[R.pk];
+      ctx.fillStyle = sh([96, 58, 54], R.d, 0.6);
+      ctx.beginPath();
+      let v = P(pk); ctx.moveTo(v[0], v[1]);
+      if (sd > 0) for (let i = R.pk + 1; i < R.p.length; i++) { v = P(R.p[i]); ctx.lineTo(v[0], v[1]); }
+      else for (let i = R.pk - 1; i >= 0; i--) { v = P(R.p[i]); ctx.lineTo(v[0], v[1]); }
+      v = P([pk[0] + sd * 0.12, 0]); ctx.lineTo(v[0], v[1]);
+      ctx.closePath(); ctx.fill();
+      // 迎光的山棱
+      ctx.strokeStyle = sh([255, 214, 180], R.d * 0.8, 0.55 * Math.max(W.daylight, 0.35 * L('taNest')));
+      ctx.lineWidth = Math.max(0.8, 0.9 * f);
+      ctx.beginPath();
+      v = P(pk); ctx.moveTo(v[0], v[1]);
+      if (sd > 0) for (let i = R.pk - 1; i >= Math.max(0, R.pk - 4); i--) { v = P(R.p[i]); ctx.lineTo(v[0], v[1]); }
+      else for (let i = R.pk + 1; i <= Math.min(R.p.length - 1, R.pk + 4); i++) { v = P(R.p[i]); ctx.lineTo(v[0], v[1]); }
+      ctx.stroke();
+    }
+    // 岩缝：自山腰的小峰斜斜落下
+    ctx.strokeStyle = sh([70, 44, 40], 0.7, 0.5);
+    ctx.lineWidth = Math.max(0.6, 0.7 * f);
     ctx.beginPath();
-    for (const p of CRAG) ctx.lineTo(g.cx + p[0] * g.hw, g.base - p[1] * g.H);
-    ctx.closePath(); ctx.fill();
-    // 背光的一面与岩缝
-    ctx.fillStyle = sh([110, 64, 56], 0.5, 0.55);
-    ctx.beginPath();
-    for (let i = 7; i < CRAG.length; i++) ctx.lineTo(g.cx + CRAG[i][0] * g.hw, g.base - CRAG[i][1] * g.H);
-    ctx.lineTo(g.cx + 0.1 * g.hw, g.base); ctx.closePath(); ctx.fill();
-    ctx.strokeStyle = sh([255, 220, 190], 0.4, 0.4 * a * Math.max(W.daylight, 0.4 * L('taNest')));
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    for (let i = 0; i < 9; i++) ctx.lineTo(g.cx + CRAG[i][0] * g.hw, g.base - CRAG[i][1] * g.H);
+    for (const q of [[-0.5, 0.58, -0.62], [0.3, 0.77, 0.42], [-0.22, 0.86, -0.3]]) {
+      const v0 = P([q[0], q[1]]), v1 = P([q[2], q[1] * 0.35]);
+      ctx.moveTo(v0[0], v0[1]); ctx.quadraticCurveTo((v0[0] + v1[0]) / 2 + 2 * f, (v0[1] + v1[1]) / 2, v1[0], v1[1]);
+    }
     ctx.stroke();
+    // 山穴（住在山穴中的）
+    for (const q of CLEFTS) {
+      const v = P([q[0], q[1]]), w = 5 * f * q[2] * Math.min(1, c * 1.5), h = 7 * f * q[2] * c;
+      if (h < 0.8) continue;
+      ctx.fillStyle = sh([40, 26, 26], 0.6, 0.85);
+      ctx.beginPath(); ctx.moveTo(v[0] - w / 2, v[1] + h / 2); ctx.lineTo(v[0] - w / 2, v[1]); ctx.quadraticCurveTo(v[0], v[1] - h, v[0] + w / 2, v[1]); ctx.lineTo(v[0] + w / 2, v[1] + h / 2); ctx.closePath(); ctx.fill();
+    }
+    // 山脚没入远山的雾气（与远山同色）
+    ctx.save();
+    outline(); ctx.clip();
+    const hz = ctx.createLinearGradient(0, g.top, 0, g.base);
+    const hc = W.haze || [178, 204, 228];
+    hz.addColorStop(0, rgba(hc, 0)); hz.addColorStop(0.55, rgba(hc, 0.12)); hz.addColorStop(1, rgba(hc, 0.55));
+    ctx.fillStyle = hz; ctx.globalAlpha = a;
+    ctx.fillRect(g.cx - 1.5 * g.hw, g.top - 2, 3 * g.hw, g.H + 4);
+    ctx.restore();
+    // 崩塌：碎石自山上滚落，尘土扬起
+    const cr = L('taCrumble');
+    if (cr > 0.001 && cr < 0.999) {
+      const Hf = X('cragH') * W.h;
+      ctx.fillStyle = sh(ROCK, 0.7, 1, 0.02);
+      for (let i = 0; i < 18; i++) {
+        const t = c01((cr - 0.35 * hsh(i + 1500)) / 0.62);
+        if (t <= 0 || t >= 1) continue;
+        const qx = (hsh(i + 1501) - 0.5) * 1.3, qy = 0.45 + 0.55 * hsh(i + 1502);
+        const x = g.cx + qx * g.hw + (qx > 0 ? 1 : -1) * t * 0.5 * g.hw, y = lerp(g.base - qy * Hf, g.base - 1, t * t);
+        const r = (2 + 3.5 * hsh(i + 1503)) * f * 1.3;
+        ctx.globalAlpha = A0 * (1 - ss(0.8, 1, t));
+        ctx.save(); ctx.translate(x, y); ctx.rotate(t * 5 + i);
+        ctx.beginPath(); ctx.moveTo(-r, -r * 0.3); ctx.lineTo(-r * 0.2, -r); ctx.lineTo(r, -r * 0.2); ctx.lineTo(r * 0.5, r * 0.8); ctx.lineTo(-r * 0.7, r * 0.6); ctx.closePath(); ctx.fill();
+        ctx.restore();
+      }
+      const env = Math.sin(Math.PI * cr);
+      glow(ctx, 's', g.cx, g.base - 0.25 * Hf * (0.5 + cr), 1.8 * g.hw * (0.6 + cr), 0.55 * env * A0, 0.3 * Hf);
+    }
+    ctx.globalAlpha = a;
     // 星宿之间的鹰窝
     const nest = L('taNest'), np = nestPos(g);
     const na = nest * (1 - ss(0.75, 1, np[2]));
@@ -1005,12 +1141,12 @@
   const RIVER = [[0.955, 0.829], [0.93, 0.842], [0.9, 0.846], [0.865, 0.856], [0.835, 0.874], [0.8, 0.887], [0.76, 0.893],
     [0.72, 0.903], [0.685, 0.92], [0.645, 0.932], [0.6, 0.935], [0.56, 0.944], [0.52, 0.959], [0.48, 0.97], [0.44, 0.976],
     [0.41, 0.988], [0.38, 1.002], [0.355, 1.02]];
-  function riverGeom() {
-    const n = NU(), pts = RIVER.map(p => [p[0] * W.w, p[1] * W.h]);
+  function flowGeom(pts, n, w0, w1) {
     const cum = [0];
     for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
-    return { n, pts, cum, tot: cum[cum.length - 1] };
+    return { n, pts, cum, tot: cum[cum.length - 1], w0, w1 };
   }
+  function riverGeom() { return flowGeom(RIVER.map(p => [p[0] * W.w, p[1] * W.h]), NU(), 4, 30); }
   // 沿河身取点：s 为 0..1 的河长比例 → [x, y, 切向 x, 切向 y, 宽]
   function riverAt(G, s) {
     const d = s * G.tot;
@@ -1018,12 +1154,22 @@
     while (i < G.pts.length - 1 && G.cum[i] < d) i++;
     const a = G.pts[i - 1], b = G.pts[i], f = clamp((d - G.cum[i - 1]) / Math.max(1e-3, G.cum[i] - G.cum[i - 1]), 0, 1);
     const dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy) || 1;
-    return [lerp(a[0], b[0], f), lerp(a[1], b[1], f), dx / l, dy / l, (4 + 30 * Math.pow(s, 1.2)) * G.n];
+    return [lerp(a[0], b[0], f), lerp(a[1], b[1], f), dx / l, dy / l, (G.w0 + G.w1 * Math.pow(s, 1.2)) * G.n];
+  }
+  // 公义的江河的前锋此刻流到哪里（画面宽的比例）；列国的火在它流过时熄灭
+  function riverFront() {
+    const k = L('taRiver');
+    if (k < 0.01 || L('taRiverA') * L('taIsrael') < 0.05) return 2;
+    return riverAt(riverGeom(), k)[0] / W.w;
   }
   function drawRiver(ctx) {
     const a = L('taRiverA') * L('taIsrael'), k = L('taRiver');
     if (a < 0.01 || k < 0.01) return;
-    const G = riverGeom(), n = G.n;
+    drawFlow(ctx, riverGeom(), k, a, { glints: 70, src: 1, bank: 1, depth: 0.02, speed: 1 });
+  }
+  // 一道发光的水：由窄到宽、由暗到亮的几层带子，浪光向下游涌去
+  function drawFlow(ctx, G, k, a, o) {
+    const n = G.n;
     const M = 44, P = [];
     for (let j = 0; j <= M; j++) {
       const sp = (j / M) * k, p = riverAt(G, sp);
@@ -1039,13 +1185,13 @@
     };
     // 河身：由宽到窄、由暗到亮的几层，边缘柔和
     ctx.globalAlpha = a;
-    ctx.fillStyle = sh([60, 96, 146], 0.02, 1, 0.3);
+    ctx.fillStyle = sh([60, 96, 146], o.depth, 1, 0.3);
     ribbon(1); ctx.fill();
     ctx.globalCompositeOperation = 'lighter';
     // 两岸被照亮的地
     for (let j = 0; j <= 12; j++) {
       const p = riverAt(G, (j / 12) * k);
-      glow(ctx, 'b', p[0], p[1], p[4] * 3 + 20 * n, 0.22 * a, p[4] * 1.1 + 10 * n);
+      glow(ctx, 'b', p[0], p[1], (p[4] * 3 + 20 * n) * o.bank, 0.22 * a, (p[4] * 1.1 + 10 * n) * o.bank);
     }
     const LAY = [[1.5, 0.12, 'rgb(110,160,236)'], [1, 0.22, 'rgb(150,196,255)'], [0.62, 0.3, 'rgb(206,230,255)'], [0.26, 0.45, 'rgb(246,250,255)']];
     for (const [sc, al, col] of LAY) {
@@ -1054,19 +1200,19 @@
       ribbon(sc); ctx.fill();
     }
     // 滚滚的浪光：一道道向下游涌去
-    for (let i = 0; i < 70; i++) {
-      const s = U.fract(S.clock * (0.07 + 0.03 * hsh(i + 1000)) + hsh(i + 1001));
+    for (let i = 0; i < o.glints; i++) {
+      const s = U.fract(S.clock * (0.07 + 0.03 * hsh(i + 1000)) * o.speed + hsh(i + 1001));
       if (s > k) continue;
       const p = riverAt(G, s), off = (hsh(i + 1002) - 0.5) * 1.4 * p[4];
       const x = p[0] + p[3] * off, y = p[1] - p[2] * off * 0.45;
       const env = Math.sin(Math.PI * U.fract(S.clock * 0.9 + hsh(i + 1003)));
-      glow(ctx, 'w', x, y, (4 + 6 * s) * n, 0.55 * a * env, (1.4 + 2 * s) * n);
+      glow(ctx, 'w', x, y, (4 + 6 * s) * n * Math.min(1, 0.4 + p[4] / (12 * n)), 0.55 * a * env, (1.4 + 2 * s) * n);
     }
     // 源头涌出，浪头向前
     const p0 = riverAt(G, 0), ph = riverAt(G, k);
-    glow(ctx, 'w', p0[0], p0[1] - 4 * n, 20 * n, 0.8 * a);
-    glow(ctx, 'b', p0[0], p0[1] - 4 * n, 50 * n, 0.4 * a);
-    if (k < 0.995) { glow(ctx, 'w', ph[0], ph[1], 16 * n, 0.9 * a); glow(ctx, 'b', ph[0], ph[1], 40 * n, 0.5 * a); }
+    glow(ctx, 'w', p0[0], p0[1] - 4 * n, 20 * n * o.src, 0.8 * a);
+    glow(ctx, 'b', p0[0], p0[1] - 4 * n, 50 * n * o.src, 0.4 * a);
+    if (k < 0.995) { glow(ctx, 'w', ph[0], ph[1], 16 * n * o.src, 0.9 * a); glow(ctx, 'b', ph[0], ph[1], 40 * n * o.src, 0.5 * a); }
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
   }
@@ -1306,29 +1452,6 @@
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
   }
-  // 本幕自己的雨（仅当核心的雨不可用时）
-  function drawRainLocal(ctx) {
-    const r = L('taRain');
-    if (r < 0.01 || RAIN_OK !== false) return;
-    const q = W.quality || 1, u = Math.max(0.35, W.unit || 1);
-    const slant = 0.16 + 0.3 * L('gale');
-    const col = U.mixRGB([110, 122, 150], [206, 214, 228], W.daylight);
-    for (let layer = 0; layer < 2; layer++) {
-      const n = Math.round((layer ? 140 : 200) * q * r) + 6;
-      const len = (layer ? 26 : 15) * u, spd = (layer ? 1250 : 820) * u, H = W.h + len;
-      ctx.beginPath();
-      for (let i = 0; i < n; i++) {
-        const hx = hsh(i * 1.37 + layer * 91), hy = hsh(i * 7.91 + layer * 37), hs = 0.8 + 0.4 * hsh(i * 3.17 + layer);
-        const yy = hy * H + S.clock * spd * hs, y = (yy % H) - len;
-        const x = ((hx * W.w * 1.3 + slant * yy) % (W.w * 1.3)) - W.w * 0.15;
-        ctx.moveTo(x, y); ctx.lineTo(x + slant * len, y + len);
-      }
-      ctx.strokeStyle = rgba(col, (layer ? 0.3 : 0.2) * r * (0.6 + 0.4 * W.daylight) + 0.25 * (W.flash || 0));
-      ctx.lineWidth = (layer ? 1.2 : 0.8) * Math.max(0.8, u);
-      ctx.globalAlpha = 1;
-      ctx.stroke();
-    }
-  }
   // 我要回到原处（何 5:15）：世界的光变冷
   function drawCool(ctx) {
     const k = L('taCool');
@@ -1349,7 +1472,7 @@
     else { const e = ease(v - 1); x = lerp(B[0], D[0], e); y = lerp(B[1], D[1], e); }
     return { x: x * W.w, y: y * W.h };
   }
-  const shipF = y => W.seaScale(y) * (tall() ? 2.5 : 1.75);
+  const shipF = y => W.seaScale(y) * X('shipK');
   function shipRoll() {
     const g = L('gale');
     return {
@@ -1357,7 +1480,8 @@
       bob: Math.sin(S.clock * 1.7) * 1.2 + g * Math.sin(S.clock * 2.9) * 6,
     };
   }
-  function jonahQ() { const p = shipPos(1); return [p.x + 0.05 * W.w, p.y + 0.018 * W.h]; }
+  // 约拿落水之处：船尾之外
+  function jonahQ() { const p = shipPos(1); return [p.x + X('jonahDx') * 110 * shipF(p.y), p.y + 0.018 * W.h]; }
   function drawShip(ctx, pass) {
     const A = L('taShipA');
     if (A < 0.01) return;
@@ -1496,8 +1620,8 @@
   }
   // 被抛在海中的约拿：自船舷划一道弧入水，在水面挣扎
   function drawJonahSea(ctx, pass) {
-    const over = L('taOver');
-    if (over < 0.01 || L('taFish') > 0.21) return;
+    const over = L('taOver'), fu = L('taFish');
+    if (over < 0.01 || (fu > 0.001 && fishHead(fishGeom(), fu) > 0.1)) return;
     const Q = jonahQ();
     if (W.seaBand(Q[1]) !== pass) return;
     const p = shipPos(1), F = shipF(p.y), Ls = 110 * F, fh = 0.21 * Ls;
@@ -1650,16 +1774,30 @@
     ctx.globalAlpha = 1;
   }
   function fishGeom() {
-    const Q = jonahQ(), y0 = Q[1];
-    return { qx: Q[0], y0, Dx: X('fishDx') * W.w, Lb: X('fishL') * W.w, Hh: X('fishH') * W.h };
+    const Q = jonahQ(), Dx = X('fishDx') * W.w, Lb = X('fishL') * W.w;
+    return { qx: Q[0], y0: Q[1], Dx, Lb, Hh: X('fishH') * W.h, len: Lb / Dx };
   }
+  // 跃起：头自约拿落水之处出水（张口吞下他），弓身向右（向岸边）入海。u 0..1；头的弧参 s（0 出水、1 入水）
+  const fishHead = (G, u) => -0.35 + (1.37 + G.len) * u;
   function breachPts(G, u) {
-    const sh0 = -0.35 + 2.1 * u, len = G.Lb / G.Dx, N = 18, pts = [];
+    const sh0 = fishHead(G, u), N = 18, pts = [];
     for (let i = 0; i <= N; i++) {
-      const s = sh0 - (i / N) * len;
-      pts.push([G.qx + G.Dx * (0.06 - s), G.y0 - G.Hh * Math.sin(Math.PI * s)]);
+      const s = sh0 - (i / N) * G.len;
+      // 水面之上是一道弧；水下的部分只往深处去（不会在别处又露出水面）
+      const y = s < 0 ? G.y0 + G.Hh * Math.sin(Math.PI * Math.min(0.5, -s)) : s > 1 ? G.y0 + G.Hh * Math.sin(Math.PI * Math.min(0.5, s - 1)) : G.y0 - G.Hh * Math.sin(Math.PI * s);
+      pts.push([G.qx + G.Dx * (s - 0.06), y]);
     }
     return { pts, s: sh0 };
+  }
+  // 三日三夜：鱼在水下先往深处去，再回到岸边（二次曲线）
+  function swimPos(G, k) {
+    const S0 = X('spit'), sx = S0[0] * W.w, sy = S0[1] * W.h;
+    const A = [G.qx + 0.7 * G.Dx, G.y0 + 0.04 * W.h], Cq = [0.12 * W.w, 1.0 * W.h], B = [sx - 0.05 * W.w, sy + 0.025 * W.h];
+    const t = ease(k), it = 1 - t;
+    return {
+      x: it * it * A[0] + 2 * it * t * Cq[0] + t * t * B[0], y: it * it * A[1] + 2 * it * t * Cq[1] + t * t * B[1],
+      dx: 2 * it * (Cq[0] - A[0]) + 2 * t * (B[0] - Cq[0]), dy: 2 * it * (Cq[1] - A[1]) + 2 * t * (B[1] - Cq[1]),
+    };
   }
   function drawFish(ctx, pass) {
     const u = L('taFish');
@@ -1669,7 +1807,7 @@
       const B = breachPts(G, u);
       const jaw = ss(-0.2, -0.04, B.s) * (1 - ss(0.07, 0.14, B.s));
       const T0 = G.Lb * 0.21;
-      fishBody(ctx, B.pts, T0, jaw, 1, false, G.y0);
+      fishBody(ctx, B.pts, T0, jaw, 1, true, G.y0);
       return;
     }
     if (u >= 0.999) {
@@ -1679,11 +1817,9 @@
       const G = fishGeom(), T0 = G.Lb * 0.21;
       if (sp < 0.01) {
         // 三日三夜：鱼在水下，腹中一点祷告的光
-        const k = L('taFishPath');
-        const x0 = G.qx - 0.55 * G.Dx, y0 = G.y0 + 0.03 * W.h;
-        const x = lerp(x0, sx - 0.05 * W.w, ease(k)), y = lerp(y0, sy + 0.025 * W.h, ease(k)) + Math.sin(S.clock * 0.8) * 3;
-        const dir = Math.atan2(sy - y0, sx - x0);
-        ctx.save(); ctx.translate(x, y); ctx.rotate(dir * 0.3);
+        const P = swimPos(G, L('taFishPath'));
+        const x = P.x, y = P.y + Math.sin(S.clock * 0.8) * 3;
+        ctx.save(); ctx.translate(x, y); ctx.rotate(Math.atan2(P.dy, P.dx) * (P.dx < 0 ? 1 : 0.4));
         ctx.globalAlpha = 0.3;
         ctx.fillStyle = 'rgb(14,30,46)';
         ctx.beginPath(); ctx.ellipse(0, 0, G.Lb * 0.45, T0 * 0.35, 0, 0, TAU); ctx.fill();
@@ -1847,6 +1983,24 @@
       }
       ctx.globalCompositeOperation = 'source-over';
     }
+    ctx.globalAlpha = 1;
+  }
+  // 我岂能不爱惜呢（拿 4:11）：话一出口，城中先亮起一盏暖灯，暖光也落在牲畜身上
+  function lamp1Pos() { const n = NU(), x = (X('palace') - 0.06) * W.w; return [x, gY(x) - 30 * n]; }
+  function drawMercy(ctx) {
+    const k = L('taLamp1') * L('taNin');
+    if (k < 0.01) return;
+    const n = NU(), p = lamp1Pos();
+    ctx.globalCompositeOperation = 'lighter';
+    const br = 0.9 + 0.1 * Math.sin(S.clock * 2.1);
+    glow(ctx, 'g', p[0], p[1], 38 * n, 0.5 * k * br);
+    glow(ctx, 'w', p[0], p[1], 7 * n, 0.95 * k * br);
+    const g = crowdOf('ninCattle');
+    if (g) for (const m of g.members) {
+      if (!m._vis || m.dying || !isFinite(m._x)) continue;
+      glow(ctx, 'g', m._x, m._y - m._h * 0.45, 26 * n, 0.32 * k, 16 * n);
+    }
+    ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
   }
   function boothDims() { const n = NU() * 1.3, x = X('booth') * W.w; return { n, x, gy: gY(x) + 1 }; }
@@ -2017,23 +2171,57 @@
     }
     ctx.globalAlpha = 1;
   }
-  // 万民流归这山：光点自两边的路上走向锡安（弥 4:1–2）
+  // 万民流归这山：三道暖光的人流沿着山的两坡与中丘的路，慢慢爬上殿去（弥 4:1–2）
+  function streamPaths() {
+    const g = zionGeom(), m = g.m, out = [];
+    const flank = (side) => {
+      const pts = [];
+      const x0 = g.cx + side * g.hw * 1.35;
+      pts.push([x0, gYb(x0, 1) - 1.5 * m]);
+      for (let i = 0; i <= 14; i++) {
+        const d = side * lerp(1.0, 0.06, i / 14), x = g.cx + d * g.hw;
+        // 山路蜿蜒：左右摆一点
+        const wig = Math.sin(i * 1.3 + side) * 0.05 * g.hw;
+        pts.push([x + wig, zionY(g, x + wig) + 1.5 * m]);
+      }
+      return pts;
+    };
+    out.push(flank(-1), flank(1));
+    // 自中丘左边的路来的一道
+    const road = [];
+    const xa = 0.56 * W.w, xb = g.cx - g.hw * 1.35;
+    for (let i = 0; i <= 10; i++) { const x = lerp(xa, xb, i / 10); road.push([x, gYb(x, 1) - 1.5 * m]); }
+    out.push(road.concat(out[0].slice(1)));
+    return out;
+  }
+  function alongPath(pts, u) {
+    let tot = 0;
+    const seg = [];
+    for (let i = 1; i < pts.length; i++) { const d = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); seg.push(d); tot += d; }
+    let rem = tot * u;
+    for (let i = 1; i < pts.length; i++) {
+      if (rem <= seg[i - 1]) { const f = rem / Math.max(1e-3, seg[i - 1]); return [lerp(pts[i - 1][0], pts[i][0], f), lerp(pts[i - 1][1], pts[i][1], f)]; }
+      rem -= seg[i - 1];
+    }
+    return pts[pts.length - 1];
+  }
   function drawStreams(ctx) {
     const k = L('taStream') * L('taIsrael');
     if (k < 0.01) return;
-    const t = templeTop(), m = MU();
-    const paths = [[[0.505 * W.w, W.waterlineY(1) - 3], [0.68 * W.w, gYb(0.68 * W.w, 1) - 2]], [[1.02 * W.w, gYb(W.w, 1) - 2], [0.96 * W.w, gYb(0.96 * W.w, 1) - 3]]];
+    const m = MU(), P = streamPaths(), t = templeTop();
     ctx.globalCompositeOperation = 'lighter';
-    for (let p = 0; p < 2; p++) {
-      const A = paths[p][0], B = paths[p][1];
-      for (let i = 0; i < 16; i++) {
-        const u = U.fract(S.clock * 0.05 + i / 16 + p * 0.03);
-        let x, y;
-        if (u < 0.55) { const q = u / 0.55; x = lerp(A[0], B[0], q); y = lerp(A[1], B[1], q); }
-        else { const q = (u - 0.55) / 0.45; x = lerp(B[0], t[0], q); y = lerp(B[1], t[1] + 6 * m, q) - Math.sin(Math.PI * q) * 4 * m; }
-        glow(ctx, 'g', x, y, 3.2 * m, 0.8 * k * Math.min(1, u * 8) * (1 - ss(0.92, 1, u)));
+    for (let p = 0; p < P.length; p++) {
+      const N = p === 2 ? 16 : 12, per = p === 2 ? 14 : 9;
+      for (let i = 0; i < N; i++) {
+        const u = U.fract(S.clock / per + i / N + p * 0.17);
+        const q = alongPath(P[p], u);
+        const a = k * Math.min(1, u * 10) * (1 - ss(0.9, 1, u));
+        glow(ctx, 'g', q[0], q[1] - 2 * m, 5 * m, 0.75 * a);
+        glow(ctx, 'w', q[0], q[1] - 2 * m, 1.8 * m, 0.95 * a);
       }
     }
+    // 殿前聚着的光
+    glow(ctx, 'g', t[0], t[1] + 6 * m, 16 * m, 0.45 * k);
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
   }
@@ -2072,47 +2260,94 @@
     ctx.globalAlpha = 1;
   }
   // 罪：每人头上一块黑石，被抛入深海（弥 7:19）
+  // 落点：经文框之下、近岸的海面（按画面的比例；落在陆上的往海里挪）
   function sinTarget(i) {
     const s = X('sea');
-    return [(s[0] + (s[1] - s[0]) * hsh(i + 800)) * W.w, (s[2] + (s[3] - s[2]) * hsh(i + 801)) * W.h];
+    let x = (s[0] + (s[1] - s[0]) * hsh(i + 800)) * W.w;
+    const y = (s[2] + (s[3] - s[2]) * hsh(i + 801)) * W.h;
+    for (let j = 0; j < 40 && x > 0.04 * W.w && !W.isSea(x, y); j++) x -= 0.012 * W.w;
+    return [x, y];
+  }
+  const SIN_N = 12;
+  function stonePath(ctx, r) {
+    ctx.beginPath(); ctx.moveTo(-r, -r * 0.35); ctx.quadraticCurveTo(-r * 0.7, -r * 0.95, -r * 0.1, -r); ctx.quadraticCurveTo(r * 0.8, -r * 0.8, r, -r * 0.1);
+    ctx.quadraticCurveTo(r * 0.95, r * 0.7, r * 0.3, r * 0.85); ctx.quadraticCurveTo(-r * 0.6, r * 0.95, -r * 0.9, r * 0.4); ctx.closePath();
   }
   function drawSins(ctx, where) {
     const k = L('taSins');
     if (k < 0.01 || k >= 0.999) return;
     const list = humans(), n = NU();
-    const N = Math.min(12, list.length);
+    const N = Math.min(SIN_N, list.length);
+    const sunX = W.sun && isFinite(W.sun.x) ? W.sun.x : 0.05 * W.w, sunY = W.sun && isFinite(W.sun.y) ? W.sun.y : W.horizonY;
+    const rim = 0.35 + 0.65 * c01(W.daylight * 1.4 + (1 - W.night) * 0.3);
+    const topY = X('sinTop') * W.h;
     for (let i = 0; i < N; i++) {
       const p = list[i];
       const sx = p._x, sy = p._y - p._h * 1.35;
       const tg = sinTarget(i);
       const own = clamp((k - 0.3) / 0.7 * 1.25 - i * 0.025, 0, 1);
-      const r = 4 * n;
+      const r = 5 * n;
       if (where === 'air' && own < 0.7) {
         let x, y, a;
         if (k < 0.3) { const q = k / 0.3; x = sx; y = sy + (1 - q) * 10 * n; a = q; }
         else {
           const q = own / 0.7;
-          x = lerp(sx, tg[0], ease(q)); y = lerp(sy, tg[1], q) - Math.sin(Math.PI * q) * 0.14 * W.h; a = 1;
+          // 弧顶不高过经文框的下沿（横屏）
+          const lift = clamp((sy + tg[1]) / 2 - topY, 0.02 * W.h, 0.14 * W.h);
+          x = lerp(sx, tg[0], ease(q)); y = lerp(sy, tg[1], q) - Math.sin(Math.PI * q) * lift; a = 1;
         }
-        ctx.globalCompositeOperation = 'lighter';
-        glow(ctx, 'f', x, y, r * 3.2, 0.3 * a);
-        ctx.globalCompositeOperation = 'source-over';
+        // 柔和的暗影，衬在渐亮的天上
+        glow(ctx, 'k', x + 1.5 * n, y + 2 * n, r * 2.8, 0.45 * a);
+        const rot = own * 8 + i;
+        ctx.save(); ctx.translate(x, y); ctx.rotate(rot);
         ctx.globalAlpha = a;
-        ctx.fillStyle = 'rgb(28,22,24)';
-        ctx.save(); ctx.translate(x, y); ctx.rotate(own * 8 + i);
-        ctx.beginPath(); ctx.moveTo(-r, -r * 0.4); ctx.lineTo(-r * 0.2, -r); ctx.lineTo(r, -r * 0.3); ctx.lineTo(r * 0.7, r * 0.8); ctx.lineTo(-r * 0.6, r * 0.9); ctx.closePath(); ctx.fill();
-        ctx.strokeStyle = 'rgba(214,120,100,0.8)'; ctx.lineWidth = 1; ctx.stroke();
+        ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 5 * n;
+        ctx.fillStyle = 'rgb(40,32,32)';
+        stonePath(ctx, r); ctx.fill();
+        ctx.shadowBlur = 0; ctx.shadowColor = 'rgba(0,0,0,0)';
+        // 迎着晨光的一侧：一道暖色的边
+        ctx.clip();
+        const ang = Math.atan2(sunY - y, sunX - x) - rot, ox = Math.cos(ang) * r, oy = Math.sin(ang) * r;
+        ctx.fillStyle = rgba([255, 184, 120], 0.9 * rim);
+        ctx.beginPath(); ctx.arc(ox * 0.55, oy * 0.55, r * 0.95, 0, TAU); ctx.fill();
+        ctx.fillStyle = 'rgb(40,32,32)';
+        ctx.beginPath(); ctx.arc(-ox * 0.16, -oy * 0.16, r * 0.98, 0, TAU); ctx.fill();
+        ctx.fillStyle = 'rgba(92,74,70,0.55)';
+        ctx.beginPath(); ctx.arc(ox * 0.1, oy * 0.1 - r * 0.2, r * 0.35, 0, TAU); ctx.fill();
         ctx.restore();
       } else if (where === 'sea' && own >= 0.7) {
         const q = (own - 0.7) / 0.3, s = W.seaScale(tg[1]) / Math.max(0.1, W.unit);
         ctx.globalCompositeOperation = 'lighter';
-        ctx.strokeStyle = 'rgb(236,244,252)';
-        ctx.globalAlpha = 0.6 * (1 - q); ctx.lineWidth = 1.2;
-        ctx.beginPath(); ctx.ellipse(tg[0], tg[1], (4 + 26 * q) * n * s, (1.2 + 7 * q) * n * s, 0, 0, TAU); ctx.stroke();
-        glow(ctx, 'g', tg[0], tg[1], 10 * n * s, 0.5 * (1 - q));
+        glow(ctx, 'w', tg[0], tg[1], (8 + 30 * q) * n * s, 0.55 * (1 - q), (3 + 8 * q) * n * s);
+        glow(ctx, 'g', tg[0], tg[1], (14 + 50 * q) * n * s, 0.5 * Math.sin(Math.PI * Math.min(1, q * 1.2)), (4 + 12 * q) * n * s);
+        if (SP.ring) {
+          const rr = (6 + 30 * q) * n * s;
+          ctx.globalAlpha = 0.7 * (1 - q);
+          ctx.drawImage(SP.ring, tg[0] - rr, tg[1] - rr * 0.28, 2 * rr, 2 * rr * 0.28);
+        }
         ctx.globalCompositeOperation = 'source-over';
       }
     }
+    ctx.globalAlpha = 1;
+  }
+  // 罪沉下去的地方：一片渐渐铺开的金光（日头出来时最亮）
+  function drawSinkSheen(ctx) {
+    const k = L('taSea');
+    if (k < 0.01) return;
+    const n = NU(), sun = 0.55 + 0.45 * W.daylight;
+    const N = Math.min(SIN_N, Math.max(6, humans().length));
+    ctx.globalCompositeOperation = 'lighter';
+    let mx = 0, my = 0;
+    for (let i = 0; i < N; i++) {
+      const tg = sinTarget(i), s = W.seaScale(tg[1]) / Math.max(0.1, W.unit);
+      mx += tg[0] / N; my += tg[1] / N;
+      const br = 0.8 + 0.2 * Math.sin(S.clock * 1.3 + i * 1.9);
+      glow(ctx, 'g', tg[0], tg[1], (26 + 40 * k) * n * s, 0.4 * k * sun * br, (6 + 9 * k) * n * s);
+      glow(ctx, 'w', tg[0], tg[1], 7 * n * s, 0.5 * k * sun * br, 2.2 * n * s);
+    }
+    // 连成一片的金色水带
+    glow(ctx, 'g', mx, my, (0.12 + 0.1 * k) * W.w, 0.4 * k * sun, 0.045 * W.h);
+    ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
   }
   // 深海发光：日出时，罪沉下去的海一片金光
@@ -2123,9 +2358,9 @@
     if (k > 0.01) {
       const sx = W.sun && isFinite(W.sun.x) ? clamp(W.sun.x, 0.04 * W.w, 0.5 * W.w) : 0.12 * W.w;
       // 满海的金光：日出的海面，罪沉下去的深海
-      glow(ctx, 'g', sx, W.horizonY + 0.05 * W.h, 0.6 * W.w, 0.4 * k, 0.16 * W.h);
-      const s = X('sea');
-      glow(ctx, 'g', (s[0] + s[1]) / 2 * W.w, (s[2] + s[3]) / 2 * W.h, 0.32 * W.w, 0.4 * k, 0.12 * W.h);
+      const sun = 0.5 + 0.5 * W.daylight;
+      glow(ctx, 'g', sx, W.horizonY + 0.05 * W.h, 0.6 * W.w, 0.45 * k * sun, 0.16 * W.h);
+      glow(ctx, 'g', 0.26 * W.w, 0.84 * W.h, 0.36 * W.w, 0.3 * k * sun, 0.12 * W.h);
       // 日下的一条金路
       for (let i = 0; i < 90; i++) {
         const dd = Math.pow(hsh(i + 950), 0.9), y = W.horizonY + (0.005 + 0.4 * dd) * W.h;
@@ -2204,16 +2439,36 @@
             glow(ctx, 'g', x, y, 40 * n, 0.3 * env);
           }
           ctx.globalCompositeOperation = 'source-over';
-        } else if (e.type === 'pulse' || e.type === 'roar') {
-          const c = e.type === 'roar' ? templeTop() : anchor();
+        } else if (e.type === 'pulse') {
+          // 一道柔和的光波自天上的慈爱之处向外漾开（只在画面的右半）
+          const c = anchor(), R = 0.35 * W.w;
+          ctx.save();
+          ctx.beginPath(); ctx.rect(0.5 * W.w, 0, W.w * 0.5 + 2, W.h); ctx.clip();
           ctx.globalCompositeOperation = 'lighter';
-          ctx.strokeStyle = e.type === 'roar' ? 'rgb(255,214,150)' : 'rgb(255,226,190)';
-          for (let r = 0; r < 3; r++) {
-            const qq = clamp(q * 1.3 - r * 0.15, 0, 1);
-            if (qq <= 0 || qq >= 1) continue;
-            ctx.globalAlpha = 0.6 * (1 - qq);
-            ctx.lineWidth = Math.max(1, 3 * n * (1 - qq));
-            ctx.beginPath(); ctx.ellipse(c[0], c[1], qq * 0.6 * W.w, qq * 0.3 * W.w, 0, 0, TAU); ctx.stroke();
+          for (let r = 0; r < 2; r++) {
+            const qq = clamp(q * 1.25 - r * 0.25, 0, 1);
+            if (qq <= 0 || qq >= 1 || !SP.ring) continue;
+            const rr = R * ease(qq);
+            ctx.globalAlpha = 0.45 * Math.sin(Math.PI * qq) * (1 - 0.4 * r);
+            ctx.drawImage(SP.ring, c[0] - rr, c[1] - rr * 0.55, 2 * rr, 2 * rr * 0.55);
+          }
+          glow(ctx, 'g', c[0], c[1], 40 * n, 0.4 * env);
+          ctx.restore();
+        } else if (e.type === 'roar') {
+          // 狮子吼叫：一道暖光自锡安沿着远山的脊线传开（大地同时一震）
+          const z = templeTop(), f = FU();
+          ctx.globalCompositeOperation = 'lighter';
+          glow(ctx, 'f', z[0], z[1], 60 * MU() * (0.6 + q), 0.45 * (1 - q));
+          for (let side = -1; side <= 1; side += 2) {
+            const x = z[0] + side * ease(q) * (side < 0 ? z[0] - 0.5 * W.w : W.w - z[0] + 0.05 * W.w);
+            if (x < 0.5 * W.w - 4) continue;
+            const y = gYb(clamp(x, 0, W.w), 0);
+            for (let j = 0; j < 4; j++) {
+              const xx = x - side * j * 0.02 * W.w;
+              if (xx < 0.5 * W.w) continue;
+              glow(ctx, 'g', xx, gYb(clamp(xx, 0, W.w), 0) - 3 * f, 34 * f * (1 - j * 0.18), 0.5 * env * (1 - j * 0.22), 12 * f);
+            }
+            glow(ctx, 'w', x, y - 2 * f, 12 * f, 0.6 * env);
           }
           ctx.globalCompositeOperation = 'source-over';
         } else if (e.type === 'tread') {
@@ -2225,7 +2480,7 @@
           ctx.globalCompositeOperation = 'source-over';
         } else if (e.type === 'lead') {
           // 开路的在他们前面上去
-          const x = lerp(0.47, 0.6, q) * W.w, y = gYb(x) - 30 * n;
+          const x = lerp(X('fold') + 0.09, X('fold') - 0.02, q) * W.w, y = gYb(x) - 30 * n;
           ctx.globalCompositeOperation = 'lighter';
           glow(ctx, 'g', x, y, 22 * n, 0.6 * env);
           glow(ctx, 'w', x, y, 7 * n, 0.9 * env);
@@ -2300,11 +2555,11 @@
     }
     // 大山滴甜酒：紫金的光点自中丘的坡上滴下
     if (L('taWine') * L('taIsrael') > 0.3) {
-      S.dripAcc += k * 3 * L('taWine');
+      S.dripAcc += k * 6 * L('taWine');
       while (S.dripAcc > 1) {
         S.dripAcc -= 1;
         const x = rnd(0.53, 0.97) * W.w, y = gYb(x, 1) - rnd(0, 6);
-        f.add({ x, y, vx: 0, vy: rnd(8, 20), max: rnd(1.2, 2.2), size: rnd(0.8, 1.4), c: Math.random() < 0.5 ? [214, 130, 230] : [255, 214, 150], drag: 0, a: 0.8, pass: 'mid', twinkle: true });
+        f.add({ x, y, vx: 0, vy: rnd(8, 20), max: rnd(1.2, 2.2), size: rnd(1.2, 2.2), c: Math.random() < 0.5 ? [224, 140, 240] : [255, 214, 150], drag: 0, a: 0.9, pass: 'mid', twinkle: true });
       }
     }
     // 大风卷起地上的尘土（所种的是风，所收的是暴风）
@@ -2343,6 +2598,7 @@
     }
     if (pass === 'near') {
       safe('ta.field', () => drawField(ctx));
+      safe('ta.harvest', () => drawHarvestGlow(ctx));
       safe('ta.river', () => drawRiver(ctx));
       safe('ta.dew', () => drawDew(ctx));
       safe('ta.vineyard', () => drawVineyard(ctx));
@@ -2367,11 +2623,13 @@
       safe('ta.jonahSea', () => drawJonahSea(ctx, pass));
       safe('ta.fish', () => drawFish(ctx, pass));
       safe('ta.fxl', () => drawFXL(ctx, pass));
-      if (pass === 'seaNear') safe('ta.sinsSea', () => drawSins(ctx, 'sea'));
+      if (pass === 'seaNear') { safe('ta.sinkSheen', () => drawSinkSheen(ctx)); safe('ta.sinsSea', () => drawSins(ctx, 'sea')); }
       return;
     }
     if (pass === 'air') {
       safe('ta.cool', () => drawCool(ctx));
+      safe('ta.home', () => drawHomeLight(ctx));
+      safe('ta.mercy', () => drawMercy(ctx));
       safe('ta.stormDark', () => drawStormDark(ctx));
       safe('ta.mist', () => drawMist(ctx));
       safe('ta.swarm', () => drawSwarm(ctx));
@@ -2384,7 +2642,6 @@
       safe('ta.walk', () => drawWalk(ctx));
       safe('ta.sins', () => drawSins(ctx, 'air'));
       safe('ta.heat', () => drawHeat(ctx));
-      safe('ta.rain', () => drawRainLocal(ctx));
       safe('ta.fxl', () => drawFXL(ctx, 'air'));
     }
   }
@@ -2415,7 +2672,7 @@
       if (L('taVine') > 0.5) X('vines').forEach((v, i) => { const vx2 = v * W.w; test(i % 2 ? '葡萄树' : '无花果树', vx2, gY(vx2) - 30 * n, gY(vx2) - 40 * n, 12 * n); });
       if (L('taLily') > 0.5) { const lx = 0.7 * W.w; test('百合花', lx, gYb(lx) + 0.03 * W.h, gYb(lx), 0.04 * W.w); }
     }
-    if (L('taCrag') > 0.3) { const g = cragGeom(); test('以东的山', g.cx, g.top + g.H * 0.4, g.top, g.hw * 0.6); }
+    if (L('taCrag') > 0.3 && L('taCragA') > 0.5) { const g = cragGeom(); test('以东的山', g.cx, g.top + g.H * 0.4, g.top, g.hw * 0.6); }
     if (L('taSwarm') > 0.5 && L('taSwarmX') < 0.85) { const sc = swarmCenter(); test('蝗虫', sc[0], sc[1], sc[1] - 0.1 * W.h, 0.12 * W.w); }
     if (L('taShipA') > 0.5) { const p = shipPos(L('taShip')), F = shipF(p.y); test('船', p.x, p.y - 30 * F, p.y - 70 * F, 40 * F); }
     if (L('taFish') > 0.15 && L('taFish') < 0.95) { const G = fishGeom(), B = breachPts(G, L('taFish')); const m = B.pts[6]; test('大鱼', m[0], m[1], m[1] - 20, G.Lb * 0.3); }
@@ -2453,14 +2710,14 @@
     lv('trees', 0.42, b); lv('bare', 0.3, b); lv('bloom', 0.3, b);
     const c = C();
     c.removeCrowd('isr'); rm('priest');
-    c.crowd('nin', { n: 12, x0: 0.64, x1: 0.99, layer: 2, label: '尼尼微人', from: 'fade' });
+    c.crowd('nin', { n: 12, x0: 0.685, x1: 0.99, layer: 2, label: '尼尼微人', from: 'fade' });
     crowdRobe('nin', NIN);
     add('king', { label: '尼尼微王', sex: 'm', age: 'elder', x: X('palace') + 0.014, facing: -1, pose: 'seat', robe: ROBE.king, accent: GOLD, glow: 0.3, prop: null });
-    if (c.herd) c.herd('ninCattle', { kind: 'cow', n: 3, x0: 0.7, x1: 0.8, layer: 2, label: '牲畜', from: 'fade', mill: false, pose: 'graze' });
+    if (c.herd) c.herd('ninCattle', { kind: 'cow', n: 3, x0: 0.615, x1: 0.66, layer: 2, label: '牲畜', from: 'fade', mill: false, pose: 'graze' });
     avoid([[0.4, 1]]);
   }
   function toIsrael(b) {
-    lv('taNin', 0, b); lv('taIsrael', 1, b); lv('taNinLamp', 0, b); lv('taLove', 0, b); lv('taRelent', 0, b); lv('taBooth', 0, b);
+    lv('taNin', 0, b); lv('taIsrael', 1, b); lv('taNinLamp', 0, b); lv('taLamp1', 0, b); lv('taLove', 0, b); lv('taRelent', 0, b); lv('taBooth', 0, b);
     lv('taGourd', 0, b); lv('taWither', 0, b); lv('taAsh', 0, b); lv('taHeat', 0, b);
     lv('trees', 0.6, b); lv('bare', 0.05, b); lv('bloom', 0.85, b); lv('taCrop', 0.9, b); lv('taGold', 0.6, b);
     const c = C();
@@ -2564,8 +2821,8 @@
       kind: 'judge', utter: '我喜爱良善，不喜爱祭祀', cmd: 'grep -v 燔祭 心 | grep 良善', ref: '何西阿书 6:6', tint: TINT_HO,
       verse: [
         { text: '以色列人哪，你们当听耶和华的话。耶和华与这地的居民争辩，<br>因这地上无诚实，无良善，无人认识神。', ref: '何西阿书 4:1', hold: 7 },
-        { text: '我要回到原处，等他们自觉有罪，寻求我面……<br>来吧，我们归向耶和华！他撕裂我们，也必医治；他打伤我们，也必缠裹。', ref: '何西阿书 5:15–6:1', hold: 7.5 },
-        { text: '……你们的良善如同早晨的云雾，又如速散的甘露……<br>我喜爱良善，不喜爱祭祀；喜爱认识神，胜于燔祭。', ref: '何西阿书 6:4–6', hold: 7.5 },
+        { text: '我要回到原处，等他们自觉有罪，寻求我面……<br>来吧，我们归向耶和华！他撕裂我们，也必医治；他打伤我们，也必缠裹。', ref: '何西阿书 5:15–6:1', hold: 7 },
+        { text: '……你们的良善如同早晨的云雾，又如速散的甘露……<br>我喜爱良善，不喜爱祭祀；喜爱认识神，胜于燔祭。', ref: '何西阿书 6:4–6', hold: 7 },
         { text: '以法莲好像鸽子愚蠢无知；他们求告埃及，投奔亚述。', ref: '何西阿书 7:11', hold: 5.5 },
       ],
       apply(c) {
@@ -2574,27 +2831,30 @@
           [0, b => {
             time(0.6, 26, b);
             C().holdHands('hosea', 'gomer', false);
-            lv('taNames', 0.35, b); lv('taFire', 1, b); lv('taSmoke', 1, b);
-            pose('priest', 'raise');
-            C().crowdWalk('isr', 0.8, 0.975, { speed: 0.03, pose: 'bow' });
-            sfx(b, 'fire');
+            // 话一出口：坛上的火与烟塌成一缕，牛犊的金光熄了；拜的人起来，转身走向何西阿的家——那里亮起了光
+            lv('taFire', 0.06, b); lv('taSmoke', 0.1, b); lv('taDull', 1, b); lv('taHouse', 1, b);
+            pose('priest', 'stand');
+            C().crowdWalk('isr', 0.74, 0.9, { speed: 0.03, pose: 'gaze' });
+            glowP('hosea', 0.6); glowP('gomer', 0.5); glowP('jez', 0.45); glowP('ruh', 0.45); glowP('ammi', 0.45);
+            face('hosea', 1); face('gomer', 1);
+            sfx(b, 'harp', { soft: true });
           }],
-          [8.3, b => {
+          [4, b => { lv('taNames', 0, b); }],
+          [9.4, b => {
             lv('taCool', 1, b);
             addFX(b, { type: 'ascend', x: 0.7, dur: 5 });
             sfx(b, 'wind', { soft: true });
           }],
-          [12.6, b => { C().crowdPose('isr', 'raise'); crowdFace('isr', -1); }],
-          [17.6, b => { lv('taMist', 1, b); }],
-          [20.2, b => { lv('taMist', 0, b); C().crowdPose('isr', 'stand'); }],
-          [21.4, b => {
-            lv('taFire', 0, b); lv('taSmoke', 0.12, b); lv('taCool', 0.4, b);
-            pose('priest', 'stand');
+          [13.4, b => { C().crowdPose('isr', 'raise'); crowdFace('isr', -1); }],
+          [17.8, b => { lv('taMist', 1, b); }],
+          [20.4, b => { lv('taMist', 0, b); C().crowdPose('isr', 'stand'); }],
+          [21.2, b => {
+            lv('taFire', 0, b); lv('taSmoke', 0, b); lv('taCool', 0.4, b);
             glowP('hosea', 0.85); glowP('gomer', 0.6); glowP('jez', 0.5); glowP('ruh', 0.5); glowP('ammi', 0.5);
             pose('hosea', 'gaze');
             sfx(b, 'harp', { soft: true });
           }],
-          [26.4, b => { addFX(b, { type: 'dove', dur: 7 }); sfx(b, 'dove'); }],
+          [25.4, b => { addFX(b, { type: 'dove', dur: 7 }); sfx(b, 'dove'); }],
         ]);
       },
     },
@@ -2605,7 +2865,7 @@
         { text: '他们所种的是风，所收的是暴风；<br>所种的不成禾稼，就是发苗也不结实。', ref: '何西阿书 8:7', hold: 5.5 },
         { text: '主说：我遇见以色列如葡萄在旷野；<br>我看见你们的列祖如无花果树上春季初熟的果子。', ref: '何西阿书 9:10', hold: 6 },
         { text: '你们要为自己栽种公义，就能收割慈爱……<br>你们要开垦荒地，等他临到，使公义如雨降在你们身上。', ref: '何西阿书 10:12', hold: 7 },
-        { text: '以色列年幼的时候，我爱他，就从埃及召出我的儿子来……<br>我原教导以法莲行走，用膀臂抱着他们……我用慈绳爱索牵引他们。', ref: '何西阿书 11:1–4', hold: 8.5 },
+        { text: '以色列年幼的时候，我爱他，就从埃及召出我的儿子来……<br>我原教导以法莲行走，用膀臂抱着他们……我用慈绳爱索牵引他们。', ref: '何西阿书 11:1–4', hold: 8 },
       ],
       apply(c) {
         ring(c, [255, 222, 176]);
@@ -2613,7 +2873,7 @@
         T(c, [
           [0, b => {
             time(0.72, 28, b);
-            lv('gale', 0.75, b); lv('taCords', 0.28, b); lv('taNames', 0, b); lv('taCool', 0, b);
+            lv('gale', 0.75, b); lv('taCords', 0.28, b); lv('taNames', 0, b); lv('taCool', 0, b); lv('taHouse', 0.35, b);
             addFX(b, { type: 'whirl', dur: 6.5 });
             C().crowdWalk('isr', 0.7, 0.99, { speed: 0.05, pose: 'bow' });
             pose('hosea', 'bow'); pose('gomer', 'bow');
@@ -2639,6 +2899,7 @@
           }],
           [21.5, b => { rain(0, b); }],
           [22.4, b => {
+            rm('ox');                                   // 牛先离开，人才聚拢来
             lv('taCords', 1, b); lv('gale', 0, b);
             C().crowdWalk('isr', 0.72, 0.87, { speed: 0.018, pose: 'gaze' });
             walk('ammi', F.hosea + 0.012, { speed: 0.011 });
@@ -2665,6 +2926,8 @@
           [0, b => {
             time(0.27, 24, b);
             lv('taCords', 0.45, b);
+            // 夜里甘露已开始降下，几朵百合花打了苞
+            lv('taDew', 0.35, b); lv('taLily', 0.22, b);
             addFX(b, { type: 'pulse', dur: 4 });
             sfx(b, 'harp', { soft: true });
           }],
@@ -2687,7 +2950,7 @@
     },
     // ── 约珥书 1—2：一心归向我 ───────────────────────────────
     {
-      kind: 'cmd', utter: '你们应当禁食、哭泣、悲哀，一心归向我', cmd: 'rm -r 衣服/ && tear 心肠  # 一心归向我', ref: '约珥书 2:12', tint: TINT_JL,
+      kind: 'cmd', utter: '你们应当禁食、哭泣、悲哀，一心归向我', cmd: 'tear 心肠 --keep 衣服/  # 一心归向我', ref: '约珥书 2:12', tint: TINT_JL,
       verse: [
         { text: '剪虫剩下的，蝗虫来吃；蝗虫剩下的，蝻子来吃；<br>蝻子剩下的，蚂蚱来吃。', ref: '约珥书 1:4', hold: 6.5 },
         { text: '田荒凉，地悲哀；因为五谷毁坏，新酒干竭，油也缺乏。', ref: '约珥书 1:10', hold: 5.5 },
@@ -2699,7 +2962,7 @@
         T(c, [
           [0, b => {
             time(0.44, 14, b);
-            lv('taDew', 0, b);
+            lv('taDew', 0, b); lv('taHouse', 0, b);
             for (const id of ['hosea', 'gomer', 'jez', 'ruh']) rm(id);
             lv('taSwarm', 1, b); lv('taSwarmX', 0.45, b);
             const ox = W.w * 0.34, oy = W.ridgeBaseY(2, ox);
@@ -2786,7 +3049,8 @@
             if (C().herd) C().herd('flock', { kind: 'sheep', n: 6, x0: 0.46, x1: 0.6, layer: 2, label: '羊群', from: inst(b) ? 'none' : 'fade' });
             lv('taFireA', 1, b);
           }],
-          [0.5, b => { lv('taFires', 1, b); }],
+          // 话一出：列国的火一处处点起的同时，高冈上已涌出一股发光的泉
+          [0.5, b => { lv('taFires', 1, b); lv('taRiver', 0.15, b); lv('taRiverA', 0.6, b); sfx(b, 'splash', { soft: true }); }],
           [9.3, b => {
             addFX(b, { type: 'roar', dur: 3 });
             if (!inst(b)) W.shake = Math.max(W.shake || 0, 0.5);
@@ -2797,14 +3061,16 @@
           [16.1, b => {
             C().crowdPose('isr', 'gaze'); crowdFace('isr', -1);
             pose('amos', 'stand'); pose('priest', 'gaze');
-            lv('taFireA', 0.35, b);
+            lv('taFireA', 0.7, b);
           }],
+          // 江河滔滔：前锋流过之处，列国的火一处一处熄了
           [23.4, b => {
-            lv('taRiver', 1, b); lv('taRiverA', 1, b); lv('taFireA', 0, b);
+            lv('taRiver', 1, b); lv('taRiverA', 1, b);
             pose('amos', 'point');
             sfx(b, 'splash');
           }],
           [27, b => { sfx(b, 'splash', { soft: true }); }],
+          [28.6, b => { lv('taFireA', 0, b); }],
         ];
         for (let i = 0; i < 8; i++) beats.push([0.5 + (i + 0.3) / 8 / 0.12, b => fireName(i, b)]);
         T(c, beats);
@@ -2829,7 +3095,11 @@
             add('feast1', { label: '安逸的人', sex: 'm', x: 0.925, facing: -1, pose: 'lie', robe: [150, 70, 90], glow: 0.1 });
             add('feast2', { label: '安逸的人', sex: 'f', x: 0.948, facing: -1, pose: 'sit', robe: [96, 88, 150], glow: 0.1 });
             add('feast3', { label: '安逸的人', sex: 'm', x: 0.972, facing: -1, pose: 'lie', robe: [176, 140, 80], glow: 0.1 });
-            C().crowdWalk('isr', 0.62, 0.84, { speed: 0.03, pose: 'stand' });
+            C().crowdWalk('isr', 0.58, 0.74, { speed: 0.03, pose: 'stand' });
+            // 日子将到：耕种的与牛一开口就下到田里，慢慢犁着
+            add('sower', { label: '耕种的', sex: 'm', x: 0.845, facing: -1, robe: [118, 100, 80], glow: 0.3 });
+            if (C().animal) C().animal('ox2', { kind: 'ox', x: 0.82, facing: -1, label: '牛', from: inst(b) ? 'none' : 'fade' });
+            walk('ox2', 0.792, { speed: 0.003 }); walk('sower', 0.817, { speed: 0.003 });
             sfx(b, 'harp');
           }],
           [7.8, b => { lv('taWall', 1, b); lv('taPlumb', 1, b); sfx(b, 'chime'); }],
@@ -2840,15 +3110,14 @@
             C().crowdWalk('isr', 0.44, 0.6, { speed: 0.045, pose: 'gaze' });
             sfx(b, 'wind', { soft: true });
           }],
-          [19.6, b => { C().crowdWalk('isr', 0.8, 0.98, { speed: 0.05, pose: 'stand' }); }],
+          [19.6, b => { C().crowdWalk('isr', 0.86, 0.98, { speed: 0.05, pose: 'stand' }); }],
+          // 丰收：地转为金黄，禾捆满田；收割的弯腰，耕种的赶着牛紧跟在后
           [23.9, b => {
             lv('taGold', 1, b); lv('taCrop', 1, b); lv('bare', 0.02, b); lv('bloom', 0.9, b);
-            lv('taWall', 0, b); lv('taPlumb', 0, b); lv('taTilt', 0, b); lv('taWine', 1, b);
-            add('reap1', { label: '收割的', sex: 'm', x: X('field0') + 0.03, facing: -1, pose: 'bow', robe: [140, 112, 80] });
-            add('reap2', { label: '收割的', sex: 'f', x: X('field0') + 0.058, facing: -1, pose: 'bow', robe: [168, 120, 96] });
-            add('sower', { label: '耕种的', sex: 'm', x: X('field1') - 0.005, facing: -1, robe: [118, 100, 80] });
-            if (C().animal) C().animal('ox2', { kind: 'ox', x: X('field1') - 0.03, facing: -1, label: '牛', from: inst(b) ? 'none' : 'fade' });
-            walk('ox2', X('field0') + 0.075, { speed: 0.01 }); walk('sower', X('field0') + 0.1, { speed: 0.01 });
+            lv('taWall', 0, b); W.set('taPlumb', 0, true); lv('taTilt', 0, b); lv('taWine', 1, b);
+            add('reap1', { label: '收割的', sex: 'm', x: 0.732, facing: -1, pose: 'bow', robe: [140, 112, 80] });
+            add('reap2', { label: '收割的', sex: 'f', x: 0.762, facing: -1, pose: 'bow', robe: [168, 120, 96] });
+            walk('ox2', 0.785, { speed: 0.004 }); walk('sower', 0.808, { speed: 0.004 });
             sfx(b, 'bird');
           }],
           [28, b => { sfx(b, 'harp', { soft: true }); }],
@@ -2873,17 +3142,24 @@
             lv('taWine', 0, b); lv('taGold', 0.7, b); lv('stars', 1, b);
             C().crowdPose('isr', 'sit'); pose('priest', 'sit');
           }],
-          [0.4, b => { lv('taCrag', 1, b); lv('taNest', 1, b); sfx(b, 'wind', { soft: true }); }],
+          [0.4, b => { lv('taCrag', 1, b); lv('taCragA', 1, b); lv('taCrumble', 0, b); lv('taNest', 1, b); sfx(b, 'wind', { soft: true }); }],
           [7, b => {
             lv('taFall', 1, b);
             if (!inst(b)) W.flash = Math.max(W.flash || 0, 0.35);
             sfx(b, 'thunder');
           }],
-          [9.8, b => { lv('taNest', 0, b); lv('taCrag', 0.42, b); }],
-          [10, b => {
-            if (!inst(b)) { const g = cragGeom(); safe('ta.ring', () => fx().ring(g.cx, g.top, [255, 214, 180], Math.min(W.w, W.h) * 0.25, 2.2, 1.4)); }
+          // 山岩崩塌：碎石滚落，尘土扬起，高处塌成了低处
+          [9.8, b => {
+            lv('taNest', 0, b); lv('taCrag', 0.1, b); lv('taCrumble', 1, b);
+            if (!inst(b)) {
+              const g = cragGeom();
+              safe('ta.dust', () => fx().dust(g.cx, g.base - 0.4 * X('cragH') * W.h, 40, [196, 150, 126], 1.6 * g.hw, 'far'));
+              W.shake = Math.max(W.shake || 0, 0.3);
+            }
+            sfx(b, 'build', { soft: true });
           }],
-          [12.5, b => { time(0.27, 10, b); }],
+          // 黎明：山岩散尽，只剩锡安
+          [12.5, b => { time(0.27, 10, b); lv('taCragA', 0, b); }],
           [17.1, b => {
             const c2 = C();
             c2.crowd('savior', { n: 5, x0: 0.7, x1: 0.77, layer: 1, label: '拯救者', from: 'fade', glow: 0.5, mill: false });
@@ -2909,7 +3185,7 @@
         T(c, [
           [0, b => {
             time(0.42, 8, b);
-            lv('taCrag', 0, b); lv('taCrown', 0.2, b);
+            lv('taCrag', 0, b); lv('taCragA', 0, b); lv('taCrumble', 0, b); lv('taCrown', 0.2, b);
             C().removeCrowd('savior');
             add('jonah', { label: '约拿', sex: 'm', x: 0.665, facing: 1, pose: 'gaze', robe: ROBE.jonah, glow: 0.4, beard: true });
             lv('taShipA', 1, b);
@@ -2948,11 +3224,17 @@
             const Q = jonahQ(); splash(b, Q[0], Q[1], W.seaScale(Q[1]) * 1.3, false);
             lv('storm', 0, b); lv('gale', 0, b); rain(0, b); lv('clouds', 0.4, b);
           }],
-          [2.2, b => { lv('taFish', 1, b); }],
-          [3.2, b => { const G = fishGeom(); splash(b, G.qx, G.y0, W.seaScale(G.y0) * 1.6, true); }],
+          [2.2, b => {
+            lv('taFish', 1, b);
+            // 出水与入水的水花（只是装饰）：按鱼头的弧参算出时刻
+            if (!inst(b)) {
+              const G = fishGeom(), K = (1.37 + G.len) * 0.12;
+              GS.book.after(0.35 / K, () => splash(null, G.qx, G.y0, W.seaScale(G.y0) * 1.6, true));
+              GS.book.after(1.35 / K, () => splash(null, G.qx + 0.94 * G.Dx, G.y0, W.seaScale(G.y0) * 1.8, true));
+            }
+          }],
           [4.3, b => { sfx(b, 'seal'); }],
           [8.6, b => { addFX(b, { type: 'offer', dur: 5 }); sfx(b, 'fire', { soft: true }); C().crowdPose('isr', 'gaze'); }],
-          [9.2, b => { const G = fishGeom(); splash(b, G.qx - 0.5 * G.Dx, G.y0, W.seaScale(G.y0) * 1.8, true); }],
           [10.5, b => { lv('taShip', 2, b); W.passDay(5, inst(b)); lv('taDeep', 1, b); lv('taFishPath', 1, b); }],
           [12.8, b => { toNineveh(b); }],
           [15.5, b => { W.passDay(5, inst(b)); }],
@@ -2971,9 +3253,9 @@
     {
       kind: 'ask', utter: '我岂能不爱惜呢？', cmd: 'diff 蓖麻 尼尼微  # 十二万多人，并有许多牲畜', ref: '约拿书 4:11', tint: [255, 226, 180],
       verse: [
-        { text: '约拿进城走了一日，宣告说：「再等四十日，尼尼微必倾覆了！」<br>尼尼微人信服神……从最大的到至小的都穿麻衣。', ref: '约拿书 3:4–5', hold: 7.5 },
+        { text: '约拿进城走了一日，宣告说：「再等四十日，尼尼微必倾覆了！」<br>尼尼微人信服神……从最大的到至小的都穿麻衣。', ref: '约拿书 3:4–5', hold: 7 },
         { text: '于是神察看他们的行为，见他们离开恶道，<br>他就后悔，不把所说的灾祸降与他们了。', ref: '约拿书 3:10', hold: 6.5 },
-        { text: '耶和华神安排一棵蓖麻，使其发生高过约拿……<br>次日黎明，神却安排一条虫子咬这蓖麻，以致枯槁。', ref: '约拿书 4:6–7', hold: 7 },
+        { text: '耶和华神安排一棵蓖麻，使其发生高过约拿……<br>次日黎明，神却安排一条虫子咬这蓖麻，以致枯槁。', ref: '约拿书 4:6–7', hold: 6.5 },
         { text: '耶和华说：「……何况这尼尼微大城，其中不能分辨左手右手的有十二万多人，<br>并有许多牲畜，我岂能不爱惜呢？」', ref: '约拿书 4:10–11', hold: 7 },
       ],
       apply(c) {
@@ -2981,9 +3263,11 @@
         T(c, [
           [0, b => {
             time(0.5, 8, b);
+            // 话一出口：城中先亮起一盏暖灯，暖光也落在牲畜身上
+            lv('taLamp1', 1, b);
             pose('jonah', 'stand');
             walk('jonah', 0.72, { speed: 0.048, pose: 'raise' });
-            sfx(b, 'crowd', { soft: true });
+            sfx(b, 'crowd', { soft: true }); sfx(b, 'chime', { soft: true });
           }],
           [4.6, b => {
             crowdRobe('nin', SACK); C().crowdPose('nin', 'kneel');
@@ -2998,19 +3282,20 @@
             C().crowdPose('nin', 'gaze'); pose('king', 'gaze');
             sfx(b, 'harp');
           }],
-          [12.4, b => { walk('jonah', X('booth') + 0.004, { speed: 0.05, pose: 'sit' }); face('jonah', 1); }],
-          [13.4, b => { lv('taBooth', 1, b); sfx(b, 'build', { soft: true }); }],
-          [16.6, b => { time(0.88, 3, b); lv('taGourd', 1, b); glowP('jonah', 0.7); sfx(b, 'harp', { soft: true }); }],
-          [20.3, b => { time(0.28, 3.5, b); addFX(b, { type: 'worm', dur: 2.4 }); }],
-          [21.6, b => { lv('taWither', 1, b); glowP('jonah', 0.3); }],
-          [23.6, b => {
-            time(0.45, 3, b); lv('gale', 0.55, b); lv('taHeat', 1, b);
+          [11.2, b => { walk('jonah', X('booth') + 0.004, { speed: 0.05, pose: 'sit' }); face('jonah', 1); }],
+          [12.2, b => { lv('taBooth', 1, b); sfx(b, 'build', { soft: true }); }],
+          [15.2, b => { time(0.88, 2, b); lv('taGourd', 1, b); glowP('jonah', 0.7); sfx(b, 'harp', { soft: true }); }],
+          [18, b => { time(0.3, 2, b); addFX(b, { type: 'worm', dur: 2.4 }); }],
+          [19.2, b => { lv('taWither', 1, b); glowP('jonah', 0.3); }],
+          [20.2, b => {
+            time(0.45, 1.5, b); lv('gale', 0.55, b); lv('taHeat', 1, b);
             pose('jonah', 'weep');
             sfx(b, 'wind');
           }],
-          [26.5, b => {
+          // 我岂能不爱惜呢：黄昏，十二万人的灯一盏盏亮起，一穹金光罩住全城
+          [22.6, b => {
             lv('gale', 0, b); lv('taHeat', 0, b);
-            time(0.73, 6, b);
+            time(0.745, 6.5, b);
             lv('taLove', 1, b); lv('taNinLamp', 1, b);
             crowdRobe('nin', NIN);
             C().crowdPose('ninCattle', 'graze');
@@ -3043,10 +3328,11 @@
           [3, b => { toIsrael(b); }],
           [5.5, b => { lv('taMelt', 0, b); }],
           [7.8, b => {
-            add('shep', { label: '牧人', sex: 'm', x: 0.46, facing: 1, robe: [126, 108, 80], prop: 'staff', glow: 0.35 });
-            if (C().herd) C().herd('fold', { kind: 'sheep', n: 7, x0: 0.47, x1: 0.53, layer: 2, label: '羊群', from: inst(b) ? 'none' : 'fade', mill: false });
-            walk('shep', X('fold') - 0.03, { speed: 0.02 });
-            C().crowdWalk('fold', X('fold') - 0.02, X('fold') + 0.025, { speed: 0.02 });
+            const fx1 = X('fold');
+            add('shep', { label: '牧人', sex: 'm', x: fx1 + 0.085, facing: -1, robe: [126, 108, 80], prop: 'staff', glow: 0.35 });
+            if (C().herd) C().herd('fold', { kind: 'sheep', n: 7, x0: fx1 + 0.02, x1: fx1 + 0.07, layer: 2, label: '羊群', from: inst(b) ? 'none' : 'fade', mill: false });
+            walk('shep', fx1 + 0.04, { speed: 0.02 });
+            C().crowdWalk('fold', fx1 - 0.018, fx1 + 0.018, { speed: 0.02 });
             lv('taFold', 1, b);
             addFX(b, { type: 'lead', dur: 6 });
             sfx(b, 'bleat');
@@ -3077,11 +3363,12 @@
     },
     // ── 弥迦书 5—7：又将我们的一切罪投于深海 ─────────────────
     {
-      kind: 'act', utter: '又将我们的一切罪投于深海', cmd: 'mv 罪/* /dev/深海  # 喜爱施恩', ref: '弥迦书 7:19', tint: [255, 236, 200], hold: 3.4,
+      kind: 'act', utter: '将我们的一切罪投于深海', cmd: 'mv 罪/* /dev/深海  # 喜爱施恩', ref: '弥迦书 7:19', tint: [255, 236, 200], hold: 3.4,
       verse: [
-        { text: '伯利恒的以法他啊，你在犹大诸城中为小，将来必有一位从你那里出来，<br>在以色列中为我作掌权的；他的根源从亘古，从太初就有。', ref: '弥迦书 5:2', hold: 7.5 },
-        { text: '世人哪，耶和华已指示你何为善。他向你所要的是什么呢？<br>只要你行公义，好怜悯，存谦卑的心，与你的神同行。', ref: '弥迦书 6:8', hold: 7.5 },
-        { text: '神啊，有何神像你，赦免罪孽……必再怜悯我们，将我们的罪孽踏在脚下，<br>又将我们的一切罪投于深海。你必……向雅各发诚实，向亚伯拉罕施慈爱。', ref: '弥迦书 7:18–20', hold: 10 },
+        { text: '伯利恒的以法他啊，你在犹大诸城中为小，将来必有一位从你那里出来，<br>在以色列中为我作掌权的；他的根源从亘古，从太初就有。', ref: '弥迦书 5:2', hold: 7 },
+        { text: '世人哪，耶和华已指示你何为善。他向你所要的是什么呢？<br>只要你行公义，好怜悯，存谦卑的心，与你的神同行。', ref: '弥迦书 6:8', hold: 7 },
+        { text: '神啊，有何神像你，赦免罪孽，饶恕你产业之余民的罪过，<br>不永远怀怒，喜爱施恩？', ref: '弥迦书 7:18', hold: 6 },
+        { text: '必再怜悯我们，将我们的罪孽踏在脚下，又将我们的一切罪投于深海。<br>你必……向雅各发诚实，向亚伯拉罕施慈爱。', ref: '弥迦书 7:19–20', hold: 7 },
       ],
       apply(c) {
         ring(c, [255, 236, 200]);
@@ -3091,21 +3378,27 @@
             lv('taBeth', 1, b); lv('taStream', 0.25, b); lv('taForge', 0, b);
             sfx(b, 'stars');
           }],
+          // 与神同行的人；天色开始转向黎明
           [8.8, b => {
-            add('walker', { label: '世人', sex: 'm', x: 0.575, facing: 1, robe: ROBE.walker, prop: 'torch', glow: 0.5 });
-            walk('walker', 0.7, { speed: 0.012 });
+            add('walker', { label: '世人', sex: 'm', x: 0.6, facing: 1, robe: ROBE.walker, prop: 'torch', glow: 0.5 });
+            walk('walker', 0.655, { speed: 0.006 });
             lv('taWalk', 1, b);
+            time(0.22, 9, b);
             sfx(b, 'harp', { soft: true });
           }],
-          [17.6, b => { lv('taSins', 0.3, b); C().crowdPose('isr2', 'kneel'); time(0.19, 4, b); }],
+          // 每人头上显出罪来；东方发白
+          [17.6, b => { lv('taSins', 0.3, b); C().crowdPose('isr2', 'kneel'); time(0.25, 4, b); }],
+          // 投于深海：石头飞过渐亮的天，落入近岸的海里
           [20.4, b => {
             lv('taSins', 1, b);
-            time(0.268, 9, b);
+            time(0.275, 5, b);
             lv('taBeth', 0.35, b);
-            if (!inst(b)) for (let i = 0; i < 3; i++) GS.book.after(3.5 + i * 0.9, () => sfx(null, 'splash', { soft: i > 0 }));
+            if (!inst(b)) for (let i = 0; i < 3; i++) GS.book.after(3.3 + i * 0.7, () => sfx(null, 'splash', { soft: i > 0 }));
           }],
+          // 日出：罪沉下去的深海一片金光
           [24.5, b => {
             lv('taSea', 1, b); lv('taBeth', 0, b);
+            time(0.3, 5, b);
             C().crowdPose('isr2', 'gaze'); crowdFace('isr2', -1);
             face('walker', -1); pose('walker', 'gaze'); lv('taWalk', 0.5, b);
             sfx(b, 'harp');
@@ -3120,10 +3413,10 @@
   // ════════════════════════════════════════════════════════════
   GS.book.act({
     id: ACT, book: '小先知书', books: [28, 29, 30, 31, 32, 33], title: '慈绳爱索', sub: '何西阿书 — 弥迦书', tint: TINT, music: 'flood',
-    outro: 22,
+    outro: 38,                      // 由末一句话成就时算起：经文尽后，日出的海再静静停一会儿
     intro: [
       { text: '耶和华初次与何西阿说话，对他说：「你去娶淫妇为妻……」<br>于是，何西阿去娶了滴拉音的女儿歌篾。', ref: '何西阿书 1:2–3', hold: 7 },
-      { text: '歌篾又怀孕生了一个女儿……又怀孕生了一个儿子。<br>耶和华说：「给他起名叫罗‧阿米；因为你们不作我的子民，我也不作你们的神。」', ref: '何西阿书 1:6–9', hold: 8.5 },
+      { text: '歌篾又怀孕生了一个女儿……又怀孕生了一个儿子。<br>耶和华说：「给他起名叫罗‧阿米；因为你们不作我的子民，我也不作你们的神。」', ref: '何西阿书 1:6–9', hold: 8 },
     ],
     setup,
     stages: STAGES,
