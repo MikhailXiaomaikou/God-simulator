@@ -415,90 +415,68 @@
     ctx.lineTo(x + r, y + h); ctx.quadraticCurveTo(x, y + h, x, y + h - r);
     ctx.lineTo(x, y + r); ctx.quadraticCurveTo(x, y, x + r, y);
   }
-  // 石台（锡安的磐石）：一座隆起的、顶上平坦的石丘——圆而不齐的岩边，顶上受光，正面在阴影里；灵宫立在其上
-  function rockPath(ctx, G, top, gb) {
-    const s = G.s;
-    const a0 = G.cx - G.hw - 27 * s, a1 = G.cx - G.hw - 6 * s, b1 = G.cx + G.hw + 6 * s, b0 = G.cx + G.hw + 27 * s;
-    const h = gb - top;
-    ctx.moveTo(a0, gb);
-    // 左肩：一块圆石鼓起，再一道缓坡上到顶
-    ctx.quadraticCurveTo(a0 + 1 * s, gb - h * 0.5, a0 + 7 * s, gb - h * 0.58);
-    ctx.quadraticCurveTo(a0 + 11 * s, gb - h * 0.64, a0 + 13 * s, gb - h * 0.55);
-    ctx.bezierCurveTo(a0 + 15 * s, gb - h * 0.9, a1 - 5 * s, top - 0.6 * s, a1, top);
-    // 顶：灵宫以外微有起伏
-    ctx.lineTo(G.cx - G.hw + 2 * s, top);
-    ctx.lineTo(G.cx + G.hw - 2 * s, top);
-    ctx.quadraticCurveTo(b1 - 3 * s, top - 0.8 * s, b1, top + 0.2 * s);
-    // 右肩：两级岩阶
-    ctx.bezierCurveTo(b1 + 5 * s, top + 0.4 * s, b0 - 16 * s, gb - h * 0.95, b0 - 12 * s, gb - h * 0.62);
-    ctx.quadraticCurveTo(b0 - 8 * s, gb - h * 0.7, b0 - 5 * s, gb - h * 0.5);
-    ctx.quadraticCurveTo(b0 - 1 * s, gb - h * 0.35, b0, gb);
-    ctx.closePath();
-    return { a0, a1, b1, b0 };
+  // 石台（锡安的磐石）：一座隆起的、顶上平坦的石丘——有棱有角的岩坡，顶上受光，正面在阴影里；灵宫立在其上
+  function rockPts(G, top, gb) {
+    const s = G.s, h = gb - top;
+    const a0 = G.cx - G.hw - 32 * s, a1 = G.cx - G.hw - 5 * s, b1 = G.cx + G.hw + 5 * s, b0 = G.cx + G.hw + 32 * s;
+    const P = [
+      [a0, gb], [a0 + 5 * s, gb - h * 0.34], [a0 + 10 * s, gb - h * 0.4], [a0 + 14 * s, gb - h * 0.7], [a1 - 7 * s, top + h * 0.16], [a1 - 2 * s, top],
+      [b1 + 1 * s, top], [b1 + 6 * s, top + h * 0.14], [b0 - 13 * s, gb - h * 0.66], [b0 - 8 * s, gb - h * 0.6], [b0 - 4 * s, gb - h * 0.3], [b0, gb],
+    ];
+    return { P, a0, a1, b1, b0, h };
   }
   function drawRock(ctx, G) {
-    const s = G.s, l = 2, top = G.y + 0.6 * s, gb = G.g + 4 * s, h = gb - top;
-    ctx.beginPath();
-    const E = rockPath(ctx, G, top, gb);
-    ctx.fillStyle = css(mul(ROCK, 0.8), l);
-    ctx.fill();
+    const s = G.s, l = 2, top = G.y + 0.6 * s, gb = G.g + 4 * s;
+    const E = rockPts(G, top, gb), P = E.P, h = E.h;
+    const poly = pts => { ctx.beginPath(); pts.forEach((p, i) => (i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]))); ctx.closePath(); };
+    // 正面：上亮下暗
+    const gr = ctx.createLinearGradient(0, top, 0, gb);
+    gr.addColorStop(0, css(mul(ROCK, 1.02), l));
+    gr.addColorStop(0.35, css(mul(ROCK, 0.84), l));
+    gr.addColorStop(1, css(mul(ROCK, 0.58), l));
+    ctx.fillStyle = gr;
+    poly(P); ctx.fill();
+    // 两肩的斜面：受光的一面亮，背光的一面暗
+    const d = litX() >= G.cx ? 1 : -1;
+    ctx.fillStyle = css(mul(ROCK, d < 0 ? 1.12 : 0.7), l, 0.9, d < 0 ? 0.06 : 0);
+    poly([P[1], P[2], P[3], P[4], P[5], [P[5][0] + 3 * s, top + h * 0.35], [P[3][0] + 4 * s, gb - h * 0.45], [P[1][0] + 3 * s, gb - h * 0.12]]); ctx.fill();
+    ctx.fillStyle = css(mul(ROCK, d > 0 ? 1.12 : 0.7), l, 0.9, d > 0 ? 0.06 : 0);
+    poly([P[6], P[7], P[8], P[9], P[10], [P[10][0] - 3 * s, gb - h * 0.1], [P[8][0] - 4 * s, gb - h * 0.42], [P[6][0] - 3 * s, top + h * 0.35]]); ctx.fill();
+    // 正面几块岩面，深浅不一（斜的裂缝分开）
     ctx.save();
-    ctx.clip();
-    // 正面：一块块斜着裂开的岩面，深浅不一
-    const N = 9, xs = [];
-    for (let i = 0; i <= N; i++) xs.push(lerp(E.a0, E.b0, i / N) + (i && i < N ? (hsh(i * 3.7) - 0.5) * 10 * s : 0));
+    poly(P); ctx.clip();
+    const N = 7, xs = [];
+    for (let i = 0; i <= N; i++) xs.push(lerp(E.a1, E.b1, i / N) + (i && i < N ? (hsh(i * 3.7) - 0.5) * 14 * s : 0));
     for (let i = 0; i < N; i++) {
-      const k0 = (hsh(i * 2.9) - 0.5) * 6 * s, k1 = (hsh(i * 2.9 + 1) - 0.5) * 6 * s;
-      ctx.fillStyle = css(mul(ROCK, 0.74 + 0.26 * hsh(i * 5.3)), l);
+      if (hsh(i * 5.3) < 0.45) continue;
+      const k0 = (hsh(i * 2.9) - 0.5) * 8 * s, k1 = (hsh(i * 2.9 + 1) - 0.5) * 8 * s;
+      ctx.fillStyle = css(mul(ROCK, 0.72 + 0.12 * hsh(i * 1.3)), l, 0.55);
       ctx.beginPath();
-      ctx.moveTo(xs[i], top - 3 * s); ctx.lineTo(xs[i + 1], top - 3 * s);
-      ctx.lineTo(xs[i + 1] + k1, top + h * 0.55); ctx.lineTo(xs[i + 1] + k1 * 0.4, gb + 3 * s);
-      ctx.lineTo(xs[i] + k0 * 0.4, gb + 3 * s); ctx.lineTo(xs[i] + k0, top + h * 0.55);
+      ctx.moveTo(xs[i] + k0, top + h * 0.3); ctx.lineTo(xs[i + 1] + k1, top + h * 0.26);
+      ctx.lineTo(xs[i + 1] + k1 * 0.3, gb + 2 * s); ctx.lineTo(xs[i] + k0 * 0.3, gb + 2 * s);
       ctx.closePath(); ctx.fill();
     }
-    // 上亮下暗
-    const gr = ctx.createLinearGradient(0, top, 0, gb);
-    gr.addColorStop(0, U.rgba(255, 246, 226, 0.16 * dayA()));
-    gr.addColorStop(0.3, 'rgba(0,0,0,0)');
-    gr.addColorStop(1, 'rgba(10,8,12,0.42)');
-    ctx.fillStyle = gr;
-    ctx.fillRect(E.a0 - 2, top - 4 * s, E.b0 - E.a0 + 4, h + 8 * s);
-    // 岩缝：沿着岩面的分界，曲折向下
-    ctx.strokeStyle = css(mul(ROCK, 0.42), l, 0.8); ctx.lineWidth = Math.max(0.6, 0.8 * s); ctx.lineCap = 'round';
+    ctx.strokeStyle = css(mul(ROCK, 0.42), l, 0.75); ctx.lineWidth = Math.max(0.6, 0.8 * s); ctx.lineJoin = 'round';
     ctx.beginPath();
     for (let i = 1; i < N; i++) {
-      const k0 = (hsh(i * 2.9) - 0.5) * 6 * s;
-      ctx.moveTo(xs[i] + k0 * 0.2, top + h * (0.2 + 0.15 * hsh(i * 8.1)));
-      ctx.lineTo(xs[i] + k0, top + h * 0.55); ctx.lineTo(xs[i] + k0 * 0.4, gb);
+      const k0 = (hsh(i * 2.9) - 0.5) * 8 * s, y0 = top + h * (0.14 + 0.2 * hsh(i * 8.1));
+      ctx.moveTo(xs[i] + k0 * 0.4 + 2 * s, y0); ctx.lineTo(xs[i] + k0, top + h * 0.55); ctx.lineTo(xs[i] + k0 * 0.3 - 1.5 * s, gb);
     }
-    // 几道短的横纹
-    for (let i = 0; i < 5; i++) {
-      const x = lerp(E.a1, E.b1, 0.1 + 0.8 * hsh(i * 7.3)), y = top + h * (0.4 + 0.3 * hsh(i * 4.1)), w = (4 + 6 * hsh(i * 1.9)) * s;
-      ctx.moveTo(x, y); ctx.quadraticCurveTo(x + w * 0.5, y + 1 * s, x + w, y - 0.4 * s);
-    }
-    ctx.stroke(); ctx.lineCap = 'butt';
+    ctx.stroke();
     ctx.restore();
     // 顶面：一条受光的平台
     ctx.fillStyle = css(mul(ROCK, 1.14), l, 1, 0.08);
-    ctx.beginPath();
-    ctx.moveTo(E.a1 - 1 * s, top); ctx.lineTo(E.b1 + 1 * s, top); ctx.lineTo(E.b1 - 1.5 * s, top + 2.4 * s); ctx.lineTo(E.a1 + 1.5 * s, top + 2.4 * s); ctx.closePath();
-    ctx.fill();
-    // 脚下几块圆石
-    ctx.fillStyle = css(mul(ROCK, 0.72), l);
-    ctx.beginPath();
-    ctx.ellipse(E.a0 + 3 * s, gb - 1.6 * s, 4.4 * s, 2.6 * s, 0, 0, TAU);
-    ctx.moveTo(E.b0 + 1.8 * s, gb - 1.4 * s); ctx.ellipse(E.b0 - 2 * s, gb - 1.4 * s, 3.8 * s, 2.2 * s, 0, 0, TAU);
-    ctx.moveTo(E.b0 + 6.4 * s, gb - 0.8 * s); ctx.ellipse(E.b0 + 4 * s, gb - 0.8 * s, 2.4 * s, 1.5 * s, 0, 0, TAU);
-    ctx.fill();
-    // 受光的顶边与左肩
+    poly([[P[5][0], top], [P[6][0], top], [P[6][0] - 2.5 * s, top + 2.4 * s], [P[5][0] + 2.5 * s, top + 2.4 * s]]); ctx.fill();
+    // 脚下几块碎石
+    ctx.fillStyle = css(mul(ROCK, 0.7), l);
+    poly([[E.a0 - 4 * s, gb], [E.a0 - 2 * s, gb - 3 * s], [E.a0 + 3 * s, gb - 3.6 * s], [E.a0 + 6 * s, gb - 1 * s], [E.a0 + 5 * s, gb + 0.5 * s]]); ctx.fill();
+    poly([[E.b0 - 3 * s, gb + 0.4 * s], [E.b0 - 1 * s, gb - 2.8 * s], [E.b0 + 3 * s, gb - 3 * s], [E.b0 + 6 * s, gb - 0.6 * s], [E.b0 + 5 * s, gb + 0.6 * s]]); ctx.fill();
+    // 受光的棱：顶边与两肩
     ctx.strokeStyle = css([252, 244, 224], l, 0.5 * dayA() + 0.12, 0.2); ctx.lineWidth = Math.max(0.7, 1.1 * s);
     ctx.beginPath();
-    ctx.moveTo(E.a0 + 1 * s, gb - h * 0.45);
-    ctx.quadraticCurveTo(E.a0 + 2 * s, gb - h * 0.55, E.a0 + 7 * s, gb - h * 0.58);
-    ctx.quadraticCurveTo(E.a0 + 11 * s, gb - h * 0.64, E.a0 + 13 * s, gb - h * 0.55);
-    ctx.bezierCurveTo(E.a0 + 15 * s, gb - h * 0.9, E.a1 - 5 * s, top - 0.6 * s, E.a1, top);
-    ctx.lineTo(E.b1, top + 0.2 * s);
+    for (let i = 1; i <= 10; i++) (i === 1 ? ctx.moveTo(P[i][0], P[i][1]) : ctx.lineTo(P[i][0], P[i][1]));
     ctx.stroke();
+    ctx.lineJoin = 'miter';
   }
   // 被弃的石头：粗糙的八边形；房角石的槽位：矩形。二者之间按 u 变形
   const ROUGH = [[-7.4, 0.6], [-6.2, -3.6], [-2.6, -5.2], [2.4, -4.6], [6.8, -3.4], [7.6, 0.2], [4.2, 1.2], [-3.8, 1.4]];
