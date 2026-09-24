@@ -351,8 +351,8 @@
     if (S.holding) return;
     if (S.cooldown > 0) { S.pendingHold = src; return; }   // 刚成就的余韵中按下：余韵一过便开始言说
     if (GS.ui.panelOpen()) return;
-    if (S.transition) {                                    // 幕布之间，静候新的一卷
-      GS.ui.hint('静候 · 下一卷将至', 2.5);
+    if (S.transition) {                                    // 幕布之间，静候新的一卷（末一句的故事还在讲时，先静听）
+      GS.ui.hint(GS.ui.narrating() || GS.book.busy() ? '经文未完 · 静听' : '静候 · 下一幕将至', 2.5);
       safe('fx.ring', () => GS.fx.ring(W.spirit.x, W.spirit.y, [220, 230, 255], 46 * Math.max(0.7, W.unit), 0.9, 1));
       return;
     }

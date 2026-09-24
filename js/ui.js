@@ -51,7 +51,11 @@
         ';--f:' + (-Math.random() * 3.4).toFixed(2) + 's;--k:' + (k++) + '"><i>' + ch + '</i></span>');
       if (pu) segs.push([]);
     });
-    el.utter.innerHTML = segs.filter(g => g.length).map(g => '<span class="seg' + (g.length > 8 ? ' long' : '') + '">' + g.join('') + '</span>').join('');
+    const segN = segs.filter(g => g.length);
+    el.utter.innerHTML = segN.map(g => '<span class="seg' + (g.length > 8 ? ' long' : '') + '">' + g.join('') + '</span>').join('');
+    // 最长的一段放不进一行时，字略小一些，免得从词语中间折开（窄屏上尤其）
+    const longest = segN.reduce((m, g) => Math.max(m, g.filter(x => x.indexOf(' pu"') < 0).length), 0);
+    el.utter.style.fontSize = longest > 7 ? 'min(clamp(30px, 5.4vw, 66px), ' + (88 / (longest * 1.14)).toFixed(2) + 'vw)' : '';
     utterChars = el.utter.querySelectorAll('.ch');
     el.utter.style.transition = 'opacity 0.3s ease';
     el.utter.style.opacity = '1';
@@ -377,7 +381,9 @@
     if (!el.act) return;
     if (!a) { el.act.classList.remove('show'); return; }
     showDays(false);
-    const html = '<b>' + (a.book || a.numeral) + '</b>' + a.title + '<span>' + (a.sub || '') + '</span>';
+    const bk = a.book || a.numeral;
+    // 幕名与书名相同（诗篇、雅歌）时只写一次
+    const html = '<b>' + bk + '</b>' + (a.title === bk ? '' : a.title) + '<span>' + (a.sub || '') + '</span>';
     if (el.act.dataset.id !== a.id) { el.act.innerHTML = html; el.act.dataset.id = a.id; }
     el.act.classList.add('show');
   }
