@@ -1611,7 +1611,8 @@
     // 褶皱：更近的山脊，略暗，顶上一线微光
     const alpha = [0.07, 0.1, 0.12][L.i];
     const sun = FL.sun;
-    const rimA = (sun.a * 0.42 + FL.moon.a * 0.22) * [0.4, 0.5, 0.5][L.i];
+    // 月光下的山脊线要轻：草叶把描边切成一段段，太亮了就像一道缝线
+    const rimA = (sun.a * 0.42 + FL.moon.a * 0.1) * [0.4, 0.5, 0.5][L.i];
     const rimC = sun.a > FL.moon.a ? sun.col : FL.moon.col;
     for (let k = 0; k < P.folds.length; k++) {
       ctx.fillStyle = 'rgba(6,10,6,' + (alpha * (1 + k * 0.4)).toFixed(3) + ')';

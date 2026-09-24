@@ -250,6 +250,7 @@
         fx().setConstellation(pts.map(p => [p[0] / W.w, p[1] / W.h]));
         W.set('stars', 1, c.instant);
         if (!c.instant) {
+          if (fx().markSown) fx().markSown();
           const tg = pts.map(p => [p[0], p[1], 2.4]);
           for (let i = 0; i < 200; i++) tg.push([rand(0, W.w), Math.pow(Math.random(), 1.3) * (W.horizonY - 12), rand(0.7, 1.8)]);
           fx().sow(c.x, c.y, tg, [255, 250, 236], { stagger: 1.2, dur: 3.2, pass: 'sky' });
@@ -333,6 +334,8 @@
         const p = landPoint(chooseX(c, 'x'));
         W.setPop('human', 2, p[0], p[1], c.instant);
         W.set('given', 1, c.instant);              // 灵把自己的光分给了人
+        const hx = p[0] / W.w;
+        W.beastAvoid = [[hx - 0.07, hx + 0.07]];   // 走兽让开这一对人，好叫受造之冠一眼可见
         if (!c.instant) { fx().dust(p[0], p[1], 70, [240, 214, 170], 16); fx().ring(p[0], p[1] - 20 * W.unit, [255, 236, 200], M() * 0.35, 2, 2); }
         return { x: p[0] / W.w };
       },

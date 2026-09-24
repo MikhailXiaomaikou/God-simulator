@@ -86,7 +86,7 @@
   };
   const PASS = { 0: 'far', 1: 'mid', 2: 'near' };
   // 七日之后，人是故事的主角：画得大一些；手机上再大一些
-  const boost = () => (W.w < 600 ? (W.act >= 1 ? 1.4 : 1.15) : 1);
+  const boost = () => (W.w < 600 ? (W.act >= 1 ? 1.55 : 1.15) : 1);
   const ACT_K = [1.1, 1.2, 1.3];
   const actK = layer => (W.act >= 1 ? ACT_K[layer] || 1 : 1);
   const fieldH = (layer, g) => (layer === 2 ? Math.max(0, W.h - g) : Math.max(0, W.waterlineY(layer) - g));
@@ -1428,7 +1428,8 @@
     // 颜色
     const depth = W.LAYERS[p.layer] ? W.LAYERS[p.layer].depth : 0;
     const rim = rimAt(X, hipY - h * 0.3, true);
-    const ex = RIM.extra;
+    // 七日之后的夜里，人身上留一层月光：有名字的人再亮一些（黑地上的黑影认不出谁是谁）
+    const ex = RIM.extra + (W.act >= 1 ? W.night * (p.label && !p.crowd ? 0.18 : 0.11) : 0);
     const pk = p.prop;
     const cc = p._colc;
     if (cc && W.frame - cc.f < 4 && W.frame >= cc.f && Math.abs(cc.ex - ex) < 0.015 && cc.dp === depth) restoreCols(cc, PKEYS);
@@ -1852,7 +1853,7 @@
       if (still) cacheSave(a, a._x, a._y, s, a.fd, a._seatL[0], a._seatL[1], 0);
     }
     const rim = rimAt(a._x, a._y - M.top * s * 0.5, false);
-    const ex = RIM.extra;
+    const ex = RIM.extra + (W.act >= 1 ? W.night * 0.09 : 0);
     const cc = a._colc;
     if (cc && W.frame - cc.f < 4 && W.frame >= cc.f && Math.abs(cc.ex - ex) < 0.015 && cc.dp === depth) restoreCols(cc, AKEYS);
     else {

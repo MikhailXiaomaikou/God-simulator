@@ -92,10 +92,19 @@
   }
 
   // 经文逐字包裹：一字一痕，如墨渗入纸；出处落一方朱印
+  // 经文按标点分成若干小段，段内不折行：只在标点之后换行（「形像」「刑罚」不会被拆开）；太长的段仍可折行，免得溢出窄屏
+  const PH_END = /[，。；：、！？」』）…,.;:!?]/;
   function inkText(text, ref) {
     let k = 0;
-    const body = String(text).split(/<br\s*\/?>/i).map(part =>
-      Array.from(part).map(ch => '<span class="sc" style="--k:' + (k++) + '">' + ch + '</span>').join('')).join('<br>');
+    const body = String(text).split(/<br\s*\/?>/i).map(part => {
+      const segs = [[]];
+      const chars = Array.from(part);
+      chars.forEach((ch, i) => {
+        segs[segs.length - 1].push('<span class="sc" style="--k:' + (k++) + '">' + ch + '</span>');
+        if (PH_END.test(ch) && !(chars[i + 1] && PH_END.test(chars[i + 1]))) segs.push([]);
+      });
+      return segs.filter(g => g.length).map(g => '<span class="ph' + (g.length > 16 ? ' long' : '') + '">' + g.join('') + '</span>').join('');
+    }).join('<br>');
     return body + (ref ? '<span class="ref"><span class="seal" style="--k:' + k + '">' + ref + '</span></span>' : '');
   }
 
@@ -289,6 +298,7 @@
   function showTitle(saved, onNew, onContinue, onToc) {
     el.title.classList.remove('gone', 'dim');
     el.title.style.display = '';
+    document.body.classList.add('on-title');
     el.titleBtns.innerHTML = '';
     const tocBtn = () => {
       if (!onToc) return;
@@ -310,7 +320,15 @@
         b.addEventListener('touchstart', e => e.stopPropagation(), { passive: true });
       });
       cont.addEventListener('click', e => { e.stopPropagation(); onContinue(); });
-      neo.addEventListener('click', e => { e.stopPropagation(); onNew(); });
+      // 重新创世会抹去进度：点两次才算（第一次只是提醒）
+      let armed = 0;
+      neo.addEventListener('click', e => {
+        e.stopPropagation();
+        if (Date.now() - armed < 3500) { onNew(); return; }
+        armed = Date.now();
+        neo.textContent = '再点一次 · 重新创世';
+        setTimeout(() => { if (Date.now() - armed >= 3400) neo.textContent = '重新创世'; }, 3500);
+      });
       el.titleBtns.appendChild(cont);
       el.titleBtns.appendChild(neo);
       tocBtn();
@@ -320,6 +338,7 @@
     }
   }
   function hideTitle() {
+    document.body.classList.remove('on-title');
     el.title.classList.remove('dim');
     el.title.classList.add('gone');
     setTimeout(() => { if (el.title.classList.contains('gone')) el.title.style.display = 'none'; }, 2400);
@@ -350,6 +369,7 @@
     }
     if (on) el.finale.classList.add('drawn');
     el.finale.classList.toggle('show', !!on);
+    document.body.classList.toggle('finale-on', !!on);
   }
 
   // ── 卷：顶部的卷名，与卷首的大字 ─────────────────────────────

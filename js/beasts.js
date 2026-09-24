@@ -1410,7 +1410,7 @@
   }
 
   // 人的尺度：与后来各卷里的人物（cast.js）相近；窄屏上再略放大，受造之冠要一眼可见
-  const humanK = () => (W.w < 600 ? 1.22 : 1.1);
+  const humanK = () => (W.w < 600 ? 1.5 : 1.38);
   function updHuman(h, dt, lead, part) {
     const u = cu();
     h.S = cu() * depthK(2, h.v) * h.size * humanK();
@@ -2155,9 +2155,26 @@
       const layer = pass === 'mid' ? 1 : 2;
       LIST.length = 0;
       for (const a of AN) if (a.layer === layer) LIST.push(a);
-      if (layer === 2) for (const h of HU) LIST.push(h);
       if (!LIST.length && layer === 1) return;
       LIST.sort((a, b) => a.y - b.y || a.id - b.id);
+      // 人画在走兽之前（受造之冠不叫牛羊挡住）；身后一圈灵分给他们的暖光
+      if (layer === 2 && HU.length) {
+        const g = W.lv.given || 0;
+        if (g > 0.02) {
+          ctx.globalCompositeOperation = 'lighter';
+          for (const h of HU) {
+            if (h.eT < 0.8) continue;
+            const r = 30 * h.S, cy = h.y - 13 * h.S;
+            const gr = ctx.createRadialGradient(h.x, cy, 0, h.x, cy, r);
+            const a = g * (0.13 + 0.2 * W.night);
+            gr.addColorStop(0, U.rgba(255, 226, 170, a)); gr.addColorStop(0.5, U.rgba(255, 214, 150, a * 0.4)); gr.addColorStop(1, 'rgba(255,210,140,0)');
+            ctx.fillStyle = gr; ctx.fillRect(h.x - r, cy - r, 2 * r, 2 * r);
+          }
+          ctx.globalCompositeOperation = 'source-over';
+        }
+        const hs = HU.slice().sort((a, b) => a.y - b.y || a.id - b.id);
+        for (const h of hs) LIST.push(h);
+      }
       drawShadows(ctx, LIST);
       if (layer === 2) drawBeetles(ctx);
       for (const e of LIST) {

@@ -142,6 +142,9 @@
   let goodStar = null;        // [nx, ny]
   let trace = [];             // 言说撒星时，灵在天上留下的意念（像素点）
   function setConstellation(pts) { constellation = pts && pts.length ? pts : null; }
+  // 刚撒下星的那一阵：白昼里也让你看见自己划出的星座（约十六秒后淡回，只在夜里清楚）
+  let sownAt = -1e9;
+  function markSown() { sownAt = W.t; }
   function setGoodStar(p) { goodStar = p; }
   function setTrace(pts) { trace = pts || []; }
   // 暴风云（W.lv.storm，洪水一卷所定）遮住星辰
@@ -163,7 +166,8 @@
     const A = starAlpha();
     ctx.globalCompositeOperation = 'lighter';
     // 你的星座：此后每夜都在，但只在深夜清楚（黄昏黎明时淡去）；连线只在七日与全书终了后显出
-    const cA = W.lv.stars * overcast() * Math.pow(clamp(W.night, 0, 1), 1.5);
+    const since = W.t - sownAt, linger = since < 0 ? 0 : since < 4 ? since / 4 : clamp(1 - (since - 8) / 8, 0, 1);
+    const cA = Math.max(W.lv.stars * overcast() * Math.pow(clamp(W.night, 0, 1), 1.5), 0.8 * linger);
     if (constellation && cA > 0.01) {
       if (W.act === 0 || W.stage >= (GS.story ? GS.story.STAGES.length : 1e9)) {
         ctx.strokeStyle = U.rgba(200, 215, 255, 0.07 * cA);
@@ -428,6 +432,6 @@
   function reset() { parts.length = 0; rings.length = 0; names.length = 0; bursts.length = 0; trail.length = 0; trace = []; constellation = null; goodStar = null; }
 
   GS.fx = { init() { preloadFonts(); }, resize() {}, update, draw, reset, add, burst, ring, dust, sparkle, sow, name, nameStr, glyphPoints,
-    setConstellation, setGoodStar, setTrace, getConstellation: () => constellation, clearTransient,
+    setConstellation, markSown, setGoodStar, setTrace, getConstellation: () => constellation, clearTransient,
     get busyNames() { return names.length; } };
 })(window.GS);

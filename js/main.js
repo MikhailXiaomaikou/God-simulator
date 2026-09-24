@@ -179,8 +179,15 @@
   // 七日的终幕：「安息」
   function actOneFinale() {
     safe('audio.rest', () => GS.audio.rest());       // 第七日：自起初就在的低鸣落下（后面各卷的乐声由 audio 按卷重新带起）
-    GS.book.after(13, () => { GS.ui.finale(true, { title: '安息', sub: '天地万物都造齐了', foot: '7 日 · 27 句话 · 0 个 bug' }); safe('audio.finale', () => GS.audio.finale()); });
-    GS.book.after(24, () => GS.ui.finale(false));
+    // 经文（2:2–3）说完了，「安息」才写在天上（最多再等二十秒）
+    let waited = 0;
+    const show = () => {
+      if (GS.ui.narrating() && waited++ < 20) { GS.book.after(1, show); return; }
+      GS.ui.finale(true, { title: '安息', sub: '天地万物都造齐了', foot: '7 日 · 27 句话 · 0 个 bug' });
+      safe('audio.finale', () => GS.audio.finale());
+      GS.book.after(11, () => GS.ui.finale(false));
+    };
+    GS.book.after(13, show);
   }
 
   // 落幕，布置下一卷，卷名浮现，启幕（按世界时间计，慢设备上也与情节同步）
@@ -362,7 +369,7 @@
     if (S.mode === 'play' && st && (GS.ui.narrating() || GS.book.busy())) {
       if (!S.skipArmed || W.t - S.skipArmed > 6) {
         S.skipArmed = W.t;
-        GS.ui.hint('经文未完 · 静听；再按住便继续', 3);
+        GS.ui.hint(GS.ui.narrating() ? '经文未完 · 静听；再按住便继续' : '故事未完 · 静看；再按住便继续', 3);
         safe('fx.ring', () => GS.fx.ring(W.spirit.x, W.spirit.y, [220, 230, 255], 46 * Math.max(0.7, W.unit), 0.9, 1));
         return;
       }
@@ -449,6 +456,8 @@
   function jumpTo(n) {
     n = clamp(n | 0, 0, STAGES.length - 1);
     GS.ui.toggleToc(false);
+    // 回到「起初」：真正的重新创世（后来各幕的世界不能留在渊面上）；最远到过哪里仍记着
+    if (n === 0) { clearSave(); location.replace(location.pathname); return; }
     const keep = {};
     for (const k in S.choices) if (+k < n) keep[k] = S.choices[k];
     restore(n, keep);
@@ -592,16 +601,24 @@
     if (el.bToc) el.bToc.addEventListener('click', () => { initAudio(); GS.ui.toggleLedger(false); refreshHUD(); GS.ui.toggleToc(); });
     if (el.toc) el.toc.addEventListener('click', e => {
       const b = e.target && e.target.closest ? e.target.closest('[data-stage]') : null;
-      if (b) jumpTo(parseInt(b.dataset.stage, 10) || 0);
+      if (!b) return;
+      const n = parseInt(b.dataset.stage, 10) || 0, cur = ACTS[W.act];
+      // 点的是此刻所在的这一幕：只合上目录，不从头来过
+      if (S.mode === 'play' && cur && n === cur.first && W.stage >= cur.first && W.stage <= cur.last + 1 && n > 0) { GS.ui.toggleToc(false); return; }
+      jumpTo(n);
     });
     el.bSound.addEventListener('click', toggleMute);
     el.bFull.addEventListener('click', toggleFull);
     el.bHelp.addEventListener('click', () => GS.ui.toggleHelp());
     if (el.bShot) el.bShot.addEventListener('click', snapshot);
     el.help.addEventListener('click', () => GS.ui.toggleHelp(false));
+    let restartAt = 0;
     el.ledger.addEventListener('click', e => {
       const t = e.target;
-      if (t && t.dataset && t.dataset.act === 'restart') newCreation();
+      if (!(t && t.dataset && t.dataset.act === 'restart')) return;
+      if (Date.now() - restartAt < 3500) { newCreation(); return; }
+      restartAt = Date.now();
+      t.textContent = '再点一次 · 重新创世';
     });
   }
 
@@ -617,7 +634,7 @@
       if (S.keys.has('ArrowUp') || S.keys.has('KeyW')) dy -= v;
       if (S.keys.has('ArrowDown') || S.keys.has('KeyS')) dy += v;
       if (!sp.guided) { sp.tx = sp.x; sp.ty = sp.y; }
-      moveTo(sp.tx + dx, sp.ty + dy);
+      moveTo(clamp(sp.tx + dx, 24, W.w - 24), clamp(sp.ty + dy, 24, W.h - 24));
     }
     // 久未受引领（或尚在标题）时，灵自行盘旋于水面之上；第七日静候时则缓缓安歇
     const idle = !sp.guided || (W.t - (sp.lastInput || 0) > 45 && !S.holding && !isRestStage());

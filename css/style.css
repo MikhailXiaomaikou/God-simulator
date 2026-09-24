@@ -108,9 +108,23 @@ canvas { position: fixed; left: 0; top: 0; width: 100vw; height: 100vh; display:
   animation: breathe 2.6s ease-in-out infinite;
 }
 /* 大地已成之后：经文移到海的一侧，不遮住地上正在发生的事 */
-body.acts #scripture { left: 4vw; right: auto; max-width: 44vw; top: 55vh; bottom: auto; text-align: left; }
+/* 经文在海面之上：自地平线以下起，身后一片柔和的暗，白昼的天光里也读得清 */
+body.acts #scripture {
+  left: 3vw; right: auto; max-width: 48vw; top: 60.5vh; bottom: auto; text-align: left;
+  padding: 0.5em 1.4em 0.7em 1em; margin-left: -1em;
+  background: radial-gradient(ellipse 70% 80% at 40% 50%, rgba(4, 12, 24, 0.34), rgba(4, 12, 24, 0.16) 60%, transparent 78%);
+  text-shadow: 0 0 3px rgba(0, 0, 0, 0.95), 0 1px 2px rgba(0, 0, 0, 0.92), 0 0 16px rgba(0, 10, 26, 0.65);
+}
+/* 分句：句内不折行（只在标点之后换行）；太长的句仍可折 */
+#scripture .ph { white-space: nowrap; }
+#scripture .ph.long { white-space: normal; }
 @media (max-aspect-ratio: 3/4) {
-  body.acts #scripture { left: 5vw; right: 5vw; max-width: none; top: 70px; text-align: center; }
+  body.acts #scripture {
+    left: 5vw; right: 5vw; max-width: none; top: 70px; text-align: center; margin-left: 0; padding: 0.4em 0.6em 0.6em;
+    background: radial-gradient(ellipse 80% 90% at 50% 45%, rgba(4, 10, 22, 0.42), rgba(4, 10, 22, 0.2) 62%, transparent 80%);
+  }
+  /* 终幕卡片写在天上时，经文让到海面上 */
+  body.acts.finale-on #scripture { top: auto; bottom: 12vh; }
 }
 #scripture .seal {
   display: inline-block;
@@ -178,7 +192,7 @@ body.acts #scripture { left: 4vw; right: auto; max-width: 44vw; top: 55vh; botto
 }
 #act.show { opacity: 1; }
 #act b { font-weight: normal; color: rgba(255, 222, 170, 0.9); margin-right: 0.6em; }
-#act span { display: block; margin-top: 2px; text-align: center; font-family: var(--kai); font-size: 11px; letter-spacing: 0.22em; color: rgba(240, 234, 218, 0.55); }
+#act span { display: block; margin-top: 2px; text-align: center; font-family: var(--kai); font-size: 11px; letter-spacing: 0.22em; color: rgba(240, 234, 218, 0.72); text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85); }
 
 /* ── 卷首：卷名以毛笔写出 ───────────────────────────────────── */
 #actcard {
@@ -189,14 +203,14 @@ body.acts #scripture { left: 4vw; right: auto; max-width: 44vw; top: 55vh; botto
   z-index: 9;
 }
 #actcard.show { opacity: 1; }
-#actcard .n { font-family: var(--brush); font-size: clamp(16px, 2vw, 22px); letter-spacing: 0.5em; text-indent: 0.5em; color: rgba(255, 222, 170, 0.85); }
+#actcard .n { font-family: var(--brush); font-size: clamp(16px, 2vw, 22px); letter-spacing: 0.5em; text-indent: 0.5em; color: rgba(255, 222, 170, 0.92); text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85), 0 0 18px rgba(0, 8, 20, 0.5); }
 #actcard .t { margin-top: 0.2em; font-family: var(--xing); font-size: clamp(76px, 13vw, 150px); line-height: 1.15; letter-spacing: 0.16em; text-indent: 0.16em; text-shadow: 0 0 40px rgba(210, 225, 255, 0.35); }
 #actcard.show .t .brush {
   -webkit-mask-image: linear-gradient(172deg, #000 44%, transparent 56%); mask-image: linear-gradient(172deg, #000 44%, transparent 56%);
   -webkit-mask-size: 100% 320%; mask-size: 100% 320%; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
   animation: brush 2.4s cubic-bezier(.25, .7, .2, 1) forwards; animation-delay: calc(0.3s + var(--k, 0) * 0.55s);
 }
-#actcard .s { margin-top: 0.9em; font-family: var(--kai); font-size: clamp(13px, 1.7vw, 16px); letter-spacing: 0.3em; color: var(--ink-dim); }
+#actcard .s { margin-top: 0.9em; font-family: var(--kai); font-size: clamp(13px, 1.7vw, 16px); letter-spacing: 0.3em; color: rgba(240, 234, 218, 0.78); text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85), 0 0 14px rgba(0, 8, 20, 0.5); }
 
 #ledger .act { margin: 22px 0 6px; color: rgba(255, 226, 180, 0.95); font-family: var(--xing); font-size: 22px; letter-spacing: 0.16em; }
 #ledger .act span { margin-left: 0.8em; font-family: var(--kai); font-size: 12px; letter-spacing: 0.1em; color: rgba(200, 206, 220, 0.5); }
@@ -207,7 +221,7 @@ body.acts #scripture { left: 4vw; right: auto; max-width: 44vw; top: 55vh; botto
   display: flex; gap: 6px;
   pointer-events: none;
   opacity: 0; transition: opacity 1.5s ease;
-  z-index: 20;
+  z-index: 27;
 }
 #tools.show { opacity: 0.55; pointer-events: auto; }
 #tools.show:hover { opacity: 0.95; }
@@ -418,7 +432,7 @@ body.acts #scripture { left: 4vw; right: auto; max-width: 44vw; top: 55vh; botto
 #finale.show { opacity: 1; }
 #finale .f1 { font-family: var(--xing); font-size: clamp(72px, 13vw, 150px); letter-spacing: 0.2em; text-indent: 0.2em; text-shadow: 0 0 40px rgba(255, 236, 200, 0.5), 0 2px 12px rgba(0,0,0,0.7); }
 #finale .f2 { margin-top: 0.8em; font-family: var(--kai); font-size: clamp(15px, 2vw, 19px); letter-spacing: 0.3em; color: var(--ink-dim); text-shadow: 0 1px 3px rgba(0,0,0,0.9); }
-#finale .f3 { margin-top: 2.2em; padding: 0 6vw; font-family: var(--mono); font-size: 11.5px; line-height: 1.7; letter-spacing: 0.1em; color: rgba(240, 234, 218, 0.66); text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9), 0 0 10px rgba(0, 0, 0, 0.5); }
+#finale .f3 { margin-top: 2.2em; padding: 0 6vw; font-family: var(--mono); font-size: 12.5px; line-height: 1.7; letter-spacing: 0.1em; color: rgba(250, 246, 236, 0.92); text-shadow: 0 0 2px rgba(0, 0, 0, 0.95), 0 1px 4px rgba(0, 0, 0, 0.9), 0 0 14px rgba(0, 0, 0, 0.6); }
 
 /* ── 目录：三十九卷，一幕一行 ─────────────────────────────── */
 #toc {
@@ -483,3 +497,21 @@ body.acts #scripture { left: 4vw; right: auto; max-width: 44vw; top: 55vh; botto
   #utter { top: 28%; letter-spacing: 0.06em; text-indent: 0.06em; }
   #scripture { bottom: 6vh; letter-spacing: 0.06em; }
 }
+
+/* ── 真玩之后的修整 ─────────────────────────────────────────── */
+/* 面板留出一条可以点的世界；顶上渐隐，不从按钮底下滚过去；窄屏时底色实一些 */
+#toc, #ledger { width: min(380px, calc(100vw - 64px)); }
+#toc, #ledger { -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 56px); mask-image: linear-gradient(to bottom, transparent 0, #000 56px); }
+@media (max-width: 600px) { #toc, #ledger { background: rgba(4, 6, 12, 0.95); } }
+/* 标题画面上，提示在说明那一行的上面，不叠在一起 */
+body.on-title #hint { bottom: calc(4vh + 22px); }
+/* 标题的副题：词组不从中间断开 */
+#title .t2 .nw { white-space: nowrap; }
+/* 矮屏（手机横放）：标题的经文题辞让位给按钮 */
+@media (max-height: 500px) {
+  #title .epi { display: none; }
+  #title .t4 { margin-top: 4vh; }
+  #title .t5 { margin-top: 0.8em; }
+  #help { line-height: 1.7; padding: 16px 22px; }
+}
+#help { max-height: calc(100vh - 24px); overflow-y: auto; }
