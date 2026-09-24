@@ -13,9 +13,10 @@
  *   有血的门被越过 · 大哀号 · 月下出埃及，扛着抟面盆 · 黎明：父亲对儿子说「这是什么意思」。
  *
  * 画面的方位（画面宽度的比例）：
- *   0.40–0.47 尼罗河（自近地的轮廓流向观者） · 0.47–0.55 法老的宫、宝座、术士 · 0.56–0.61 田（麻与大麦）与埃及的牲畜 ·
- *   0.63–0.75 埃及人的房屋（兰塞城） · 0.75–0.81 砖场、草堆、窑 · 0.815–1 歌珊：以色列人的屋、羊群。
- *   出埃及的行列自歌珊向左（向东、向日出、向海）而行。远处中丘上是金字塔。
+ *   0.42–0.52 尼罗河（在近地之内自地的轮廓流向观者；西岸是海边的一条沙地） · 0.48–0.6 法老的宫、宝座（青金石的华盖）、术士 ·
+ *   0.57–0.65 田（麻与大麦）· 0.66–0.74 埃及的牲畜 · 0.63–0.75 埃及人的房屋（兰塞城） · 0.75–0.81 砖场、草堆、窑 ·
+ *   0.818–1 歌珊：三家以色列人的屋（门都朝西）、羊群。
+ *   出埃及的行列自歌珊向左（向东、向日出、向海）而行；大队（六十万人、牛羊、火把）是中丘上自右向左的一长行。远处中丘上是金字塔。
  * 一切位置都以比例记下；一切情节都可瞬间重演（恢复存档 / 提前言说）。
  * ───────────────────────────────────────────────────────────── */
 (function (GS) {
@@ -1666,19 +1667,17 @@
     g.fillStyle = U.rgba(2, 2, 6, clamp(0.975 * k, 0, 0.975));
     g.fillRect(0, 0, dw, dh);
     g.globalCompositeOperation = 'destination-out';
+    // 光透出的洞：预绘的径向遮罩（1 → 0.9 → 0.4 → 0），按椭圆拉伸
+    if (!SP.hole) {
+      const hc = cnv(128, 128), hg = hc.getContext('2d'), gr = hg.createRadialGradient(64, 64, 0, 64, 64, 64);
+      gr.addColorStop(0, 'rgba(0,0,0,1)'); gr.addColorStop(0.35, 'rgba(0,0,0,0.9)'); gr.addColorStop(0.7, 'rgba(0,0,0,0.4)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+      hg.fillStyle = gr; hg.fillRect(0, 0, 128, 128);
+      SP.hole = hc;
+    }
     const hole = (x, y, rx, ry, a) => {
       if (a < 0.01 || rx < 1) return;
-      g.save();
-      g.translate(x * sc, y * sc);
-      g.scale(1, ry / rx);
-      const gr = g.createRadialGradient(0, 0, 0, 0, 0, rx * sc);
-      gr.addColorStop(0, 'rgba(0,0,0,' + a.toFixed(3) + ')');
-      gr.addColorStop(0.35, 'rgba(0,0,0,' + (a * 0.9).toFixed(3) + ')');
-      gr.addColorStop(0.7, 'rgba(0,0,0,' + (a * 0.4).toFixed(3) + ')');
-      gr.addColorStop(1, 'rgba(0,0,0,0)');
-      g.fillStyle = gr;
-      g.beginPath(); g.arc(0, 0, rx * sc, 0, TAU); g.fill();
-      g.restore();
+      g.globalAlpha = Math.min(1, a);
+      g.drawImage(SP.hole, (x - rx) * sc, (y - ry) * sc, 2 * rx * sc, 2 * ry * sc);
     };
     const s = LS(2);
     const [gx, gyy] = GOSHEN_C();
@@ -1693,6 +1692,8 @@
     });
     const LA = lampAt();
     if (LA) hole(LA[0], LA[1], LA[2], LA[3], 0.92);
+    g.globalAlpha = 1;
+    ctx.globalAlpha = 1;
     ctx.drawImage(DK, 0, 0, W.w, W.h);
     // 屋里的亮光：一家一家暖暖地亮着
     ctx.globalCompositeOperation = 'lighter';

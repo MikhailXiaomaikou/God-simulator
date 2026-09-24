@@ -197,8 +197,8 @@
   // 左脚上一小段坡（有小路），u ≈ −0.86 … −0.18 是一道宽平的岩台（荆棘在岩台的尽头、岩壁脚下；人在台上可跪、可俯伏），
   // 其后陡起的岩壁直到山顶，右后还有一肩
   const HB_PTS = [[-1, 0], [-0.95, 0.07], [-0.9, 0.17], [-0.86, 0.235], [-0.8, 0.255], [-0.6, 0.262], [-0.4, 0.27], [-0.24, 0.278],
-    [-0.16, 0.3], [-0.1, 0.42], [-0.04, 0.6], [0.03, 0.78], [0.1, 0.92], [0.17, 0.99], [0.22, 1.0], [0.28, 0.96], [0.34, 0.9], [0.4, 0.87],
-    [0.47, 0.82], [0.56, 0.7], [0.66, 0.53], [0.76, 0.36], [0.87, 0.17], [1, 0]];
+    [-0.16, 0.3], [-0.1, 0.44], [-0.04, 0.6], [0.02, 0.73], [0.08, 0.84], [0.15, 0.93], [0.22, 0.985], [0.29, 1.0], [0.36, 0.975], [0.43, 0.93],
+    [0.5, 0.9], [0.58, 0.8], [0.67, 0.64], [0.76, 0.46], [0.85, 0.27], [0.93, 0.11], [1, 0]];
   // 荆棘、摩西初站、近前的位置（山上的 u）；俯伏时身子向前伸出约一身之长，故近前处离荆棘留出一身有余
   const BU = -0.24, STAND_U = -0.8, NEAR_U = -0.61;
   const TERR0 = -0.86, TERR1 = -0.17;               // 岩台的两端
@@ -223,7 +223,7 @@
     return lerp(HB_TAB[i], HB_TAB[i + 1], f - i);
   }
   const hbHW = () => (portrait() ? 0.16 : 0.12);
-  function hbH() { const hw = hbHW() * W.w; return Math.min(0.27 * W.h, 1.45 * hw, 200 * LS(2)); }
+  function hbH() { const hw = hbHW() * W.w; return Math.min(0.25 * W.h, 1.32 * hw, 190 * LS(2)); }
   const HU = u => X.horeb + u * hbHW();            // 山上 u 处的画面比例
   const hbG = () => smoothstep(0, 1, W.lv.msHoreb);
   // 山面在 xf 处的高度（像素 y）；不在山上、或山未升起时为 null
@@ -507,7 +507,15 @@
       ctx.fillRect(dx - 2.4 * s, y - 7.2 * s, 4.8 * s, 7.2 * s);
       ctx.fillRect(x - f * hw * 0.45 - 1.2 * s, y - h * 0.74, 2.4 * s, 1.8 * s);
       ctx.globalCompositeOperation = 'source-over';
-      lamp(ctx, dx, y - 3.5 * s, hw * (1.3 + p.lit * 1.2), p.a * lk, p.seed);
+      lamp(ctx, dx, y - 3.5 * s, hw * (1.3 + p.lit * 2.2), p.a * lk, p.seed);
+      // 门前地上的一片暖光：一家一家亮起来（1:21）
+      if (p.lit > 0.02) {
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.save(); ctx.translate(dx, y + 1.5 * s); ctx.scale(1, 0.3);
+        glowSp(ctx, SP.warm, 0, 0, hw * 2.8, p.a * p.lit * (0.2 + 0.45 * nightK()) * (0.9 + 0.1 * Math.sin(W.t * 5 + p.seed)));
+        ctx.restore();
+        ctx.globalCompositeOperation = 'source-over';
+      }
     }
     ctx.globalAlpha = p.a * 0.5;
     ctx.strokeStyle = css([246, 226, 190], l, 1, 0.3); ctx.lineWidth = Math.max(0.6, 1 * s);
@@ -1026,7 +1034,7 @@
   let flareT = -99;
   const FIRE = { c: null, g: null, w: 0, h: 0, grad: null, gk: '' };
   const FLAY = [      // [尺度, 渐变停点 [位置, r, g, b, a] …]（自火根往上）
-    [1, [[0, 255, 150, 60, 0.95], [0.4, 255, 104, 36, 0.8], [0.75, 214, 54, 24, 0.35], [1, 170, 30, 16, 0]]],
+    [1, [[0, 255, 150, 60, 0.85], [0.4, 255, 104, 36, 0.72], [0.75, 214, 54, 24, 0.3], [1, 170, 30, 16, 0]]],
     [0.78, [[0, 255, 196, 92, 1], [0.45, 255, 150, 58, 0.75], [0.85, 255, 110, 40, 0]]],
     [0.56, [[0, 255, 238, 170, 1], [0.4, 255, 206, 110, 0.8], [0.8, 255, 170, 70, 0]]],
     [0.34, [[0, 255, 255, 244, 1], [0.35, 255, 246, 206, 0.85], [0.7, 255, 226, 160, 0]]],
@@ -1071,13 +1079,13 @@
         const q = m.crown[i], ph = q[3];
         if (li === 3 && (i < 2 || i > 10)) continue;
         const f = 0.8 + 0.2 * Math.sin(W.t * (8 + q[4] * 4) + ph) + 0.1 * Math.sin(W.t * 21 + ph * 2);
-        const up = 1 - Math.abs(q[0]) * 0.4;
-        const hh = (H * q[2] * f * up + R * 0.7) * sc;
+        const up = 1 - Math.pow(Math.abs(q[0]), 1.4) * 0.72;       // 中间的火舌最高，两旁渐低：外形是一团向上收尖的火
+        const hh = (H * q[2] * f * up + R * 0.6 * up) * sc;
         // 根在圆顶之内、高低不一（没有平平的底）；底宽，顶尖；外侧的向外斜
         const bx = ox + q[0] * FR * 0.8 * (0.6 + 0.4 * sc);
         const by = oy + q[1] * R * 0.55 * (0.7 + 0.3 * sc) + (rt(i * 7 + 500) - 0.5) * 0.4 * R;
-        const w = FR * (0.3 + 0.1 * rt(i * 7 + 501)) * (0.55 + 0.45 * sc);
-        const tipx = bx + q[0] * R * 0.62 * sc + Math.sin(W.t * 6 + ph) * w * 0.6 + W.wind * 2 * s;
+        const w = FR * (0.24 + 0.1 * rt(i * 7 + 501)) * (0.55 + 0.45 * sc);
+        const tipx = bx + q[0] * R * 0.7 * sc + Math.sin(W.t * 6 + ph) * w * 0.7 + W.wind * 2 * s;
         const ty = by - hh;
         g.moveTo(bx - w, by);
         g.bezierCurveTo(bx - w * 1.1, by - hh * 0.4, tipx - w * 0.2, ty + hh * 0.3, tipx, ty);
@@ -1102,7 +1110,7 @@
     // 大的暖光与丛中的光
     ctx.globalCompositeOperation = 'lighter';
     glowSp(ctx, SP.fire, x, cy - H * 0.3, (R + H) * 1.8, k * (0.24 + 0.4 * nk) * boost);
-    glowSp(ctx, SP.gold, x, cy, R * 1.7, k * 0.7);
+    glowSp(ctx, SP.gold, x, cy, R * 1.35, k * 0.45);
     // 火身（微模糊，边缘柔和）
     ctx.globalCompositeOperation = 'source-over';
     if (hasF) ctx.filter = 'blur(' + Math.max(0.6, 0.75 * s).toFixed(2) + 'px)';
@@ -1114,7 +1122,7 @@
     ctx.globalAlpha = k * (0.3 + 0.25 * nk);
     ctx.drawImage(F.c, X0, Y0);
     if (hasF) ctx.filter = 'none';
-    glowSp(ctx, SP.white, x, cy - R * 0.15, R * 1.15, k * (0.5 + 0.2 * Math.sin(W.t * 3.1)));
+    glowSp(ctx, SP.white, x, cy - R * 0.1, R * 0.9, k * (0.34 + 0.14 * Math.sin(W.t * 3.1)));
     ctx.globalCompositeOperation = 'source-over';
     // 枝与叶的剪影仍在火中：暗枝，叶边一点青
     ctx.lineCap = 'round';
@@ -1251,11 +1259,13 @@
     const e = W.lv.msEgypt;
     if (e < 0.01) return;
     const xb = XW[l], dep = DEP(l), A = 0.86 * e;
-    const cs = W.shade(SAND[l], dep, 0.06), cw = W.shade(WILD[l], dep, 0.03);
-    const g = ctx.createLinearGradient(0, 0, W.w, 0);
-    g.addColorStop(0, U.rgba(cs[0], cs[1], cs[2], A)); g.addColorStop(clamp(xb - 0.04, 0, 1), U.rgba(cs[0], cs[1], cs[2], A));
-    g.addColorStop(clamp(xb + 0.04, 0, 1), U.rgba(cw[0], cw[1], cw[2], A)); g.addColorStop(1, U.rgba(cw[0], cw[1], cw[2], A));
-    ctx.fillStyle = g;
+    ctx.fillStyle = cachedGrad('gr' + l + ':' + Math.round(e * 32), () => {
+      const cs = W.shade(SAND[l], dep, 0.06), cw = W.shade(WILD[l], dep, 0.03);
+      const g = ctx.createLinearGradient(0, 0, W.w, 0);
+      g.addColorStop(0, U.rgba(cs[0], cs[1], cs[2], A)); g.addColorStop(clamp(xb - 0.04, 0, 1), U.rgba(cs[0], cs[1], cs[2], A));
+      g.addColorStop(clamp(xb + 0.04, 0, 1), U.rgba(cw[0], cw[1], cw[2], A)); g.addColorStop(1, U.rgba(cw[0], cw[1], cw[2], A));
+      return g;
+    });
     ctx.fill(landPath(l, 0.2, 1.0, l === 2 ? 56 : 40));
     // 亮边
     const hi = W.shade([252, 226, 178], dep, 0.2);
@@ -1286,12 +1296,31 @@
         }
       }));
       // 歌珊：一片浅浅的草色
-      const gc = W.shade([118, 146, 78], 0, 0.02);
-      const gg = ctx.createLinearGradient(0, 0, W.w, 0);
-      gg.addColorStop(clamp(X.goshen0 - 0.03, 0, 1), U.rgba(gc[0], gc[1], gc[2], 0)); gg.addColorStop(X.goshen0 + 0.02, U.rgba(gc[0], gc[1], gc[2], 0.34 * e));
-      gg.addColorStop(X.goshen1 - 0.02, U.rgba(gc[0], gc[1], gc[2], 0.34 * e)); gg.addColorStop(clamp(X.goshen1 + 0.02, 0, 1), U.rgba(gc[0], gc[1], gc[2], 0));
-      ctx.fillStyle = gg;
+      ctx.fillStyle = cachedGrad('goshen:' + Math.round(e * 32), () => {
+        const gc = W.shade([118, 146, 78], 0, 0.02);
+        const gg = ctx.createLinearGradient(0, 0, W.w, 0);
+        gg.addColorStop(clamp(X.goshen0 - 0.03, 0, 1), U.rgba(gc[0], gc[1], gc[2], 0)); gg.addColorStop(X.goshen0 + 0.02, U.rgba(gc[0], gc[1], gc[2], 0.34 * e));
+        gg.addColorStop(X.goshen1 - 0.02, U.rgba(gc[0], gc[1], gc[2], 0.34 * e)); gg.addColorStop(clamp(X.goshen1 + 0.02, 0, 1), U.rgba(gc[0], gc[1], gc[2], 0));
+        return gg;
+      });
       ctx.fill(landPath(2, X.goshen0 - 0.03, X.goshen1 + 0.02, 20));
+      // 歌珊与旷野之间：一道乱石与低低的沙丘（出了埃及，就是米甸的旷野）
+      ctx.fillStyle = W.shadeCSS([196, 162, 120], 0, 0.9 * e, 0.04);
+      ctx.fill(cachedPath('dunes', P2 => {
+        for (let j = 0; j < 3; j++) {
+          const a0 = lerp(X.edge0, X.edge1, j / 3) - 0.004, a1 = a0 + 0.016 + 0.006 * rt(j + 90), v = 0.06 + 0.1 * j;
+          const N2 = 10;
+          for (let i = 0; i <= N2; i++) { const xf = lerp(a0, a1, i / N2), y = fieldY(xf, v) - Math.sin(Math.PI * i / N2) * (3 + 1.5 * j) * LS(2); if (i) P2.lineTo(xf * W.w, y); else P2.moveTo(xf * W.w, y); }
+          P2.closePath();
+        }
+      }));
+      ctx.fillStyle = W.shadeCSS([118, 92, 74], 0, e, 0.02);
+      ctx.fill(cachedPath('edgeRocks', P2 => {
+        for (let i = 0; i < 11; i++) {
+          const xf = lerp(X.edge0, X.edge1, rt(i * 3 + 130)), v = rt(i * 3 + 131) * 0.5, y = fieldY(xf, v) + 1, r = (1.4 + 2.4 * rt(i * 3 + 132)) * LS(2) * (1 + 0.6 * v);
+          P2.moveTo(xf * W.w + r * 1.25, y); P2.ellipse(xf * W.w, y, r * 1.25, r, 0, Math.PI, TAU);
+        }
+      }));
     }
   }
   // 尼罗河：自远处的地的轮廓流向观者；两岸是青绿的田与芦荻
@@ -1324,17 +1353,31 @@
     ctx.fillStyle = css([118, 98, 68], 2);
     ctx.fill(edge(1.28, 2.5 * s));
     // 水（法老的命令之后暗沉）
-    const y0 = geo().nileY0, y2 = W.h;
-    const top = W.shade(U.mixRGB([150, 186, 196], [70, 74, 92], dark), 0.45, 0.05), bot = W.shade(U.mixRGB([44, 100, 122], [26, 30, 44], dark), 0, 0.02);
-    const gr = ctx.createLinearGradient(0, y0, 0, y2);
-    gr.addColorStop(0, U.rgb(top[0], top[1], top[2])); gr.addColorStop(1, U.rgb(bot[0], bot[1], bot[2]));
+    const y0 = geo().nileY0, y2 = W.h, dq = Math.round(dark * 32) / 32;
+    ctx.fillStyle = cachedGrad('nile:' + dq, () => {
+      const top = W.shade(U.mixRGB([150, 186, 196], [70, 74, 92], dq), 0.45, 0.05), bot = W.shade(U.mixRGB([44, 100, 122], [26, 30, 44], dq), 0, 0.02);
+      const gr = ctx.createLinearGradient(0, y0, 0, y2);
+      gr.addColorStop(0, U.rgb(top[0], top[1], top[2])); gr.addColorStop(1, U.rgb(bot[0], bot[1], bot[2]));
+      return gr;
+    });
     ctx.globalAlpha = Math.min(1, k * 1.4);
-    ctx.fillStyle = gr;
     ctx.fill(edge(1, 0));
+    // 法老的命令（1:22）：一道冷黑自上游顺流而下，河面暗了，倒影全无
+    if (dark > 0.01) {
+      const f = Math.round(clamp(dark * 1.25, 0, 1) * 40) / 40;
+      ctx.fillStyle = cachedData('nileInk:' + f + ':' + Math.round(y0), () => {
+        const g = ctx.createLinearGradient(0, y0, 0, y2);
+        g.addColorStop(0, 'rgba(6,8,18,0.72)');
+        if (f < 1) { g.addColorStop(Math.max(0, f - 0.14), 'rgba(6,8,18,0.72)'); g.addColorStop(f, 'rgba(6,8,18,0)'); }
+        else g.addColorStop(1, 'rgba(6,8,18,0.72)');
+        return g;
+      });
+      ctx.fill(edge(1, 0));
+    }
     // 天光的倒影（夜里是月光）
     const night = W.night > 0.5;
     const gc = night ? [200, 214, 255] : [255, 246, 222];
-    const ga = (night ? 0.35 * W.lv.moon : 0.45 * W.daylight) * k * (1 - 0.6 * dark);
+    const ga = (night ? 0.35 * W.lv.moon : 0.45 * W.daylight) * k * (1 - dark);
     if (ga > 0.01) {
       ctx.globalCompositeOperation = 'lighter';
       ctx.strokeStyle = U.rgba(gc[0], gc[1], gc[2], 1);
@@ -1387,9 +1430,12 @@
     const hz = W.horizonY, top = hz - W.h * 0.34;
     const a = 0.14 * e * (0.35 + 0.65 * W.daylight);
     if (a < 0.004) return;
-    const g = ctx.createLinearGradient(0, top, 0, hz + 4);
-    g.addColorStop(0, 'rgba(246,210,156,0)'); g.addColorStop(1, U.rgba(246, 210, 156, a));
-    ctx.fillStyle = g;
+    const aq = Math.round(a * 400) / 400;
+    ctx.fillStyle = cachedData('skyHaze:' + aq + ':' + Math.round(top), () => {
+      const g = ctx.createLinearGradient(0, top, 0, hz + 4);
+      g.addColorStop(0, 'rgba(246,210,156,0)'); g.addColorStop(1, U.rgba(246, 210, 156, aq));
+      return g;
+    });
     ctx.fillRect(0, top, W.w, hz - top + 4);
   }
 
@@ -2410,5 +2456,5 @@
   });
 
   // 测试用
-  GS._moses = { get S() { return S; }, P, X, FXL };
+  GS._moses = { get S() { return S; }, P, X, FXL, FIRE };
 })(window.GS);

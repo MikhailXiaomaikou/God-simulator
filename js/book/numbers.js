@@ -666,7 +666,7 @@
     const lift = p.lift;
     // lift > 0：收上去（离开帐幕，高过远山）；lift < 0：降到会幕门口（12:5）
     const base = lift >= 0 ? lerp(baseRest, top + (baseRest - top) * 0.28, lift) : lerp(baseRest, posY(2, p.x, TABV) - 2 * s, -lift);
-    return { s, base, top: lift >= 0 ? top - lift * W.h * 0.04 : top + (-lift) * (baseRest - top) * 0.25, w: Math.min(44 * s, 0.045 * W.w), tw: G.tr - G.tl, tc: (G.tl + G.tr) / 2 - G.x };
+    return { s, base, top: lift >= 0 ? top - lift * W.h * 0.04 : top + (-lift) * (baseRest - top) * 0.25, w: Math.min(44 * s, (port() ? 0.07 : 0.045) * W.w), tw: G.tr - G.tl, tc: (G.tl + G.tr) / 2 - G.x };
   }
   // 云团的颜色随天光（夕照里是暖的，阴处是灰的）：按颜色缓存
   function puffC(rgb, shade) {
@@ -698,7 +698,7 @@
       ctx.globalAlpha = al0 * 0.06;
       ctx.drawImage(SP.colW, x - w * 1.5, g.top - H * 0.05, w * 3, H * 1.05 + 4);
       ctx.globalCompositeOperation = 'source-over';
-      const N = clamp(Math.round(H / (w * 0.6)), 10, 22);
+      const N = clamp(Math.round(H / (w * 0.5)), 12, 30);
       for (let i = 0; i < N; i++) {
         const t = U.fract(i / N + W.t * 0.007 + rt(i * 3 + 50) * 0.02);
         const y = g.base - t * H, env = smoothstep(0, 0.04, t) * (1 - smoothstep(0.7, 1, t));
@@ -731,9 +731,9 @@
     const fk = nk * a;
     if (fk > 0.02) {
       ctx.globalCompositeOperation = 'lighter';
-      ctx.globalAlpha = fk * 0.55;
-      ctx.drawImage(SP.colF, x - w * 1.2, g.top, w * 2.4, H + 4);
-      ctx.globalAlpha = fk * 0.55;
+      ctx.globalAlpha = fk * 0.5;
+      ctx.drawImage(SP.colF, x - w * 1.3, g.top, w * 2.6, H + 4);
+      ctx.globalAlpha = fk * 0.38;
       ctx.drawImage(SP.colC, x - w * 0.34, g.top + H * 0.08, w * 0.68, H * 0.92 + 4);
       const N = 20;
       for (let i = 0; i < N; i++) {
@@ -742,7 +742,7 @@
         const tw = w * (0.6 + 0.4 * rt(i * 3 + 71)) * (1 - 0.35 * t), th = tw * 2.4;
         const xx = x + Math.sin(t * 10 + i * 1.3 + W.t * 1.4) * w * 0.26;
         const fl = 0.7 + 0.3 * Math.sin(W.t * 11 + i * 2.1);
-        ctx.globalAlpha = Math.min(1, fk * env * 0.62 * fl);
+        ctx.globalAlpha = Math.min(1, fk * env * 0.55 * fl);
         ctx.drawImage(SP.tongue, xx - tw / 2, y - th * 0.62, tw, th);
       }
       // 火星
@@ -825,7 +825,7 @@
       const body = new Path2D(), head = new Path2D(), wing = new Path2D();
       for (const q of quailBirds()) {
         if (q.ord > kq) continue;
-        const s = 1.25 * u * q.sz * vS(q.v) * (port() ? 1.2 : 1), x = q.xf * W.w, y = posY(2, q.xf, q.v) - q.lift * 3.2 * s, d = q.d;
+        const s = 1.25 * u * q.sz * vS(q.v) * (port() ? 1.2 : 1), x = q.xf * W.w, y = posY(2, q.xf, q.v) - q.lift * 3.8 * s, d = q.d;
         body.moveTo(x + 3.4 * s, y - 2 * s); body.ellipse(x, y - 2 * s, 3.4 * s, 2.1 * s, 0, 0, TAU);
         // 尾
         body.moveTo(x - d * 2.8 * s, y - 2.6 * s); body.lineTo(x - d * 5.4 * s, y - 3.4 * s); body.lineTo(x - d * 5 * s, y - 1.7 * s); body.closePath();
@@ -853,13 +853,13 @@
       const n = l === 2 ? 52 : 30;
       for (let i = 0; i < n; i++) {
         const xf = l === 2 ? lerp(0.4, 0.98, rt(i * 4 + 700 + l * 200)) : lerp(0.52, 0.98, rt(i * 4 + 700 + l * 200));
-        if (l === 2 && Math.abs(xf - X.tab) < 0.08) continue;
+        if (l === 2 && (Math.abs(xf - X.tab) < 0.08 || xf > 0.85)) continue;     // 会幕前与磐石、井一带空着
         const v = l === 2 ? lerp(0.05, 0.95, rt(i * 4 + 701 + l * 200)) : lerp(0, 0.6, rt(i * 4 + 701 + l * 200));
         out.push([xf, v, rt(i * 4 + 702 + l * 200), rt(i * 4 + 703 + l * 200)]);
       }
       return out;
     });
-    const s0 = LS(l) * 1.8;
+    const s0 = LS(l) * 1.5;
     const stone = css([156, 138, 116], l), shade = css([96, 84, 72], l), lite = css([226, 210, 180], l, 0.55 * dayA(), 0.2);
     const cairn = (P2, P3, P4, q, g) => {
       const s = s0 * vS(q[1]) * (0.8 + q[3] * 0.4) * g, x = q[0] * W.w, y = posY(l, q[0], q[1]);
@@ -938,14 +938,19 @@
           ctx.beginPath(); ctx.ellipse(bx, by, 1.3 * Z * kb * (1 - 0.4 * kf), 0.8 * Z * kb * (1 - 0.4 * kf), side * 0.6, 0, TAU); ctx.fill();
         }
         if (j % 3 !== 2 && kf > 0 && ka < 0.5) {
-          ctx.fillStyle = css([255, 238, 242], 2, kf * (1 - ka), 0.4);
-          for (let q = 0; q < 5; q++) { const a = q / 5 * TAU + j; ctx.beginPath(); ctx.arc(bx + Math.cos(a) * 1.1 * Z * kf, by - 0.9 * Z + Math.sin(a) * 1.1 * Z * kf, 0.95 * Z * kf, 0, TAU); ctx.fill(); }
-          ctx.fillStyle = css([236, 140, 164], 2, kf * (1 - ka), 0.25);
+          const fa = kf * (1 - ka * 1.6);
+          ctx.fillStyle = css([226, 120, 150], 2, fa * 0.9, 0.2);
+          ctx.beginPath(); ctx.arc(bx, by - 0.9 * Z, 1.9 * Z * kf, 0, TAU); ctx.fill();
+          ctx.fillStyle = css([255, 214, 226], 2, fa, 0.45);
+          for (let q = 0; q < 5; q++) { const a = q / 5 * TAU + j; ctx.beginPath(); ctx.arc(bx + Math.cos(a) * 1.1 * Z * kf, by - 0.9 * Z + Math.sin(a) * 1.1 * Z * kf, 0.8 * Z * kf, 0, TAU); ctx.fill(); }
+          ctx.fillStyle = css([196, 70, 110], 2, fa, 0.2);
           ctx.beginPath(); ctx.arc(bx, by - 0.9 * Z, 0.5 * Z * kf, 0, TAU); ctx.fill();
         }
         if (ka > 0 && j % 3 !== 1) {
-          ctx.fillStyle = css([150, 170, 96], 2, ka, 0.14);
-          ctx.beginPath(); ctx.ellipse(bx, by + 0.9 * Z, 0.85 * Z * ka, 1.3 * Z * ka, side * 0.3, 0, TAU); ctx.fill();
+          ctx.fillStyle = css([74, 92, 40], 2, ka, 0.05);
+          ctx.beginPath(); ctx.ellipse(bx, by + 0.9 * Z, 1.05 * Z * ka, 1.5 * Z * ka, side * 0.3, 0, TAU); ctx.fill();
+          ctx.fillStyle = css([150, 176, 92], 2, ka, 0.16);
+          ctx.beginPath(); ctx.ellipse(bx, by + 0.9 * Z, 0.8 * Z * ka, 1.25 * Z * ka, side * 0.3, 0, TAU); ctx.fill();
           ctx.fillStyle = css([220, 232, 170], 2, ka * 0.7, 0.3);
           ctx.beginPath(); ctx.ellipse(bx - 0.25 * Z, by + 0.55 * Z, 0.3 * Z * ka, 0.5 * Z * ka, side * 0.3, 0, TAU); ctx.fill();
         }
@@ -1861,7 +1866,7 @@
           const x = e.xf * W.w, s = LS(2), yc = posY(2, e.xf, 0.25);
           const open = smoothstep(0, 0.12, u) * (1 - smoothstep(0.72, 1, u));
           if (open > 0.01) {
-            const wdt = 92 * s, dep = 18 * s * open;
+            const wdt = 82 * s, dep = 18 * s * open;
             const edge = (sgn, seed, f) => sgn * dep * Math.pow(Math.sin(f * Math.PI), 0.8) * (0.62 + 0.38 * rt(Math.round(f * 16) + seed));
             const lens = (sc, dy) => {
               ctx.beginPath();
@@ -2550,9 +2555,11 @@
             prop('rt1', 'tent1', { x: RX, v: 0.26, grow: 1, size: 0.9, label: '大坍的帐棚' });
             prop('rt2', 'tent1', { x: RX + 0.03, v: 0.2, grow: 1, size: 0.9, label: '亚比兰的帐棚' });
             crowd('korah', { n: 5, x0: RX - 0.035, x1: RX + 0.035, layer: 2, label: '可拉一党', robe: [84, 70, 66], mill: false, v: 0.26 });
-            walk('moses', 0.555, { speed: 0.03 }); face('moses', -1);
+            // 「你们离开这恶人的帐棚吧」：众人从四围散开（16:26–27）
+            [['caleb', 0.585], ['moses', 0.598], ['aaron', 0.612], ['eleazar', 0.626], ['joshua', 0.64], ['miriam', 0.575]].forEach(([id, x]) => walk(id, x, { speed: 0.035 }));
+            walk('f0', 0.405, { speed: 0.03 }); walk('f1', 0.41, { speed: 0.03 }); walk('f2', 0.6, { speed: 0.035 });
           }],
-          [3, () => { pose('moses', 'raise'); }],
+          [3, () => { face('moses', -1); pose('moses', 'raise'); }],
           // 地开了口：帐棚与可拉一党沉下去，地口又照旧合闭（16:31–33）
           [5.5, b => { flash(b, { type: 'rift', xf: RX, dur: 5.5 }); sfx(b, 'thunder', { low: true }); if (!b.instant) { W.shake = 1; fx().dust(RX * W.w, posY(2, RX, 0.25), 60, [170, 140, 110], 40 * SU()); } }],
           [5.9, () => { ['rt0', 'rt1', 'rt2'].forEach(id => prop(id, null, { sink: 1 })); crowdPose('korah', 'fall'); }],
@@ -2567,11 +2574,11 @@
             sfx(b, 'wind', { low: true });
           }],
           [13, () => { crowdPose('plagued', 'lie'); }],
-          [17.5, () => { unCrowd('plagued'); unprop('incense'); pose('aaron', 'stand'); hold('aaron', null); }],
+          [17.5, () => { unCrowd('plagued'); unprop('incense'); pose('aaron', 'stand'); hold('aaron', null); folkHome({ speed: 0.035 }); }],
           // 十二根杖，存在法柜前；过了一夜
           [18.5, b => {
             prop('rods', 'rods', { x: X.rods, v: 0.16, label: '十二根杖', n: 12 });   // 存在法柜前（17:7）
-            walk('aaron', X.aaron, { speed: 0.03 }); walk('moses', X.moses, { speed: 0.03 });
+            eastFront({ speed: 0.03 }); if (has('caleb')) walk('caleb', X.caleb, { speed: 0.03 });
             W.goTo(0.02, 3.5, b.instant);
           }],
           [22.5, b => { W.goTo(0.3, 3.5, b.instant); }],

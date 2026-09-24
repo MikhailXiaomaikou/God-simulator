@@ -443,7 +443,7 @@
       angel: [['A1', 's', 0.44, 0], ['E2', 'soft', 0.28, 0.1], ['B2', 'soft', 0.1, -0.25], ['E3', 's', 0.12, 0.25], ['Ds4', 's', 0.04, 0.35], ['Gs4', 's', 0.035, -0.4], ['B4', 's', 0.02, 0.45]],
       tears: [['A2', 's', 0.462, 0], ['E3', 'soft', 0.315, -0.15], ['A3', 'soft', 0.084, 0.2], ['C4', 'flute', 0.126, 0.3], ['E4', 's', 0.063, -0.35], ['B4', 's', 0.032, 0.45]],
       burn: [['A1', 's', 0.45, 0], ['E2', 'soft', 0.28, 0.1], ['C3', 'choir', 0.13, 0], ['E3', 'choir', 0.11, 0], ['A3', 'choir', 0.08, 0], ['F3', 's', 0.04, -0.35]],
-      lamp: [['A1', 's', 0.42, 0], ['E2', 'soft', 0.28, 0.1], ['E3', 'soft', 0.12, -0.2], ['A3', 's', 0.05, 0.2], ['Cs5', 's', 0.03, -0.4], ['E5', 's', 0.02, 0.45], ['A5', 's', 0.01, 0]],
+      lamp: [['A1', 's', 0.42, 0], ['E2', 'soft', 0.32, 0.1], ['E3', 'soft', 0.16, -0.2], ['A3', 's', 0.07, 0.2], ['Cs5', 's', 0.03, -0.4], ['E5', 's', 0.02, 0.45], ['A5', 's', 0.01, 0]],
     } },
     mix: exMix,
     scale: lv => EX_SC[top(exMix(lv).g)] || 'dor',
@@ -622,7 +622,7 @@
     const spring = n < 4 ? cl(max(n === 1 ? 0.35 : 0, n === 2 ? 0.5 * lv('sgLily1') : 0)) : 0;
     const g = stack([['flame', flame], ['night', night], ['procession', procession], ['garden', garden], ['gazelle', gazelle], ['spring', spring]], n < 4 ? 'longing' : 'spring');
     const lp = 1400 * (1 + 0.6 * g.spring + 0.5 * g.gazelle + 0.4 * g.garden + 0.35 * g.procession + 0.2 * g.flame)
-      * (1 - 0.35 * g.night) * (1 - 0.2 * g.longing * cl(rain / 0.3)) * (1 - 0.15 * cl(lv('storm')));
+      * (1 - 0.35 * g.night) * (1 - 0.2 * (g.longing || 0) * cl(rain / 0.3)) * (1 - 0.15 * cl(lv('storm')));
     return { g, lp, drone: 1 + 0.25 * g.flame + 0.1 * g.night - 0.15 * g.spring, dlp: 1 - 0.15 * g.night };
   };
   const SG_SC = { longing: 'dor', gazelle: 'lyd', spring: 'maj', garden: 'ion', night: 'aeol', procession: 'mixo', flame: HYMN };

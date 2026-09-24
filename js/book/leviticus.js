@@ -47,7 +47,7 @@
   const CAMP0 = 0.445;
   const PILLAR_X = (X.tabL + X.tabR) / 2 + 0.006;
   const FORE = 0.28;          // 故事里的人站得稍靠前（画面更低、更大），不淹没在会众里，也不贴在白色的院帷上
-  const PRV = 0.2;            // 祭司们平常站的一排（比会众靠前）
+  const PRV = 0.14;           // 摩西、亚伦与祭司们站的一排（比会众靠前，比献祭的人靠后）
   const NEAR_TENTS = [
     { id: 'tL1', x: X.tentL1, size: 0.82 }, { id: 'tL2', x: X.tentL2, size: 0.76 }, { id: 'tMA', x: X.tentMA, size: 0.95, label: '摩西的帐棚' },
     { id: 'tR1', x: X.tentR1, size: 0.86 }, { id: 'tR2', x: X.tentR2, size: 0.8 }, { id: 'tR3', x: X.tentR3, size: 0.9 },
@@ -129,11 +129,11 @@
     return { robe: ROBE.aaron, accent: null, hair: 'cloth', glow: 0.35 };
   }
   function putAaron(x, o) {
-    return add('aaron', Object.assign({ label: '亚伦', sex: 'm', age: 'elder', x, facing: -1, prop: null, beard: true }, aaronLook(), o || {}));
+    return add('aaron', Object.assign({ label: '亚伦', sex: 'm', age: 'elder', x, facing: -1, prop: null, beard: true, v: PRV }, aaronLook(), o || {}));
   }
   function dressAaron(g) { S.garb = g; if (has('aaron')) add('aaron', aaronLook()); }
   function putMoses(x, o) {
-    return add('moses', Object.assign({ label: '摩西', sex: 'm', age: 'elder', x, facing: 1, robe: ROBE.moses, glow: 0.5, prop: 'staff' }, o || {}));
+    return add('moses', Object.assign({ label: '摩西', sex: 'm', age: 'elder', x, facing: 1, robe: ROBE.moses, glow: 0.5, prop: 'staff', v: PRV }, o || {}));
   }
   // 细麻布的内袍配上深一些的腰带与裹头巾，免得白衣隐没在白色的院帷前
   function sonLook(id) { return S.sons ? { robe: ROBE.linen, hair: 'cloth', accent: ROBE.linenAcc } : { robe: ROBE[id], hair: 'short', accent: null }; }
@@ -205,7 +205,8 @@
     SP.ring = rc;
     // 贴着地面的一道光（竖直方向：上淡、近地最亮、地下很快淡去）
     const bd = cnv(4, 64), bg = bd.getContext('2d'), bv = bg.createLinearGradient(0, 0, 0, 64);
-    bv.addColorStop(0, 'rgba(255,240,206,0)'); bv.addColorStop(0.55, 'rgba(255,240,206,0.45)'); bv.addColorStop(0.8, 'rgba(255,246,222,1)'); bv.addColorStop(1, 'rgba(255,240,206,0)');
+    bv.addColorStop(0, 'rgba(255,240,206,0)'); bv.addColorStop(0.45, 'rgba(255,238,200,0.22)'); bv.addColorStop(0.7, 'rgba(255,242,212,0.62)');
+    bv.addColorStop(0.82, 'rgba(255,248,226,0.95)'); bv.addColorStop(0.9, 'rgba(255,244,216,0.5)'); bv.addColorStop(1, 'rgba(255,240,206,0)');
     bg.fillStyle = bv; bg.fillRect(0, 0, 4, 64);
     SP.band = bd;
     return SP;
@@ -800,7 +801,7 @@
     const lx = litX() >= P.cx ? 1 : -1;
     // 夜里云淡下去，让火透出来
     const dim = 1 - 0.6 * nk;
-    const aLit = (0.42 + 0.32 * day) * dim, aSh = (0.44 + 0.3 * day) * dim;
+    const aLit = (0.36 + 0.26 * day) * dim, aSh = (0.46 + 0.3 * day) * dim;
     // 背光的一面
     for (let i = 0; i < PN; i++) {
       const ph = puffPh(i), [x, y, r] = puffAt(P, i, ph);
@@ -817,7 +818,7 @@
     for (let i = 0; i < PN; i++) {
       const ph = puffPh(i), [x, y, r] = puffAt(P, i, ph);
       const a = Math.min(1, ph * 10) * pillarFadeTop(ph);
-      spr(ctx, cs.lit, x + lx * r * 0.12, y - r * 0.08, r * 0.84, a * aLit);
+      spr(ctx, cs.lit, x + lx * r * 0.16, y - r * 0.1, r * 0.72, a * aLit);
     }
     // 香的烟云（16:13）：金色的香烟自帐幕中升起，遮掩施恩座
     if (inc > 0.01) for (let j = 0; j < 3; j++) smoke(ctx, G.x0 + L * (0.3 + 0.2 * j), G.top + 4 * s, inc, Hh * 0.35, L * 0.12, 7 + j * 3, SP.incense, 0.11, 0.55);
@@ -834,12 +835,12 @@
       const fl = 0.8 + 0.2 * Math.sin(W.t * 3.1 + i * 2.7);
       const a = Math.min(1, ph * 8) * pillarFadeTop(ph) * (1 - ph * 0.4);
       const r = w0 * (0.68 + 0.8 * ph);
-      spr(gl, SP.gold, cx + sw, y, r * 0.9, a * day * 0.1);
+      spr(gl, SP.gold, cx + sw, y, r * 0.8, a * day * 0.045);
       if (nk > 0.02) {
         spr(gl, SP.fireSoft, cx + sw, y, r, a * nk * 0.75 * fl);
         if (ph < 0.7) spr(gl, SP.white, cx + sw * 0.5, y, w0 * 0.35 * (1 + ph), a * nk * 0.4 * (0.85 + 0.15 * fl));
       }
-      if (g > 0.02) spr(gl, SP.gold, cx + sw, y, r * 1.05, a * g * (0.12 + 0.24 * nk) * fl);
+      if (g > 0.02) spr(gl, SP.gold, cx + sw, y, r * 1.05, a * g * (0.07 + 0.29 * nk) * fl);
     }
     if (nk > 0.02) spr(gl, SP.warm, cx, base - Hh * 0.12, w0 * 2, nk * 0.45);
     if (g > 0.02) spr(gl, SP.gold, cx, base - 6 * s, w0 * 2.4, g * (0.22 + 0.25 * nk));
@@ -855,26 +856,28 @@
     HB.w = W.w; HB.h = W.h;
     const sc = 0.5, s2 = LS(2), s1 = LS(1);
     const sp1 = W.landSpan ? W.landSpan(1) : null;
-    const rows = [[2, 0.36, 1.0, 78 * s2, 1], [1, sp1 ? sp1[0] / W.w + 0.02 : 0.5, 1.0, 44 * s1, 0.75]];
+    const rows = [[2, 0.36, 1.0, 54 * s2, 1], [1, sp1 ? sp1[0] / W.w + 0.02 : 0.5, 1.0, 32 * s1, 0.75]];
     let y0 = 1e9, y1 = -1e9;
     for (const r of rows) for (let i = 0; i <= 40; i++) { const xf = lerp(r[1], r[2], i / 40), y = gY(r[0], xf); y0 = Math.min(y0, y - r[3] * 0.8); y1 = Math.max(y1, y + r[3] * 0.2); }
     y0 = Math.floor(y0); y1 = Math.ceil(Math.min(W.h, y1));
     HB.y0 = y0; HB.hh = Math.max(4, y1 - y0);
-    const c = HB.c && HB.c.width === Math.ceil(W.w * sc) && HB.c.height === Math.ceil(HB.hh * sc) ? HB.c : cnv(Math.ceil(W.w * sc), Math.ceil(HB.hh * sc));
+    const cw = Math.ceil(W.w * sc), ch = Math.ceil(HB.hh * sc);
+    const c = HB.c && HB.c.width === cw && HB.c.height === ch ? HB.c : cnv(cw, ch);
     const g = c.getContext('2d');
-    g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, c.width, c.height);
-    g.setTransform(sc, 0, 0, sc, 0, -y0 * sc);
-    const step = 6;
+    g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, cw, ch);
+    g.globalCompositeOperation = 'lighter';
+    // 一个像素一列（离屏的像素），列与列不相叠，光带才是连续平滑的
     for (const r of rows) {
-      const xa = r[1] * W.w, xb = r[2] * W.w;
-      for (let x = xa; x < xb; x += step) {
-        const xf = (x + step / 2) / W.w, y = gY(r[0], xf);
-        const edge = smoothstep(xa, xa + 60, x) * (1 - smoothstep(xb - 20, xb + 10, x));
+      const xa = r[1] * W.w, xb = r[2] * W.w, bh = r[3] * sc;
+      for (let px = Math.floor(xa * sc); px < Math.min(cw, Math.ceil(xb * sc)); px++) {
+        const x = (px + 0.5) / sc, y = gY(r[0], x / W.w);
+        const edge = smoothstep(xa, xa + 70, x) * (1 - smoothstep(xb - 20, xb + 10, x));
+        if (edge <= 0.004) continue;
         g.globalAlpha = r[4] * edge;
-        g.drawImage(SP.band, x, y - r[3] * 0.8, step + 1, r[3]);
+        g.drawImage(SP.band, 0, 0, SP.band.width, SP.band.height, px, (y - y0) * sc - bh * 0.8, 1, bh);
       }
     }
-    g.globalAlpha = 1;
+    g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
     HB.c = c;
     return HB;
   }
@@ -998,7 +1001,7 @@
         // 有火从耶和华面前出来（9:24）：自云柱下部、会幕门前的荣光中出来，高高扬起，重重落在坛上
         const A = altarGeom(), P = pillarGeom();
         const x0 = P.cx - P.w0 * 0.3, y0 = P.base - 0.35 * P.Hh, x1 = A.x, y1 = A.top;
-        const cxp = A.x, cyp = y0 - 60 * s2;
+        const cxp = lerp(x0, x1, 0.82), cyp = y0 - 34 * s2;
         const head = smoothstep(0, 0.24, q), env = 1 - smoothstep(0.5, 1, q);
         spr(ctx, SP.gold, x0, y0, 70 * s2, env * 0.6 * smoothstep(0, 0.08, q));
         const N = 30;
@@ -1376,12 +1379,12 @@
     const c = C();
     c.clear({ fade: false });
     // 摩西站在院子的门前；亚伦和他儿子在东边、营与院门之间（民 3:38）；以利亚撒在坛旁供职
-    putMoses(X.gate + 0.018, { facing: 1, from: 'none' });
-    putAaron(X.gate + 0.042, { facing: 1, from: 'none' });
-    add('nadab', Object.assign({ label: '拿答', sex: 'm', age: 'adult', x: 0.527, facing: 1, glow: 0.2, v: PRV, from: 'none' }, sonLook('nadab')));
-    add('abihu', Object.assign({ label: '亚比户', sex: 'm', age: 'adult', x: 0.512, facing: 1, glow: 0.2, v: PRV, from: 'none' }, sonLook('abihu')));
-    add('eleazar', Object.assign({ label: '以利亚撒', sex: 'm', age: 'adult', x: X.altar + 0.026, facing: -1, glow: 0.25, v: 0.08, from: 'none' }, sonLook('eleazar')));
-    add('ithamar', Object.assign({ label: '以他玛', sex: 'm', age: 'adult', x: 0.54, facing: 1, glow: 0.2, v: PRV, from: 'none' }, sonLook('ithamar')));
+    putMoses(X.gate - 0.006, { facing: 1, from: 'none' });
+    putAaron(0.531, { facing: 1, from: 'none' });
+    add('nadab', Object.assign({ label: '拿答', sex: 'm', age: 'adult', x: 0.503, facing: 1, glow: 0.2, v: PRV, from: 'none' }, sonLook('nadab')));
+    add('abihu', Object.assign({ label: '亚比户', sex: 'm', age: 'adult', x: 0.489, facing: 1, glow: 0.2, v: PRV, from: 'none' }, sonLook('abihu')));
+    add('eleazar', Object.assign({ label: '以利亚撒', sex: 'm', age: 'adult', x: X.altar + 0.028, facing: -1, glow: 0.25, v: PRV, from: 'none' }, sonLook('eleazar')));
+    add('ithamar', Object.assign({ label: '以他玛', sex: 'm', age: 'adult', x: 0.517, facing: 1, glow: 0.2, v: PRV, from: 'none' }, sonLook('ithamar')));
     add('offerer', { label: '献祭的人', sex: 'm', age: 'adult', x: HOME.offerer, facing: 1, robe: ROBE.offerer, glow: 0.25, v: FORE, from: 'none' });
     add('woman', { label: '他的妻子', sex: 'f', age: 'adult', x: HOME.woman, facing: 1, robe: ROBE.woman, glow: 0.2, v: FORE, from: 'none' });
     c.crowd('campL', { n: 9, x0: CAMP0, x1: 0.54, layer: 2, label: '以色列人', from: 'none' });
@@ -1418,7 +1421,7 @@
           [4.2, () => pose('moses', 'point')],
           [5, b => {
             animal('bull', 'cow', HOME.offerer - 0.03, { label: '公牛', facing: 1, v: FORE, from: b.instant ? 'none' : 'fade' });
-            walk('offerer', X.gate + 0.022, { speed: 0.028 });
+            walk('offerer', X.gate + 0.036, { speed: 0.028 });
             U.safe('cast.follow', () => C().follow('bull', 'offerer', 0.034));
             sfx(b, 'cow');
           }],
@@ -1451,7 +1454,7 @@
           [2.4, b => {
             pose('offerer', 'stand');
             animal('shegoat', 'goat', HOME.offerer - 0.03, { label: '母山羊', facing: 1, v: FORE, from: b.instant ? 'none' : 'fade' });
-            walk('offerer', X.gate + 0.022, { speed: 0.028 });
+            walk('offerer', X.gate + 0.036, { speed: 0.028 });
             U.safe('cast.follow', () => C().follow('shegoat', 'offerer', 0.03));
             sfx(b, 'goat');
           }],
@@ -1490,8 +1493,7 @@
           // 在洗濯盆旁：摩西在左，亚伦和他四个儿子一字排开（靠前一排，衬着包金的板）
           [1, () => {
             walk('moses', X.laver - 0.03, { speed: 0.03 });
-            add('aaron', { v: FORE }); add('moses', { v: FORE });
-            PRIESTS.forEach((id, i) => { add(id, { v: FORE }); walk(id, X.laver + 0.02 + i * 0.021, { speed: 0.03 + i * 0.002 }); });
+            PRIESTS.forEach((id, i) => walk(id, X.laver + 0.02 + i * 0.021, { speed: 0.03 + i * 0.002 }));
           }],
           [8.3, b => {
             say(b, [{ text: '摩西带了亚伦和他儿子来，用水洗了他们。', ref: '利未记 8:6', hold: 5 }]);
@@ -1504,6 +1506,7 @@
           [11.4, b => {
             PRIESTS.forEach(id => pose(id, 'stand'));
             dressAaron(1); dressSons(true);
+            W.goTo(0.9, 15, b.instant);           // 日头渐渐落下：七天昼夜，七盏灯在夜里一盏一盏亮起
             if (!b.instant) PRIESTS.forEach(id => { const h = headOf(id, 0.5); if (h) fx().sparkle(h[0], h[1], 16, [255, 226, 160], 12, 'air'); });
             sfx(b, 'chime');
           }],
@@ -1511,7 +1514,6 @@
             say(b, [{ text: '又把膏油倒在亚伦的头上膏他，使他成圣。', ref: '利未记 8:12', hold: 5.5 }]);
             pose('aaron', 'bow'); pose('moses', 'raise');
             fl(b, { type: 'oil', dur: 4 });
-            W.goTo(0.9, 16, b.instant);           // 日头渐渐落下：七天昼夜
             sfx(b, 'harp');
           }],
           // 七天住在会幕门口：在门前坐成一排，彼此分开
@@ -1557,8 +1559,8 @@
           [3.6, () => { walk('aaron', X.tabL + 0.004, { speed: 0.045 }); walk('moses', X.tabL - 0.004, { speed: 0.05 }); }],
           [5.8, () => { rm('aaron'); rm('moses'); }],
           [7, b => {
-            putAaron(X.tabL + 0.004, { from: b.instant ? 'none' : 'fade', v: FORE });
-            putMoses(X.tabL - 0.004, { from: b.instant ? 'none' : 'fade', v: FORE });
+            putAaron(X.tabL + 0.004, { from: b.instant ? 'none' : 'fade' });
+            putMoses(X.tabL - 0.004, { from: b.instant ? 'none' : 'fade' });
             walk('aaron', X.tabL - 0.018, { speed: 0.02, pose: 'raise' });
             walk('moses', X.tabL - 0.04, { speed: 0.02, pose: 'raise' });
             W.set('levGlory', 1, b.instant);
@@ -1606,12 +1608,13 @@
             people('stand', -1); crowdPose('campM', 'stand');
             crowdMill('campL', true); crowdMill('campR', true);
             ['moses', 'aaron', 'eleazar', 'ithamar'].forEach(id => pose(id, 'stand'));
-            face('moses', 1); face('aaron', 1);
+            walk('aaron', X.gate + 0.03, { speed: 0.03 }); walk('moses', X.gate + 0.006, { speed: 0.03 });
+            walk('eleazar', X.tabL + 0.04, { speed: 0.03 }); walk('ithamar', X.tabL + 0.062, { speed: 0.03 });
             walk('nadab', X.altar + 0.014, { speed: 0.03 }); walk('abihu', X.altar - 0.012, { speed: 0.034 });
           }],
           // 各拿自己的香炉，盛上火，加上香
           [3.2, b => { fl(b, { type: 'censer', ids: ['nadab', 'abihu'], dur: 5.2 }); sfx(b, 'fire', { soft: true }); }],
-          [4, () => { walk('nadab', X.tabL - 0.004, { speed: 0.03, pose: 'carry' }); walk('abihu', X.tabL - 0.03, { speed: 0.03, pose: 'carry' }); }],
+          [4, () => { walk('nadab', X.tabL - 0.03, { speed: 0.03, pose: 'carry' }); walk('abihu', X.tabL - 0.054, { speed: 0.03, pose: 'carry' }); face('aaron', 1); face('eleazar', -1); face('ithamar', -1); }],
           [8.3, b => {
             fl(b, { type: 'strike', ids: ['nadab', 'abihu'], dur: 2.6 });
             const pts = [];
@@ -1625,7 +1628,7 @@
             if (!b.instant) ['nadab', 'abihu'].forEach(id => { const h = headOf(id, 0.2); if (h) fx().sparkle(h[0], h[1], 18, [255, 236, 200], 10, 'air'); });
             rm('nadab'); rm('abihu');
           }],
-          [11, () => { face('aaron', 1); pose('aaron', 'bow'); walk('moses', X.altar - 0.036, { speed: 0.025 }); }],
+          [11, () => { face('aaron', 1); pose('aaron', 'bow'); walk('moses', X.gate + 0.016, { speed: 0.02 }); }],
           [14.6, b => { face('moses', 1); halo(b, X.tabL, gY(2, X.tabL), M() * 0.6, 3); }],
           [21.6, b => {
             say(b, [{ text: '使你们可以将圣的、俗的，洁净的、不洁净的，分别出来；', ref: '利未记 10:10', hold: 5.5 }]);
@@ -1654,7 +1657,7 @@
             allPeople('gaze');
             sfx(b, 'chime');
           }],
-          [4, () => { allPeople('stand'); }],
+          [4, () => { allPeople('stand'); walk('eleazar', X.gate + 0.07, { speed: 0.03 }); walk('ithamar', X.altar + 0.036, { speed: 0.03 }); }],
           [7.2, b => {
             W.setPop('bird', 30, W.w * 0.3, W.h * 0.35, b.instant);
             if (!b.instant) for (let i = 0; i < 5; i++) fx().sparkle(W.w * (0.06 + i * 0.07), W.h * (0.7 + (i % 2) * 0.1), 10, [220, 240, 255], 20, 'seaNear');
@@ -1667,7 +1670,8 @@
             fl(b, { type: 'doves', dur: 8.5 });
           }],
           [15, b => say(b, [{ text: '她的力量若不够献一只羊羔，她就要取两只斑鸠或是两只雏鸽……<br>祭司要为她赎罪，她就洁净了。', ref: '利未记 12:8', hold: 6.5 }])],
-          [19.6, b => { face('mother', 1); pose('mother', 'bow'); add('ithamar', { v: FORE }); walk('ithamar', X.gate + 0.03, { speed: 0.03, pose: 'raise' }); face('ithamar', -1); sfx(b, 'dove'); }],
+          [17.6, () => { walk('ithamar', X.gate + 0.048, { speed: 0.03 }); }],
+          [19.6, b => { face('mother', 1); pose('mother', 'bow'); face('ithamar', -1); pose('ithamar', 'raise'); sfx(b, 'dove'); }],
           [21.6, () => { pose('mother', 'stand'); glow('mother', 0.45); walk('mother', X.tentL1 + 0.006, { speed: 0.03 }); }],
           // 独居营外：离开众人，坐在营外的坡上
           [22.4, b => {
@@ -1693,7 +1697,6 @@
           [0, b => {
             W.goTo(0.58, 24, b.instant);
             W.set('levHoly', 0.35);
-            add('eleazar', { v: 0.12 });
             walk('eleazar', X.leper + 0.026, { speed: 0.042 });
             pose('leper', 'stand'); face('leper', 1);
             fl(b, { type: 'campEdge', dur: 8 });
@@ -1716,7 +1719,6 @@
           }],
           [19.8, b => {
             say(b, [{ text: '「你们要这样使以色列人与他们的污秽隔绝，免得他们玷污我的帐幕，<br>就因自己的污秽死亡。」', ref: '利未记 15:31', hold: 6.5 }]);
-            add('eleazar', { v: 0.08 });
             halo(b, PILLAR_X, gY(2, PILLAR_X), M() * 0.55, 3);
           }],
         ]);
@@ -1737,12 +1739,10 @@
             W.set('levHoly', 0);
             dressAaron(2);
             if (!b.instant) { const h = headOf('aaron', 0.5); if (h) fx().sparkle(h[0], h[1], 16, [250, 248, 240], 12, 'air'); }
-            add('aaron', { v: FORE });
-            walk('aaron', X.gate + 0.05, { speed: 0.03 });
-            // 两只公山羊安置在会幕门口（16:7）：靠前一排，走在众人前面
-            animal('goatB', 'goat', X.gate + 0.028, { label: '归与耶和华的羊', facing: 1, v: 0.46, from: b.instant ? 'none' : 'fade', col: [206, 196, 180] });
-            animal('goatA', 'goat', X.gate + 0.002, { label: '归与阿撒泻勒的羊', facing: 1, v: 0.46, from: b.instant ? 'none' : 'fade', col: [66, 56, 50] });
-            add('sent', { label: '所派的人', sex: 'm', age: 'adult', x: X.gate - 0.022, facing: 1, robe: ROBE.sent, glow: 0.2, v: 0.46, from: b.instant ? 'none' : 'fade' });
+            walk('aaron', X.gate + 0.056, { speed: 0.03 });
+            // 两只公山羊安置在会幕门口（16:7）：最靠前的一排，走在众人前面
+            animal('goatA', 'goat', X.gate + 0.004, { label: '归与阿撒泻勒的羊', facing: 1, v: 0.46, from: b.instant ? 'none' : 'fade', col: [66, 56, 50] });
+            animal('goatB', 'goat', X.gate + 0.03, { label: '归与耶和华的羊', facing: 1, v: 0.46, from: b.instant ? 'none' : 'fade', col: [206, 196, 180] });
             people('kneel', 1);
             sfx(b, 'goat');
           }],
@@ -1751,16 +1751,15 @@
           // 归与耶和华的羊献为赎罪祭（16:9）；亚伦进入幔内，香的烟云遮掩施恩座（16:12–13）
           [4.2, b => {
             pose('aaron', 'stand');
-            add('eleazar', { v: 0.3 });
             walk('eleazar', X.gate + 0.05, { speed: 0.04 });
             walk('aaron', X.tabL + 0.004, { speed: 0.036 });
           }],
-          [5.6, () => { walk('eleazar', X.altar + 0.012, { speed: 0.03 }); U.safe('cast.follow', () => C().follow('goatB', 'eleazar', 0.03)); }],
+          [5.6, () => { walk('eleazar', X.altar + 0.016, { speed: 0.03 }); U.safe('cast.follow', () => C().follow('goatB', 'eleazar', 0.026)); }],
           [7.4, b => { rm('aaron'); W.set('levIncense', 1, b.instant); }],
           [8.6, b => { rm('goatB'); W.set('levFire', 1.3); pose('eleazar', 'raise'); sfx(b, 'fire'); }],
           [9.8, b => {
-            putAaron(X.tabL + 0.004, { from: b.instant ? 'none' : 'fade', v: FORE });
-            walk('aaron', X.gate + 0.014, { speed: 0.04 });
+            putAaron(X.tabL + 0.004, { from: b.instant ? 'none' : 'fade' });
+            walk('aaron', X.gate + 0.032, { speed: 0.04 });
             W.set('levIncense', 0);
             pose('eleazar', 'stand'); W.set('levFire', 1.05);
           }],
@@ -1771,6 +1770,9 @@
             CROWDS.forEach(g => crowdEach(g, m => { if (!m.dying) src.push(m); }));
             fl(b, { type: 'sins', src, dur: 4.5 });
             sfx(b, 'weep', { soft: true });
+          }],
+          [15, b => {
+            add('sent', { label: '所派的人', sex: 'm', age: 'adult', x: X.gate + 0.05, facing: 1, robe: ROBE.sent, glow: 0.2, v: 0.46, from: b.instant ? 'none' : 'fade' });
           }],
           [15.6, b => say(b, [{ text: '要把这羊放在旷野，这羊要担当他们一切的罪孽，带到无人之地。', ref: '利未记 16:22', hold: 6.5 }])],
           // 藉着所派之人的手，送到旷野去：走在众人前面，向西没入落日
@@ -1846,7 +1848,6 @@
         T(c, [
           [0, b => {
             W.goTo(0.93, 16, b.instant);
-            ['aaron', 'eleazar', 'ithamar'].forEach(id => add(id, { v: FORE }));
             walk('aaron', X.tabL - 0.014, { speed: 0.03 }); walk('eleazar', X.tabL - 0.036, { speed: 0.03 }); walk('ithamar', X.tabL - 0.058, { speed: 0.03 });
             walk('moses', X.gate + 0.02, { speed: 0.03 });
             fl(b, { type: 'crown', dur: 9 });
@@ -1871,8 +1872,8 @@
     {
       kind: 'cmd', utter: '你们要住在棚里七日', cmd: 'mkdir -p 棚/{1..7}  # 在耶和华面前欢乐七日', ref: '23:42',
       verse: [
-        { text: '「在你们的地收割庄稼，不可割尽田角，也不可拾取所遗落的；<br>要留给穷人和寄居的。我是耶和华你们的神。」', ref: '利未记 23:22', hold: 6.5 },
-        { text: '第一日要拿美好树上的果子和棕树上的枝子，与茂密树的枝条并河旁的柳枝，<br>在耶和华你们的神面前欢乐七日。', ref: '利未记 23:40', hold: 7.5 },
+        { text: '「在你们的地收割庄稼，不可割尽田角，也不可拾取所遗落的；<br>要留给穷人和寄居的。我是耶和华你们的神。」', ref: '利未记 23:22', hold: 6 },
+        { text: '第一日要拿美好树上的果子和棕树上的枝子，与茂密树的枝条并河旁的柳枝，<br>在耶和华你们的神面前欢乐七日。', ref: '利未记 23:40', hold: 7 },
       ],
       apply(c) {
         T(c, [
@@ -1889,11 +1890,11 @@
           [7, b => { W.set('levBooths', 1, b.instant); W.set('levGlean', 0); sfx(b, 'build'); sfx(b, 'wind', { soft: true }); }],
           [11, b => { people('raise'); sfx(b, 'crowd'); sfx(b, 'harp'); }],
           [14, b => {
-            say(b, [{ text: '你们要住在棚里七日；凡以色列家的人都要住在棚里，<br>好叫你们世世代代知道，我领以色列人出埃及地的时候曾使他们住在棚里。', ref: '利未记 23:42–43', hold: 7.5 }]);
+            say(b, [{ text: '你们要住在棚里七日；凡以色列家的人都要住在棚里，<br>好叫你们世世代代知道，我领以色列人出埃及地的时候曾使他们住在棚里。', ref: '利未记 23:42–43', hold: 7 }]);
           }],
           [15.5, () => { people('sit'); ['offerer', 'woman', 'leper', 'stranger'].forEach(id => pose(id, 'sit')); }],
           [22.6, b => {
-            say(b, [{ text: '「要吩咐以色列人，把那为点灯捣成的清橄榄油拿来给你，使灯常常点着。」', ref: '利未记 24:2', hold: 6 }]);
+            say(b, [{ text: '「要吩咐以色列人，把那为点灯捣成的清橄榄油拿来给你，使灯常常点着。」', ref: '利未记 24:2', hold: 5.5 }]);
             W.set('levLamp', 1, b.instant);
             walk('aaron', X.tabL - 0.006, { speed: 0.02, pose: 'carry' });
             sfx(b, 'chime');
@@ -1974,7 +1975,7 @@
             S.green = 1;
             W.set('bare', 0.22, b.instant); W.set('bloom', 0.9, b.instant); W.set('herbs', 1, b.instant); W.set('trees', 0.12, b.instant);
           }],
-          [6.4, b => { W.set('rain', 0, b.instant); W.set('storm', 0, b.instant); W.set('clouds', 0.4, b.instant); W.goTo(0.8, 17, b.instant); }],
+          [6.4, b => { W.set('rain', 0, b.instant); W.set('storm', 0, b.instant); W.set('clouds', 0.4, b.instant); W.goTo(0.772, 16, b.instant); }],
           [8, b => { W.set('levTents', 1, b.instant); W.set('levGlory', 0.85, b.instant); people('stand'); sfx(b, 'angel', { soft: true }); }],
           [11, () => { allPeople('gaze'); }],
           [15.4, b => {
