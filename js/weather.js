@@ -8,6 +8,7 @@
  *   W.set('hail', 0..1)    冰雹（出 9:23–24）：白色的雹粒夹在雨里，打在地上溅起
  *   W.set('gloom', 0..1)   遍地的黑暗（出 10:22）：整个世界沉入近乎全黑；各幕自己的光画在其上
  *   GS.weather.bolt()      立刻打一道闪电（西奈山、迦密山……）；瞬间重演时不打
+ *   W.weatherExclude = [[x0, x1], …]   画面比例的横向区间：雨、冰雹、遍地的黑暗在这里让开（歌珊地，出 9:26、10:23）；每幕开始时清空
  * ───────────────────────────────────────────────────────────── */
 (function (GS) {
   'use strict';
@@ -247,6 +248,17 @@
     }
   }
 
+  // 让开的区间（画面比例，已排序合并）
+  function spared() {
+    const r = W.weatherExclude;
+    if (!r || !r.length) return null;
+    const out = [];
+    for (const q of r) if (q && isFinite(q[0]) && isFinite(q[1])) out.push([Math.min(q[0], q[1]), Math.max(q[0], q[1])]);
+    out.sort((a, b) => a[0] - b[0]);
+    return out.length ? out : null;
+  }
+  const inSpared = (sp, x) => { if (!sp) return false; const f = x / W.w; for (const q of sp) if (f >= q[0] && f <= q[1]) return true; return false; };
+
   // ── 雨与冰雹（'air' 层：在一切之前）─────────────────────────
   function drawRain(ctx) {
     const r = W.lv.rain, hl = W.lv.hail;
@@ -254,6 +266,7 @@
     const q = W.quality || 1, u = uu();
     const slant = 0.16 + 0.3 * W.lv.gale + 0.1 * (W.wind || 0);
     const day = W.daylight;
+    const sp = spared();
     if (r >= 0.01) {
       const col = U.mixRGB([110, 122, 150], [206, 214, 228], day);
       for (let layer = 0; layer < 2; layer++) {
@@ -266,6 +279,7 @@
           const yy = hy * H + S.clock * sp * hs;
           const y = (yy % H) - len;
           const x = ((hx * W.w * 1.3 + slant * yy) % (W.w * 1.3)) - W.w * 0.15;
+          if (sp && inSpared(sp, x)) continue;
           ctx.moveTo(x, y); ctx.lineTo(x + slant * len, y + len);
         }
         ctx.strokeStyle = rgba(col, (layer ? 0.3 : 0.2) * r * (0.6 + 0.4 * day) + 0.25 * (W.flash || 0));
@@ -283,6 +297,7 @@
         const yy = hy * H + S.clock * sp * hs;
         const y = (yy % H) - 5;
         const x = ((hx * W.w * 1.2 + slant * 0.5 * yy) % (W.w * 1.2)) - W.w * 0.1;
+        if (sp && inSpared(sp, x)) continue;
         const rr = (1.1 + 1.3 * hsh(i * 4.1)) * u;
         ctx.moveTo(x + rr, y); ctx.arc(x, y, rr, 0, TAU);
       }
@@ -294,7 +309,17 @@
   function drawGloom(ctx) {
     const g = W.lv.gloom;
     if (g < 0.005) return;
-    ctx.fillStyle = U.rgba(2, 2, 5, clamp(0.94 * g, 0, 0.97));
+    const a = clamp(0.94 * g, 0, 0.97), sp = spared();
+    if (!sp) { ctx.fillStyle = U.rgba(2, 2, 5, a); ctx.fillRect(-20, -20, W.w + 40, W.h + 40); return; }
+    // 让开的区间里有光（「惟有以色列人家中都有亮光」）：边缘柔和地过渡（沿横向取样，区间贴边、相近都不出错）
+    const gr = ctx.createLinearGradient(0, 0, W.w, 0), soft = 0.035, N = 96;
+    for (let i = 0; i <= N; i++) {
+      const f = i / N;
+      let d = 1;
+      for (const q of sp) d = Math.min(d, f < q[0] ? q[0] - f : f > q[1] ? f - q[1] : 0);
+      gr.addColorStop(f, U.rgba(2, 2, 5, a * Math.min(1, d / soft)));
+    }
+    ctx.fillStyle = gr;
     ctx.fillRect(-20, -20, W.w + 40, W.h + 40);
   }
 

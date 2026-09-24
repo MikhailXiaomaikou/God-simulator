@@ -10,7 +10,7 @@
  *   GS.cast.add(id, { label, sex:'m'|'f', age:'adult'|'elder'|'child'|'baby', layer: 2 近 | 1 中 | 0 远, x: 0..1,
  *                     facing: 1|-1, pose, robe:[r,g,b], glow, from:'dust'|'fade'|'light'|'none', speed, scale,
  *                     // 以下为新增（皆可省略）
- *                     prop: 'staff'|'bundle'|'wood'|'torch'|'jar'|'coat'|'sword'|null,   // 所携之物（长者默认持杖）
+ *                     prop: 'staff'|'spear'|'blade'|'bundle'|'wood'|'torch'|'jar'|'coat'|'sword'|null,   // 所携之物（长者默认持杖；sword 是基路伯发火焰的剑，blade 是寻常的刀剑）
  *                     carry: 'baby'|'lamb'|null,     // 怀中抱着婴孩 / 羊羔
  *                     angel: true, wings: true,      // 天使：淡金、发光、微微离地（创世记的访客形如人，无翼）；wings → 基路伯
  *                     hair: 'veil'|'long'|'cloth'|'short'|'none', beard: bool, accent:[r,g,b],   // 头巾/长发/包头；默认：女子蒙头巾、女孩长发、长者包头有须
@@ -140,11 +140,14 @@
     donkey: { cn: '驴', type: 'q', bl: 22, bh: 10.5, leg: 11.5, lw: [2.6, 1.7, 1.5], neck: 8.6, nw: [6.2, 3.5], up: 0.78, hd: 1.35,
       hl: 8.6, hh: 4.2, muz: 0.9, ear: 4.6, hmane: true, tail: 'tuft', chest: 0.9, rump: 0.95,
       stride: 9, col: [124, 112, 100], alt: [96, 84, 74], col2: [52, 45, 40], acc: [214, 204, 190], top: 29, len: 34 },
+    horse: { cn: '马', type: 'q', bl: 26, bh: 11.5, leg: 15, lw: [2.9, 1.8, 1.55], neck: 11, nw: [6.8, 3.7], up: 0.98, hd: 1.3,
+      hl: 9.4, hh: 4.1, muz: 0.85, ear: 2.3, hmane: true, tail: 'tuft', chest: 0.98, rump: 1.02,
+      stride: 12, col: [92, 66, 46], alt: [44, 34, 28], col2: [30, 24, 20], acc: [226, 216, 200], top: 37, len: 40 },
     camel: { cn: '骆驼', type: 'c', bl: 30, bh: 12, leg: 21, lw: [3.1, 2.1, 3.0], neck: 18, up: 0.95, hl: 7.4, hh: 3.5,
       stride: 13, col: [182, 146, 104], alt: [150, 116, 82], col2: [110, 84, 58], acc: [210, 186, 150], top: 40, len: 46 },
     wagon: { cn: '车', type: 'w', bl: 30, bh: 8, leg: 7.5, stride: 7.5, col: [118, 88, 60], col2: [66, 50, 36], acc: [176, 146, 104], top: 22, len: 50 },
   };
-  const ALIAS = { ox: 'cow', cattle: 'cow', calf: 'cow', bull: 'cow', ass: 'donkey', lamb: 'sheep', ewe: 'sheep', kid: 'goat', cart: 'wagon', dromedary: 'camel' };
+  const ALIAS = { ox: 'cow', cattle: 'cow', calf: 'cow', bull: 'cow', ass: 'donkey', stallion: 'horse', mare: 'horse', steed: 'horse', lamb: 'sheep', ewe: 'sheep', kid: 'goat', cart: 'wagon', dromedary: 'camel' };
   const SMALL = { calf: 0.68, lamb: 0.7, kid: 0.72 };
   const ACN = { lamb: '羊羔', kid: '山羊羔', calf: '牛犊', ox: '牛', ass: '驴', cart: '车' };
   // 吃草时的颈角（口鼻几乎触地），与 beasts.js 同法求出
@@ -1083,7 +1086,8 @@
       Q[FUA] = lerp(Q[FUA], 0.34, k); Q[FFA] = lerp(Q[FFA], 1.8, k);
     } else if (p.prop && armFree && up > 0.5) {
       const s = g > 0.01 ? Math.sin(p.ph) : 0;
-      if (p.prop === 'staff') { Q[NUA] = 0.34 + 0.1 * s * g; Q[NFA] = 0.62 + 0.06 * s * g; }
+      if (p.prop === 'staff' || p.prop === 'spear') { Q[NUA] = 0.34 + 0.1 * s * g; Q[NFA] = 0.62 + 0.06 * s * g; }
+      else if (p.prop === 'blade') { Q[NUA] = 0.42 + 0.06 * s * g; Q[NFA] = 1.0; }
       else if (p.prop === 'torch') { Q[NUA] = 0.95; Q[NFA] = 1.95; }
       else if (p.prop === 'sword') { Q[NUA] = 2.2; Q[NFA] = 2.6; }
     }
@@ -1270,7 +1274,7 @@
     if (p.wings) { op('wing'); wing(p, sx, sy, ux, uy, fx, fy, 0.08); }
     // ── 手中之物 ──
     P_FLAME = null; P_SWORD = null;
-    const handBusy = p.carry && (p.prop === 'staff' || p.prop === 'torch' || p.prop === 'sword');
+    const handBusy = p.carry && (p.prop === 'staff' || p.prop === 'spear' || p.prop === 'blade' || p.prop === 'torch' || p.prop === 'sword');
     if (p.prop && !(backLoad && upright > 0.5) && !handBusy) {
       op('prop');
       handProp(p, Q, A, upright, grounded, jarOn, sx, sy, ux, uy, fx, fy);
@@ -1321,12 +1325,14 @@
   function handProp(p, Q, A, upright, grounded, jarOn, sx, sy, ux, uy, fx, fy) {
     const k = p.prop, gY = Q[HIP];          // 地面在局部坐标中的 y（直立时）
     const hx = HN[0], hy = HN[1];
-    if (k === 'staff') {
+    if (k === 'staff' || k === 'spear') {
       if (upright > 0.8 && p.pose !== 'raise' && p.pose !== 'pray' && p.pose !== 'wrestle' && p.pose !== 'embrace') {
         const bx = hx + 0.05, by = gY;
         let dx = hx - bx, dy = hy - by; const L = Math.hypot(dx, dy) || 1; dx /= L; dy /= L;
-        seg(bx, by, bx + dx * 1.08, by + dy * 1.08, 0.02, 0.024);
-        if (p.age === 'elder') ell(bx + dx * 1.08, by + dy * 1.08, 0.016, 0.016, 0);
+        const len = k === 'spear' ? 1.2 : 1.08;
+        seg(bx, by, bx + dx * len, by + dy * len, 0.02, 0.022);
+        if (k === 'spear') seg(bx + dx * len, by + dy * len, bx + dx * (len + 0.1), by + dy * (len + 0.1), 0.032, 0.002);
+        else if (p.age === 'elder') ell(bx + dx * 1.08, by + dy * 1.08, 0.016, 0.016, 0);
       } else {
         // 放在身旁的地上
         if (upright > 0.5) seg(-0.5, gY - 0.006, 0.55, gY - 0.012, 0.018, 0.018);
@@ -1338,6 +1344,10 @@
           seg(ax, ay, IX, IY, 0.018, 0.018);
         }
       }
+    } else if (k === 'blade') {
+      // 寻常的刀剑：刃朝前下，护手一横
+      seg(hx - 0.01, hy - 0.015, hx + 0.12, hy + 0.23, 0.016, 0.004);
+      seg(hx - 0.04, hy + 0.028, hx + 0.03, hy - 0.022, 0.011, 0.011);
     } else if (k === 'torch') {
       const tx = hx + 0.03, ty = hy - 0.19;
       seg(hx - 0.005, hy + 0.03, tx, ty, 0.024, 0.03);
@@ -1439,7 +1449,7 @@
     if (p.wings && !p.angel) { setCol('wing', ANGEL_WING, depth, ex + 0.1); setCol('wingF', ANGEL_WING, depth, ex, 0.8); }
     if (styleOf(p) === 'long' || (!lo && h >= 24)) setCol('hair', p.age === 'elder' ? GREY : HAIR, depth, ex, p.age === 'elder' ? 0.85 : 1);
     if (pk === 'coat' && !p.angel) setCol('arm', COAT[1], depth, ex); else aliasCol('arm', 'robe');
-    if (pk) setCol('prop', pk === 'jar' ? CLAY : pk === 'bundle' ? CLOTH : pk === 'sword' ? [200, 190, 170] : pk === 'wood' ? FIREWOOD : WOOD, depth, ex);
+    if (pk) setCol('prop', pk === 'jar' ? CLAY : pk === 'bundle' ? CLOTH : pk === 'sword' ? [200, 190, 170] : pk === 'blade' ? [176, 178, 180] : pk === 'wood' ? FIREWOOD : WOOD, depth, ex);
     if (p.carry) setCol('baby', p.carry === 'lamb' ? LAMB : SWADDLE, depth, ex + 0.05);
     p._colc = saveCols(p._colc, PKEYS, ex, depth);
     }
@@ -1544,7 +1554,7 @@
     if (p.holdW > 0.01 && o) {
       const hm = (h + o._h) * 0.5, half = Math.abs(o._x - p._x) * 0.5, R = hm * 0.31;
       const tx = (p._x + o._x) / 2, ty = (p._y + o._y) / 2 - hm * 0.77 + Math.sqrt(Math.max(0, R * R - half * half)) * 0.95;
-      const useFar = p.prop === 'staff' || p.prop === 'torch' || p.prop === 'sword';
+      const useFar = p.prop === 'staff' || p.prop === 'spear' || p.prop === 'blade' || p.prop === 'torch' || p.prop === 'sword';
       if (useFar) { p._tF = [tx, ty]; wF = p.holdW; } else { p._tN = [tx, ty]; wN = p.holdW; }
     }
     // 相拥 / 角力

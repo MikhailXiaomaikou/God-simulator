@@ -250,7 +250,9 @@
   W.shade = function (rgb, depth, extraLight) {
     // 七日之后的夜里，近处的地稍亮一些：故事里的人要看得见
     const floor = 0.10 + (W.act >= 1 ? 0.06 * (1 - clamp(depth || 0, 0, 1)) : 0);
-    const lit = clamp(floor + (1 - floor) * W.daylight + (extraLight || 0), 0, 1.2);
+    // 乌云压下时，一切被照亮的也暗下来
+    const sd = 1 - 0.3 * clamp(W.lv.storm || 0, 0, 1);
+    const lit = clamp(floor + (1 - floor) * W.daylight * sd + (extraLight || 0), 0, 1.2);
     const a = W.ambient;
     let r = rgb[0] * lit * a[0] / 255, g = rgb[1] * lit * a[1] / 255, b = rgb[2] * lit * a[2] / 255;
     const hz = (depth || 0) * 0.78;
