@@ -394,7 +394,9 @@
     const bk = a.book || a.numeral;
     // 幕名与书名相同（诗篇、雅歌）或只是书名的开头（历代志·历代）时只写一次
     const same = !a.title || String(bk).indexOf(a.title) === 0;
-    const html = '<b>' + bk + '</b>' + (same ? '' : a.title) + '<span>' + (a.sub || '') + '</span>';
+    // 副题按「 · 」分段，段内不折行（手机上不会把「约翰福音」折成两行）
+    const sub = String(a.sub || '').split(' · ').map(t => '<em>' + t + '</em>').join(' · ');
+    const html = '<b>' + bk + '</b>' + (same ? '' : a.title) + '<span>' + sub + '</span>';
     if (el.act.dataset.id !== a.id) { el.act.innerHTML = html; el.act.dataset.id = a.id; }
     el.act.classList.add('show');
   }

@@ -31,7 +31,7 @@
  *   GS.cast.attach(id, fn|null)        // 每帧由 fn() → [px, py] 给出脚下的位置（站在方舟上、梯子上……）
  *   GS.cast.light(key, x, y, r, a, rgb) // 局部的光（灯、火、火把）：每帧登记一次；半径 r 以内的人与牲畜被照亮（像素坐标；a 0..1）
  *
- *   pose：'stand' 'walk' 'run' 'kneel' 'bow' 'lie' 'sit' 'seat'（坐在座上） 'raise'（举手） 'pray' 'carry' 'point'
+ *   pose：'stand' 'walk' 'run' 'kneel' 'bow' 'lie' 'sit' 'seat'（坐在座上） 'sleep'（坐着睡着） 'raise'（举手） 'pray' 'carry' 'point'
  *         'wrestle'（二人相对，会伸手角力） 'fall'（仆倒、脸伏于地） 'weep'（低头、掩面、双肩抽动）
  *         'embrace'（向前相拥） 'gaze'（仰望） 'ride'（由 ride() 自动设定）
  *   姿势之间平滑过渡（躺下经由坐、俯伏经由跪）；行走的步伐与移动的距离相合；站着时有细微的呼吸；
@@ -112,6 +112,8 @@
     lie:     PV(0.07, 0, -1.5708, 0.05, 0.06, -0.04, 0.02, 0, 0.12, 0.3, 0.08, 0.2, 0),
     sit:     PV(0.126, -0.06, 0, 0.1, 2.0, 0.35, 1.85, 0.3, 0.95, 1.45, 0.85, 1.35, 0),
     seat:    PV(0.27, 0.02, 0, 0.05, 1.5, 0.02, 1.42, -0.05, 0.5, 1.2, 0.4, 1.1, 0),
+    // 坐着睡着了：头垂下，身子微微前倾，两臂搭在膝上（客西马尼的门徒）
+    sleep:   PV(0.126, 0.36, 0, 0.78, 2.0, 0.35, 1.85, 0.3, 0.55, 1.3, 0.48, 1.22, 0),
     raise:   PV(0.49, -0.04, 0, -0.35, 0.05, 0.01, -0.06, -0.03, 2.75, 2.95, 2.6, 2.8, 1),
     gaze:    PV(0.49, -0.05, 0, -0.5, 0.05, 0.01, -0.06, -0.03, 0.08, 0.14, -0.1, -0.03, 1),
     carry:   PV(0.49, 0.04, 0, 0.1, 0.05, 0.01, -0.06, -0.03, 0.55, 1.5, 0.45, 1.4, 1),
@@ -706,8 +708,8 @@
       const was = p.pose;
       p.via = null;
       if (!W.replaying) {
-        if (LOW[pose] && !LOW[was] && was !== 'sit' && was !== 'kneel' && was !== 'pray' && was !== 'seat') p.via = pose === 'fall' ? 'kneel' : 'sit';
-        else if (LOW[was] && !LOW[pose] && pose !== 'sit' && pose !== 'kneel' && pose !== 'pray') p.via = was === 'fall' ? 'kneel' : 'sit';
+        if (LOW[pose] && !LOW[was] && was !== 'sit' && was !== 'sleep' && was !== 'kneel' && was !== 'pray' && was !== 'seat') p.via = pose === 'fall' ? 'kneel' : 'sit';
+        else if (LOW[was] && !LOW[pose] && pose !== 'sit' && pose !== 'sleep' && pose !== 'kneel' && pose !== 'pray') p.via = was === 'fall' ? 'kneel' : 'sit';
       }
     }
     p.prevPose = p.pose; p.pose = pose; p.poseT = W.replaying ? 1 : 0;
@@ -718,7 +720,7 @@
   }
   function animalPose(ps) {
     if (ps === 'walk' || ps === 'run' || ps === 'lie' || ps === 'graze' || ps === 'stand') return ps;
-    if (ps === 'sit' || ps === 'kneel' || ps === 'fall' || ps === 'pray') return 'lie';
+    if (ps === 'sit' || ps === 'sleep' || ps === 'kneel' || ps === 'fall' || ps === 'pray') return 'lie';
     if (ps === 'bow') return 'graze';
     return 'stand';
   }
@@ -1952,7 +1954,7 @@
       if (e.isAnimal) { w = e.M.len * e._h * (0.3 + 0.12 * e.lie); hh = 1.6 * e._h; }
       else {
         const q = e.pose;
-        w = e._h * (LOW[q] ? 0.5 : q === 'sit' || q === 'kneel' || q === 'pray' || q === 'seat' ? 0.26 : 0.17);
+        w = e._h * (LOW[q] ? 0.5 : q === 'sit' || q === 'sleep' || q === 'kneel' || q === 'pray' || q === 'seat' ? 0.26 : 0.17);
         hh = e._h * 0.04;
         if (LOW[q]) ox = (q === 'fall' ? 0.12 : -0.12) * e._h * (e.fd >= 0 ? 1 : -1);
       }
@@ -2029,7 +2031,7 @@
       if (p._vis) { px = p._x; foot = p._seat ? p._seat[1] + p._h * 0.3 : p._y; }
       else { px = p.nx * W.w; foot = p.ny != null ? p.ny * W.h : footY(p); }
       if (p.isAnimal) hgt = p.M.top * (p._vis ? p._h : scaleOf(p)) * (1 - 0.4 * (p.lie || 0));
-      else { const h = p._vis ? p._h : scaleOf(p); hgt = LOW[p.pose] ? h * 0.2 : p.pose === 'sit' || p.pose === 'kneel' || p.pose === 'pray' ? h * 0.7 : h * 0.95; if (p._seat) hgt = h * 0.75; }
+      else { const h = p._vis ? p._h : scaleOf(p); hgt = LOW[p.pose] ? h * 0.2 : p.pose === 'sit' || p.pose === 'sleep' || p.pose === 'kneel' || p.pose === 'pray' ? h * 0.7 : h * 0.95; if (p._seat) hgt = h * 0.75; }
       const py = foot - hgt * 0.5;
       const d = Math.hypot(px - x, py - y);
       if (d < r && (!best || d < best.d)) best = { label: p.label, x: px, y: foot - hgt, d };

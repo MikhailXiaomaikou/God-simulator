@@ -1313,15 +1313,27 @@
     }
     if (call > 0.003) {
       // 「来！」：每个珍珠门都放出光来，一圈一圈向外（约两秒一圈）
-      for (const q of G.gates) glowAt(SP.white, q.x, q.y - q.h * 0.5, q.w * 3.5, 0.55 * call * (0.82 + 0.18 * Math.sin(W.t * 2 + q.x)));
+      for (const q of G.gates) {
+        const pl = call * (0.82 + 0.18 * Math.sin(W.t * 2 + q.x));
+        glowAt(SP.gold, q.x, q.y - q.h * 0.45, q.w * 2.3, 0.4 * pl, 1.1);       // 门里一团金光（墙不被洗白，门的形状仍看得见）
+        glowAt(SP.white, q.x, q.y - q.h * 0.5, q.w * 0.9, 0.32 * pl, 1.4);
+        // 门前的一条光路：自门口下到山坡、光原，一直到众人脚前（「来！」）
+        const tx = q.x + (q.x - G.cx) * 0.9, g2 = gY(2, clamp(tx / W.w, 0, 1)), hw = q.w * 0.42, hw2 = PH(2) * 0.9;
+        const lg = ctx.createLinearGradient(0, q.y, 0, g2);
+        lg.addColorStop(0, 'rgba(255,238,196,' + (0.34 * pl).toFixed(3) + ')'); lg.addColorStop(1, 'rgba(255,238,196,0)');
+        ctx.fillStyle = lg; ctx.globalAlpha = 1;
+        ctx.beginPath(); ctx.moveTo(q.x - hw, q.y); ctx.lineTo(q.x + hw, q.y); ctx.lineTo(tx + hw2, g2); ctx.lineTo(tx - hw2, g2); ctx.closePath(); ctx.fill();
+      }
       const pk = sm(0.5, 0.85, call);
       if (pk > 0.01) {
-        ctx.strokeStyle = 'rgb(255,248,226)';
         G.gates.forEach((q, i) => {
-          const f = U.fract(W.t / 2 + i * 0.17), r = q.w * (0.7 + 5.2 * f);
-          ctx.globalAlpha = clamp(0.62 * pk * (1 - f) * (1 - f), 0, 1);
-          ctx.lineWidth = Math.max(1, (2.4 - 1.4 * f) * SU());
-          ctx.beginPath(); ctx.ellipse(q.x, q.y - q.h * 0.5, r, r * 0.78, 0, 0, TAU); ctx.stroke();
+          const f = U.fract(W.t / 2 + i * 0.17), r = q.w * (0.8 + 5.4 * f);
+          for (const [lw, al, c] of [[4.5, 0.22, 'rgb(255,214,140)'], [1.8, 0.7, 'rgb(255,250,232)']]) {
+            ctx.strokeStyle = c;
+            ctx.globalAlpha = clamp(al * pk * (1 - f) * (1 - f), 0, 1);
+            ctx.lineWidth = Math.max(1, lw * (1 - 0.5 * f) * SU());
+            ctx.beginPath(); ctx.ellipse(q.x, q.y - q.h * 0.5, r, r * 0.78, 0, 0, TAU); ctx.stroke();
+          }
         });
       }
     }

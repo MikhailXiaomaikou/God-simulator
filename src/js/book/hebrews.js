@@ -116,7 +116,7 @@
   // ── 位置（桌面的画面宽度比例）；竖屏经 PX 收拢 ─────────────────
   const XL = {
     p1: 0.468, p2: 0.497, p3: 0.527, p4: 0.556, p5: 0.585, p6: 0.612,
-    jesus: 0.655, jmid: 0.572, asc: 0.668, oil: 0.535,
+    jesus: 0.655, jmid: 0.545, asc: 0.668, oil: 0.535,
     tab: 0.8, table: 0.548, start: 0.462, goal: 0.842, angA: 0.585, angB: 0.735,
     abr0: 0.985, abr1: 0.745, tent0: 0.7, tent1: 0.765, tent2: 0.83,
   };
@@ -715,13 +715,14 @@
     if (k < 0.005 || !SP || !has('jesus')) return;
     const f = fig('jesus');
     if (!f || f.alpha < 0.02) return;
-    const s = LS(2), h = headOf('jesus', 0.15), day = W.daylight;
+    const s = LS(2), h = headOf('jesus', 0.12), day = W.daylight;
     ctx.globalCompositeOperation = 'source-over';
-    glowE(ctx, SP.chill, h[0], h[1] - 10 * s, 92 * s, 58 * s, k * (0.5 + 0.2 * day));
-    glowE(ctx, SP.soot, h[0], h[1] - 6 * s, 54 * s, 34 * s, k * 0.55);
-    for (let i = 0; i < 7; i++) {
-      const a = i / 7 * TAU + W.t * 0.12, rr = (34 + 10 * Math.sin(W.t * 0.5 + i)) * s * (1.4 - 0.4 * k);
-      glowE(ctx, SP.chill, h[0] + Math.cos(a) * rr, h[1] - 8 * s + Math.sin(a) * rr * 0.45, 26 * s, 18 * s, k * 0.35);
+    // 冷影合拢：一圈冷灰的雾围着他、罩着他；中间不全黑（仍看得出他俯伏在地）
+    glowE(ctx, SP.chill, h[0], h[1] - 12 * s, 110 * s, 64 * s, k * (0.55 + 0.2 * day));
+    glowE(ctx, SP.soot, h[0], h[1] - 8 * s, 62 * s, 36 * s, k * 0.32);
+    for (let i = 0; i < 9; i++) {
+      const a = i / 9 * TAU + W.t * 0.12, rr = (40 + 10 * Math.sin(W.t * 0.5 + i)) * s * (1.5 - 0.5 * k);
+      glowE(ctx, i % 2 ? SP.soot : SP.chill, h[0] + Math.cos(a) * rr, h[1] - 10 * s + Math.sin(a) * rr * 0.42, 28 * s, 19 * s, k * (i % 2 ? 0.3 : 0.45));
     }
     ctx.globalAlpha = 1;
   }
@@ -2410,7 +2411,8 @@
             const ax = angelX();
             fly('angelA', ax[0], 0.12, { dur: 2.4 }); fly('angelB', ax[1], 0.1, { dur: 2.4 });
           }],
-          [0.8, () => walk('jesus', X.jmid, { speed: 0.032 })],
+          // 他走到他们中间，站在众人前面（看得见他）
+          [0.8, () => { walk('jesus', X.jmid, { speed: 0.032 }); sink('jesus', pv(0.56)); }],
           [2.6, () => { rm('angelA'); rm('angelB'); }],
           [3.2, () => { face('p4', 1); face('p5', -1); face('p6', 1); face('p3', 1); pose('p2', 'sit'); face('p2', 1); }],
           [4.2, b => { face('jesus', -1); pose('jesus', 'raise'); sfx(b, 'harp', { soft: true }); }],
@@ -2418,7 +2420,7 @@
           // 为人人尝了死味：他俯伏在地，冷影合拢在他身上，他的光低下去，几乎熄灭
           [9.4, b => {
             pose('jesus', 'fall'); glow('jesus', 0.04); lv('hbRadiance', 0, b); lv('hbDeath', 1, b);
-            W.set('gloom', 0.6, inst(b));
+            W.set('gloom', 0.5, inst(b));
             sfx(b, 'wind', { soft: true, low: true });
           }],
           // 又站起来：光与光圈把冷影赶散
@@ -2492,7 +2494,7 @@
       apply(c) {
         layout();
         T(c, [
-          [0, b => { W.goTo(0.44, 10, inst(b)); W.set('moon', 0, inst(b)); lv('hbRest', 0, b); walk('jesus', X.asc, { speed: 0.03 }); each(id => pose(id, 'stand')); }],
+          [0, b => { W.goTo(0.44, 10, inst(b)); W.set('moon', 0, inst(b)); lv('hbRest', 0, b); walk('jesus', X.asc, { speed: 0.03 }); sink('jesus', pv(0.1)); each(id => pose(id, 'stand')); }],
           [3.6, b => { face('jesus', -1); pose('jesus', 'raise'); peopleFace('jesus'); lv('hbCloud', 1, b); sfx(b, 'harp', { soft: true }); }],
           // 升入高天：一朵光明的云把他接去
           [5, b => {
