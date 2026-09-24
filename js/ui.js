@@ -29,7 +29,7 @@
   }
 
   // ── 神谕：按住时逐字浮现 ────────────────────────────────────
-  let utterKind = '', utterChars = [];
+  let utterKind = '', utterChars = [], utterHold = 0;
   const PUNCT = /[，。、；：！？「」『』（）…—,.;:!?]/;
   // 每个字带一点手写的随性：微斜、微高低、微大小，言说时轻轻浮动
   function utterBegin(text, tint, kind) {
@@ -57,6 +57,9 @@
     const longest = segN.reduce((m, g) => Math.max(m, g.filter(x => x.indexOf(' pu"') < 0).length), 0);
     el.utter.style.fontSize = longest > 7 ? 'min(clamp(30px, 5.4vw, 66px), ' + (88 / (longest * 1.14)).toFixed(2) + 'vw)' : '';
     utterChars = el.utter.querySelectorAll('.ch');
+    // 最后一个字（不算标点）留到说满时才显出；只有一两个字的话语不留
+    utterHold = utterChars.length;
+    if (utterChars.length > 2) for (let i = utterChars.length - 1; i >= 0; i--) if (!utterChars[i].classList.contains('pu')) { utterHold = i; break; }
     el.utter.style.transition = 'opacity 0.3s ease';
     el.utter.style.opacity = '1';
     el.utter.style.transform = '';
@@ -69,8 +72,9 @@
     if (utterState !== 'speaking') return utterShown;
     const chars = utterChars;
     // 「甚好」：先看，后说——前半段只是凝视，话语在后半段才浮现
-    const f = utterKind === 'behold' ? Math.max(0, (charge - 0.45) / 0.4) : charge / 0.85;
-    const n = Math.min(chars.length, Math.ceil(f * chars.length));
+    // 末一字要到快说满时才显出：字都显出了，话语也就成了——免得人看全了字就松手
+    const f = utterKind === 'behold' ? Math.max(0, (charge - 0.45) / 0.52) : charge / 0.97;
+    const n = charge >= 1 ? chars.length : Math.min(utterHold, Math.ceil(f * chars.length));
     for (let i = utterShown; i < n; i++) chars[i].classList.add('on');
     if (n > utterShown) utterShown = n;
     el.utter.style.transform = 'scale(' + (0.97 + 0.05 * charge).toFixed(4) + ')';
@@ -382,8 +386,9 @@
     if (!a) { el.act.classList.remove('show'); return; }
     showDays(false);
     const bk = a.book || a.numeral;
-    // 幕名与书名相同（诗篇、雅歌）时只写一次
-    const html = '<b>' + bk + '</b>' + (a.title === bk ? '' : a.title) + '<span>' + (a.sub || '') + '</span>';
+    // 幕名与书名相同（诗篇、雅歌）或只是书名的开头（历代志·历代）时只写一次
+    const same = !a.title || String(bk).indexOf(a.title) === 0;
+    const html = '<b>' + bk + '</b>' + (same ? '' : a.title) + '<span>' + (a.sub || '') + '</span>';
     if (el.act.dataset.id !== a.id) { el.act.innerHTML = html; el.act.dataset.id = a.id; }
     el.act.classList.add('show');
   }

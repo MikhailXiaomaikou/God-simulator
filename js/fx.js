@@ -104,9 +104,9 @@
     g.fillText(ch, S / 2, S / 2 + 8);
     const data = g.getImageData(0, 0, S, S).data;
     const pts = [];
-    for (let y = 2; y < S; y += 3)
-      for (let x = 2; x < S; x += 3)
-        if (data[(y * S + x) * 4 + 3] > 120) pts.push([(x - S / 2) / 200, (y - S / 2) / 200]);
+    for (let y = 2, gy = 0; y < S; y += 3, gy++)
+      for (let x = 2, gx = 0; x < S; x += 3, gx++)
+        if (data[(y * S + x) * 4 + 3] > 120) pts.push([(x - S / 2) / 200, (y - S / 2) / 200, gx, gy]);
     glyphCache[ch] = pts;
     return pts;
   }
@@ -115,16 +115,23 @@
   // opts: { delay, dark（以黑暗为质料）, hold（驻留秒数）, step（取点稀疏度 1=全部） }
   function name(ch, cx, cy, size, c, srcFn, opts) {
     opts = opts || {};
-    // 小字取点更疏，免得微尘挤成一团（取点网格在 200px 字号下间距 3px）
+    // 在取点网格上隔行隔列地取（取点网格在 200px 字号下间距 3px）：
+    // 按行序每隔几个取一个会让微尘在行上成团；小字不可取得太疏，否则认不出是什么字
     const spacing = (3 * size) / 200;
-    const all = glyphPoints(ch), step = opts.step || Math.max(1, Math.round(Math.pow(2.3 / Math.max(0.3, spacing), 2)));
-    const pts = [];
-    for (let i = 0; i < all.length; i += step) {
-      const [ox, oy] = all[i];
+    const want = opts.step ? Math.sqrt(opts.step) : 2.3 / Math.max(0.3, spacing);
+    const k = Math.max(1, Math.min(size < 48 ? 3 : 5, Math.round(want)));
+    const all = glyphPoints(ch), pts = [];
+    for (let i = 0; i < all.length; i++) {
+      const q = all[i];
+      if (q[2] % k || q[3] % k) continue;
       const s = srcFn();
-      pts.push({ tx: cx + ox * size, ty: cy + oy * size, sx: s[0], sy: s[1], c: s[2] || null, seed: Math.random() * TAU });
+      pts.push({ tx: cx + q[0] * size, ty: cy + q[1] * size, sx: s[0], sy: s[1], c: s[2] || null, seed: Math.random() * TAU });
     }
-    names.push({ born: W.t + (opts.delay || 0), c, dark: !!opts.dark, hold: opts.hold || NAME_HOLD, dot: opts.dot || 2.4, pts });
+    // 微尘的大小随字号：小字用细尘，笔画才不糊成一片
+    const dot = Math.min(opts.dot || 2.4, Math.max(1.3, size * 0.075));
+    // 小字（< 44px）聚成之后，再显出一层清楚的字形，好让人读得出来
+    names.push({ born: W.t + (opts.delay || 0), c, dark: !!opts.dark, hold: opts.hold || NAME_HOLD, dot, pts,
+      crisp: size < 44 ? { ch, x: cx, y: cy + size * 0.04, size } : null });
     return NAME_GATHER + (opts.hold || NAME_HOLD) + NAME_FADE + (opts.delay || 0);
   }
   name.DURATION = NAME_GATHER + NAME_HOLD + NAME_FADE;
@@ -302,8 +309,29 @@
           ctx.fillRect(X - hd, Y - hd, dot, dot);
         }
       }
+      if (nm.crisp) drawCrisp(ctx, nm, age, HOLD);
     }
     ctx.globalCompositeOperation = 'source-over';
+  }
+  // 小字：微尘聚定之后浮出清楚的字形（带一圈柔暗的衬底），散时先隐去
+  function drawCrisp(ctx, nm, age, HOLD) {
+    const t0 = NAME_GATHER * 0.75;
+    if (age < t0) return;
+    const a = age < NAME_GATHER + HOLD ? Math.min(1, (age - t0) / 0.6) : Math.max(0, 1 - (age - NAME_GATHER - HOLD) / (NAME_FADE * 0.45));
+    if (a <= 0) return;
+    const cr = nm.crisp, c = nm.c || (nm.pts[0] && nm.pts[0].c) || [255, 240, 210];
+    ctx.save();
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.font = '900 ' + cr.size.toFixed(1) + 'px ' + FONT;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.shadowColor = nm.dark ? 'rgba(210,222,255,' + (0.55 * a).toFixed(3) + ')' : 'rgba(8,10,20,' + (0.8 * a).toFixed(3) + ')';
+    ctx.shadowBlur = Math.max(4, cr.size * 0.28);
+    ctx.fillStyle = nm.dark ? U.rgba(34, 44, 72, 0.9 * a) : U.rgba(c[0], c[1], c[2], 0.95 * a);
+    ctx.fillText(cr.ch, cr.x, cr.y);
+    ctx.shadowBlur = 0;
+    ctx.fillText(cr.ch, cr.x, cr.y);
+    ctx.restore();
   }
 
   function drawSpirit(ctx) {

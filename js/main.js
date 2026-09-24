@@ -41,6 +41,7 @@
     breaths: 0, still: 0,   // 第七日：静止的息
     wasCycling: false,
     idle: 0,                // 距上次言说的秒数（用于轻声提醒）
+    actFresh: false,        // 新的一幕刚开：开场的话说完便提醒一声，不让人干等
     pendingHold: null,      // 余韵中按下、尚未松开的输入
     pointerType: 'mouse',
     keys: new Set(),
@@ -150,6 +151,7 @@
     bus.emit('fulfill', { stage: st, x, y });
     if (S.pointerType !== 'mouse' && navigator.vibrate) { try { navigator.vibrate([30, 40, 60]); } catch (e) { /* */ } }
     S.idle = 0;
+    S.actFresh = false;
     refreshHUD();
     save();
 
@@ -221,6 +223,7 @@
         after(6.2, () => {
           GS.ui.actCard(next, false);
           S.transition = false;
+          S.actFresh = true; S.idle = 0;
           if (next.intro) GS.ui.narrate(next.intro, { delay: 0.6 });
           else after(1.5, () => GS.ui.hint('按住 · 言说', 4));
         });
@@ -421,7 +424,8 @@
         safe('audio.chargeEnd', () => GS.audio.chargeEnd(false));
         S.trail = [];
         safe('fx.trace', () => GS.fx.setTrace([]));
-        if (W.stage <= 2 || S.charge < 0.25) GS.ui.hint('按住不放，直到话语说完', 2.8);
+        if (S.charge >= 0.5) GS.ui.hint('再按住片刻 · 直到话语成就', 3.2);
+        else if (W.stage <= 2 || S.charge < 0.25) GS.ui.hint('按住不放，直到话语说完', 2.8);
       }
     } else {
       safe('audio.chargeEnd', () => GS.audio.chargeEnd(full));
@@ -703,8 +707,9 @@
     if (GS.ui.narrating() || GS.ui.panelOpen() || GS.book.busy()) { S.idle = 0; return; }
     S.idle += dt;
     // 故事一静下来便轻声提醒（开头几句更快），之后隔一阵再提醒
-    const lim = W.stage <= 4 ? 4 : 12;
-    if (S.idle > lim) { S.idle = -28; GS.ui.hint(W.stage <= 1 ? '再按住 · 说出下一句' : '按住 · 言说', 4); }
+    // 新的一幕：开场的话说完约三秒便提醒
+    const lim = S.actFresh ? 3 : W.stage <= 4 ? 4 : 10;
+    if (S.idle > lim) { S.idle = -28; S.actFresh = false; GS.ui.hint(W.stage <= 1 ? '再按住 · 说出下一句' : '按住 · 言说', 4); }
   }
 
   function updateTags() {

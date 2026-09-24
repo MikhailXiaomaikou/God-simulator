@@ -112,15 +112,24 @@ canvas { position: fixed; left: 0; top: 0; width: 100vw; height: 100vh; display:
 body.acts #scripture {
   left: 3vw; right: auto; max-width: 48vw; top: 60.5vh; bottom: auto; text-align: left;
   padding: 0.5em 1.4em 0.7em 1em; margin-left: -1em;
-  background: radial-gradient(ellipse 70% 80% at 40% 50%, rgba(4, 12, 24, 0.34), rgba(4, 12, 24, 0.16) 60%, transparent 78%);
+  isolation: isolate;
   text-shadow: 0 0 3px rgba(0, 0, 0, 0.95), 0 1px 2px rgba(0, 0, 0, 0.92), 0 0 16px rgba(0, 10, 26, 0.65);
 }
+/* 那片柔暗只在有经文时才在：经文隐去，海面上不留一块暗影 */
+body.acts #scripture::before {
+  content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: radial-gradient(ellipse 70% 80% at 40% 50%, rgba(4, 12, 24, 0.34), rgba(4, 12, 24, 0.16) 60%, transparent 78%);
+  opacity: 0; transition: opacity 1.2s ease;
+}
+body.acts #scripture.show::before { opacity: 1; transition: opacity 0.6s ease; }
 /* 分句：句内不折行（只在标点之后换行）；太长的句仍可折 */
 #scripture .ph { white-space: nowrap; }
 #scripture .ph.long { white-space: normal; }
 @media (max-aspect-ratio: 3/4) {
   body.acts #scripture {
     left: 5vw; right: 5vw; max-width: none; top: 70px; text-align: center; margin-left: 0; padding: 0.4em 0.6em 0.6em;
+  }
+  body.acts #scripture::before {
     background: radial-gradient(ellipse 80% 90% at 50% 45%, rgba(4, 10, 22, 0.42), rgba(4, 10, 22, 0.2) 62%, transparent 80%);
   }
   /* 终幕卡片写在天上时，经文让到海面上 */
