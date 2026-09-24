@@ -5,8 +5,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#000000">
-<meta name="description" content="旧约 · God Simulator —— 按住言说，话语成就：从「起初」的七日，经过出埃及、西奈、列王、先知，一直到玛拉基书「公义的日头」，走完整部旧约三十九卷。">
-<title>旧约 · God Simulator</title>
+<meta name="description" content="圣经 · God Simulator —— 按住言说，话语成就：从「起初」的七日，经过出埃及、西奈、列王、先知，到「道成了肉身」、十字架与复活、使徒与书信，一直到启示录「我必快来」，走完旧约三十九卷、新约二十七卷。">
+<title>圣经 · God Simulator</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23000'/%3E%3Ccircle cx='32' cy='30' r='12' fill='%23fff6de'/%3E%3Ccircle cx='32' cy='30' r='22' fill='none' stroke='%23fff6de' stroke-opacity='.35' stroke-width='2'/%3E%3Crect y='44' width='64' height='20' fill='%23101a33'/%3E%3C/svg%3E">
 <style>
 /* ─────────────────────────────────────────────────────────────
@@ -454,7 +454,7 @@ body.acts #scripture.show::before { opacity: 1; transition: opacity 0.6s ease; }
 #finale .f2 { margin-top: 0.8em; font-family: var(--kai); font-size: clamp(15px, 2vw, 19px); letter-spacing: 0.3em; color: var(--ink-dim); text-shadow: 0 1px 3px rgba(0,0,0,0.9); }
 #finale .f3 { margin-top: 2.2em; padding: 0 6vw; font-family: var(--mono); font-size: 12.5px; line-height: 1.7; letter-spacing: 0.1em; color: rgba(250, 246, 236, 0.92); text-shadow: 0 0 2px rgba(0, 0, 0, 0.95), 0 1px 4px rgba(0, 0, 0, 0.9), 0 0 14px rgba(0, 0, 0, 0.6); }
 
-/* ── 目录：三十九卷，一幕一行 ─────────────────────────────── */
+/* ── 目录：两约六十六卷，一幕一行 ─────────────────────────── */
 #toc {
   top: 0; left: 0; bottom: 0;
   width: min(380px, 92vw);
@@ -475,6 +475,8 @@ body.acts #scripture.show::before { opacity: 1; transition: opacity 0.6s ease; }
 #toc.open { transform: none; }
 #toc h2 { margin: 0 0 4px; font-family: var(--xing); font-weight: normal; font-size: 28px; letter-spacing: 0.2em; color: rgba(250, 244, 228, 0.95); }
 #toc .sub { color: rgba(170, 186, 210, 0.55); margin-bottom: 10px; font-size: 12px; letter-spacing: 0.08em; }
+#toc .ts, #ledger .ts { margin: 30px 0 4px; font-family: var(--xing); font-size: 26px; letter-spacing: 0.3em; color: rgba(255, 238, 206, 0.98); text-align: center; }
+#toc .ts:first-of-type { margin-top: 14px; }
 #toc .grp { margin: 20px 0 2px; font-size: 11px; letter-spacing: 0.4em; color: rgba(170, 186, 210, 0.5); border-bottom: 1px solid rgba(240, 234, 218, 0.1); padding-bottom: 3px; }
 #toc .bk { margin: 12px 0 2px; font-family: var(--brush); font-size: 19px; letter-spacing: 0.16em; color: rgba(255, 226, 180, 0.95); }
 #toc .bk span { margin-left: 0.8em; font-family: var(--kai); font-size: 11px; letter-spacing: 0.1em; color: rgba(200, 206, 220, 0.45); }
@@ -579,14 +581,14 @@ body.on-title #hint { bottom: calc(4vh + 22px); }
     <div class="kb"><kbd>B</kbd>目录　<kbd>L</kbd>创世日志　<kbd>P</kbd>留影　<kbd>M</kbd>声音　<kbd>F</kbd>全屏　<kbd>H</kbd>说明　<kbd>Esc</kbd>合上</div>
     <div class="kb"><kbd>方向键</kbd>／WASD 也能引领神的灵</div>
     <div class="fine">神的灵在何处，话语便在何处成就：光从那里迸发，青草从那里蔓延，生灵从那里而出；言说「又造众星」时，灵在天上划过的轨迹会成为你的星座。<br>
-    第七日不必再说话，静候便是安息。七日之后故事继续：伊甸、洪水、亚伯拉罕、约瑟；出埃及、红海、西奈；士师、列王、被掳与归回；约伯、诗篇、先知……一直到玛拉基书，旧约三十九卷，仍旧按住言说。<br>
+    第七日不必再说话，静候便是安息。七日之后故事继续：伊甸、洪水、亚伯拉罕、约瑟；出埃及、红海、西奈；士师、列王、被掳与归回；约伯、诗篇、先知……一直到玛拉基书，旧约三十九卷；然后是新约：道成肉身、登山宝训、神迹与比喻、十字架与复活、五旬节、使徒的书信，一直到启示录的新天新地，新约二十七卷，仍旧按住言说。<br>
     每句话成就后，经文与故事会展开一阵（经文下方有「· · ·」时）；听完再说下一句。幕布落下时静候新的一幕。「目」是目录，可以翻到任何一卷。各卷里，灵经过人物与地方时会显出其名。<br>
     全书成就之后，世界自行运转：灵经过之处万物显出其名，按住便看见它被造时的话。进度会自动保存。</div>
   </div>
 
   <div id="title" class="layer">
-    <h1 class="t1"><span class="brush" style="--k:0">旧</span><span class="brush" style="--k:1">约</span></h1>
-    <div class="t2"><span class="nw">God Simulator</span> · <span class="nw">从「起初」到「公义的日头」</span> · <span class="nw">三十九卷</span></div>
+    <h1 class="t1"><span class="brush" style="--k:0">圣</span><span class="brush" style="--k:1">经</span></h1>
+    <div class="t2"><span class="nw">God Simulator</span> · <span class="nw">从「起初」到「我必快来」</span> · <span class="nw">六十六卷</span></div>
     <div class="t3">God is the first vibecoder.</div>
     <div class="t4" id="titlePrompt">按住画面 · 说「起初」</div>
     <div class="t5" id="titleBtns"></div>
@@ -18313,7 +18315,7 @@ void main() {
 /* ─────────────────────────────────────────────────────────────
  * book.js —— 旧约全书：书与幕的登记、情节的时间线、各幕布景的总调度
  *
- * 旧约三十九卷，从创世记到玛拉基书，讲成一条线上的许多「幕」（act）：
+ * 圣经六十六卷：旧约三十九卷，从创世记到玛拉基书；新约二十七卷，从马太福音到启示录——讲成一条线上的许多「幕」（act）：
  * 第一幕「七日」来自 story.js；其后每一幕各在 js/book/*.js 里用 GS.book.act({...}) 登记，
  * 按 src/index.html 里的先后接在 STAGES 后面——每一句话只成就一步，存档仍只是一个数字。
  * 一卷书可分几幕（出埃及记：摩西、十灾、红海、西奈），几卷书也可合为一幕（十二小先知）。
@@ -18354,8 +18356,20 @@ void main() {
     ['何西阿书', '何', 14, 4], ['约珥书', '珥', 3, 4], ['阿摩司书', '摩', 9, 4], ['俄巴底亚书', '俄', 1, 4], ['约拿书', '拿', 4, 4],
     ['弥迦书', '弥', 7, 4], ['那鸿书', '鸿', 3, 4], ['哈巴谷书', '哈', 3, 4], ['西番雅书', '番', 3, 4], ['哈该书', '该', 2, 4],
     ['撒迦利亚书', '亚', 14, 4], ['玛拉基书', '玛', 4, 4],
-  ].map((b, i) => ({ n: i + 1, name: b[0], abbr: b[1], chapters: b[2], group: b[3] }));
-  const GROUPS = ['律法书', '历史书', '诗歌智慧书', '大先知书', '小先知书'];
+    // 新约二十七卷
+    ['马太福音', '太', 28, 5], ['马可福音', '可', 16, 5], ['路加福音', '路', 24, 5], ['约翰福音', '约', 21, 5],
+    ['使徒行传', '徒', 28, 6],
+    ['罗马书', '罗', 16, 7], ['哥林多前书', '林前', 16, 7], ['哥林多后书', '林后', 13, 7], ['加拉太书', '加', 6, 7], ['以弗所书', '弗', 6, 7],
+    ['腓立比书', '腓', 4, 7], ['歌罗西书', '西', 4, 7], ['帖撒罗尼迦前书', '帖前', 5, 7], ['帖撒罗尼迦后书', '帖后', 3, 7], ['提摩太前书', '提前', 6, 7],
+    ['提摩太后书', '提后', 4, 7], ['提多书', '多', 3, 7], ['腓利门书', '门', 1, 7],
+    ['希伯来书', '来', 13, 8], ['雅各书', '雅', 5, 8], ['彼得前书', '彼前', 5, 8], ['彼得后书', '彼后', 3, 8], ['约翰一书', '约一', 5, 8],
+    ['约翰二书', '约二', 1, 8], ['约翰三书', '约三', 1, 8], ['犹大书', '犹', 1, 8],
+    ['启示录', '启', 22, 9],
+  ].map((b, i) => ({ n: i + 1, name: b[0], abbr: b[1], chapters: b[2], group: b[3], t: i < 39 ? 0 : 1 }));
+  const GROUPS = ['律法书', '历史书', '诗歌智慧书', '大先知书', '小先知书', '福音书', '历史书', '保罗书信', '普通书信', '预言书'];
+  // 两约：旧约三十九卷（1 … 39），新约二十七卷（40 … 66）；卷序在各约之内从「第一卷」数起
+  const TESTAMENTS = [{ name: '旧约', first: 1, last: 39 }, { name: '新约', first: 40, last: 66 }];
+  const testamentOf = n => (n > 39 ? 1 : 0);
 
   // 中文数字（1 … 199）
   const DIG = ['零', '一', '二', '三', '四', '五', '六', '七', '八', '九'];
@@ -18368,18 +18382,22 @@ void main() {
     return DIG[(n / 100) | 0] + '百' + (r ? (r < 10 ? '零' + DIG[r] : r < 20 ? '一' + cn(r) : cn(r)) : '');
   }
   const CN_NUM = Array.from({ length: 60 }, (_, i) => cn(i + 1));
-  // 「第二卷」「第十三—十四卷」「第二十八—三十三卷」
+  // 「第二卷」「第十三—十四卷」「第二十八—三十三卷」；新约：「新约第一—四卷」「新约第十—十二、十八卷」
   function bookOrdinal(nums) {
     if (!nums || !nums.length) return '';
-    const a = Math.min(...nums), b = Math.max(...nums);
-    return a === b ? '第' + cn(a) + '卷' : '第' + cn(a) + '—' + cn(b) + '卷';
+    const t = testamentOf(Math.min(...nums)), base = TESTAMENTS[t].first - 1;
+    const ns = Array.from(new Set(nums)).sort((x, y) => x - y).map(n => n - base);
+    const runs = [];
+    for (const n of ns) { const r = runs[runs.length - 1]; if (r && n === r[1] + 1) r[1] = n; else runs.push([n, n]); }
+    const body = runs.map(r => (r[0] === r[1] ? cn(r[0]) : cn(r[0]) + '—' + cn(r[1]))).join('、');
+    return (t ? '新约' : '') + '第' + body + '卷';
   }
 
   // ── 幕 ──────────────────────────────────────────────────────
   const ACTS = [];
   ACTS.push({
     id: 'seven', index: 0, title: '七日', sub: '创世记 1:1 — 2:3', tint: [255, 250, 240],
-    book: '创世记', books: [1], numeral: '创世记',
+    book: '创世记', books: [1], numeral: '创世记', testament: 0,
     first: 0, last: STAGES.length - 1, setup: null, outro: 30,
   });
   STAGES.forEach(s => { s.act = 0; });
@@ -18396,6 +18414,7 @@ void main() {
     }
     a.numeral = a.book;
     a.ordinal = bookOrdinal(a.books);
+    a.testament = testamentOf(Math.min(...a.books));
     (def.stages || []).forEach(st => {
       st.act = a.index;
       st.index = STAGES.length;
@@ -18530,12 +18549,14 @@ void main() {
   // 这一幕是否开启一卷新书（前一幕属于别的书）
   const opensBook = a => !!(a && a.index > 0 && ACTS[a.index - 1] && ACTS[a.index - 1].book !== a.book);
   const closesBook = a => !!(a && (a.index === ACTS.length - 1 || (ACTS[a.index + 1] && ACTS[a.index + 1].book !== a.book)));
+  // 这一幕是否开启新约（前一幕属于旧约）
+  const opensTestament = a => !!(a && a.index > 0 && ACTS[a.index - 1] && (ACTS[a.index - 1].testament || 0) !== (a.testament || 0));
 
   // 每一卷开始时，这些"卷内"的程度先回到默认，再由该卷的 setup 自行设定（前一卷的枯黄、花隐等不会误带过来）
   const ACT_DEFAULTS = { bare: 0, bloom: 1, rain: 0, storm: 0, gale: 0, hail: 0, gloom: 0 };
   function resetActLevels() { for (const k in ACT_DEFAULTS) if (W.hasLevel(k)) W.set(k, ACT_DEFAULTS[k], true); W.beastAvoid = []; W.weatherExclude = []; }
 
-  GS.book = { ACTS, BOOKS, GROUPS, act, actOf, find, opensBook, closesBook, bookOrdinal, cn, timeline, flush, busy, after, cancel, reset, resync, current, resetActLevels, ACT_DEFAULTS, CN_NUM, scenes };
+  GS.book = { ACTS, BOOKS, GROUPS, TESTAMENTS, testamentOf, opensTestament, act, actOf, find, opensBook, closesBook, bookOrdinal, cn, timeline, flush, busy, after, cancel, reset, resync, current, resetActLevels, ACT_DEFAULTS, CN_NUM, scenes };
 })(window.GS);
 
 </script>
@@ -20574,7 +20595,24 @@ void main() {
   function reset() { people.clear(); crowds.clear(); }
   function init() { try { glowSprite('inner', INNER, 0.95); glowSprite('warm', WARM, 0.9); glowSprite('pale', [255, 246, 222], 1); glowSprite('flame', FLAME, 1); } catch (e) { /* 无画布时略过 */ } }
 
+  // ── 新约里反复出场的人：各幕用同一副样子（无面目；只以衣袍、头巾与一点光相认）──
+  //   用法：GS.cast.add('jesus', Object.assign({}, GS.cast.LOOK.jesus, { x: 0.6, layer: 2 }))
+  //   耶稣：本色细麻的长衣、朱赭的外袍边、胸中的光略亮（glow 0.32）；复活后与登山变像时由各幕调高 glow。
+  const LOOK = {
+    jesus:     { label: '耶稣', sex: 'm', age: 'adult', robe: [232, 224, 206], accent: [150, 70, 58], hair: 'long', beard: true, glow: 0.32 },
+    mary:      { label: '马利亚', sex: 'f', age: 'adult', robe: [96, 120, 170], accent: [226, 220, 204], hair: 'veil', glow: 0.24 },
+    josephnt:  { label: '约瑟', sex: 'm', age: 'adult', robe: [136, 106, 78], accent: [196, 176, 150], beard: true, glow: 0.18 },
+    baptist:   { label: '施洗约翰', sex: 'm', age: 'adult', robe: [118, 90, 60], accent: [70, 52, 36], hair: 'long', beard: true, glow: 0.22 },
+    peter:     { label: '彼得', sex: 'm', age: 'adult', robe: [104, 112, 138], accent: [200, 170, 120], beard: true, glow: 0.2 },
+    john:      { label: '约翰', sex: 'm', age: 'adult', robe: [150, 70, 64], accent: [220, 206, 180], hair: 'short', beard: false, glow: 0.2 },
+    magdalene: { label: '抹大拉的马利亚', sex: 'f', age: 'adult', robe: [150, 84, 96], accent: [230, 214, 196], hair: 'veil', glow: 0.22 },
+    paul:      { label: '保罗', sex: 'm', age: 'adult', robe: [128, 96, 72], accent: [200, 160, 100], beard: true, glow: 0.2 },
+    disciple:  { sex: 'm', age: 'adult', beard: true, glow: 0.14 },     // 其余门徒：robe 从 DISCIPLE_ROBES 里挑
+  };
+  const DISCIPLE_ROBES = [[122, 104, 84], [104, 92, 80], [138, 116, 92], [96, 104, 118], [132, 98, 82], [112, 118, 96], [146, 128, 104], [100, 88, 96], [126, 110, 120], [140, 104, 88], [108, 100, 86]];
+
   GS.cast = {
+    LOOK, DISCIPLE_ROBES,
     init, resize() {}, update, draw, reset, restore, pick,
     add, remove, has, get, place, walk, run, pose, face, follow, glow, clear,
     crowd, crowdWalk, crowdPose, scatter, removeCrowd,
@@ -132554,6 +132592,806 @@ void main() {
 
 </script>
   <script>
+/* js/book/nativity.js */
+/* ─────────────────────────────────────────────────────────────
+ * book/nativity.js —— 四福音 · 道成肉身（约翰福音 1 · 路加福音 1 — 2 · 马太福音 1 — 2）
+ * 占位：这一幕尚在写作中。它已是一幕完整可走的戏（一句话），好让整部圣经从头到尾都走得通。
+ * ───────────────────────────────────────────────────────────── */
+(function (GS) {
+  'use strict';
+  const W = GS.W;
+  const ACT = 'nativity';
+  GS.book.act({
+    id: ACT, book: '四福音', books: [40, 41, 42, 43], title: '道成肉身', sub: '约翰福音 1 · 路加福音 1 — 2 · 马太福音 1 — 2', tint: [255,  236,  200], music: 'eden',
+    outro: 8,
+    setup() {
+      const L = { deep: 1, light: 1, gather: 1, dayNight: 1, vault: 1, clouds: 0.4, land: 1, grass: 0.8, herbs: 0.7, trees: 0.5,
+        lights: 1, moon: 1, stars: 1, life: 1, good: 0, sabbath: 0, given: 1 };
+      for (const k in L) if (W.hasLevel(k)) W.set(k, L[k], true);
+      W.freeClock = false;
+      W.goTo(0.36, 0, true);
+      if (GS.cast) GS.cast.clear({ fade: false });
+    },
+    stages: [
+      {
+        kind: 'act', utter: '道成了肉身，住在我们中间', cmd: 'echo "道成肉身"', ref: '约翰福音 1:14',
+        verse: [{ text: '道成了肉身，住在我们中间，充充满满地有恩典有真理。我们也见过他的荣光，正是父独生子的荣光。', ref: '约翰福音 1:14', hold: 7 }],
+        apply(c) { if (!c.instant && GS.fx) GS.fx.ring(W.w * 0.7, W.h * 0.5, [255,  236,  200], Math.min(W.w, W.h) * 0.3, 2.2, 1.4); },
+      },
+    ],
+  });
+})(window.GS);
+
+</script>
+  <script>
+/* js/book/baptism.js */
+/* ─────────────────────────────────────────────────────────────
+ * book/baptism.js —— 四福音 · 受洗（马太福音 3 — 4 · 约翰福音 1 — 2）
+ * 占位：这一幕尚在写作中。它已是一幕完整可走的戏（一句话），好让整部圣经从头到尾都走得通。
+ * ───────────────────────────────────────────────────────────── */
+(function (GS) {
+  'use strict';
+  const W = GS.W;
+  const ACT = 'baptism';
+  GS.book.act({
+    id: ACT, book: '四福音', books: [40, 41, 42, 43], title: '受洗', sub: '马太福音 3 — 4 · 约翰福音 1 — 2', tint: [220,  236,  255], music: 'flood',
+    outro: 8,
+    setup() {
+      const L = { deep: 1, light: 1, gather: 1, dayNight: 1, vault: 1, clouds: 0.4, land: 1, grass: 0.8, herbs: 0.7, trees: 0.5,
+        lights: 1, moon: 1, stars: 1, life: 1, good: 0, sabbath: 0, given: 1 };
+      for (const k in L) if (W.hasLevel(k)) W.set(k, L[k], true);
+      W.freeClock = false;
+      W.goTo(0.36, 0, true);
+      if (GS.cast) GS.cast.clear({ fade: false });
+    },
+    stages: [
+      {
+        kind: 'act', utter: '这是我的爱子，我所喜悦的', cmd: 'echo "受洗"', ref: '3:17',
+        verse: [{ text: '从天上有声音说：「这是我的爱子，我所喜悦的。」', ref: '马太福音 3:17', hold: 7 }],
+        apply(c) { if (!c.instant && GS.fx) GS.fx.ring(W.w * 0.7, W.h * 0.5, [220,  236,  255], Math.min(W.w, W.h) * 0.3, 2.2, 1.4); },
+      },
+    ],
+  });
+})(window.GS);
+
+</script>
+  <script>
+/* js/book/sermon.js */
+/* ─────────────────────────────────────────────────────────────
+ * book/sermon.js —— 四福音 · 登山宝训（马太福音 5 — 7）
+ * 占位：这一幕尚在写作中。它已是一幕完整可走的戏（一句话），好让整部圣经从头到尾都走得通。
+ * ───────────────────────────────────────────────────────────── */
+(function (GS) {
+  'use strict';
+  const W = GS.W;
+  const ACT = 'sermon';
+  GS.book.act({
+    id: ACT, book: '四福音', books: [40, 41, 42, 43], title: '登山宝训', sub: '马太福音 5 — 7', tint: [255,  240,  210], music: 'psalms',
+    outro: 8,
+    setup() {
+      const L = { deep: 1, light: 1, gather: 1, dayNight: 1, vault: 1, clouds: 0.4, land: 1, grass: 0.8, herbs: 0.7, trees: 0.5,
+        lights: 1, moon: 1, stars: 1, life: 1, good: 0, sabbath: 0, given: 1 };
+      for (const k in L) if (W.hasLevel(k)) W.set(k, L[k], true);
+      W.freeClock = false;
+      W.goTo(0.36, 0, true);
+      if (GS.cast) GS.cast.clear({ fade: false });
+    },
+    stages: [
+      {
+        kind: 'act', utter: '你们是世上的光', cmd: 'echo "登山宝训"', ref: '5:14',
+        verse: [{ text: '你们是世上的光。城造在山上是不能隐藏的。', ref: '马太福音 5:14', hold: 7 }],
+        apply(c) { if (!c.instant && GS.fx) GS.fx.ring(W.w * 0.7, W.h * 0.5, [255,  240,  210], Math.min(W.w, W.h) * 0.3, 2.2, 1.4); },
+      },
+    ],
+  });
+})(window.GS);
+
+</script>
+  <script>
+/* js/book/miracles.js */
+/* ─────────────────────────────────────────────────────────────
+ * book/miracles.js —— 四福音 · 神迹（马可福音 1 — 8 · 约翰福音 6）
+ * 占位：这一幕尚在写作中。它已是一幕完整可走的戏（一句话），好让整部圣经从头到尾都走得通。
+ * ───────────────────────────────────────────────────────────── */
+(function (GS) {
+  'use strict';
+  const W = GS.W;
+  const ACT = 'miracles';
+  GS.book.act({
+    id: ACT, book: '四福音', books: [40, 41, 42, 43], title: '神迹', sub: '马可福音 1 — 8 · 约翰福音 6', tint: [200,  226,  255], music: 'redsea',
+    outro: 8,
+    setup() {
+      const L = { deep: 1, light: 1, gather: 1, dayNight: 1, vault: 1, clouds: 0.4, land: 1, grass: 0.8, herbs: 0.7, trees: 0.5,
+        lights: 1, moon: 1, stars: 1, life: 1, good: 0, sabbath: 0, given: 1 };
+      for (const k in L) if (W.hasLevel(k)) W.set(k, L[k], true);
+      W.freeClock = false;
+      W.goTo(0.36, 0, true);
+      if (GS.cast) GS.cast.clear({ fade: false });
+    },
+    stages: [
+      {
+        kind: 'act', utter: '住了吧！静了吧', cmd: 'echo "神迹"', ref: '马可福音 4:39',
+        verse: [{ text: '耶稣醒了，斥责风，向海说：「住了吧！静了吧！」风就止住，大大地平静了。', ref: '马可福音 4:39', hold: 7 }],
+        apply(c) { if (!c.instant && GS.fx) GS.fx.ring(W.w * 0.7, W.h * 0.5, [200,  226,  255], Math.min(W.w, W.h) * 0.3, 2.2, 1.4); },
+      },
+    ],
+  });
+})(window.GS);
+
+</script>
+  <script>
+/* js/book/parables.js */
+/* ─────────────────────────────────────────────────────────────
+ * book/parables.js —— 四福音 · 比喻（路加福音 10 — 16 · 马太福音 13）
+ * 占位：这一幕尚在写作中。它已是一幕完整可走的戏（一句话），好让整部圣经从头到尾都走得通。
+ * ───────────────────────────────────────────────────────────── */
+(function (GS) {
+  'use strict';
+  const W = GS.W;
+  const ACT = 'parables';
+  GS.book.act({
+    id: ACT, book: '四福音', books: [40, 41, 42, 43], title: '比喻', sub: '路加福音 10 — 16 · 马太福音 13', tint: [255,  226,  180], music: 'ruth',
+    outro: 8,
+    setup() {
+      const L = { deep: 1, light: 1, gather: 1, dayNight: 1, vault: 1, clouds: 0.4, land: 1, grass: 0.8, herbs: 0.7, trees: 0.5,
+        lights: 1, moon: 1, stars: 1, life: 1, good: 0, sabbath: 0, given: 1 };
+      for (const k in L) if (W.hasLevel(k)) W.set(k, L[k], true);
+      W.freeClock = false;
+      W.goTo(0.36, 0, true);
+      if (GS.cast) GS.cast.clear({ fade: false });
+    },
+    stages: [
+      {
+        kind: 'act', utter: '我这个儿子是死而复活，失而又得的', cmd: 'echo "比喻"', ref: '路加福音 15:24',
+        verse: [{ text: '因为我这个儿子是死而复活，失而又得的。』他们就快乐起来。', ref: '路加福音 15:24', hold: 7 }],
+        apply(c) { if (!c.instant && GS.fx) GS.fx.ring(W.w * 0.7, W.h * 0.5, [255,  226,  180], Math.min(W.w, W.h) * 0.3, 2.2, 1.4); },
+      },
+    ],
+  });
+})(window.GS);
+
+</script>
+  <script>
+/* js/book/light.js */
+/* ─────────────────────────────────────────────────────────────
+ * book/light.js —— 四福音 · 生命的光（约翰福音 3 — 12）
+ * 占位：这一幕尚在写作中。它已是一幕完整可走的戏（一句话），好让整部圣经从头到尾都走得通。
+ * ───────────────────────────────────────────────────────────── */
+(function (GS) {
+  'use strict';
+  const W = GS.W;
+  const ACT = 'light';
+  GS.book.act({
+    id: ACT, book: '四福音', books: [40, 41, 42, 43], title: '生命的光', sub: '约翰福音 3 — 12', tint: [255,  244,  214], music: 'isaiah',
+    outro: 8,
+    setup() {
+      const L = { deep: 1, light: 1, gather: 1, dayNight: 1, vault: 1, clouds: 0.4, land: 1, grass: 0.8, herbs: 0.7, trees: 0.5,
+        lights: 1, moon: 1, stars: 1, life: 1, good: 0, sabbath: 0, given: 1 };
+      for (const k in L) if (W.hasLevel(k)) W.set(k, L[k], true);
+      W.freeClock = false;
+      W.goTo(0.36, 0, true);
+      if (GS.cast) GS.cast.clear({ fade: false });
+    },
+    stages: [
+      {
+        kind: 'act', utter: '我是世界的光', cmd: 'echo "生命的光"', ref: '约翰福音 8:12',
+        verse: [{ text: '耶稣又对众人说：「我是世界的光。跟从我的，就不在黑暗里走，必要得着生命的光。」', ref: '约翰福音 8:12', hold: 7 }],
+        apply(c) { if (!c.instant && GS.fx) GS.fx.ring(W.w * 0.7, W.h * 0.5, [255,  244,  214], Math.min(W.w, W.h) * 0.3, 2.2, 1.4); },
+      },
+    ],
+  });
+})(window.GS);
+
+</script>
+  <script>
+/* js/book/glory.js */
+/* ─────────────────────────────────────────────────────────────
+ * book/glory.js —— 四福音 · 登山变像（马太福音 16 — 21 · 路加福音 18 — 19）
+ * 占位：这一幕尚在写作中。它已是一幕完整可走的戏（一句话），好让整部圣经从头到尾都走得通。
+ * ───────────────────────────────────────────────────────────── */
+(function (GS) {
+  'use strict';
+  const W = GS.W;
+  const ACT = 'glory';
+  GS.book.act({
+    id: ACT, book: '四福音', books: [40, 41, 42, 43], title: '登山变像', sub: '马太福音 16 — 21 · 路加福音 18 — 19', tint: [236,  240,  255], music: 'sinai',
+    outro: 8,
+    setup() {
+      const L = { deep: 1, light: 1, gather: 1, dayNight: 1, vault: 1, clouds: 0.4, land: 1, grass: 0.8, herbs: 0.7, trees: 0.5,
+        lights: 1, moon: 1, stars: 1, life: 1, good: 0, sabbath: 0, given: 1 };
+      for (const k in L) if (W.hasLevel(k)) W.set(k, L[k], true);
+      W.freeClock = false;
+      W.goTo(0.36, 0, true);
+      if (GS.cast) GS.cast.clear({ fade: false });
+    },
+    stages: [
+      {
+        kind: 'act', utter: '这是我的爱子，我所喜悦的。你们要听他', cmd: 'echo "登山变像"', ref: '17:5',
+        verse: [{ text: '说话之间，忽然有一朵光明的云彩遮盖他们，且有声音从云彩里出来，说：「这是我的爱子，我所喜悦的。你们要听他！」', ref: '马太福音 17:5', hold: 7 }],
+        apply(c) { if (!c.instant && GS.fx) GS.fx.ring(W.w * 0.7, W.h * 0.5, [236,  240,  255], Math.min(W.w, W.h) * 0.3, 2.2, 1.4); },
+      },
+    ],
+  });
+})(window.GS);
+
+</script>
+  <script>
+/* js/book/supper.js */
+/* ─────────────────────────────────────────────────────────────
+ * book/supper.js —— 四福音 · 最后的晚餐（马太福音 26 · 约翰福音 13 — 18）
+ * 占位：这一幕尚在写作中。它已是一幕完整可走的戏（一句话），好让整部圣经从头到尾都走得通。
+ * ───────────────────────────────────────────────────────────── */
+(function (GS) {
+  'use strict';
+  const W = GS.W;
+  const ACT = 'supper';
+  GS.book.act({
+    id: ACT, book: '四福音', books: [40, 41, 42, 43], title: '最后的晚餐', sub: '马太福音 26 · 约翰福音 13 — 18', tint: [255,  214,  170], music: 'job',
+    outro: 8,
+    setup() {
+      const L = { deep: 1, light: 1, gather: 1, dayNight: 1, vault: 1, clouds: 0.4, land: 1, grass: 0.8, herbs: 0.7, trees: 0.5,
+        lights: 1, moon: 1, stars: 1, life: 1, good: 0, sabbath: 0, given: 1 };
+      for (const k in L) if (W.hasLevel(k)) W.set(k, L[k], true);
+      W.freeClock = false;
+      W.goTo(0.36, 0, true);
+      if (GS.cast) GS.cast.clear({ fade: false });
+    },
+    stages: [
+      {
+        kind: 'act', utter: '我怎样爱你们，你们也要怎样相爱', cmd: 'echo "最后的晚餐"', ref: '约翰福音 13:34',
+        verse: [{ text: '我赐给你们一条新命令，乃是叫你们彼此相爱；我怎样爱你们，你们也要怎样相爱。', ref: '约翰福音 13:34', hold: 7 }],
+        apply(c) { if (!c.instant && GS.fx) GS.fx.ring(W.w * 0.7, W.h * 0.5, [255,  214,  170], Math.min(W.w, W.h) * 0.3, 2.2, 1.4); },
+      },
+    ],
+  });
+})(window.GS);
+
+</script>
+  <script>
+/* js/book/cross.js */
+/* ─────────────────────────────────────────────────────────────
+ * book/cross.js —— 四福音 · 十字架（马太福音 27 · 路加福音 23 · 约翰福音 18 — 19）
+ * 占位：这一幕尚在写作中。它已是一幕完整可走的戏（一句话），好让整部圣经从头到尾都走得通。
+ * ───────────────────────────────────────────────────────────── */
+(function (GS) {
+  'use strict';
+  const W = GS.W;
+  const ACT = 'cross';
+  GS.book.act({
+    id: ACT, book: '四福音', books: [40, 41, 42, 43], title: '十字架', sub: '马太福音 27 · 路加福音 23 · 约翰福音 18 — 19', tint: [210,  200,  212], music: 'lamentations',
+    outro: 8,
+    setup() {
+      const L = { deep: 1, light: 1, gather: 1, dayNight: 1, vault: 1, clouds: 0.4, land: 1, grass: 0.8, herbs: 0.7, trees: 0.5,
+        lights: 1, moon: 1, stars: 1, life: 1, good: 0, sabbath: 0, given: 1 };
+      for (const k in L) if (W.hasLevel(k)) W.set(k, L[k], true);
+      W.freeClock = false;
+      W.goTo(0.36, 0, true);
+      if (GS.cast) GS.cast.clear({ fade: false });
+    },
+    stages: [
+      {
+        kind: 'act', utter: '成了', cmd: 'echo "十字架"', ref: '约翰福音 19:30',
+        verse: [{ text: '耶稣尝了那醋，就说：「成了！」便低下头，将灵魂交付神了。', ref: '约翰福音 19:30', hold: 7 }],
+        apply(c) { if (!c.instant && GS.fx) GS.fx.ring(W.w * 0.7, W.h * 0.5, [210,  200,  212], Math.min(W.w, W.h) * 0.3, 2.2, 1.4); },
+      },
+    ],
+  });
+})(window.GS);
+
+</script>
+  <script>
+/* js/book/risen.js */
+/* ─────────────────────────────────────────────────────────────
+ * book/risen.js —— 四福音 · 复活（马太福音 28 · 路加福音 24 · 约翰福音 20 — 21）
+ * 占位：这一幕尚在写作中。它已是一幕完整可走的戏（一句话），好让整部圣经从头到尾都走得通。
+ * ───────────────────────────────────────────────────────────── */
+(function (GS) {
+  'use strict';
+  const W = GS.W;
+  const ACT = 'risen';
+  GS.book.act({
+    id: ACT, book: '四福音', books: [40, 41, 42, 43], title: '复活', sub: '马太福音 28 · 路加福音 24 · 约翰福音 20 — 21', tint: [255,  246,  220], music: 'song',
+    outro: 8,
+    setup() {
+      const L = { deep: 1, light: 1, gather: 1, dayNight: 1, vault: 1, clouds: 0.4, land: 1, grass: 0.8, herbs: 0.7, trees: 0.5,
+        lights: 1, moon: 1, stars: 1, life: 1, good: 0, sabbath: 0, given: 1 };
+      for (const k in L) if (W.hasLevel(k)) W.set(k, L[k], true);
+      W.freeClock = false;
+      W.goTo(0.36, 0, true);
+      if (GS.cast) GS.cast.clear({ fade: false });
+    },
+    stages: [
+      {
+        kind: 'act', utter: '愿你们平安', cmd: 'echo "复活"', ref: '约翰福音 20:19',
+        verse: [{ text: '那日（就是七日的第一日）晚上，门徒所在的地方，因怕犹太人，门都关了。耶稣来，站在当中，对他们说：「愿你们平安！」', ref: '约翰福音 20:19', hold: 7 }],
+        apply(c) { if (!c.instant && GS.fx) GS.fx.ring(W.w * 0.7, W.h * 0.5, [255,  246,  220], Math.min(W.w, W.h) * 0.3, 2.2, 1.4); },
+      },
+    ],
+  });
+})(window.GS);
+
+</script>
+  <script>
+/* js/book/pentecost.js */
+/* ─────────────────────────────────────────────────────────────
+ * book/pentecost.js —— 使徒行传 · 五旬节（使徒行传 1 — 7）
+ * 占位：这一幕尚在写作中。它已是一幕完整可走的戏（一句话），好让整部圣经从头到尾都走得通。
+ * ───────────────────────────────────────────────────────────── */
+(function (GS) {
+  'use strict';
+  const W = GS.W;
+  const ACT = 'pentecost';
+  GS.book.act({
+    id: ACT, book: '使徒行传', books: [44], title: '五旬节', sub: '使徒行传 1 — 7', tint: [255,  210,  160], music: 'babel',
+    outro: 8,
+    setup() {
+      const L = { deep: 1, light: 1, gather: 1, dayNight: 1, vault: 1, clouds: 0.4, land: 1, grass: 0.8, herbs: 0.7, trees: 0.5,
+        lights: 1, moon: 1, stars: 1, life: 1, good: 0, sabbath: 0, given: 1 };
+      for (const k in L) if (W.hasLevel(k)) W.set(k, L[k], true);
+      W.freeClock = false;
+      W.goTo(0.36, 0, true);
+      if (GS.cast) GS.cast.clear({ fade: false });
+    },
+    stages: [
+      {
+        kind: 'act', utter: '但圣灵降临在你们身上，你们就必得着能力', cmd: 'echo "五旬节"', ref: '1:8',
+        verse: [{ text: '但圣灵降临在你们身上，你们就必得着能力，并要在耶路撒冷、犹太全地，和撒马利亚，直到地极，作我的见证。」', ref: '使徒行传 1:8', hold: 7 }],
+        apply(c) { if (!c.instant && GS.fx) GS.fx.ring(W.w * 0.7, W.h * 0.5, [255,  210,  160], Math.min(W.w, W.h) * 0.3, 2.2, 1.4); },
+      },
+    ],
+  });
+})(window.GS);
+
+</script>
+  <script>
+/* js/book/damascus.js */
+/* ─────────────────────────────────────────────────────────────
+ * book/damascus.js —— 使徒行传 · 大马色（使徒行传 8 — 12）
+ * 占位：这一幕尚在写作中。它已是一幕完整可走的戏（一句话），好让整部圣经从头到尾都走得通。
+ * ───────────────────────────────────────────────────────────── */
+(function (GS) {
+  'use strict';
+  const W = GS.W;
+  const ACT = 'damascus';
+  GS.book.act({
+    id: ACT, book: '使徒行传', books: [44], title: '大马色', sub: '使徒行传 8 — 12', tint: [255,  236,  200], music: 'elijah',
+    outro: 8,
+    setup() {
+      const L = { deep: 1, light: 1, gather: 1, dayNight: 1, vault: 1, clouds: 0.4, land: 1, grass: 0.8, herbs: 0.7, trees: 0.5,
+        lights: 1, moon: 1, stars: 1, life: 1, good: 0, sabbath: 0, given: 1 };
+      for (const k in L) if (W.hasLevel(k)) W.set(k, L[k], true);
+      W.freeClock = false;
+      W.goTo(0.36, 0, true);
+      if (GS.cast) GS.cast.clear({ fade: false });
+    },
+    stages: [
+      {
+        kind: 'act', utter: '扫罗，扫罗，你为什么逼迫我', cmd: 'echo "大马色"', ref: '9:4',
+        verse: [{ text: '他就仆倒在地，听见有声音对他说：「扫罗！扫罗！你为什么逼迫我？」', ref: '使徒行传 9:4', hold: 7 }],
+        apply(c) { if (!c.instant && GS.fx) GS.fx.ring(W.w * 0.7, W.h * 0.5, [255,  236,  200], Math.min(W.w, W.h) * 0.3, 2.2, 1.4); },
+      },
+    ],
+  });
+})(window.GS);
+
+</script>
+  <script>
+/* js/book/journeys.js */
+/* ─────────────────────────────────────────────────────────────
+ * book/journeys.js —— 使徒行传 · 直到地极（使徒行传 13 — 28）
+ * 占位：这一幕尚在写作中。它已是一幕完整可走的戏（一句话），好让整部圣经从头到尾都走得通。
+ * ───────────────────────────────────────────────────────────── */
+(function (GS) {
+  'use strict';
+  const W = GS.W;
+  const ACT = 'journeys';
+  GS.book.act({
+    id: ACT, book: '使徒行传', books: [44], title: '直到地极', sub: '使徒行传 13 — 28', tint: [200,  226,  250], music: 'jeremiah',
+    outro: 8,
+    setup() {
+      const L = { deep: 1, light: 1, gather: 1, dayNight: 1, vault: 1, clouds: 0.4, land: 1, grass: 0.8, herbs: 0.7, trees: 0.5,
+        lights: 1, moon: 1, stars: 1, life: 1, good: 0, sabbath: 0, given: 1 };
+      for (const k in L) if (W.hasLevel(k)) W.set(k, L[k], true);
+      W.freeClock = false;
+      W.goTo(0.36, 0, true);
+      if (GS.cast) GS.cast.clear({ fade: false });
+    },
+    stages: [
+      {
+        kind: 'act', utter: '不要怕，只管讲，不要闭口', cmd: 'echo "直到地极"', ref: '18:9',
+        verse: [{ text: '夜间，主在异象中对保罗说：「不要怕，只管讲，不要闭口，', ref: '使徒行传 18:9', hold: 7 }],
+        apply(c) { if (!c.instant && GS.fx) GS.fx.ring(W.w * 0.7, W.h * 0.5, [200,  226,  250], Math.min(W.w, W.h) * 0.3, 2.2, 1.4); },
+      },
+    ],
+  });
+})(window.GS);
+
+</script>
+  <script>
+/* js/book/romans.js */
+/* ─────────────────────────────────────────────────────────────
+ * book/romans.js —— 罗马书 · 因信称义（罗马书 1 — 16）
+ * 占位：这一幕尚在写作中。它已是一幕完整可走的戏（一句话），好让整部圣经从头到尾都走得通。
+ * ───────────────────────────────────────────────────────────── */
+(function (GS) {
+  'use strict';
+  const W = GS.W;
+  const ACT = 'romans';
+  GS.book.act({
+    id: ACT, book: '罗马书', books: [45], title: '因信称义', sub: '罗马书 1 — 16', tint: [255,  232,  196], music: 'ezra',
+    outro: 8,
+    setup() {
+      const L = { deep: 1, light: 1, gather: 1, dayNight: 1, vault: 1, clouds: 0.4, land: 1, grass: 0.8, herbs: 0.7, trees: 0.5,
+        lights: 1, moon: 1, stars: 1, life: 1, good: 0, sabbath: 0, given: 1 };
+      for (const k in L) if (W.hasLevel(k)) W.set(k, L[k], true);
+      W.freeClock = false;
+      W.goTo(0.36, 0, true);
+      if (GS.cast) GS.cast.clear({ fade: false });
+    },
+    stages: [
+      {
+        kind: 'act', utter: '义人必因信得生', cmd: 'echo "因信称义"', ref: '1:17',
+        verse: [{ text: '因为神的义正在这福音上显明出来；这义是本于信，以至于信。如经上所记：「义人必因信得生。」', ref: '罗马书 1:17', hold: 7 }],
+        apply(c) { if (!c.instant && GS.fx) GS.fx.ring(W.w * 0.7, W.h * 0.5, [255,  232,  196], Math.min(W.w, W.h) * 0.3, 2.2, 1.4); },
+      },
+    ],
+  });
+})(window.GS);
+
+</script>
+  <script>
+/* js/book/corinth.js */
+/* ─────────────────────────────────────────────────────────────
+ * book/corinth.js —— 哥林多书 · 爱（哥林多前书 1 — 哥林多后书 13）
+ * 占位：这一幕尚在写作中。它已是一幕完整可走的戏（一句话），好让整部圣经从头到尾都走得通。
+ * ───────────────────────────────────────────────────────────── */
+(function (GS) {
+  'use strict';
+  const W = GS.W;
+  const ACT = 'corinth';
+  GS.book.act({
+    id: ACT, book: '哥林多书', books: [46, 47], title: '爱', sub: '哥林多前书 1 — 哥林多后书 13', tint: [255,  214,  210], music: 'song',
+    outro: 8,
+    setup() {
+      const L = { deep: 1, light: 1, gather: 1, dayNight: 1, vault: 1, clouds: 0.4, land: 1, grass: 0.8, herbs: 0.7, trees: 0.5,
+        lights: 1, moon: 1, stars: 1, life: 1, good: 0, sabbath: 0, given: 1 };
+      for (const k in L) if (W.hasLevel(k)) W.set(k, L[k], true);
+      W.freeClock = false;
+      W.goTo(0.36, 0, true);
+      if (GS.cast) GS.cast.clear({ fade: false });
+    },
+    stages: [
+      {
+        kind: 'act', utter: '我的恩典够你用的', cmd: 'echo "爱"', ref: '哥林多后书 12:9',
+        verse: [{ text: '他对我说：「我的恩典够你用的，因为我的能力是在人的软弱上显得完全。」所以，我更喜欢夸自己的软弱，好叫基督的能力覆庇我。', ref: '哥林多后书 12:9', hold: 7 }],
+        apply(c) { if (!c.instant && GS.fx) GS.fx.ring(W.w * 0.7, W.h * 0.5, [255,  214,  210], Math.min(W.w, W.h) * 0.3, 2.2, 1.4); },
+      },
+    ],
+  });
+})(window.GS);
+
+</script>
+  <script>
+/* js/book/galatians.js */
+/* ─────────────────────────────────────────────────────────────
+ * book/galatians.js —— 加拉太书 · 圣灵的果子（加拉太书 1 — 6）
+ * 占位：这一幕尚在写作中。它已是一幕完整可走的戏（一句话），好让整部圣经从头到尾都走得通。
+ * ───────────────────────────────────────────────────────────── */
+(function (GS) {
+  'use strict';
+  const W = GS.W;
+  const ACT = 'galatians';
+  GS.book.act({
+    id: ACT, book: '加拉太书', books: [48], title: '圣灵的果子', sub: '加拉太书 1 — 6', tint: [214,  240,  200], music: 'eden',
+    outro: 8,
+    setup() {
+      const L = { deep: 1, light: 1, gather: 1, dayNight: 1, vault: 1, clouds: 0.4, land: 1, grass: 0.8, herbs: 0.7, trees: 0.5,
+        lights: 1, moon: 1, stars: 1, life: 1, good: 0, sabbath: 0, given: 1 };
+      for (const k in L) if (W.hasLevel(k)) W.set(k, L[k], true);
+      W.freeClock = false;
+      W.goTo(0.36, 0, true);
+      if (GS.cast) GS.cast.clear({ fade: false });
+    },
+    stages: [
+      {
+        kind: 'act', utter: '圣灵所结的果子，就是仁爱、喜乐、和平', cmd: 'echo "圣灵的果子"', ref: '5:22',
+        verse: [{ text: '圣灵所结的果子，就是仁爱、喜乐、和平、忍耐、恩慈、良善、信实、', ref: '加拉太书 5:22', hold: 7 }],
+        apply(c) { if (!c.instant && GS.fx) GS.fx.ring(W.w * 0.7, W.h * 0.5, [214,  240,  200], Math.min(W.w, W.h) * 0.3, 2.2, 1.4); },
+      },
+    ],
+  });
+})(window.GS);
+
+</script>
+  <script>
+/* js/book/prison.js */
+/* ─────────────────────────────────────────────────────────────
+ * book/prison.js —— 监狱书信 · 恩典（以弗所书 · 腓立比书 · 歌罗西书 · 腓利门书）
+ * 占位：这一幕尚在写作中。它已是一幕完整可走的戏（一句话），好让整部圣经从头到尾都走得通。
+ * ───────────────────────────────────────────────────────────── */
+(function (GS) {
+  'use strict';
+  const W = GS.W;
+  const ACT = 'prison';
+  GS.book.act({
+    id: ACT, book: '监狱书信', books: [49, 50, 51, 57], title: '恩典', sub: '以弗所书 · 腓立比书 · 歌罗西书 · 腓利门书', tint: [240,  226,  200], music: 'kingdavid',
+    outro: 8,
+    setup() {
+      const L = { deep: 1, light: 1, gather: 1, dayNight: 1, vault: 1, clouds: 0.4, land: 1, grass: 0.8, herbs: 0.7, trees: 0.5,
+        lights: 1, moon: 1, stars: 1, life: 1, good: 0, sabbath: 0, given: 1 };
+      for (const k in L) if (W.hasLevel(k)) W.set(k, L[k], true);
+      W.freeClock = false;
+      W.goTo(0.36, 0, true);
+      if (GS.cast) GS.cast.clear({ fade: false });
+    },
+    stages: [
+      {
+        kind: 'act', utter: '你们得救是本乎恩，也因着信', cmd: 'echo "恩典"', ref: '2:8',
+        verse: [{ text: '你们得救是本乎恩，也因着信；这并不是出于自己，乃是神所赐的；', ref: '以弗所书 2:8', hold: 7 }],
+        apply(c) { if (!c.instant && GS.fx) GS.fx.ring(W.w * 0.7, W.h * 0.5, [240,  226,  200], Math.min(W.w, W.h) * 0.3, 2.2, 1.4); },
+      },
+    ],
+  });
+})(window.GS);
+
+</script>
+  <script>
+/* js/book/thess.js */
+/* ─────────────────────────────────────────────────────────────
+ * book/thess.js —— 帖撒罗尼迦书 · 主必降临（帖撒罗尼迦前书 1 — 帖撒罗尼迦后书 3）
+ * 占位：这一幕尚在写作中。它已是一幕完整可走的戏（一句话），好让整部圣经从头到尾都走得通。
+ * ───────────────────────────────────────────────────────────── */
+(function (GS) {
+  'use strict';
+  const W = GS.W;
+  const ACT = 'thess';
+  GS.book.act({
+    id: ACT, book: '帖撒罗尼迦书', books: [52, 53], title: '主必降临', sub: '帖撒罗尼迦前书 1 — 帖撒罗尼迦后书 3', tint: [230,  236,  255], music: 'twelve2',
+    outro: 8,
+    setup() {
+      const L = { deep: 1, light: 1, gather: 1, dayNight: 1, vault: 1, clouds: 0.4, land: 1, grass: 0.8, herbs: 0.7, trees: 0.5,
+        lights: 1, moon: 1, stars: 1, life: 1, good: 0, sabbath: 0, given: 1 };
+      for (const k in L) if (W.hasLevel(k)) W.set(k, L[k], true);
+      W.freeClock = false;
+      W.goTo(0.36, 0, true);
+      if (GS.cast) GS.cast.clear({ fade: false });
+    },
+    stages: [
+      {
+        kind: 'act', utter: '主必亲自从天降临', cmd: 'echo "主必降临"', ref: '4:16',
+        verse: [{ text: '因为主必亲自从天降临，有呼叫的声音和天使长的声音，又有神的号吹响；那在基督里死了的人必先复活。', ref: '帖撒罗尼迦前书 4:16', hold: 7 }],
+        apply(c) { if (!c.instant && GS.fx) GS.fx.ring(W.w * 0.7, W.h * 0.5, [230,  236,  255], Math.min(W.w, W.h) * 0.3, 2.2, 1.4); },
+      },
+    ],
+  });
+})(window.GS);
+
+</script>
+  <script>
+/* js/book/pastoral.js */
+/* ─────────────────────────────────────────────────────────────
+ * book/pastoral.js —— 教牧书信 · 美好的仗（提摩太前书 · 提摩太后书 · 提多书）
+ * 占位：这一幕尚在写作中。它已是一幕完整可走的戏（一句话），好让整部圣经从头到尾都走得通。
+ * ───────────────────────────────────────────────────────────── */
+(function (GS) {
+  'use strict';
+  const W = GS.W;
+  const ACT = 'pastoral';
+  GS.book.act({
+    id: ACT, book: '教牧书信', books: [54, 55, 56], title: '美好的仗', sub: '提摩太前书 · 提摩太后书 · 提多书', tint: [255,  230,  190], music: 'nehemiah',
+    outro: 8,
+    setup() {
+      const L = { deep: 1, light: 1, gather: 1, dayNight: 1, vault: 1, clouds: 0.4, land: 1, grass: 0.8, herbs: 0.7, trees: 0.5,
+        lights: 1, moon: 1, stars: 1, life: 1, good: 0, sabbath: 0, given: 1 };
+      for (const k in L) if (W.hasLevel(k)) W.set(k, L[k], true);
+      W.freeClock = false;
+      W.goTo(0.36, 0, true);
+      if (GS.cast) GS.cast.clear({ fade: false });
+    },
+    stages: [
+      {
+        kind: 'act', utter: '圣经都是神所默示的', cmd: 'echo "美好的仗"', ref: '提摩太后书 3:16',
+        verse: [{ text: '圣经都是神所默示的，于教训、督责、使人归正、教导人学义都是有益的，', ref: '提摩太后书 3:16', hold: 7 }],
+        apply(c) { if (!c.instant && GS.fx) GS.fx.ring(W.w * 0.7, W.h * 0.5, [255,  230,  190], Math.min(W.w, W.h) * 0.3, 2.2, 1.4); },
+      },
+    ],
+  });
+})(window.GS);
+
+</script>
+  <script>
+/* js/book/hebrews.js */
+/* ─────────────────────────────────────────────────────────────
+ * book/hebrews.js —— 希伯来书 · 信心（希伯来书 1 — 13）
+ * 占位：这一幕尚在写作中。它已是一幕完整可走的戏（一句话），好让整部圣经从头到尾都走得通。
+ * ───────────────────────────────────────────────────────────── */
+(function (GS) {
+  'use strict';
+  const W = GS.W;
+  const ACT = 'hebrews';
+  GS.book.act({
+    id: ACT, book: '希伯来书', books: [58], title: '信心', sub: '希伯来书 1 — 13', tint: [255,  226,  176], music: 'abraham',
+    outro: 8,
+    setup() {
+      const L = { deep: 1, light: 1, gather: 1, dayNight: 1, vault: 1, clouds: 0.4, land: 1, grass: 0.8, herbs: 0.7, trees: 0.5,
+        lights: 1, moon: 1, stars: 1, life: 1, good: 0, sabbath: 0, given: 1 };
+      for (const k in L) if (W.hasLevel(k)) W.set(k, L[k], true);
+      W.freeClock = false;
+      W.goTo(0.36, 0, true);
+      if (GS.cast) GS.cast.clear({ fade: false });
+    },
+    stages: [
+      {
+        kind: 'act', utter: '信就是所望之事的实底', cmd: 'echo "信心"', ref: '11:1',
+        verse: [{ text: '信就是所望之事的实底，是未见之事的确据。', ref: '希伯来书 11:1', hold: 7 }],
+        apply(c) { if (!c.instant && GS.fx) GS.fx.ring(W.w * 0.7, W.h * 0.5, [255,  226,  176], Math.min(W.w, W.h) * 0.3, 2.2, 1.4); },
+      },
+    ],
+  });
+})(window.GS);
+
+</script>
+  <script>
+/* js/book/livingstone.js */
+/* ─────────────────────────────────────────────────────────────
+ * book/livingstone.js —— 普通书信 · 活石（雅各书 · 彼得前书 · 彼得后书）
+ * 占位：这一幕尚在写作中。它已是一幕完整可走的戏（一句话），好让整部圣经从头到尾都走得通。
+ * ───────────────────────────────────────────────────────────── */
+(function (GS) {
+  'use strict';
+  const W = GS.W;
+  const ACT = 'livingstone';
+  GS.book.act({
+    id: ACT, book: '普通书信', books: [59, 60, 61], title: '活石', sub: '雅各书 · 彼得前书 · 彼得后书', tint: [240,  230,  210], music: 'solomon',
+    outro: 8,
+    setup() {
+      const L = { deep: 1, light: 1, gather: 1, dayNight: 1, vault: 1, clouds: 0.4, land: 1, grass: 0.8, herbs: 0.7, trees: 0.5,
+        lights: 1, moon: 1, stars: 1, life: 1, good: 0, sabbath: 0, given: 1 };
+      for (const k in L) if (W.hasLevel(k)) W.set(k, L[k], true);
+      W.freeClock = false;
+      W.goTo(0.36, 0, true);
+      if (GS.cast) GS.cast.clear({ fade: false });
+    },
+    stages: [
+      {
+        kind: 'act', utter: '你们来到主面前，也就像活石', cmd: 'echo "活石"', ref: '彼得前书 2:5',
+        verse: [{ text: '你们来到主面前，也就像活石，被建造成为灵宫，作圣洁的祭司，藉着耶稣基督奉献神所悦纳的灵祭。', ref: '彼得前书 2:5', hold: 7 }],
+        apply(c) { if (!c.instant && GS.fx) GS.fx.ring(W.w * 0.7, W.h * 0.5, [240,  230,  210], Math.min(W.w, W.h) * 0.3, 2.2, 1.4); },
+      },
+    ],
+  });
+})(window.GS);
+
+</script>
+  <script>
+/* js/book/godislove.js */
+/* ─────────────────────────────────────────────────────────────
+ * book/godislove.js —— 普通书信 · 神就是爱（约翰一书 · 约翰二书 · 约翰三书 · 犹大书）
+ * 占位：这一幕尚在写作中。它已是一幕完整可走的戏（一句话），好让整部圣经从头到尾都走得通。
+ * ───────────────────────────────────────────────────────────── */
+(function (GS) {
+  'use strict';
+  const W = GS.W;
+  const ACT = 'godislove';
+  GS.book.act({
+    id: ACT, book: '普通书信', books: [62, 63, 64, 65], title: '神就是爱', sub: '约翰一书 · 约翰二书 · 约翰三书 · 犹大书', tint: [255,  220,  214], music: 'song',
+    outro: 8,
+    setup() {
+      const L = { deep: 1, light: 1, gather: 1, dayNight: 1, vault: 1, clouds: 0.4, land: 1, grass: 0.8, herbs: 0.7, trees: 0.5,
+        lights: 1, moon: 1, stars: 1, life: 1, good: 0, sabbath: 0, given: 1 };
+      for (const k in L) if (W.hasLevel(k)) W.set(k, L[k], true);
+      W.freeClock = false;
+      W.goTo(0.36, 0, true);
+      if (GS.cast) GS.cast.clear({ fade: false });
+    },
+    stages: [
+      {
+        kind: 'act', utter: '神就是爱', cmd: 'echo "神就是爱"', ref: '4:8',
+        verse: [{ text: '没有爱心的，就不认识神，因为神就是爱。', ref: '约翰一书 4:8', hold: 7 }],
+        apply(c) { if (!c.instant && GS.fx) GS.fx.ring(W.w * 0.7, W.h * 0.5, [255,  220,  214], Math.min(W.w, W.h) * 0.3, 2.2, 1.4); },
+      },
+    ],
+  });
+})(window.GS);
+
+</script>
+  <script>
+/* js/book/throne.js */
+/* ─────────────────────────────────────────────────────────────
+ * book/throne.js —— 启示录 · 宝座（启示录 1 — 5）
+ * 占位：这一幕尚在写作中。它已是一幕完整可走的戏（一句话），好让整部圣经从头到尾都走得通。
+ * ───────────────────────────────────────────────────────────── */
+(function (GS) {
+  'use strict';
+  const W = GS.W;
+  const ACT = 'throne';
+  GS.book.act({
+    id: ACT, book: '启示录', books: [66], title: '宝座', sub: '启示录 1 — 5', tint: [236,  230,  255], music: 'ezekiel',
+    outro: 8,
+    setup() {
+      const L = { deep: 1, light: 1, gather: 1, dayNight: 1, vault: 1, clouds: 0.4, land: 1, grass: 0.8, herbs: 0.7, trees: 0.5,
+        lights: 1, moon: 1, stars: 1, life: 1, good: 0, sabbath: 0, given: 1 };
+      for (const k in L) if (W.hasLevel(k)) W.set(k, L[k], true);
+      W.freeClock = false;
+      W.goTo(0.36, 0, true);
+      if (GS.cast) GS.cast.clear({ fade: false });
+    },
+    stages: [
+      {
+        kind: 'act', utter: '我是阿拉法，我是俄梅戛', cmd: 'echo "宝座"', ref: '1:8',
+        verse: [{ text: '主神说：「我是阿拉法，我是俄梅戛，是昔在、今在、以后永在的全能者。」', ref: '启示录 1:8', hold: 7 }],
+        apply(c) { if (!c.instant && GS.fx) GS.fx.ring(W.w * 0.7, W.h * 0.5, [236,  230,  255], Math.min(W.w, W.h) * 0.3, 2.2, 1.4); },
+      },
+    ],
+  });
+})(window.GS);
+
+</script>
+  <script>
+/* js/book/lamb.js */
+/* ─────────────────────────────────────────────────────────────
+ * book/lamb.js —— 启示录 · 羔羊（启示录 6 — 20）
+ * 占位：这一幕尚在写作中。它已是一幕完整可走的戏（一句话），好让整部圣经从头到尾都走得通。
+ * ───────────────────────────────────────────────────────────── */
+(function (GS) {
+  'use strict';
+  const W = GS.W;
+  const ACT = 'lamb';
+  GS.book.act({
+    id: ACT, book: '启示录', books: [66], title: '羔羊', sub: '启示录 6 — 20', tint: [255,  236,  214], music: 'daniel',
+    outro: 8,
+    setup() {
+      const L = { deep: 1, light: 1, gather: 1, dayNight: 1, vault: 1, clouds: 0.4, land: 1, grass: 0.8, herbs: 0.7, trees: 0.5,
+        lights: 1, moon: 1, stars: 1, life: 1, good: 0, sabbath: 0, given: 1 };
+      for (const k in L) if (W.hasLevel(k)) W.set(k, L[k], true);
+      W.freeClock = false;
+      W.goTo(0.36, 0, true);
+      if (GS.cast) GS.cast.clear({ fade: false });
+    },
+    stages: [
+      {
+        kind: 'act', utter: '哈利路亚！因为主我们的神、全能者作王了', cmd: 'echo "羔羊"', ref: '19:6',
+        verse: [{ text: '我听见好像群众的声音，众水的声音，大雷的声音，说：哈利路亚！因为主－我们的神、全能者作王了。', ref: '启示录 19:6', hold: 7 }],
+        apply(c) { if (!c.instant && GS.fx) GS.fx.ring(W.w * 0.7, W.h * 0.5, [255,  236,  214], Math.min(W.w, W.h) * 0.3, 2.2, 1.4); },
+      },
+    ],
+  });
+})(window.GS);
+
+</script>
+  <script>
+/* js/book/newcreation.js */
+/* ─────────────────────────────────────────────────────────────
+ * book/newcreation.js —— 启示录 · 新天新地（启示录 21 — 22）
+ * 占位：这一幕尚在写作中。它已是一幕完整可走的戏（一句话），好让整部圣经从头到尾都走得通。
+ * ───────────────────────────────────────────────────────────── */
+(function (GS) {
+  'use strict';
+  const W = GS.W;
+  const ACT = 'newcreation';
+  GS.book.act({
+    id: ACT, book: '启示录', books: [66], title: '新天新地', sub: '启示录 21 — 22', tint: [255,  246,  230], music: 'eden',
+    outro: 8,
+    setup() {
+      const L = { deep: 1, light: 1, gather: 1, dayNight: 1, vault: 1, clouds: 0.4, land: 1, grass: 0.8, herbs: 0.7, trees: 0.5,
+        lights: 1, moon: 1, stars: 1, life: 1, good: 0, sabbath: 0, given: 1 };
+      for (const k in L) if (W.hasLevel(k)) W.set(k, L[k], true);
+      W.freeClock = false;
+      W.goTo(0.36, 0, true);
+      if (GS.cast) GS.cast.clear({ fade: false });
+    },
+    stages: [
+      {
+        kind: 'act', utter: '看哪，我将一切都更新了', cmd: 'echo "新天新地"', ref: '21:5',
+        verse: [{ text: '坐宝座的说：「看哪，我将一切都更新了！」又说：「你要写上；因这些话是可信的，是真实的。」', ref: '启示录 21:5', hold: 7 }],
+        apply(c) { if (!c.instant && GS.fx) GS.fx.ring(W.w * 0.7, W.h * 0.5, [255,  246,  230], Math.min(W.w, W.h) * 0.3, 2.2, 1.4); },
+      },
+    ],
+  });
+})(window.GS);
+
+</script>
+  <script>
 /* js/ui.js */
 /* ─────────────────────────────────────────────────────────────
  * ui.js —— 文字的层：神谕、经文、提示、七日之印、创世日志、标题、终幕
@@ -132777,6 +133615,7 @@ void main() {
       if (s.act > 0 && s.act !== lastAct && acts && acts[s.act]) {
         lastAct = s.act;
         const a = acts[s.act];
+        if (GS.book.opensTestament && GS.book.opensTestament(a)) html += '<div class="ts">新约</div>';
         if (a.book !== lastBook) { lastBook = a.book; html += '<div class="bk">' + esc(a.book) + '<span>' + esc(a.ordinal || '') + '</span></div>'; }
         html += '<div class="act">' + esc(a.title) + '<span>' + esc(a.sub || '') + '</span></div>';
         html += '<div class="ln"><span class="p">$ </span><span class="c">git checkout -b ' + esc(a.id) + '</span></div>';
@@ -132793,7 +133632,8 @@ void main() {
     }
     if (done >= stages.length) {
       const spoken = stages.filter(s => s.utter).length;
-      html += '<div class="ok">✓ build passed · 旧约 39 卷 · 929 章</div>';
+      const nt = acts && acts[acts.length - 1] && acts[acts.length - 1].testament === 1;
+      html += '<div class="ok">✓ build passed · ' + (nt ? '圣经 66 卷 · 1189 章' : '旧约 39 卷 · 929 章') + '</div>';
       html += '<div class="ln"><span class="r">' + spoken + ' 句话 · 0 个 bug</span></div>';
       html += '<div class="ln"><span class="r">God is the first vibecoder.</span></div>';
       html += '<div class="ln" style="margin-top:14px"><span class="p">$ </span><span class="c cursor"></span></div>';
@@ -132823,7 +133663,7 @@ void main() {
   }
   const panelOpen = () => el.ledger.classList.contains('open') || el.help.classList.contains('show') || !!(el.toc && el.toc.classList.contains('open'));
 
-  // ── 目录：三十九卷，每一幕都可翻到 ──────────────────────────
+  // ── 目录：两约六十六卷，每一幕都可翻到 ──────────────────────
   let tocKey = '';
   function renderToc(acts, stage, max, mode) {
     if (!el.toc || !acts) return;
@@ -132833,10 +133673,12 @@ void main() {
     tocKey = key;
     const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
     const B = GS.book.BOOKS, G = GS.book.GROUPS;
-    let html = '<h2>目录</h2><div class="sub">旧约 · 三十九卷 · 点一幕便翻到那里</div>';
-    let lastGroup = -1, lastBook = '';
+    const both = acts.some(a => a.testament === 1);
+    let html = '<h2>目录</h2><div class="sub">' + (both ? '圣经 · 六十六卷' : '旧约 · 三十九卷') + ' · 点一幕便翻到那里</div>';
+    let lastGroup = -1, lastBook = '', lastT = -1;
     for (const a of acts) {
       const bk = B[(a.books && a.books[0] ? a.books[0] : 1) - 1] || B[0];
+      if (both && (a.testament || 0) !== lastT) { lastT = a.testament || 0; html += '<div class="ts">' + (lastT ? '新约' : '旧约') + '</div>'; }
       if (bk.group !== lastGroup) { lastGroup = bk.group; html += '<div class="grp">' + G[bk.group] + '</div>'; }
       if (a.book !== lastBook) {
         lastBook = a.book;
@@ -132845,7 +133687,9 @@ void main() {
         html += '<div class="bk">' + esc(a.book) + '<span>' + esc(sub) + '</span></div>';
       }
       const st = a.index === cur ? ' cur' : a.first <= max ? ' done' : '';
-      const ref = String(a.sub || '').replace(/^\S+\s+/, '');
+      // 副题开头的书名与卷名相同（或本幕只有一卷）时省去书名；几卷合成的幕（四福音、历代志）保留全文
+      const sub = String(a.sub || ''), tok = sub.split(/\s+/)[0];
+      const ref = tok === a.book || (a.books || []).length === 1 ? sub.replace(/^\S+\s+/, '') : sub;
       html += '<button class="it' + st + '" data-stage="' + a.first + '">' + esc(a.title) + '<span>' + esc(ref) + '</span></button>';
     }
     el.toc.innerHTML = html;
@@ -132954,7 +133798,9 @@ void main() {
     if (!c) return;
     if (on) {
       const prev = GS.book.opensBook(a) ? GS.book.ACTS[a.index - 1] : null;
-      c.innerHTML = (prev ? '<div class="e">' + prev.book + ' · 终</div>' : '') +
+      // 新约的第一幕：上一行写「旧约 · 终」
+      const end = GS.book.opensTestament && GS.book.opensTestament(a) ? '旧约' : prev ? prev.book : '';
+      c.innerHTML = (end ? '<div class="e">' + end + ' · 终</div>' : '') +
         '<div class="n">' + (a.ordinal ? a.ordinal + ' · ' : '') + a.book + '</div><div class="t' + (Array.from(a.title).length > 3 ? ' long' : '') + '">' +
         Array.from(a.title).map((ch, k) => '<span class="brush" style="--k:' + k + '">' + ch + '</span>').join('') +
         '</div><div class="s">' + (a.sub || '') + '</div>';
@@ -133145,13 +133991,16 @@ void main() {
     }
     const a = ACTS[st.act] || ACTS[0];
     if (st.index === a.last) {
-      if (a.index === ACTS.length - 1) enterRest();                 // 旧约终
+      if (a.index === ACTS.length - 1) enterRest();                 // 圣经终
       else {
         const next = ACTS[a.index + 1];
         if (a.index === 0) actOneFinale();                          // 七日圆满：安息
-        // 创世记五十章讲完：先在天上写下「创世记 · 终」，再落幕进入出埃及记
-        const fin = a.index > 0 && a.book === '创世记' && next.book !== a.book
-          ? { title: '创世记', sub: '全书五十章 · 终', foot: spokenUpTo(a.last) + ' 句话　—　下一卷：' + next.book } : null;
+        // 创世记五十章讲完：先在天上写下「创世记 · 终」，再落幕进入出埃及记；
+        // 旧约三十九卷讲完：写下「旧约 · 终」，再落幕进入新约
+        const fin = GS.book.opensTestament(next)
+          ? { title: '旧约', sub: '三十九卷 · 终', foot: spokenUpTo(a.last) + ' 句话　—　下一卷：新约 · ' + next.book }
+          : a.index > 0 && a.book === '创世记' && next.book !== a.book
+            ? { title: '创世记', sub: '全书五十章 · 终', foot: spokenUpTo(a.last) + ' 句话　—　下一卷：' + next.book } : null;
         scheduleAct(next, a.outro, fin);
       }
     }
@@ -133241,12 +134090,28 @@ void main() {
     const outro = (ACTS[ACTS.length - 1] && ACTS[ACTS.length - 1].outro) || 16;
     // 末一句的故事与经文都尽了，终章才写在天上（最多再等一分钟）
     let waited = 0;
+    // 先写「新约 · 终」，再写「圣经 · 终」
+    const last = ACTS[ACTS.length - 1] || {};
+    const nt = (last.testament || 0) === 1;
     const show = () => {
       if ((GS.book.busy() || GS.ui.narrating()) && waited++ < 60) { GS.book.after(1, show); return; }
-      GS.ui.finale(true, { title: '旧约', sub: '三十九卷 · 终', foot: spoken + ' 句话 · 0 个 bug　—　God is the first vibecoder.' });
+      if (!nt) {
+        GS.ui.finale(true, { title: '旧约', sub: '三十九卷 · 终', foot: spoken + ' 句话 · 0 个 bug　—　God is the first vibecoder.' });
+        safe('audio.finale', () => GS.audio.finale());
+        GS.book.after(13, () => GS.ui.finale(false));
+        GS.book.after(16, () => GS.ui.hint('灵经过之处，万物显出其名；按住，观看它被造时的话', 7));
+        return;
+      }
+      const ntSpoken = STAGES.filter(s => s.utter && (ACTS[s.act] || {}).testament === 1).length;
+      GS.ui.finale(true, { title: '新约', sub: '二十七卷 · 终', foot: ntSpoken + ' 句话' });
       safe('audio.finale', () => GS.audio.finale());
-      GS.book.after(13, () => GS.ui.finale(false));
-      GS.book.after(16, () => GS.ui.hint('灵经过之处，万物显出其名；按住，观看它被造时的话', 7));
+      GS.book.after(10, () => GS.ui.finale(false));
+      GS.book.after(12.5, () => {
+        GS.ui.finale(true, { title: '圣经', sub: '六十六卷 · 终', foot: spoken + ' 句话 · 0 个 bug　—　God is the first vibecoder.' });
+        safe('audio.finale', () => GS.audio.finale());
+      });
+      GS.book.after(27, () => GS.ui.finale(false));
+      GS.book.after(30, () => GS.ui.hint('灵经过之处，万物显出其名；按住，观看它被造时的话', 7));
     };
     GS.book.after(outro, show);
   }
@@ -133495,12 +134360,12 @@ void main() {
       g.fillStyle = 'rgba(250,246,236,0.72)';
       g.shadowColor = 'rgba(0,0,0,0.8)'; g.shadowBlur = 4;
       const label = progressLabel();
-      g.fillText('旧约 · God Simulator · ' + label, W.w - 18, W.h - 16);
+      g.fillText('圣经 · God Simulator · ' + label, W.w - 18, W.h - 16);
       c.toBlob(b => {
         if (!b) return;
         const a = document.createElement('a');
         a.href = URL.createObjectURL(b);
-        a.download = '旧约-' + label.replace(/\s*·\s*/g, '-') + '.png';
+        a.download = '圣经-' + label.replace(/\s*·\s*/g, '-') + '.png';
         document.body.appendChild(a); a.click(); a.remove();
         setTimeout(() => URL.revokeObjectURL(a.href), 5000);
       }, 'image/png');

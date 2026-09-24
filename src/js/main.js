@@ -165,13 +165,16 @@
     }
     const a = ACTS[st.act] || ACTS[0];
     if (st.index === a.last) {
-      if (a.index === ACTS.length - 1) enterRest();                 // 旧约终
+      if (a.index === ACTS.length - 1) enterRest();                 // 圣经终
       else {
         const next = ACTS[a.index + 1];
         if (a.index === 0) actOneFinale();                          // 七日圆满：安息
-        // 创世记五十章讲完：先在天上写下「创世记 · 终」，再落幕进入出埃及记
-        const fin = a.index > 0 && a.book === '创世记' && next.book !== a.book
-          ? { title: '创世记', sub: '全书五十章 · 终', foot: spokenUpTo(a.last) + ' 句话　—　下一卷：' + next.book } : null;
+        // 创世记五十章讲完：先在天上写下「创世记 · 终」，再落幕进入出埃及记；
+        // 旧约三十九卷讲完：写下「旧约 · 终」，再落幕进入新约
+        const fin = GS.book.opensTestament(next)
+          ? { title: '旧约', sub: '三十九卷 · 终', foot: spokenUpTo(a.last) + ' 句话　—　下一卷：新约 · ' + next.book }
+          : a.index > 0 && a.book === '创世记' && next.book !== a.book
+            ? { title: '创世记', sub: '全书五十章 · 终', foot: spokenUpTo(a.last) + ' 句话　—　下一卷：' + next.book } : null;
         scheduleAct(next, a.outro, fin);
       }
     }
@@ -261,12 +264,28 @@
     const outro = (ACTS[ACTS.length - 1] && ACTS[ACTS.length - 1].outro) || 16;
     // 末一句的故事与经文都尽了，终章才写在天上（最多再等一分钟）
     let waited = 0;
+    // 先写「新约 · 终」，再写「圣经 · 终」
+    const last = ACTS[ACTS.length - 1] || {};
+    const nt = (last.testament || 0) === 1;
     const show = () => {
       if ((GS.book.busy() || GS.ui.narrating()) && waited++ < 60) { GS.book.after(1, show); return; }
-      GS.ui.finale(true, { title: '旧约', sub: '三十九卷 · 终', foot: spoken + ' 句话 · 0 个 bug　—　God is the first vibecoder.' });
+      if (!nt) {
+        GS.ui.finale(true, { title: '旧约', sub: '三十九卷 · 终', foot: spoken + ' 句话 · 0 个 bug　—　God is the first vibecoder.' });
+        safe('audio.finale', () => GS.audio.finale());
+        GS.book.after(13, () => GS.ui.finale(false));
+        GS.book.after(16, () => GS.ui.hint('灵经过之处，万物显出其名；按住，观看它被造时的话', 7));
+        return;
+      }
+      const ntSpoken = STAGES.filter(s => s.utter && (ACTS[s.act] || {}).testament === 1).length;
+      GS.ui.finale(true, { title: '新约', sub: '二十七卷 · 终', foot: ntSpoken + ' 句话' });
       safe('audio.finale', () => GS.audio.finale());
-      GS.book.after(13, () => GS.ui.finale(false));
-      GS.book.after(16, () => GS.ui.hint('灵经过之处，万物显出其名；按住，观看它被造时的话', 7));
+      GS.book.after(10, () => GS.ui.finale(false));
+      GS.book.after(12.5, () => {
+        GS.ui.finale(true, { title: '圣经', sub: '六十六卷 · 终', foot: spoken + ' 句话 · 0 个 bug　—　God is the first vibecoder.' });
+        safe('audio.finale', () => GS.audio.finale());
+      });
+      GS.book.after(27, () => GS.ui.finale(false));
+      GS.book.after(30, () => GS.ui.hint('灵经过之处，万物显出其名；按住，观看它被造时的话', 7));
     };
     GS.book.after(outro, show);
   }
@@ -515,12 +534,12 @@
       g.fillStyle = 'rgba(250,246,236,0.72)';
       g.shadowColor = 'rgba(0,0,0,0.8)'; g.shadowBlur = 4;
       const label = progressLabel();
-      g.fillText('旧约 · God Simulator · ' + label, W.w - 18, W.h - 16);
+      g.fillText('圣经 · God Simulator · ' + label, W.w - 18, W.h - 16);
       c.toBlob(b => {
         if (!b) return;
         const a = document.createElement('a');
         a.href = URL.createObjectURL(b);
-        a.download = '旧约-' + label.replace(/\s*·\s*/g, '-') + '.png';
+        a.download = '圣经-' + label.replace(/\s*·\s*/g, '-') + '.png';
         document.body.appendChild(a); a.click(); a.remove();
         setTimeout(() => URL.revokeObjectURL(a.href), 5000);
       }, 'image/png');

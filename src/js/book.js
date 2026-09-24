@@ -1,7 +1,7 @@
 /* ─────────────────────────────────────────────────────────────
  * book.js —— 旧约全书：书与幕的登记、情节的时间线、各幕布景的总调度
  *
- * 旧约三十九卷，从创世记到玛拉基书，讲成一条线上的许多「幕」（act）：
+ * 圣经六十六卷：旧约三十九卷，从创世记到玛拉基书；新约二十七卷，从马太福音到启示录——讲成一条线上的许多「幕」（act）：
  * 第一幕「七日」来自 story.js；其后每一幕各在 js/book/*.js 里用 GS.book.act({...}) 登记，
  * 按 src/index.html 里的先后接在 STAGES 后面——每一句话只成就一步，存档仍只是一个数字。
  * 一卷书可分几幕（出埃及记：摩西、十灾、红海、西奈），几卷书也可合为一幕（十二小先知）。
@@ -42,8 +42,20 @@
     ['何西阿书', '何', 14, 4], ['约珥书', '珥', 3, 4], ['阿摩司书', '摩', 9, 4], ['俄巴底亚书', '俄', 1, 4], ['约拿书', '拿', 4, 4],
     ['弥迦书', '弥', 7, 4], ['那鸿书', '鸿', 3, 4], ['哈巴谷书', '哈', 3, 4], ['西番雅书', '番', 3, 4], ['哈该书', '该', 2, 4],
     ['撒迦利亚书', '亚', 14, 4], ['玛拉基书', '玛', 4, 4],
-  ].map((b, i) => ({ n: i + 1, name: b[0], abbr: b[1], chapters: b[2], group: b[3] }));
-  const GROUPS = ['律法书', '历史书', '诗歌智慧书', '大先知书', '小先知书'];
+    // 新约二十七卷
+    ['马太福音', '太', 28, 5], ['马可福音', '可', 16, 5], ['路加福音', '路', 24, 5], ['约翰福音', '约', 21, 5],
+    ['使徒行传', '徒', 28, 6],
+    ['罗马书', '罗', 16, 7], ['哥林多前书', '林前', 16, 7], ['哥林多后书', '林后', 13, 7], ['加拉太书', '加', 6, 7], ['以弗所书', '弗', 6, 7],
+    ['腓立比书', '腓', 4, 7], ['歌罗西书', '西', 4, 7], ['帖撒罗尼迦前书', '帖前', 5, 7], ['帖撒罗尼迦后书', '帖后', 3, 7], ['提摩太前书', '提前', 6, 7],
+    ['提摩太后书', '提后', 4, 7], ['提多书', '多', 3, 7], ['腓利门书', '门', 1, 7],
+    ['希伯来书', '来', 13, 8], ['雅各书', '雅', 5, 8], ['彼得前书', '彼前', 5, 8], ['彼得后书', '彼后', 3, 8], ['约翰一书', '约一', 5, 8],
+    ['约翰二书', '约二', 1, 8], ['约翰三书', '约三', 1, 8], ['犹大书', '犹', 1, 8],
+    ['启示录', '启', 22, 9],
+  ].map((b, i) => ({ n: i + 1, name: b[0], abbr: b[1], chapters: b[2], group: b[3], t: i < 39 ? 0 : 1 }));
+  const GROUPS = ['律法书', '历史书', '诗歌智慧书', '大先知书', '小先知书', '福音书', '历史书', '保罗书信', '普通书信', '预言书'];
+  // 两约：旧约三十九卷（1 … 39），新约二十七卷（40 … 66）；卷序在各约之内从「第一卷」数起
+  const TESTAMENTS = [{ name: '旧约', first: 1, last: 39 }, { name: '新约', first: 40, last: 66 }];
+  const testamentOf = n => (n > 39 ? 1 : 0);
 
   // 中文数字（1 … 199）
   const DIG = ['零', '一', '二', '三', '四', '五', '六', '七', '八', '九'];
@@ -56,18 +68,22 @@
     return DIG[(n / 100) | 0] + '百' + (r ? (r < 10 ? '零' + DIG[r] : r < 20 ? '一' + cn(r) : cn(r)) : '');
   }
   const CN_NUM = Array.from({ length: 60 }, (_, i) => cn(i + 1));
-  // 「第二卷」「第十三—十四卷」「第二十八—三十三卷」
+  // 「第二卷」「第十三—十四卷」「第二十八—三十三卷」；新约：「新约第一—四卷」「新约第十—十二、十八卷」
   function bookOrdinal(nums) {
     if (!nums || !nums.length) return '';
-    const a = Math.min(...nums), b = Math.max(...nums);
-    return a === b ? '第' + cn(a) + '卷' : '第' + cn(a) + '—' + cn(b) + '卷';
+    const t = testamentOf(Math.min(...nums)), base = TESTAMENTS[t].first - 1;
+    const ns = Array.from(new Set(nums)).sort((x, y) => x - y).map(n => n - base);
+    const runs = [];
+    for (const n of ns) { const r = runs[runs.length - 1]; if (r && n === r[1] + 1) r[1] = n; else runs.push([n, n]); }
+    const body = runs.map(r => (r[0] === r[1] ? cn(r[0]) : cn(r[0]) + '—' + cn(r[1]))).join('、');
+    return (t ? '新约' : '') + '第' + body + '卷';
   }
 
   // ── 幕 ──────────────────────────────────────────────────────
   const ACTS = [];
   ACTS.push({
     id: 'seven', index: 0, title: '七日', sub: '创世记 1:1 — 2:3', tint: [255, 250, 240],
-    book: '创世记', books: [1], numeral: '创世记',
+    book: '创世记', books: [1], numeral: '创世记', testament: 0,
     first: 0, last: STAGES.length - 1, setup: null, outro: 30,
   });
   STAGES.forEach(s => { s.act = 0; });
@@ -84,6 +100,7 @@
     }
     a.numeral = a.book;
     a.ordinal = bookOrdinal(a.books);
+    a.testament = testamentOf(Math.min(...a.books));
     (def.stages || []).forEach(st => {
       st.act = a.index;
       st.index = STAGES.length;
@@ -218,10 +235,12 @@
   // 这一幕是否开启一卷新书（前一幕属于别的书）
   const opensBook = a => !!(a && a.index > 0 && ACTS[a.index - 1] && ACTS[a.index - 1].book !== a.book);
   const closesBook = a => !!(a && (a.index === ACTS.length - 1 || (ACTS[a.index + 1] && ACTS[a.index + 1].book !== a.book)));
+  // 这一幕是否开启新约（前一幕属于旧约）
+  const opensTestament = a => !!(a && a.index > 0 && ACTS[a.index - 1] && (ACTS[a.index - 1].testament || 0) !== (a.testament || 0));
 
   // 每一卷开始时，这些"卷内"的程度先回到默认，再由该卷的 setup 自行设定（前一卷的枯黄、花隐等不会误带过来）
   const ACT_DEFAULTS = { bare: 0, bloom: 1, rain: 0, storm: 0, gale: 0, hail: 0, gloom: 0 };
   function resetActLevels() { for (const k in ACT_DEFAULTS) if (W.hasLevel(k)) W.set(k, ACT_DEFAULTS[k], true); W.beastAvoid = []; W.weatherExclude = []; }
 
-  GS.book = { ACTS, BOOKS, GROUPS, act, actOf, find, opensBook, closesBook, bookOrdinal, cn, timeline, flush, busy, after, cancel, reset, resync, current, resetActLevels, ACT_DEFAULTS, CN_NUM, scenes };
+  GS.book = { ACTS, BOOKS, GROUPS, TESTAMENTS, testamentOf, opensTestament, act, actOf, find, opensBook, closesBook, bookOrdinal, cn, timeline, flush, busy, after, cancel, reset, resync, current, resetActLevels, ACT_DEFAULTS, CN_NUM, scenes };
 })(window.GS);

@@ -220,6 +220,7 @@
       if (s.act > 0 && s.act !== lastAct && acts && acts[s.act]) {
         lastAct = s.act;
         const a = acts[s.act];
+        if (GS.book.opensTestament && GS.book.opensTestament(a)) html += '<div class="ts">新约</div>';
         if (a.book !== lastBook) { lastBook = a.book; html += '<div class="bk">' + esc(a.book) + '<span>' + esc(a.ordinal || '') + '</span></div>'; }
         html += '<div class="act">' + esc(a.title) + '<span>' + esc(a.sub || '') + '</span></div>';
         html += '<div class="ln"><span class="p">$ </span><span class="c">git checkout -b ' + esc(a.id) + '</span></div>';
@@ -236,7 +237,8 @@
     }
     if (done >= stages.length) {
       const spoken = stages.filter(s => s.utter).length;
-      html += '<div class="ok">✓ build passed · 旧约 39 卷 · 929 章</div>';
+      const nt = acts && acts[acts.length - 1] && acts[acts.length - 1].testament === 1;
+      html += '<div class="ok">✓ build passed · ' + (nt ? '圣经 66 卷 · 1189 章' : '旧约 39 卷 · 929 章') + '</div>';
       html += '<div class="ln"><span class="r">' + spoken + ' 句话 · 0 个 bug</span></div>';
       html += '<div class="ln"><span class="r">God is the first vibecoder.</span></div>';
       html += '<div class="ln" style="margin-top:14px"><span class="p">$ </span><span class="c cursor"></span></div>';
@@ -266,7 +268,7 @@
   }
   const panelOpen = () => el.ledger.classList.contains('open') || el.help.classList.contains('show') || !!(el.toc && el.toc.classList.contains('open'));
 
-  // ── 目录：三十九卷，每一幕都可翻到 ──────────────────────────
+  // ── 目录：两约六十六卷，每一幕都可翻到 ──────────────────────
   let tocKey = '';
   function renderToc(acts, stage, max, mode) {
     if (!el.toc || !acts) return;
@@ -276,10 +278,12 @@
     tocKey = key;
     const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
     const B = GS.book.BOOKS, G = GS.book.GROUPS;
-    let html = '<h2>目录</h2><div class="sub">旧约 · 三十九卷 · 点一幕便翻到那里</div>';
-    let lastGroup = -1, lastBook = '';
+    const both = acts.some(a => a.testament === 1);
+    let html = '<h2>目录</h2><div class="sub">' + (both ? '圣经 · 六十六卷' : '旧约 · 三十九卷') + ' · 点一幕便翻到那里</div>';
+    let lastGroup = -1, lastBook = '', lastT = -1;
     for (const a of acts) {
       const bk = B[(a.books && a.books[0] ? a.books[0] : 1) - 1] || B[0];
+      if (both && (a.testament || 0) !== lastT) { lastT = a.testament || 0; html += '<div class="ts">' + (lastT ? '新约' : '旧约') + '</div>'; }
       if (bk.group !== lastGroup) { lastGroup = bk.group; html += '<div class="grp">' + G[bk.group] + '</div>'; }
       if (a.book !== lastBook) {
         lastBook = a.book;
@@ -288,7 +292,9 @@
         html += '<div class="bk">' + esc(a.book) + '<span>' + esc(sub) + '</span></div>';
       }
       const st = a.index === cur ? ' cur' : a.first <= max ? ' done' : '';
-      const ref = String(a.sub || '').replace(/^\S+\s+/, '');
+      // 副题开头的书名与卷名相同（或本幕只有一卷）时省去书名；几卷合成的幕（四福音、历代志）保留全文
+      const sub = String(a.sub || ''), tok = sub.split(/\s+/)[0];
+      const ref = tok === a.book || (a.books || []).length === 1 ? sub.replace(/^\S+\s+/, '') : sub;
       html += '<button class="it' + st + '" data-stage="' + a.first + '">' + esc(a.title) + '<span>' + esc(ref) + '</span></button>';
     }
     el.toc.innerHTML = html;
@@ -397,7 +403,9 @@
     if (!c) return;
     if (on) {
       const prev = GS.book.opensBook(a) ? GS.book.ACTS[a.index - 1] : null;
-      c.innerHTML = (prev ? '<div class="e">' + prev.book + ' · 终</div>' : '') +
+      // 新约的第一幕：上一行写「旧约 · 终」
+      const end = GS.book.opensTestament && GS.book.opensTestament(a) ? '旧约' : prev ? prev.book : '';
+      c.innerHTML = (end ? '<div class="e">' + end + ' · 终</div>' : '') +
         '<div class="n">' + (a.ordinal ? a.ordinal + ' · ' : '') + a.book + '</div><div class="t' + (Array.from(a.title).length > 3 ? ' long' : '') + '">' +
         Array.from(a.title).map((ch, k) => '<span class="brush" style="--k:' + k + '">' + ch + '</span>').join('') +
         '</div><div class="s">' + (a.sub || '') + '</div>';

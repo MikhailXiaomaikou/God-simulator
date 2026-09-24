@@ -2031,7 +2031,24 @@
   function reset() { people.clear(); crowds.clear(); }
   function init() { try { glowSprite('inner', INNER, 0.95); glowSprite('warm', WARM, 0.9); glowSprite('pale', [255, 246, 222], 1); glowSprite('flame', FLAME, 1); } catch (e) { /* 无画布时略过 */ } }
 
+  // ── 新约里反复出场的人：各幕用同一副样子（无面目；只以衣袍、头巾与一点光相认）──
+  //   用法：GS.cast.add('jesus', Object.assign({}, GS.cast.LOOK.jesus, { x: 0.6, layer: 2 }))
+  //   耶稣：本色细麻的长衣、朱赭的外袍边、胸中的光略亮（glow 0.32）；复活后与登山变像时由各幕调高 glow。
+  const LOOK = {
+    jesus:     { label: '耶稣', sex: 'm', age: 'adult', robe: [232, 224, 206], accent: [150, 70, 58], hair: 'long', beard: true, glow: 0.32 },
+    mary:      { label: '马利亚', sex: 'f', age: 'adult', robe: [96, 120, 170], accent: [226, 220, 204], hair: 'veil', glow: 0.24 },
+    josephnt:  { label: '约瑟', sex: 'm', age: 'adult', robe: [136, 106, 78], accent: [196, 176, 150], beard: true, glow: 0.18 },
+    baptist:   { label: '施洗约翰', sex: 'm', age: 'adult', robe: [118, 90, 60], accent: [70, 52, 36], hair: 'long', beard: true, glow: 0.22 },
+    peter:     { label: '彼得', sex: 'm', age: 'adult', robe: [104, 112, 138], accent: [200, 170, 120], beard: true, glow: 0.2 },
+    john:      { label: '约翰', sex: 'm', age: 'adult', robe: [150, 70, 64], accent: [220, 206, 180], hair: 'short', beard: false, glow: 0.2 },
+    magdalene: { label: '抹大拉的马利亚', sex: 'f', age: 'adult', robe: [150, 84, 96], accent: [230, 214, 196], hair: 'veil', glow: 0.22 },
+    paul:      { label: '保罗', sex: 'm', age: 'adult', robe: [128, 96, 72], accent: [200, 160, 100], beard: true, glow: 0.2 },
+    disciple:  { sex: 'm', age: 'adult', beard: true, glow: 0.14 },     // 其余门徒：robe 从 DISCIPLE_ROBES 里挑
+  };
+  const DISCIPLE_ROBES = [[122, 104, 84], [104, 92, 80], [138, 116, 92], [96, 104, 118], [132, 98, 82], [112, 118, 96], [146, 128, 104], [100, 88, 96], [126, 110, 120], [140, 104, 88], [108, 100, 86]];
+
   GS.cast = {
+    LOOK, DISCIPLE_ROBES,
     init, resize() {}, update, draw, reset, restore, pick,
     add, remove, has, get, place, walk, run, pose, face, follow, glow, clear,
     crowd, crowdWalk, crowdPose, scatter, removeCrowd,
