@@ -2396,7 +2396,7 @@
           [L[1], b => {
             pose('david', 'stand'); face('david', -1);
             crowd('elders2', { n: 5, x0: 0.8, x1: 0.84, layer: 2, label: '以色列的长老', robe: [104, 94, 80], v: 0.3, from: fromOf(b), mill: false });
-            crowdWalk('elders2', 0.768, 0.8, { speed: 0.02, pose: 'fall' });
+            crowdWalk('elders2', 0.768, 0.8, { speed: 0.02, pose: 'kneel' });
             pose('gad', 'stand');
           }],
           [L[1] + 1.4, () => pose('david', 'pray')],

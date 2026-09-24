@@ -330,8 +330,8 @@
   function loadFonts() {
     try {
       if (document.fonts && document.fonts.load) {
-        document.fonts.load('20px "GS Kai"', '亚当塞特大卫所罗门').then(() => TXT.clear()).catch(() => {});
-        if (document.fonts.ready) document.fonts.ready.then(() => TXT.clear()).catch(() => {});
+        document.fonts.load('20px "GS Kai"', '亚当塞特大卫所罗门').then(() => { TXT.clear(); RL = null; }).catch(() => {});
+        if (document.fonts.ready) document.fonts.ready.then(() => { TXT.clear(); RL = null; }).catch(() => {});
       }
     } catch (e) { /* 用系统字 */ }
   }
@@ -372,26 +372,29 @@
   const rPx = () => clamp(15 * W.unit, 12, 19);
   // 众名像一行字写在河上：自源头（左）向锡安（右）一个接一个写出，从左往右读是由古至今；
   // 写到河尾就回到源头接着写（前面的早已淡去）。沿弧长排好位置（按字宽，不相挤）。
+  const rDrift = () => 12 * Math.max(0.6, W.unit);     // 写出后随水漂的速度（像素/秒）
   function layRiver(L) {
-    const px = rPx(), gap = px * 1.05, lo = 0.05 * L, hi = 0.95 * L;
+    // 字宽按实际的字模量（没有量到时按方块字估）；先写的名随水漂，后写的名要让出它漂过的那一段
+    const px = rPx(), gap = px * 0.9, lo = 0.05 * L, hi = 0.95 * L, dr = rDrift();
+    const wOf = n => { const sp = textSprite(n.s, Math.round(px * n.k), [248, 232, 206]); return Math.max(n.s.length * px * n.k, sp.w - 18); };
     const lay = (list, u0) => {
       let u = u0, prev = null;
       for (const n of list) {
-        const w = n.s.length * px * n.k;
+        const w = wOf(n), lead = prev ? dr * Math.max(0, n.t - prev.t) : 0;
         if (!prev) u = u0 + w / 2;
-        else if (n.br && prev.br && n.br !== prev.br) u += (prev.w + w) / 2 * 0.45 + gap * 0.3;   // 十二个儿子在河的两岸交错
-        else u += (prev.w + w) / 2 + gap;
+        else if (n.br && prev.br && n.br !== prev.br) u += (prev.w + w) / 2 * 0.45 + gap * 0.3 + lead;   // 十二个儿子在河的两岸交错
+        else u += (prev.w + w) / 2 + gap + lead;
         if (u + w / 2 > hi) u = lo + w / 2;
         n.u = u / L; n.w = w; prev = n;
       }
     };
     lay(RIVER.filter(n => !n.w1), lo);
     // 第一句话里的名：从河尾（锡安、基利波一带）往回排，扫罗、约拿单落在河将尽之处
-    const w1 = RIVER.filter(n => n.w1), hi2 = hi - 12 * Math.max(0.6, W.unit) * rLife() * 0.7;
+    const w1 = RIVER.filter(n => n.w1), hi2 = hi - dr * rLife() * 0.7;
     let u = hi2, next = null;
     for (let i = w1.length - 1; i >= 0; i--) {
-      const n = w1[i], w = n.s.length * px * n.k;
-      u = next ? u - (next.w + w) / 2 - gap : hi2 - w / 2;
+      const n = w1[i], w = wOf(n);
+      u = next ? u - (next.w + w) / 2 - gap - dr * Math.max(0, next.t - n.t) : hi2 - w / 2;
       if (u - w / 2 < lo) u = hi2 - w / 2;
       n.u = u / L; n.w = w; next = n;
     }
@@ -459,7 +462,7 @@
     ctx.globalCompositeOperation = 'source-over';
     // 众名：一个接一个写在河上（从左往右读是由古至今），写出后随水慢慢向前漂，渐渐淡去；
     // 十二个儿子在河的两岸交错。第一句话开始时，卷首还没写完的名不再写，已写的很快淡去
-    const px0 = rPx(), life = rLife(), drift = 12 * un;
+    const px0 = rPx(), life = rLife(), drift = rDrift();
     const w1On = S.w1T0 > -1e8, introOut = w1On ? 1 - sm(S.w1T0, S.w1T0 + 1.2, W.t) : 1;
     for (const n of RIVER) {
       const t0 = n.w1 ? S.w1T0 + n.t : S.riverT0 + n.t;
