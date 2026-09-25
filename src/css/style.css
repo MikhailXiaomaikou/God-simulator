@@ -13,8 +13,8 @@
   --ink-faint: rgba(240, 234, 218, 0.38);
   --glow: rgba(190, 215, 255, 0.55);
   --serif: "Songti SC", "STSong", "Noto Serif CJK SC", "Noto Serif SC", "Source Han Serif SC", "SimSun", "STSongti", serif;
-  --xing: 'GS Xing', 'GS Brush', "Kaiti SC", "STKaiti", "KaiTi", var(--serif);
-  --brush: 'GS Brush', "Kaiti SC", "STKaiti", "KaiTi", var(--serif);
+  --xing: 'GS Xing', 'GS Brush', 'GS Kai', "Kaiti SC", "STKaiti", "KaiTi", var(--serif);
+  --brush: 'GS Brush', 'GS Kai', "Kaiti SC", "STKaiti", "KaiTi", var(--serif);
   --kai: 'GS Kai', "Kaiti SC", "STKaiti", "KaiTi", var(--serif);
   --sans: -apple-system, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", "WenQuanYi Zen Hei", system-ui, sans-serif;
   --mono: "SF Mono", "JetBrains Mono", "Menlo", "Consolas", "Noto Sans Mono CJK SC", "WenQuanYi Zen Hei Mono", monospace;

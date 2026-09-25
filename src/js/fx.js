@@ -71,7 +71,7 @@
   // ── 名字：万物以其自身的质料聚成其名（聚—驻—散）───────────
   const glyphCache = {};
   // 万物之名以毛笔楷书（马善政）写成；字体未载入前先用系统字，载入后清空缓存重新取点
-  const FONT = '"GS Brush", "Kaiti SC", "STKaiti", "KaiTi", "Songti SC", "STSong", "Noto Serif CJK SC", "SimSun", serif';
+  const FONT = '"GS Brush", "GS Kai", "Kaiti SC", "STKaiti", "KaiTi", "Songti SC", "STSong", "Noto Serif CJK SC", "SimSun", serif';
   function preloadFonts() {
     try {
       if (!document.fonts || !document.fonts.load) return;
