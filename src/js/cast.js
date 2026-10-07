@@ -32,16 +32,19 @@
  *   GS.cast.light(key, x, y, r, a, rgb) // 局部的光（灯、火、火把）：每帧登记一次；半径 r 以内的人与牲畜被照亮（像素坐标；a 0..1）
  *
  * ── 演技（新约各幕）──────────────────────────────────────────
- *   GS.cast.speak(id, 秒, { to, how })   // 说话：头随字句起伏、手随话比划；to：对谁说（双方相向）；how：'calm' 'proclaim' 'plead' 'teach'
+ *   GS.cast.speak(id, 秒, { to, how })   // 说话：头随字句起伏、手随话比划；how：'calm' 'proclaim' 'plead' 'teach'
+ *                                        // to：对谁说——说话的这一阵双方相向，说完若没有别处再转过就转回（躺着、俯伏的人不转）；
+ *                                        //     要人一直朝着对方，请在时间线上另用 face（重演时 speak 什么也不做）
  *                                        // id 是一群人的 gid 时：其中几个人此起彼伏地说（喊声、议论）
  *   GS.cast.hush(id)                     // 不说了
- *   GS.cast.gesture(id, kind, { dur })   // 一次性的手势，叠在此刻的姿势上（id 是 gid 时众人先后做）：
+ *   GS.cast.gesture(id, kind, { dur })   // 一次性的手势，叠在此刻的姿势上（id 是 gid 时众人先后做；躺着、俯伏、相拥、角力时只有头的动作；
+ *                                        // 拿着杖、灯、杯等的人用另一只手；四下张望时若被 face / walk 转过，就不再管朝向）：
  *       nod 点头 · bowhead 低头 · sigh 叹息 · tremble 发抖 · startle 一惊 · beckon 招手 · wave 挥手 · touch 伸手一摸 · give 递过去
  *       break 擘开 · bless 举手祝福 · point 一指 · leap 跳起来（{n} 跳几下） · clap 拍手 · refuse 摆手不认 · knock 叩 · beat 捶胸
  *       pour 倒出 · cast 撒网 · reachup 向天伸手 · stoopdown 弯腰拾起 · scribble 写 · lookaround 四下张望
  *   GS.cast.attend(ids, target, { spread })   // 众人（gid / id / 数组）先后转向某人、某群人或画面某处
  *   GS.cast.react(ids, kind, { spread, share }) // 众人先后做同一个手势（share：做的人占几成）
- *   GS.cast.crowdPose(gid, pose, { stagger }) // 新约各幕里众人默认先后相差约一秒换姿势（stagger:0 则一齐）
+ *   GS.cast.crowdPose(gid, pose, { stagger }) // 新约各幕里众人默认先后相差约一秒换姿势（stagger:0 则一齐）；正走着的人走到了再换
  *   经文的一行也可以写 who / to / how、talk、gest：那一行显出时自动说话、做手势（见文末）。
  *   新约各幕里，人也有静中的生气：重心左右移、手换个放法、抬头低头；说话的人近旁、面朝他的人侧耳去听；
  *   姿势之间的快慢随幅度而定，手臂稍后于身子到位（并略过一点再回来）。旧约各幕一切照旧。
@@ -194,6 +197,9 @@
     stoop: 1, wash: 1, beg: 1, burden: 1, look: 1, haul: 1, read: 1, write: 1, rejoice: 1, knock: 1, beat: 1, row: 1, teach: 1 };
   const UPRIGHT = { stand: 1, walk: 1, run: 1, gaze: 1, point: 1, raise: 1, carry: 1, weep: 1, embrace: 1, wrestle: 1, bow: 1,
     bless: 1, reach: 1, offer: 1, lift: 1, teach: 1, listen: 1, recoil: 1, shield: 1, look: 1, read: 1, rejoice: 1, knock: 1, beat: 1, haul: 1, burden: 1 };
+  // 新约添的身段（拿杖的人做这些身段时，杖放在身旁的地上）
+  const POSE_NT = { bless: 1, reach: 1, offer: 1, lift: 1, teach: 1, listen: 1, recoil: 1, shield: 1, cower: 1, stoop: 1, wash: 1, beg: 1, burden: 1,
+    look: 1, haul: 1, read: 1, write: 1, rejoice: 1, knock: 1, beat: 1, row: 1 };
   // 自己会动的身段：每帧在 computeQ 里叠上各自的动作
   const ANIMATED = { write: 1, haul: 1, rejoice: 1, knock: 1, beat: 1, row: 1, teach: 1 };
   const LOW = { lie: 1, fall: 1 };
@@ -760,7 +766,7 @@
   function walk(id, x, o) {
     const p = people.get(id); if (!p) return;
     o = o || {};
-    unqueue(p);
+    unqueue(p); p._tf = null; lookStop(p);
     if (o.layer != null) p.layer = o.layer;
     p.faceEnd = null;
     const running = o.run || (o.speed && o.speed >= 0.07);
@@ -826,7 +832,7 @@
   // face(id, 1 | -1)：朝右 / 朝左；face(id, 0.3)：朝向画面比例 0.3 处；face(id, 'eve')：朝向某人
   function face(id, d) {
     const p = people.get(id); if (!p) return;
-    p._qFace = null;
+    p._qFace = null; p._tf = null; lookStop(p);
     // 正走着时转身：走到了再转（与"瞬间重演"时的结果一致）
     if (p.tx != null && !W.replaying) { p.faceEnd = d; return; }
     p.faceEnd = null;
@@ -1017,9 +1023,13 @@
   function crowdPose(gid, ps, o) {
     const g = crowds.get(gid); if (!g) return;
     const sp = o && o.stagger != null ? o.stagger : (lively() && !g.herd ? 0.9 : 0);
+    const live = lively();
     g.members.forEach(m => {
       m._qPose = null;
+      // 新约：正走着的人走到了再换（看着与重演时一样，都停在去处）
+      if (live && m.tx != null && !W.replaying) { m.afterWalk = ps; return; }
       if (sp > 0 && !W.replaying) { m._qPose = { at: W.t + Math.random() * sp / fastK(), pose: ps }; return; }
+      if (live && m.tx != null) { m.nx = m.tx; if (m.faceTo) faceNow(m); endFace(m); }
       m.tx = null; setPose(m, ps);
     });
   }
@@ -1067,6 +1077,9 @@
   const ARMY = { stand: 1, listen: 1, teach: 1, sit: 1, seat: 1, kneel: 1, gaze: 1 };
   const armsFree = p => !p.carry && !(p._wN > 0.3) && !(p._wF > 0.3) && !!ARMY[p.pose] && p.poseT > 0.6;
   function unqueue(p) { p._qPose = null; p._qFace = null; }
+  // 四下张望到一半：转回原来的朝向（若朝向仍归它管）；lookStop：不转回，只是不再管
+  function lookEnd(p) { const G = p.gest; if (G && G.kind === 'lookaround' && G.f0 != null && !G.off && p.facing === G.set) p.facing = G.f0; }
+  function lookStop(p) { const G = p.gest; if (G && G.kind === 'lookaround') G.off = true; }
 
   // ── 手势：一次性的动作，叠在此刻的姿势上（dur 秒；head：手臂占着时也能做）──
   //   nod 点头 · bowhead 低头 · sigh 叹息 · tremble 发抖 · startle 一惊 · beckon 招手 · wave 挥手 · touch 伸手一摸
@@ -1125,11 +1138,13 @@
     } },
     scribble: { dur: 4, f(u, t, p, Q, near) { const k = env(u, 0.1, 0.9); Q[near ? NFA : FFA] += 0.08 * Math.sin(t * 13) * k; Q[near ? NUA : FUA] += 0.05 * Math.sin(t * 1.7) * k; } },
     lookaround: { dur: 3.2, head: 1, f(u, t, p, Q, near, free, o, G) {
-      const flip = (u > 0.28 && u < 0.62);
-      if (G.f0 == null) G.f0 = p.facing;
-      const want = flip ? -G.f0 : G.f0;
-      if (p.tx == null && (p.facing === G.f0 || p.facing === -G.f0)) p.facing = want;
       Q[HEAD] -= 0.12 * Math.sin(u * TAU * 2) * env(u, 0.1, 0.9);
+      if (G.off) return;
+      if (G.f0 == null) { G.f0 = p.facing; G.set = p.facing; }
+      // 别处（各幕、走路）已经转过他：张望只管头，不再管朝向
+      if (p.facing !== G.set || p.tx != null) { G.off = true; return; }
+      const want = u > 0.28 && u < 0.62 ? -G.f0 : G.f0;
+      p.facing = want; G.set = want;
     } },
   };
   const GEST_ALIAS = { 'bow-head': 'bowhead', amen: 'nod', jump: 'leap', fear: 'tremble', 'wave-off': 'refuse', deny: 'refuse', write: 'scribble', pick: 'stoopdown', raiseup: 'reachup', strike: 'beat' };
@@ -1146,7 +1161,7 @@
     kind = GEST_ALIAS[kind] || kind;
     const G = GEST[kind]; if (!G) return;
     o = o || {};
-    if (p.gest && p.gest.kind === 'lookaround' && p.gest.f0 != null) p.facing = p.gest.f0;
+    lookEnd(p);
     p.gest = { kind, G, t: 0, dur: (o.dur || G.dur), o };
   }
   // 某人 / 某群人 / 画面某处的横坐标（0..1）
@@ -1176,10 +1191,16 @@
     const p = people.get(id); if (!p || p.isAnimal) return;
     if (p.dying) return;
     p.talk = { t: 0, dur, how: o.how || 'calm', w: p.talk ? p.talk.w : 0 };
+    // 相向：只是说话的这一阵（话说完、若没有别处再转过，就转回原来的朝向——与不看这一阵的重演一致）
     if (o.to != null) {
       const q = typeof o.to === 'string' ? people.get(o.to) : null, tx = targetX(o.to);
-      if (p.tx == null && !p.mount && tx != null && Math.abs(tx - p.nx) > 1e-4) faceDir(p, tx);
-      if (q && !q.isAnimal && q.tx == null && !q.mount && o.turn !== false) faceDir(q, id);
+      const turn = (r, d, who) => {
+        if (r.tx != null || r.mount || LOW[r.pose]) return;
+        const f0 = r.facing; faceDir(r, d);
+        if (r.facing !== f0) r._tf = { f0, f1: r.facing, who };
+      };
+      if (tx != null && Math.abs(tx - p.nx) > 1e-4) turn(p, tx, null);
+      if (q && !q.isAnimal && o.turn !== false) turn(q, p.nx, id);
     }
   }
   function hush(id) { const p = people.get(id); if (p) p.talk = null; const g = crowds.get(id); if (g) g.members.forEach(m => { m.talk = null; }); }
@@ -1200,7 +1221,7 @@
       const tx = targetX(target);
       if (tx == null) continue;
       if (W.replaying || sp <= 0) { if (m.tx != null) m.faceEnd = tx; else faceDir(m, tx); m._qFace = null; continue; }
-      m._qFace = { at: W.t + (0.12 + Math.random() * sp) / fastK(), d: tx };
+      m._qFace = { at: W.t + (0.12 + Math.random() * sp) / fastK(), d: tx, f: m.facing };
     }
   }
   // 众人先后做同一个手势（惊奇、点头、欢呼……）
@@ -1225,9 +1246,12 @@
   function stepActing(p, dt) {
     const dk = dt * fastK();
     if (p.talk) { const T = p.talk; T.t += dk; T.w = approach(T.w, T.t >= 0 && T.t < T.dur ? 1 : 0, 7, dt); if (T.t > T.dur && T.w < 0.02) p.talk = null; }
-    if (p.gest) { const G = p.gest; G.t += dk; if (G.t >= G.dur) p.gest = null; }
-    if (p._qPose && W.t >= p._qPose.at) { const q = p._qPose; p._qPose = null; p.tx = null; setPose(p, q.pose); }
-    if (p._qFace && W.t >= p._qFace.at) { const q = p._qFace; p._qFace = null; if (p.tx != null) p.faceEnd = q.d; else faceDir(p, q.d); }
+    if (p.gest) { const G = p.gest; G.t += dk; if (G.t >= G.dur) { lookEnd(p); p.gest = null; } }
+    if (p._qPose && W.t >= p._qPose.at) { const q = p._qPose; p._qPose = null; if (p.tx != null) p.afterWalk = q.pose; else setPose(p, q.pose); }
+    // 排下的转身：这期间若已被别处转过（各幕直接改了朝向），就作罢
+    if (p._qFace && W.t >= p._qFace.at) { const q = p._qFace; p._qFace = null; if (p.facing === q.f) { if (p.tx != null) p.faceEnd = q.d; else faceDir(p, q.d); } }
+    // 说话时为相向而转的身：话说完，若没有别处再转过它，转回原来的朝向（与重演时一样）
+    if (p._tf && !p.talk && !(p._tf.who && people.get(p._tf.who) && people.get(p._tf.who).talk)) { const f = p._tf; p._tf = null; if (p.facing === f.f1 && p.tx == null) p.facing = f.f0; }
     if (p._qGest && W.t >= p._qGest.at) { const q = p._qGest; p._qGest = null; gestureP(p, q.kind, q.o); }
     if (!lively()) { p.idl = null; return; }
     // 静中的生气：重心左右移、手换个放法、抬头低头
@@ -1352,9 +1376,9 @@
     // 手势
     const G = p.gest;
     if (G && G.t >= 0) {
-      if (G.G.head || free || p.pose === 'stand' || p.pose === 'walk' || p.pose === 'sit' || p.pose === 'seat' || p.pose === 'kneel' || p.pose === 'listen' || p.pose === 'teach' || p.pose === 'gaze' || p.pose === 'look') {
+      if (G.G.head || (!LOW[p.pose] && p.pose !== 'wrestle' && p.pose !== 'embrace')) {
         const u = Math.min(1, G.t / G.dur);
-        G.G.f(u, G.t, p, Q, near, free || (!p.carry && !(p._wN > 0.3)), G.o, G);
+        G.G.f(u, G.t, p, Q, near, !p.carry && !(p._wN > 0.3) && !(p._wF > 0.3), G.o, G);
       }
     }
   }
@@ -1559,6 +1583,12 @@
       Q[NFA] = Q[NUA] + lerp(0.22, 1.35, r) * g + 0.08;
       Q[FFA] = Q[FUA] + lerp(0.22, 1.2, r) * g + 0.08;
       Q[LEAN] += 0.04 * g * Math.abs(c) * (1 + r);
+      // 走向「背负」：一路弯着身子、两手扶着肩上的重担（背十字架），不是到了才弯下
+      if (p.afterWalk === 'burden' && p.tx != null) {
+        const B = POSES.burden;
+        Q[LEAN] += (B[LEAN] - 0.05) * g; Q[HEAD] += 0.2 * g;
+        Q[NUA] = lerp(Q[NUA], B[NUA], g); Q[NFA] = lerp(Q[NFA], B[NFA], g); Q[FUA] = lerp(Q[FUA], B[FUA], g); Q[FFA] = lerp(Q[FFA], B[FFA], g);
+      }
     }
     // 哭泣：双肩抽动
     if (p.sob > 0.01) {
@@ -1825,7 +1855,7 @@
     const k = p.prop, gY = Q[HIP];          // 地面在局部坐标中的 y（直立时）
     const hx = HN[0], hy = HN[1];
     if (k === 'staff' || k === 'spear') {
-      if (upright > 0.8 && p.pose !== 'raise' && p.pose !== 'pray' && p.pose !== 'wrestle' && p.pose !== 'embrace') {
+      if (upright > 0.8 && p.pose !== 'raise' && p.pose !== 'pray' && p.pose !== 'wrestle' && p.pose !== 'embrace' && !(ARM_POSE[p.pose] && POSE_NT[p.pose])) {
         const bx = hx + 0.05, by = gY;
         let dx = hx - bx, dy = hy - by; const L = Math.hypot(dx, dy) || 1; dx /= L; dy /= L;
         const len = k === 'spear' ? 1.2 : 1.08;
@@ -2535,9 +2565,10 @@
   function restore() {
     const snap = p => {
       if (p.dying) return false;
-      if (p._qPose) { p.tx = null; p.pose = p.isAnimal ? animalPose(p._qPose.pose) : p._qPose.pose; p._qPose = null; }
-      if (p._qFace) { const d = p._qFace.d; p._qFace = null; if (p.tx != null) p.faceEnd = d; else faceDir(p, d); }
-      if (p.gest && p.gest.kind === 'lookaround' && p.gest.f0 != null) p.facing = p.gest.f0;
+      if (p._qPose) { if (p.tx != null) p.afterWalk = p._qPose.pose; else p.pose = p.isAnimal ? animalPose(p._qPose.pose) : p._qPose.pose; p._qPose = null; }
+      if (p._qFace) { const q = p._qFace; p._qFace = null; if (p.facing === q.f) { if (p.tx != null) p.faceEnd = q.d; else faceDir(p, q.d); } }
+      if (p._tf) { if (p.facing === p._tf.f1) p.facing = p._tf.f0; p._tf = null; }
+      lookEnd(p);
       p._qGest = null; p.talk = null; p.gest = null; p._hop = 0;
       p.delay = 0; p.alpha = p.targetAlpha; p.emerge = 1; p.poseT = 1; p.via = null; p.fd = p.facing;
       if (p.fly) { p.nx = p.fly.x1; p.ny = p.fly.land ? null : p.fly.y1; if (p.fly.pose) p.pose = p.fly.pose; p.fly = null; }
