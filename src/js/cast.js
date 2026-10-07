@@ -820,6 +820,7 @@
     const p = people.get(id); if (!p) return;
     o = o || {};
     p._qPose = null;
+    if (!p.isAnimal && !POSES[ps]) unknown('pose', ps);
     if (o.weep != null) p.sobbing = !!o.weep;
     else if (ps !== 'embrace' && ps !== 'fall' && ps !== 'kneel' && ps !== 'bow' && ps !== 'weep') p.sobbing = false;
     if (ps === 'run' && p.tx != null && !W.replaying) { p.speed = Math.max(p.speed, 0.085); setPose(p, 'run'); return; }
@@ -1156,10 +1157,13 @@
     const p = people.get(id); if (!p || p.isAnimal) return;
     gestureP(p, kind, o);
   }
+  // 写错的名字（手势、姿势、how）不会让世界出错，只在控制台提醒一次，好在检查时发现
+  const WARNED = {};
+  function unknown(what, name) { const k = what + ':' + name; if (WARNED[k]) return; WARNED[k] = 1; console.warn('[GS.cast] unknown ' + what + ': ' + name); }
   function gestureP(p, kind, o) {
     if (W.replaying || p.dying) return;
     kind = GEST_ALIAS[kind] || kind;
-    const G = GEST[kind]; if (!G) return;
+    const G = GEST[kind]; if (!G) { unknown('gesture', kind); return; }
     o = o || {};
     lookEnd(p);
     p.gest = { kind, G, t: 0, dur: (o.dur || G.dur), o };
@@ -1190,6 +1194,7 @@
     }
     const p = people.get(id); if (!p || p.isAnimal) return;
     if (p.dying) return;
+    if (o.how && !HOWS[o.how]) unknown('how', o.how);
     p.talk = { t: 0, dur, how: o.how || 'calm', w: p.talk ? p.talk.w : 0 };
     // 相向：只是说话的这一阵（话说完、若没有别处再转过，就转回原来的朝向——与不看这一阵的重演一致）
     if (o.to != null) {
@@ -1203,6 +1208,7 @@
       if (q && !q.isAnimal && o.turn !== false) turn(q, p.nx, id);
     }
   }
+  const HOWS = { calm: 1, proclaim: 1, plead: 1, teach: 1 };
   function hush(id) { const p = people.get(id); if (p) p.talk = null; const g = crowds.get(id); if (g) g.members.forEach(m => { m.talk = null; }); }
   // 众人转向某人 / 某处（各人先后相差一点；o.spread 秒）；ids 可以是 gid、id 或它们的数组
   function members(ids) {
@@ -2613,7 +2619,7 @@
   const DISCIPLE_ROBES = [[122, 104, 84], [104, 92, 80], [138, 116, 92], [96, 104, 118], [132, 98, 82], [112, 118, 96], [146, 128, 104], [100, 88, 96], [126, 110, 120], [140, 104, 88], [108, 100, 86]];
 
   // 经文里的话由谁说：verse 的一行可写 who:'jesus'（整行都是他在说）、to:'peter'、how:'proclaim'，
-  //   或 talk:[['mary', 0, 0.45], ['gabriel', 0.5, 1, 'calm', 'mary']]（[谁, 从, 到（占这一行的比例）, how, to]）；
+  //   或 talk:[['mary', 0, 0.45], ['gabriel', 0.5, 1, 'calm', 'mary']]（[谁, 从, 到（占这一行的比例）, how, to, {turn:false}]；turn:false 则听的人不转身）；
   //   以及 gest:[['jesus', 'bless', 0.4], ...]（[谁, 手势, 在这一行的哪里（比例）]）。
   //   那一行显出时，说话的人头随字句起伏、手随话比划，近旁面朝他的人侧耳去听。
   GS.bus.on('scripture', line => {
@@ -2621,10 +2627,10 @@
     const hold = line.hold || Math.max(4.2, 1.6 + String(line.text || '').length * 0.2);
     const later = (sec, fn) => (GS.book && GS.book.after ? GS.book.after(sec, fn) : setTimeout(fn, sec * 1000 / (W.fast || 1)));
     // 稍迟一点再开口：这一句话的情节（人物的出场）先于它发生
-    if (line.who) for (const id of [].concat(line.who)) later(0.12, () => speak(id, hold - 0.4, { to: line.to, how: line.how }));
+    if (line.who) for (const id of [].concat(line.who)) later(0.12, () => speak(id, hold - 0.4, { to: line.to, how: line.how, turn: line.turn }));
     if (line.talk) for (const t of line.talk) {
       const a = clamp(t[1] || 0, 0, 1), b = clamp(t[2] == null ? 1 : t[2], a, 1);
-      later(0.12 + a * hold, () => speak(t[0], Math.max(0.8, (b - a) * hold - 0.3), { how: t[3], to: t[4] }));
+      later(0.12 + a * hold, () => speak(t[0], Math.max(0.8, (b - a) * hold - 0.3), Object.assign({ how: t[3], to: t[4] }, t[5] || {})));
     }
     if (line.gest) for (const g of line.gest) later(0.12 + clamp(g[2] || 0, 0, 1) * hold, () => gesture(g[0], g[1], g[3]));
   });
