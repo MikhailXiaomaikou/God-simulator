@@ -169407,7 +169407,7 @@ void main() {
           [22.6, b => { pose('jailer', 'fall'); face('jailer', -1); }],
           [23.2, () => gest('jailer', 'tremble', { dur: 2.6 })],
           // 又领他们出来：他起来，在前头引路，到外监的灯下；他的家人拿着光从外门进来
-          [24.4, b => { pose('jailer', 'stand'); face('jailer', -1); gest('paul', 'touch'); }],
+          [24.4, b => { pose('jailer', 'stand'); face('jailer', -1); face('silas', 1); gest('silas', 'touch'); }],
           [25, b => {
             const m = X('meet6'), sp = tall() ? 0.065 : 0.045;
             walk('silas', m[0], { speed: sp }); walk('paul', m[1], { speed: sp }); walk('jailer', m[2], { speed: sp });
