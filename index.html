@@ -196781,7 +196781,7 @@ void main() {
             setL(b, 'lbSpringA', 1);
             sfx(b, 'splash', { soft: true });
           }],
-          [s[3] + 0.6, () => heed('folk', G('spring')[0], { spread: 1.8 })],
+          [s[3] + 0.6, () => heed('folk', G('spring'), { spread: 1.8 })],
           [s[3] + 2.4, b => {
             // 擦去一切的眼泪：泪化作光，散去
             if (!b.instant) { const pts = headsOf('folk').map((h, i) => [h[0], h[1] + 2, i]); trans(b, { type: 'tears', pts, dur: 3.2 }); }
