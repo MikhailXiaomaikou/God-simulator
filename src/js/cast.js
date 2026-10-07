@@ -31,9 +31,31 @@
  *   GS.cast.attach(id, fn|null)        // 每帧由 fn() → [px, py] 给出脚下的位置（站在方舟上、梯子上……）
  *   GS.cast.light(key, x, y, r, a, rgb) // 局部的光（灯、火、火把）：每帧登记一次；半径 r 以内的人与牲畜被照亮（像素坐标；a 0..1）
  *
+ * ── 演技（新约各幕）──────────────────────────────────────────
+ *   GS.cast.speak(id, 秒, { to, how })   // 说话：头随字句起伏、手随话比划；to：对谁说（双方相向）；how：'calm' 'proclaim' 'plead' 'teach'
+ *                                        // id 是一群人的 gid 时：其中几个人此起彼伏地说（喊声、议论）
+ *   GS.cast.hush(id)                     // 不说了
+ *   GS.cast.gesture(id, kind, { dur })   // 一次性的手势，叠在此刻的姿势上（id 是 gid 时众人先后做）：
+ *       nod 点头 · bowhead 低头 · sigh 叹息 · tremble 发抖 · startle 一惊 · beckon 招手 · wave 挥手 · touch 伸手一摸 · give 递过去
+ *       break 擘开 · bless 举手祝福 · point 一指 · leap 跳起来（{n} 跳几下） · clap 拍手 · refuse 摆手不认 · knock 叩 · beat 捶胸
+ *       pour 倒出 · cast 撒网 · reachup 向天伸手 · stoopdown 弯腰拾起 · scribble 写 · lookaround 四下张望
+ *   GS.cast.attend(ids, target, { spread })   // 众人（gid / id / 数组）先后转向某人、某群人或画面某处
+ *   GS.cast.react(ids, kind, { spread, share }) // 众人先后做同一个手势（share：做的人占几成）
+ *   GS.cast.crowdPose(gid, pose, { stagger }) // 新约各幕里众人默认先后相差约一秒换姿势（stagger:0 则一齐）
+ *   经文的一行也可以写 who / to / how、talk、gest：那一行显出时自动说话、做手势（见文末）。
+ *   新约各幕里，人也有静中的生气：重心左右移、手换个放法、抬头低头；说话的人近旁、面朝他的人侧耳去听；
+ *   姿势之间的快慢随幅度而定，手臂稍后于身子到位（并略过一点再回来）。旧约各幕一切照旧。
+ *
  *   pose：'stand' 'walk' 'run' 'kneel' 'bow' 'lie' 'sit' 'seat'（坐在座上） 'sleep'（坐着睡着） 'raise'（举手） 'pray' 'carry' 'point'
  *         'wrestle'（二人相对，会伸手角力） 'fall'（仆倒、脸伏于地） 'weep'（低头、掩面、双肩抽动）
  *         'embrace'（向前相拥） 'gaze'（仰望） 'ride'（由 ride() 自动设定）
+ *         新约的身段：'bless'（举手祝福） 'reach'（伸手：摸、医治、拉起） 'offer'（两手捧出：分饼、递杯） 'lift'（举向天：祝谢、举杯）
+ *         'teach'（讲论，手会轻轻比划） 'listen'（静听，两手交握） 'recoil'（惊退） 'shield'（以臂遮眼：强光） 'cower'（蹲伏护头：惧怕）
+ *         'stoop'（弯腰到地：在地上写字、扶起人） 'wash'（跪着俯身：洗脚） 'beg'（跪着仰面摊手：求怜悯） 'burden'（前屈背负：背十字架）
+ *         'look'（手搭凉棚远望） 'read'（展开书卷）
+ *         自己会动的：'write'（坐着一笔一笔地写） 'haul'（一把一把地拉网） 'rejoice'（张臂欢喜、轻轻踏步） 'knock'（叩门）
+ *                     'beat'（低头捶胸） 'row'（坐着划船）
+ *   prop 另有：'cup'（杯） 'loaf'（饼） 'lamp'（瓦灯，嘴上一点火，照亮近旁） 'scroll'（书卷；read 时两手展开） 'basket'（篮子）
  *   姿势之间平滑过渡（躺下经由坐、俯伏经由跪）；行走的步伐与移动的距离相合；站着时有细微的呼吸；
  *   神言说时，站着的人转向神的灵并仰首。重演时：正在走的先走到再换姿势，面朝去向，跟随者随之到位。
  *   性能：静止的人与牲畜每隔若干帧才重算一次几何，其余帧以缓存的 Path2D 直接填色。
@@ -122,10 +144,61 @@
     weep:    PV(0.48, 0.16, 0, 0.62, 0.04, 0.01, -0.05, -0.03, 0.5, 2.6, 0.42, 2.5, 1),
     embrace: PV(0.48, 0.2, 0, 0.25, 0.08, 0.01, -0.1, -0.05, 1.25, 1.95, 1.1, 1.8, 1),
     ride:    PV(0.3, 0.03, 0, 0.05, 0.95, 0.05, 0.85, 0, 0.45, 1.2, 0.4, 1.1, 0),
+    // ── 新约的身段（小小的剪影也读得出在做什么）──
+    // 祝福：近手向前上方举起，掌心向外
+    bless:   PV(0.49, 0.03, 0, 0.1, 0.05, 0.01, -0.06, -0.03, 1.8, 2.4, 0.1, 0.06, 1),
+    // 伸手：近臂平伸向前（摸、医治、拉起人），身子随之前倾，近脚上前半步
+    reach:   PV(0.49, 0.14, 0, 0.14, 0.16, 0.02, -0.12, -0.05, 1.42, 1.5, -0.06, 0.04, 1),
+    // 递上：两手在胸前向前捧出（分饼、递杯、献上）
+    offer:   PV(0.49, 0.08, 0, 0.16, 0.06, 0.01, -0.06, -0.03, 0.9, 1.68, 0.8, 1.58, 1),
+    // 举起：两手捧着举向天（祝谢、举杯、仰望祷告）
+    lift:    PV(0.49, -0.06, 0, -0.38, 0.05, 0.01, -0.06, -0.03, 2.3, 2.62, 2.18, 2.5, 1),
+    // 讲论：近手的前臂抬起、掌心向上（讲道时的站姿；speak 会让它动起来）
+    teach:   PV(0.49, 0.02, 0, 0.02, 0.07, 0.01, -0.07, -0.03, 0.6, 1.8, 0.08, 0.12, 1),
+    // 静听：微微前倾、低首，两手交握在腰前
+    listen:  PV(0.49, 0.06, 0, 0.14, 0.05, 0.01, -0.06, -0.03, -0.05, 0.8, -0.08, 0.78, 1),
+    // 惊退：身子后仰，两手抬到胸前，后脚退半步
+    recoil:  PV(0.49, -0.2, 0, -0.18, 0.18, 0.04, -0.26, -0.12, 1.15, 2.4, 0.95, 2.3, 1),
+    // 遮眼：强光里以臂遮住眼睛，低头、侧身
+    shield:  PV(0.49, -0.06, 0, 0.28, 0.1, 0.02, -0.14, -0.06, 1.6, 3.84, 0.4, 0.5, 1),
+    // 惧怕：蹲伏，两臂护住头
+    cower:   PV(0.37, 0.62, 0, 0.6, 1.05, -0.32, 0.86, -0.42, 1.9, 3.9, 1.8, 3.8, 1),
+    // 弯腰：俯身到地（在地上写字、拾起、扶起人）
+    stoop:   PV(0.42, 1.05, 0, 0.4, 0.5, -0.28, 0.32, -0.36, 0.2, 0.16, 0.12, 0.08, 1),
+    // 洗脚：跪着俯身向前，两手低低伸出
+    wash:    PV(0.27, 0.72, 0, 0.5, 0.12, -1.45, 0.07, -1.5, 0.62, 0.42, 0.52, 0.36, 0),
+    // 求告：跪着，仰面，两手向前摊开（求怜悯的瞎子、长大麻风的）
+    beg:     PV(0.27, 0.1, 0, -0.18, 0.12, -1.45, 0.07, -1.5, 1.0, 1.92, 0.88, 1.8, 0),
+    // 背负：身子前屈，两手扶住肩上的重担（背十字架）
+    burden:  PV(0.47, 0.42, 0, 0.22, 0.08, 0.0, -0.08, -0.04, 1.35, 2.85, 1.2, 2.75, 1),
+    // 远望：手搭凉棚望向远方（父亲望见浪子、等候主来）
+    look:    PV(0.49, 0.03, 0, -0.12, 0.05, 0.01, -0.06, -0.03, 1.75, 3.72, -0.08, 0.02, 1),
+    // 拉网：身子后仰，两手向前握住网绳，两脚撑地（speak 不必，它自己会一把一把地拉）
+    haul:    PV(0.47, -0.3, 0, 0.12, 0.38, 0.22, -0.32, -0.24, 1.25, 1.36, 1.12, 1.26, 1),
+    // 读：两手在胸前展开书卷，低头
+    read:    PV(0.49, 0.04, 0, 0.36, 0.05, 0.01, -0.06, -0.03, 0.55, 1.95, 0.5, 1.88, 1),
+    // 写：坐着俯身，近手在膝前的板上写（保罗写信；自己会一笔一笔地写）
+    write:   PV(0.27, 0.36, 0, 0.42, 1.5, 0.02, 1.42, -0.05, 0.72, 1.5, 0.6, 1.42, 0),
+    // 欢喜：两臂张开向上，仰首（自己会轻轻踏步）
+    rejoice: PV(0.49, -0.08, 0, -0.38, 0.05, 0.01, -0.06, -0.03, 2.45, 2.75, 2.2, 2.45, 1),
+    // 叩门：近手举到门前，自己会一下一下地叩
+    knock:   PV(0.49, 0.06, 0, 0.04, 0.08, 0.01, -0.08, -0.03, 1.5, 2.35, 0.1, 0.06, 1),
+    // 捶胸：低头，近手按在胸前，自己会一下一下地捶（税吏）
+    beat:    PV(0.49, 0.12, 0, 0.5, 0.05, 0.01, -0.06, -0.03, 0.1, 2.5, 0.08, 0.04, 1),
+    // 摇橹 / 划船：坐着，两手握桨，自己会一下一下地划
+    row:     PV(0.17, 0.2, 0, 0.1, 1.6, 0.6, 1.5, 0.5, 1.2, 1.5, 1.1, 1.4, 0),
   };
   const poseVec = n => POSES[n] || POSES.stand;
-  const UPRIGHT = { stand: 1, walk: 1, run: 1, gaze: 1, point: 1, raise: 1, carry: 1, weep: 1, embrace: 1, wrestle: 1, bow: 1 };
+  // 这些身段自己摆定了手臂：手里的东西、怀里的孩子不再改动它
+  const ARM_POSE = { pray: 1, raise: 1, wrestle: 1, embrace: 1, point: 1, weep: 1, bless: 1, reach: 1, offer: 1, lift: 1, recoil: 1, shield: 1, cower: 1,
+    stoop: 1, wash: 1, beg: 1, burden: 1, look: 1, haul: 1, read: 1, write: 1, rejoice: 1, knock: 1, beat: 1, row: 1, teach: 1 };
+  const UPRIGHT = { stand: 1, walk: 1, run: 1, gaze: 1, point: 1, raise: 1, carry: 1, weep: 1, embrace: 1, wrestle: 1, bow: 1,
+    bless: 1, reach: 1, offer: 1, lift: 1, teach: 1, listen: 1, recoil: 1, shield: 1, look: 1, read: 1, rejoice: 1, knock: 1, beat: 1, haul: 1, burden: 1 };
+  // 自己会动的身段：每帧在 computeQ 里叠上各自的动作
+  const ANIMATED = { write: 1, haul: 1, rejoice: 1, knock: 1, beat: 1, row: 1, teach: 1 };
   const LOW = { lie: 1, fall: 1 };
+  // 着地而低的身段（坐、跪一类）：躺下 / 俯伏与它们之间不必再经由「坐」
+  const KNEELISH = { sit: 1, sleep: 1, kneel: 1, pray: 1, seat: 1, wash: 1, beg: 1, write: 1, row: 1, worship: 1 };
   // 身体各部的长度（成人 / 孩子，以自身身高为 1）
   const PR = {
     adult: { T: 0.31, TH: 0.25, SH: 0.245, UA: 0.17, FA: 0.155, NK: 0.035, HR: 0.068, W: 1 },
@@ -594,6 +667,8 @@
       propDefault: o.prop === undefined,
       ny: null, fly: null, attach: null, mount: null, hold: null, holdW: 0, embrace: null, faceTo: null, lift: 0,
       _x: 0, _y: 0, _h: 1, _k: 0, _vis: false, _seat: null,
+      // 演技（新约）：说话、手势、静中的生气、迟一点才做的姿势 / 转身 / 手势
+      talk: null, gest: null, idl: null, poseDur: 0, _hop: 0, _att: 0, _attX: 0, _attY: 0, _qPose: null, _qFace: null, _qGest: null,
     };
     dress(p, o);
     return p;
@@ -677,6 +752,7 @@
   const get = id => people.get(id) || null;
   function place(id, x, layer) {
     const p = people.get(id); if (!p) return;
+    unqueue(p);
     p.nx = x; p.tx = null; p.fly = null; if (layer != null) p.layer = layer;
     if (p.pose === 'walk' || p.pose === 'run') setPose(p, p.afterWalk || 'stand');
     if (W.replaying) settleFollowers(id);
@@ -684,6 +760,7 @@
   function walk(id, x, o) {
     const p = people.get(id); if (!p) return;
     o = o || {};
+    unqueue(p);
     if (o.layer != null) p.layer = o.layer;
     p.faceEnd = null;
     const running = o.run || (o.speed && o.speed >= 0.07);
@@ -708,8 +785,16 @@
       const was = p.pose;
       p.via = null;
       if (!W.replaying) {
-        if (LOW[pose] && !LOW[was] && was !== 'sit' && was !== 'sleep' && was !== 'kneel' && was !== 'pray' && was !== 'seat') p.via = pose === 'fall' ? 'kneel' : 'sit';
-        else if (LOW[was] && !LOW[pose] && pose !== 'sit' && pose !== 'sleep' && pose !== 'kneel' && pose !== 'pray') p.via = was === 'fall' ? 'kneel' : 'sit';
+        if (LOW[pose] && !LOW[was] && !KNEELISH[was]) p.via = pose === 'fall' ? 'kneel' : 'sit';
+        else if (LOW[was] && !LOW[pose] && !KNEELISH[pose] || (LOW[was] && pose === 'seat')) p.via = was === 'fall' ? 'kneel' : 'sit';
+      }
+      p.poseDur = 0;
+      // 新约各幕：动作的快慢随幅度（抬一抬手快，跪下、起身慢一些）
+      if (!W.replaying && lively()) {
+        const tg = poseVec(crowdPoseName(p, pose));
+        let d = Math.abs(tg[HIP] - p.q0[HIP]) * 4;
+        for (let i = 1; i < GRD; i++) { const v = Math.abs(tg[i] - p.q0[i]); if (v > d) d = v; }
+        p.poseDur = clamp(0.42 + 0.26 * d, 0.5, 1.25);
       }
     }
     p.prevPose = p.pose; p.pose = pose; p.poseT = W.replaying ? 1 : 0;
@@ -728,6 +813,7 @@
   function pose(id, ps, o) {
     const p = people.get(id); if (!p) return;
     o = o || {};
+    p._qPose = null;
     if (o.weep != null) p.sobbing = !!o.weep;
     else if (ps !== 'embrace' && ps !== 'fall' && ps !== 'kneel' && ps !== 'bow' && ps !== 'weep') p.sobbing = false;
     if (ps === 'run' && p.tx != null && !W.replaying) { p.speed = Math.max(p.speed, 0.085); setPose(p, 'run'); return; }
@@ -740,6 +826,7 @@
   // face(id, 1 | -1)：朝右 / 朝左；face(id, 0.3)：朝向画面比例 0.3 处；face(id, 'eve')：朝向某人
   function face(id, d) {
     const p = people.get(id); if (!p) return;
+    p._qFace = null;
     // 正走着时转身：走到了再转（与"瞬间重演"时的结果一致）
     if (p.tx != null && !W.replaying) { p.faceEnd = d; return; }
     p.faceEnd = null;
@@ -917,6 +1004,7 @@
   function crowdWalk(gid, x0, x1, o) {
     const g = crowds.get(gid); if (!g) return;
     g.members.forEach((m, i) => {
+      unqueue(m);
       const x = lerp(x0, x1, (i + Math.random()) / g.members.length);
       if (W.replaying) { if (Math.abs(x - m.nx) > 1e-4) m.facing = m.fd = x > m.nx ? 1 : -1; m.nx = x; m.tx = null; setPose(m, (o && o.pose) || (m.isAnimal ? 'graze' : 'stand')); }
       else {
@@ -925,7 +1013,16 @@
       }
     });
   }
-  function crowdPose(gid, ps) { const g = crowds.get(gid); if (g) g.members.forEach(m => { m.tx = null; setPose(m, ps); }); }
+  // 新约各幕里，众人不是同时一齐换姿势：各人先后相差一点（o.stagger 秒；0 则一齐）
+  function crowdPose(gid, ps, o) {
+    const g = crowds.get(gid); if (!g) return;
+    const sp = o && o.stagger != null ? o.stagger : (lively() && !g.herd ? 0.9 : 0);
+    g.members.forEach(m => {
+      m._qPose = null;
+      if (sp > 0 && !W.replaying) { m._qPose = { at: W.t + Math.random() * sp / fastK(), pose: ps }; return; }
+      m.tx = null; setPose(m, ps);
+    });
+  }
   // 四散：各往远处走去，渐渐隐没（巴别）
   function scatter(gid) {
     const g = crowds.get(gid); if (!g) return;
@@ -939,6 +1036,350 @@
     const g = crowds.get(gid); if (!g) return;
     if (W.replaying || (o && o.fade === false)) crowds.delete(gid);
     else g.members.forEach(m => { m.targetAlpha = 0; m.dying = true; });
+  }
+
+  // ════════════════════════════════════════════════════════════
+  //  演技（新约各幕）：说话、手势、静中的生气、众人先后的反应
+  //  旧约各幕不受影响（只在新约的幕里自动发生；speak / gesture 等由各幕调用）。
+  //  重演（W.replaying）时一律跳过或立即到位——它们只是看的时候的细节，不改变世界的结局。
+  // ════════════════════════════════════════════════════════════
+  let LIVE_F = -1, LIVE = false;
+  function lively() {
+    if (LIVE_F !== W.frame) {
+      LIVE_F = W.frame;
+      const A = GS.book && GS.book.ACTS, a = A && A[W.act];
+      LIVE = !!(a && a.testament === 1);
+    }
+    return LIVE;
+  }
+  const env = (u, a, b) => U.smoothstep(0, a, u) * (1 - U.smoothstep(b, 1, u));
+  // 把一侧的臂（near：近侧）以权重 w 引向 (ua, fa)
+  function armTo(Q, near, ua, fa, w) {
+    if (!(w > 0)) return;
+    if (w > 1) w = 1;
+    if (near) { Q[NUA] += (ua - Q[NUA]) * w; Q[NFA] += (fa - Q[NFA]) * w; }
+    else { Q[FUA] += (ua - Q[FUA]) * w; Q[FFA] += (fa - Q[FFA]) * w; }
+  }
+  // 手里拿着杖、矛、刀、火把的人，用另一只手比划
+  const NEAR_HELD = { staff: 1, spear: 1, blade: 1, torch: 1, sword: 1, cup: 1, loaf: 1, lamp: 1, scroll: 1, basket: 1 };
+  const gNear = p => !(p.prop && NEAR_HELD[p.prop]);
+  // 说话、比划时手臂可以动的身段
+  const ARMY = { stand: 1, listen: 1, teach: 1, sit: 1, seat: 1, kneel: 1, gaze: 1 };
+  const armsFree = p => !p.carry && !(p._wN > 0.3) && !(p._wF > 0.3) && !!ARMY[p.pose] && p.poseT > 0.6;
+  function unqueue(p) { p._qPose = null; p._qFace = null; }
+
+  // ── 手势：一次性的动作，叠在此刻的姿势上（dur 秒；head：手臂占着时也能做）──
+  //   nod 点头 · bowhead 低头 · sigh 叹息 · tremble 发抖 · startle 一惊 · beckon 招手 · wave 挥手 · touch 伸手一摸
+  //   give 递过去 · break 擘开（饼） · bless 举手祝福 · point 一指 · leap 跳起来 · clap 拍手 · refuse 摆手不认
+  //   knock 叩 · beat 捶胸 · pour 倒出 · cast 撒网 · reachup 向天伸手 · stoopdown 弯腰拾起 · scribble 写 · lookaround 四下张望
+  const GEST = {
+    nod: { dur: 1.3, head: 1, f(u, t, p, Q) { const k = Math.sin(Math.PI * u * 2); Q[HEAD] += 0.26 * k * k; Q[LEAN] += 0.03 * k * k; } },
+    bowhead: { dur: 2.6, head: 1, f(u, t, p, Q) { const k = env(u, 0.25, 0.72); Q[HEAD] += 0.45 * k; Q[LEAN] += 0.08 * k; } },
+    sigh: { dur: 2.8, head: 1, f(u, t, p, Q) { const k = env(u, 0.35, 0.7); Q[HEAD] += 0.3 * k; Q[LEAN] += 0.07 * k; Q[NUA] -= 0.05 * k; Q[FUA] -= 0.05 * k; } },
+    tremble: { dur: 2.4, head: 1, f(u, t, p, Q) { const k = env(u, 0.12, 0.85); Q[LEAN] += (0.025 * Math.sin(t * 41) + 0.06) * k; Q[HEAD] += (0.04 * Math.sin(t * 33) + 0.1) * k; Q[NUA] += 0.03 * Math.sin(t * 37) * k; } },
+    startle: { dur: 1.7, head: 1, f(u, t, p, Q, near, free) {
+      const k = u < 0.1 ? easeOut(u / 0.1) : 1 - ease((u - 0.1) / 0.9);
+      Q[LEAN] -= 0.26 * k; Q[HEAD] -= 0.22 * k; Q[NTH] += 0.1 * k; Q[FTH] -= 0.16 * k;
+      if (free) { armTo(Q, true, 1.2, 2.45, k); armTo(Q, false, 1.0, 2.3, k); }
+      p._hop += 0.035 * k * (u < 0.25 ? 1 : 0.4);
+    } },
+    beckon: { dur: 2.2, f(u, t, p, Q, near) { const k = env(u, 0.15, 0.85); armTo(Q, near, 1.25, 2.05 + 0.6 * Math.sin(u * TAU * 3), k); Q[HEAD] -= 0.06 * k; } },
+    wave: { dur: 2.2, f(u, t, p, Q, near) { const k = env(u, 0.15, 0.85); armTo(Q, near, 2.45, 2.55 + 0.42 * Math.sin(u * TAU * 4), k); Q[HEAD] -= 0.08 * k; } },
+    touch: { dur: 2.6, f(u, t, p, Q, near) { const k = env(u, 0.32, 0.7); armTo(Q, near, 1.4, 1.48, k); Q[LEAN] += 0.12 * k; Q[HEAD] += 0.12 * k; } },
+    give: { dur: 2.4, f(u, t, p, Q) { const k = env(u, 0.3, 0.7); armTo(Q, true, 1.1, 1.55, k); armTo(Q, false, 1.0, 1.48, k); Q[LEAN] += 0.1 * k; Q[HEAD] += 0.1 * k; } },
+    break: { dur: 3, f(u, t, p, Q) {
+      const k = env(u, 0.18, 0.82), a = U.smoothstep(0.38, 0.6, u);
+      armTo(Q, true, 0.9 + 0.3 * a, 1.72 - 0.2 * a, k); armTo(Q, false, 0.86 - 0.36 * a, 1.68 + 0.3 * a, k);
+      Q[HEAD] += 0.2 * k; Q[LEAN] += 0.04 * k;
+    } },
+    bless: { dur: 3, f(u, t, p, Q, near) { const k = env(u, 0.25, 0.75); armTo(Q, near, 1.85 + 0.12 * Math.sin(u * TAU), 2.42, k); Q[HEAD] += 0.05 * k; } },
+    point: { dur: 2.2, f(u, t, p, Q, near) { const k = env(u, 0.18, 0.8); armTo(Q, near, 1.85, 1.95, k); Q[HEAD] -= 0.08 * k; } },
+    leap: { dur: 1.9, head: 1, f(u, t, p, Q, near, free, o) {
+      const n = (o && o.n) || 2, c = (u * n) % 1, air = c > 0.22 && c < 0.82 ? Math.sin(Math.PI * (c - 0.22) / 0.6) : 0;
+      const crouch = c <= 0.22 ? Math.sin(Math.PI * c / 0.22) : c >= 0.82 ? Math.sin(Math.PI * (c - 0.82) / 0.18) * 0.7 : 0;
+      Q[NTH] += 0.45 * crouch + 0.5 * air; Q[NSH] -= 0.6 * crouch + 0.7 * air; Q[FTH] += 0.4 * crouch + 0.35 * air; Q[FSH] -= 0.55 * crouch + 0.6 * air;
+      Q[LEAN] += 0.2 * crouch - 0.08 * air; Q[HEAD] -= 0.2 * air;
+      if (free || !p.carry) { const k = env(u, 0.12, 0.9); armTo(Q, true, 2.5, 2.8, k); armTo(Q, false, 2.3, 2.6, k); }
+      p._hop += 0.24 * air;
+    } },
+    clap: { dur: 2, f(u, t, p, Q) { const k = env(u, 0.12, 0.88), s = Math.sin(t * 15); armTo(Q, true, 0.75, 1.75 + 0.22 * s, k); armTo(Q, false, 0.72, 1.72 - 0.22 * s, k); } },
+    refuse: { dur: 2.2, head: 1, f(u, t, p, Q, near, free) {
+      const k = env(u, 0.15, 0.8);
+      if (free) armTo(Q, near, 1.05, 2.05 + 0.32 * Math.sin(t * 13), k);
+      Q[LEAN] -= 0.12 * k; Q[HEAD] += 0.05 * Math.sin(t * 11) * k - 0.08 * k; Q[FTH] -= 0.12 * k;
+    } },
+    knock: { dur: 2.6, f(u, t, p, Q, near) { const k = env(u, 0.12, 0.88), c = (u * 2) % 1, h = c < 0.5 ? Math.max(0, Math.sin(c / 0.5 * Math.PI * 3)) : 0; armTo(Q, near, 1.5 + 0.06 * h, 2.35 + 0.3 * h, k); } },
+    beat: { dur: 2.6, head: 1, f(u, t, p, Q, near, free) { const k = env(u, 0.12, 0.88), c = (u * 3) % 1, h = c < 0.4 ? Math.sin(c / 0.4 * Math.PI) : 0; if (free || near) armTo(Q, true, 0.1 + 0.22 * h, 2.5, k); Q[HEAD] += 0.4 * k; Q[LEAN] += 0.1 * k; } },
+    pour: { dur: 3, f(u, t, p, Q, near) { const k = env(u, 0.2, 0.8), a = U.smoothstep(0.3, 0.6, u); armTo(Q, near, 1.15, 1.55 - 0.9 * a, k); Q[HEAD] += 0.18 * k; Q[LEAN] += 0.06 * k; } },
+    cast: { dur: 2.4, f(u, t, p, Q) {
+      const back = env(u, 0.18, 0.36) * (u < 0.4 ? 1 : 0), fw = env(Math.max(0, (u - 0.32) / 0.68), 0.2, 0.7);
+      armTo(Q, true, -0.6, -0.3, back); armTo(Q, false, -0.5, -0.25, back);
+      armTo(Q, true, 1.9, 2.05, fw); armTo(Q, false, 1.8, 1.95, fw);
+      Q[LEAN] += -0.14 * back + 0.24 * fw; Q[NTH] += 0.12 * fw; Q[FTH] -= 0.1 * fw;
+    } },
+    reachup: { dur: 3, f(u, t, p, Q) { const k = env(u, 0.3, 0.75); armTo(Q, true, 2.6, 2.78, k); armTo(Q, false, 2.45, 2.65, k); Q[HEAD] -= 0.38 * k; Q[LEAN] -= 0.05 * k; } },
+    stoopdown: { dur: 3, head: 1, f(u, t, p, Q, near) {
+      const k = env(u, 0.32, 0.68);
+      Q[NTH] += 0.45 * k; Q[NSH] -= 0.3 * k; Q[FTH] += 0.3 * k; Q[FSH] -= 0.35 * k; Q[LEAN] += 1.0 * k; Q[HEAD] += 0.35 * k;
+      if (!p.carry) armTo(Q, near, 0.25, 0.18, k);
+    } },
+    scribble: { dur: 4, f(u, t, p, Q, near) { const k = env(u, 0.1, 0.9); Q[near ? NFA : FFA] += 0.08 * Math.sin(t * 13) * k; Q[near ? NUA : FUA] += 0.05 * Math.sin(t * 1.7) * k; } },
+    lookaround: { dur: 3.2, head: 1, f(u, t, p, Q, near, free, o, G) {
+      const flip = (u > 0.28 && u < 0.62);
+      if (G.f0 == null) G.f0 = p.facing;
+      const want = flip ? -G.f0 : G.f0;
+      if (p.tx == null && (p.facing === G.f0 || p.facing === -G.f0)) p.facing = want;
+      Q[HEAD] -= 0.12 * Math.sin(u * TAU * 2) * env(u, 0.1, 0.9);
+    } },
+  };
+  const GEST_ALIAS = { 'bow-head': 'bowhead', amen: 'nod', jump: 'leap', fear: 'tremble', 'wave-off': 'refuse', deny: 'refuse', write: 'scribble', pick: 'stoopdown', raiseup: 'reachup', strike: 'beat' };
+
+  function gesture(id, kind, o) {
+    if (W.replaying) return;
+    const c = crowds.get(id);
+    if (c && !people.has(id)) { react(id, kind, o); return; }
+    const p = people.get(id); if (!p || p.isAnimal) return;
+    gestureP(p, kind, o);
+  }
+  function gestureP(p, kind, o) {
+    if (W.replaying || p.dying) return;
+    kind = GEST_ALIAS[kind] || kind;
+    const G = GEST[kind]; if (!G) return;
+    o = o || {};
+    if (p.gest && p.gest.kind === 'lookaround' && p.gest.f0 != null) p.facing = p.gest.f0;
+    p.gest = { kind, G, t: 0, dur: (o.dur || G.dur), o };
+  }
+  // 某人 / 某群人 / 画面某处的横坐标（0..1）
+  function targetX(d) {
+    if (typeof d === 'number') return d;
+    const q = people.get(d);
+    if (q) return q.nx;
+    const g = crowds.get(d);
+    if (g && g.members.length) { let s = 0; for (const m of g.members) s += m.nx; return s / g.members.length; }
+    return null;
+  }
+  // 说话：dur 秒（故事的时间）。o.to：对谁说（双方相向）；o.how：'calm'（默认）| 'proclaim'（高声宣告）| 'plead'（恳求）| 'teach'（讲论）
+  //   id 也可以是一群人的 gid：其中几个人此起彼伏地说（众人的喊声、议论）
+  function speak(id, dur, o) {
+    if (W.replaying) return;
+    o = o || {};
+    dur = Math.max(0.6, dur || 4);
+    const g = crowds.get(id);
+    if (g && !people.has(id)) {
+      g.members.forEach(m => {
+        if (m.isAnimal || Math.random() > (o.share || 0.65)) return;
+        const d0 = Math.random() * Math.min(1.5, dur * 0.3);
+        m.talk = { t: -d0, dur: dur - d0 * Math.random(), how: o.how || 'calm', w: 0 };
+      });
+      return;
+    }
+    const p = people.get(id); if (!p || p.isAnimal) return;
+    if (p.dying) return;
+    p.talk = { t: 0, dur, how: o.how || 'calm', w: p.talk ? p.talk.w : 0 };
+    if (o.to != null) {
+      const q = typeof o.to === 'string' ? people.get(o.to) : null, tx = targetX(o.to);
+      if (p.tx == null && !p.mount && tx != null && Math.abs(tx - p.nx) > 1e-4) faceDir(p, tx);
+      if (q && !q.isAnimal && q.tx == null && !q.mount && o.turn !== false) faceDir(q, id);
+    }
+  }
+  function hush(id) { const p = people.get(id); if (p) p.talk = null; const g = crowds.get(id); if (g) g.members.forEach(m => { m.talk = null; }); }
+  // 众人转向某人 / 某处（各人先后相差一点；o.spread 秒）；ids 可以是 gid、id 或它们的数组
+  function members(ids) {
+    const out = [];
+    for (const k of Array.isArray(ids) ? ids : [ids]) {
+      const g = crowds.get(k);
+      if (g) out.push(...g.members.filter(m => !m.isAnimal));
+      else if (people.get(k) && !people.get(k).isAnimal) out.push(people.get(k));
+    }
+    return out;
+  }
+  function attend(ids, target, o) {
+    const sp = o && o.spread != null ? o.spread : 1.1;
+    for (const m of members(ids)) {
+      if (m.id === target) continue;
+      const tx = targetX(target);
+      if (tx == null) continue;
+      if (W.replaying || sp <= 0) { if (m.tx != null) m.faceEnd = tx; else faceDir(m, tx); m._qFace = null; continue; }
+      m._qFace = { at: W.t + (0.12 + Math.random() * sp) / fastK(), d: tx };
+    }
+  }
+  // 众人先后做同一个手势（惊奇、点头、欢呼……）
+  function react(ids, kind, o) {
+    if (W.replaying) return;
+    const sp = o && o.spread != null ? o.spread : 1.2, share = o && o.share != null ? o.share : 1;
+    for (const m of members(ids)) {
+      if (Math.random() > share) continue;
+      m._qGest = { at: W.t + Math.random() * sp / fastK(), kind, o };
+    }
+  }
+
+  // 每帧：说话、手势的进度；静中的生气；迟一点才做的事
+  const IDLE_ARMS = [
+    null,                               // 自然垂下
+    [-0.05, 0.8, -0.08, 0.78, 1, 1],    // 两手交握在腰前
+    [0.1, 2.5, 0, 0, 1, 0],             // 近手按在胸前
+    [0.18, 1.25, 0, 0, 1, 0],           // 手搭在腰带上
+    [-0.45, 0.35, -0.5, 0.3, 1, 1],     // 两手背在身后
+  ];
+  const IDLE_POSE = { stand: 1, listen: 1, teach: 1, gaze: 1, sit: 1, seat: 1, kneel: 1, pray: 1, look: 1 };
+  function stepActing(p, dt) {
+    const dk = dt * fastK();
+    if (p.talk) { const T = p.talk; T.t += dk; T.w = approach(T.w, T.t >= 0 && T.t < T.dur ? 1 : 0, 7, dt); if (T.t > T.dur && T.w < 0.02) p.talk = null; }
+    if (p.gest) { const G = p.gest; G.t += dk; if (G.t >= G.dur) p.gest = null; }
+    if (p._qPose && W.t >= p._qPose.at) { const q = p._qPose; p._qPose = null; p.tx = null; setPose(p, q.pose); }
+    if (p._qFace && W.t >= p._qFace.at) { const q = p._qFace; p._qFace = null; if (p.tx != null) p.faceEnd = q.d; else faceDir(p, q.d); }
+    if (p._qGest && W.t >= p._qGest.at) { const q = p._qGest; p._qGest = null; gestureP(p, q.kind, q.o); }
+    if (!lively()) { p.idl = null; return; }
+    // 静中的生气：重心左右移、手换个放法、抬头低头
+    let I = p.idl;
+    if (!I) I = p.idl = { arm: 0, cur: [0, 0, 0, 0, 0, 0], tgt: [0, 0, 0, 0, 0, 0], ws: 0, wsT: 0, gl: 0, glT: 0, nA: W.t + rand(2, 9), nW: W.t + rand(1, 6), nG: W.t + rand(2, 8), busy: false };
+    const idle = p.tx == null && !p.fly && !p.mount && !!IDLE_POSE[p.pose] && p.poseT >= 1 && !p.gest && p.alpha > 0.5;
+    if (W.t > I.nA) {
+      I.nA = W.t + rand(6, 15) / Math.max(0.5, Math.min(2, fastK()));
+      // 有名字的人多半自然垂手；众人的手换得勤些
+      I.arm = Math.random() < (p.crowd ? 0.35 : 0.5) ? 0 : 1 + ((Math.random() * (IDLE_ARMS.length - 1)) | 0);
+    }
+    if (W.t > I.nW) { I.nW = W.t + rand(4, 10); I.wsT = U.pick([-1, -0.5, 0, 0.4, 1]); }
+    if (W.t > I.nG) { I.nG = W.t + rand(5, 12); I.glT = Math.random() < 0.3 ? rand(-0.2, -0.1) : rand(-0.06, 0.12); }
+    const standy = p.pose === 'stand' || p.pose === 'listen' || p.pose === 'gaze';
+    const armOK = idle && standy && !p.talk && !p.carry && !(p.prop && NEAR_HELD[p.prop]) && p.prop !== 'jar' && !(p.holdW > 0.05);
+    const A = armOK ? IDLE_ARMS[I.arm] : null;
+    for (let i = 0; i < 6; i++) {
+      const tg = A ? A[i] : (i < 4 ? I.cur[i] : 0);
+      I.tgt[i] = tg;
+    }
+    let busy = false;
+    for (let i = 0; i < 6; i++) {
+      const v = approach(I.cur[i], I.tgt[i], 1.5, dt);
+      if (Math.abs(v - I.tgt[i]) > 0.003) busy = true; else if (v !== I.tgt[i]) { I.cur[i] = I.tgt[i]; continue; }
+      I.cur[i] = v;
+    }
+    const wsT = idle ? I.wsT : 0, glT = idle ? I.glT : 0;
+    I.ws = approach(I.ws, wsT, 1.1, dt); I.gl = approach(I.gl, glT, 1.4, dt);
+    if (Math.abs(I.ws - wsT) > 0.004 || Math.abs(I.gl - glT) > 0.003) busy = true;
+    I.busy = busy;
+  }
+  // 在 computeQ 里：叠上静中的生气、说话、手势、会动的身段
+  function actingQ(p, Q, upright) {
+    p._hop = 0;
+    const I = p.idl;
+    if (I && lively()) {
+      const c = I.cur;
+      if (c[4] > 0.001) armTo(Q, true, c[0], c[1], c[4]);
+      if (c[5] > 0.001) armTo(Q, false, c[2], c[3], c[5]);
+      if (upright > 0.5 && Q[GRD] > 0.5 && p.gait < 0.05) {
+        const ws = I.ws;
+        if (ws > 0) { Q[NTH] += 0.09 * ws; Q[NSH] -= 0.08 * ws; } else { Q[FTH] -= 0.07 * ws; Q[FSH] += 0.08 * ws; }
+        Q[LEAN] += 0.018 * ws;
+      } else Q[LEAN] += 0.03 * I.ws;
+      Q[HEAD] += I.gl * (upright > 0.5 ? 1 : 0.5);
+    }
+    const near = gNear(p), free = armsFree(p);
+    // 会动的身段
+    if (ANIMATED[p.pose] && p.poseT > 0.3) {
+      const k = Math.min(1, (p.poseT - 0.3) / 0.7), t = W.t * fastK() + p.phase * 3;
+      switch (p.pose) {
+        case 'write': {
+          const a = Math.max(0, U.noise1(t * 0.35 + p.phase)) * 1.6;
+          const w = Math.min(1, a) * k;
+          Q[NFA] += 0.08 * Math.sin(t * 13) * w; Q[NUA] += 0.06 * Math.sin(t * 1.3) * w;
+          Q[HEAD] -= 0.2 * (1 - Math.min(1, a)) * k;     // 停笔时抬头想一想
+          break;
+        }
+        case 'haul': {
+          const s = Math.sin(t * 2.4);
+          Q[NUA] += 0.3 * s * k; Q[NFA] += 0.25 * s * k; Q[FUA] -= 0.3 * s * k; Q[FFA] -= 0.25 * s * k; Q[LEAN] -= 0.06 * Math.abs(s) * k;
+          break;
+        }
+        case 'rejoice': {
+          const s = Math.sin(t * 3.2);
+          Q[NUA] += 0.14 * s * k; Q[FUA] -= 0.12 * s * k; Q[NTH] += 0.1 * s * k; Q[FTH] -= 0.1 * s * k; Q[LEAN] += 0.03 * s * k;
+          p._hop += 0.022 * Math.max(0, Math.sin(t * 6.4)) * k;
+          break;
+        }
+        case 'knock': {
+          const c = (t * 0.45) % 1, h = c < 0.42 ? Math.max(0, Math.sin(c / 0.42 * Math.PI * 3)) : 0;
+          Q[NUA] += 0.06 * h * k; Q[NFA] += 0.32 * h * k; Q[HEAD] += 0.06 * (c < 0.42 ? 0 : 1) * k;
+          break;
+        }
+        case 'beat': {
+          const c = (t * 0.6) % 1, h = c < 0.4 ? Math.sin(c / 0.4 * Math.PI) : 0;
+          Q[NUA] += 0.24 * h * k; Q[HEAD] += 0.04 * h * k;
+          break;
+        }
+        case 'row': {
+          const s = Math.sin(t * 2.2);
+          Q[LEAN] += 0.28 * s * k;
+          armTo(Q, true, 1.2 + 0.38 * s, 1.5 + 0.3 * Math.max(0, -s), k); armTo(Q, false, 1.1 + 0.38 * s, 1.4 + 0.3 * Math.max(0, -s), k);
+          break;
+        }
+        case 'teach': {
+          if (p.talk) break;
+          const n1 = U.noise1(t * 0.5 + p.phase), n2 = U.noise1(t * 0.7 + p.phase * 2 + 5);
+          Q[NUA] += 0.16 * n1 * k; Q[NFA] += 0.3 * n2 * k; Q[HEAD] += 0.04 * n1 * k;
+          break;
+        }
+      }
+    }
+    // 说话：头随字句起伏，手随话比划
+    const T = p.talk;
+    if (T && T.w > 0.005 && upright > 0.3 && !LOW[p.pose]) {
+      const w = T.w, tt = Math.max(0, T.t) + p.phase * 7;
+      const n1 = U.noise1(tt * 0.9 + p.phase * 3), n2 = U.noise1(tt * 1.3 + p.phase * 5 + 7);
+      const syl = Math.max(0, Math.sin(tt * 9.5 + 2 * Math.sin(tt * 2.3)));
+      p._syl = syl;
+      const bt = (tt * 0.62) % 1, beat = bt < 0.2 ? Math.sin(bt / 0.2 * Math.PI) : 0;
+      const how = T.how;
+      Q[HEAD] += (0.04 * syl - 0.025) * w;
+      Q[LEAN] += 0.022 * n1 * w;
+      if (free && !p.gest) {
+        if (how === 'proclaim') { armTo(Q, near, 1.35 + 0.3 * n1 + 0.2 * beat, 2.1 + 0.4 * n2 + 0.3 * beat, 0.85 * w); Q[HEAD] -= 0.12 * w; Q[LEAN] -= 0.03 * w; }
+        else if (how === 'plead') { const a = 0.86 + 0.1 * n1 + 0.1 * beat, f = 1.62 + 0.18 * n2 + 0.2 * beat; armTo(Q, true, a, f, 0.85 * w); armTo(Q, false, a - 0.06, f - 0.06, 0.85 * w); Q[HEAD] += 0.05 * w; Q[LEAN] += 0.05 * w; }
+        else {
+          const wide = how === 'teach' ? 1.3 : 1;
+          armTo(Q, near, 0.5 + 0.24 * n1 * wide + 0.14 * beat, 1.5 + 0.45 * n2 * wide + 0.35 * beat, 0.75 * w);
+          if (how === 'teach') armTo(Q, !near, 0.2 + 0.25 * Math.max(0, n2), 1.0 + 0.5 * Math.max(0, n1), 0.45 * w);
+        }
+      }
+    } else p._syl = 0;
+    // 静听：说话的人在近旁、且面朝着他时，侧耳前倾，抬头或低头望着他的脸
+    if (p._att > 0.01 && upright > 0.5) {
+      const a = p._att, dx = Math.abs(p._attX - p._x) || 1;
+      const ang = Math.atan2(p._attY - (p._hy != null ? p._hy : p._y - p._h * 0.92), dx);
+      Q[HEAD] += clamp(ang * 0.7, -0.35, 0.3) * a + 0.04 * a;
+      Q[LEAN] += 0.025 * a;
+    }
+    // 手势
+    const G = p.gest;
+    if (G && G.t >= 0) {
+      if (G.G.head || free || p.pose === 'stand' || p.pose === 'walk' || p.pose === 'sit' || p.pose === 'seat' || p.pose === 'kneel' || p.pose === 'listen' || p.pose === 'teach' || p.pose === 'gaze' || p.pose === 'look') {
+        const u = Math.min(1, G.t / G.dur);
+        G.G.f(u, G.t, p, Q, near, free || (!p.carry && !(p._wN > 0.3)), G.o, G);
+      }
+    }
+  }
+  // 谁在说话：近旁、面朝他的人侧耳去听（每帧找一次；说话的人很少，花不了什么）
+  const SPK = [];
+  function attention(dt) {
+    if (!lively()) return;
+    SPK.length = 0;
+    for (const p of people.values()) if (p.talk && p.talk.w > 0.2 && p._vis && !p.isAnimal) SPK.push(p);
+    const each = q => {
+      let best = null, bd = 1e9;
+      if (!q._vis || q.isAnimal || q.talk) { q._att = approach(q._att || 0, 0, 3, dt); return; }
+      for (const s of SPK) {
+        if (s === q || Math.abs(s.layer - q.layer) > 1) continue;
+        const dx = s._x - q._x, ad = Math.abs(dx);
+        if (ad < q._h * 0.15 || ad > Math.max(q._h * 9, W.w * 0.2)) continue;
+        if (Math.sign(dx) !== Math.sign(q.fd || q.facing)) continue;
+        if (ad < bd) { bd = ad; best = s; }
+      }
+      const want = best && q.tx == null && !q.gest ? 1 : 0;
+      q._att = approach(q._att || 0, want, want ? 2.2 : 1.5, dt);
+      if (best) { q._attX = best._x; q._attY = best._hy != null ? best._hy : best._y - best._h * 0.92; }
+    };
+    for (const p of people.values()) each(p);
+    for (const g of crowds.values()) for (let i = 0; i < g.members.length; i++) each(g.members[i]);
   }
 
   // ════════════════════════════════════════════════════════════
@@ -956,7 +1397,8 @@
     if (p.delay > 0) { p.delay -= dt; return; }
     p.alpha = U.approach(p.alpha, p.targetAlpha, p.dying ? 1.2 : 1.6, dt);
     if (p.emerge < 1) p.emerge = Math.min(1, p.emerge + dt / 1.6);
-    if (p.poseT < 1) { p.poseT = Math.min(1, p.poseT + dt / (p.via ? 1.4 : 0.7)); if (p.poseT >= 1) p.via = null; }
+    if (p.poseT < 1) { p.poseT = Math.min(1, p.poseT + dt / (p.via ? 1.4 : p.poseDur || 0.7)); if (p.poseT >= 1) p.via = null; }
+    if (!p.isAnimal) stepActing(p, dt);
     // 骑乘：随坐骑而动
     if (p.mount) {
       const m = people.get(p.mount);
@@ -1059,6 +1501,7 @@
       g.members = g.members.filter(m => !(m.dying && m.alpha < 0.01));
       if (!g.members.length) crowds.delete(gid);
     }
+    attention(dt);
   }
 
   // ════════════════════════════════════════════════════════════
@@ -1075,8 +1518,16 @@
       const v = poseVec(crowdPoseName(p, p.via));
       return t < 0.5 ? mixV(p.q0, v, ease(t * 2), out) : mixV(v, tgt, ease(t * 2 - 1), out);
     }
-    return mixV(p.q0, tgt, ease(t), out);
+    if (!(p.poseDur > 0)) return mixV(p.q0, tgt, ease(t), out);
+    // 新约各幕：身子先动，头稍后，手臂再后一点、并略过一点再回来（不像木偶一齐到位）
+    const eb = ease(t), eh = ease(c01((t - 0.06) / 0.94)), ea = backOut(c01((t - 0.12) / 0.88));
+    for (let i = 0; i < NP; i++) {
+      const e = i >= NUA && i <= FFA ? ea : i === HEAD ? eh : eb;
+      out[i] = p.q0[i] + (tgt[i] - p.q0[i]) * e;
+    }
+    return out;
   }
+  const backOut = t => { const s = 1.0, u = t - 1; return 1 + (s + 1) * u * u * u + s * u * u; };
   const Q = new Float32Array(NP);
   function computeQ(p) {
     baseQ(p, Q);
@@ -1121,8 +1572,10 @@
       Q[LEAN] += 0.08 * w; Q[NTH] += 0.08 * w; Q[FTH] -= 0.05 * w;
     }
     if (p.pose === 'embrace') Q[LEAN] += 0.02 * Math.sin(W.t * 1.1 + p.phase);
+    // 演技：静中的生气、说话、手势、会动的身段
+    actingQ(p, Q, upright);
     // 怀中之物 / 手中之物：覆盖手臂
-    const armFree = upright > 0.5 && p.pose !== 'pray' && p.pose !== 'raise' && p.pose !== 'wrestle' && p.pose !== 'embrace' && p.pose !== 'point' && p.pose !== 'weep';
+    const armFree = upright > 0.5 && !ARM_POSE[p.pose] && !(p.gest && !p.gest.G.head);
     if (p.carry && armFree) {
       const k = upright;
       Q[NUA] = lerp(Q[NUA], 0.45, k); Q[NFA] = lerp(Q[NFA], 1.9, k);
@@ -1133,6 +1586,9 @@
       else if (p.prop === 'blade') { Q[NUA] = 0.42 + 0.06 * s * g; Q[NFA] = 1.0; }
       else if (p.prop === 'torch') { Q[NUA] = 0.95; Q[NFA] = 1.95; }
       else if (p.prop === 'sword') { Q[NUA] = 2.2; Q[NFA] = 2.6; }
+      else if (p.prop === 'cup' || p.prop === 'loaf' || p.prop === 'lamp') { Q[NUA] = 0.5 + 0.06 * s * g; Q[NFA] = 1.72; }
+      else if (p.prop === 'scroll') { Q[NUA] = 0.42 + 0.06 * s * g; Q[NFA] = 1.55; }
+      else if (p.prop === 'basket') { Q[NUA] = 0.22 + 0.05 * s * g; Q[NFA] = 1.15; }
     }
     // 髋高：双脚踏地（由腿长求出，脚不陷、不浮）
     if (up > 0.001) {
@@ -1317,7 +1773,7 @@
     if (p.wings) { op('wing'); wing(p, sx, sy, ux, uy, fx, fy, 0.08); }
     // ── 手中之物 ──
     P_FLAME = null; P_SWORD = null;
-    const handBusy = p.carry && (p.prop === 'staff' || p.prop === 'spear' || p.prop === 'blade' || p.prop === 'torch' || p.prop === 'sword');
+    const handBusy = p.carry && !!NEAR_HELD[p.prop];
     if (p.prop && !(backLoad && upright > 0.5) && !handBusy) {
       op('prop');
       handProp(p, Q, A, upright, grounded, jarOn, sx, sy, ux, uy, fx, fy);
@@ -1411,6 +1867,28 @@
         ell(cx, cy, 0.05, 0.058, 0);
         seg(cx, cy - 0.04, cx, cy - 0.085, 0.032, 0.026);
       }
+    } else if (k === 'cup') {
+      // 杯：手上一只有脚的杯
+      seg(hx + 0.006, hy - 0.004, hx + 0.006, hy - 0.04, 0.012, 0.012);
+      ell(hx + 0.006, hy - 0.002, 0.026, 0.008, 0);
+      PB[0] = hx - 0.026; PB[1] = hy - 0.092; PB[2] = hx + 0.038; PB[3] = hy - 0.092; PB[4] = hx + 0.022; PB[5] = hy - 0.04; PB[6] = hx - 0.01; PB[7] = hy - 0.04;
+      polyN(4);
+    } else if (k === 'loaf') {
+      ell(hx + 0.012, hy - 0.022, 0.05, 0.03, 0.15);
+    } else if (k === 'lamp') {
+      // 瓦灯：托在掌上，嘴上一点火
+      ell(hx + 0.01, hy - 0.018, 0.04, 0.019, 0);
+      seg(hx + 0.035, hy - 0.026, hx + 0.062, hy - 0.036, 0.016, 0.01);
+      tp(hx + 0.066, hy - 0.06); P_FLAME = [PX, PY, 0.42];
+    } else if (k === 'scroll') {
+      if (p.pose === 'read') {
+        const fx2 = HF[0], fy2 = HF[1];
+        quad(hx, hy - 0.05, fx2, fy2 - 0.05, fx2, fy2 + 0.05, hx, hy + 0.05);
+        seg(hx, hy - 0.06, hx, hy + 0.06, 0.026, 0.026); seg(fx2, fy2 - 0.06, fx2, fy2 + 0.06, 0.026, 0.026);
+      } else seg(hx - 0.012, hy + 0.06, hx + 0.012, hy - 0.07, 0.03, 0.03);
+    } else if (k === 'basket') {
+      ell(hx + 0.03, hy + 0.035, 0.08, 0.046, 0);
+      seg(hx - 0.04, hy + 0.0, hx + 0.1, hy + 0.0, 0.016, 0.016);
     } else if (k === 'wood' || k === 'bundle') {
       const base = upright > 0.5 ? gY : 0.02;
       if (k === 'wood') for (let i = 0; i < 4; i++) seg(0.18 + i * 0.012, base - 0.012 - i * 0.016, 0.55 + i * 0.01, base - 0.02 - i * 0.012, 0.02, 0.018);
@@ -1447,7 +1925,8 @@
     targets(p);
     const still = em >= 1 && p.poseT >= 1 && p.gait < 0.003 && p.sob < 0.003 && !p.angel && !p.wings && !p._seat &&
       p.prop !== 'torch' && p.prop !== 'sword' && p.prop !== 'coat' && !(p._wN > 0) && !(p._wF > 0) &&
-      (p.holdW < 0.001 || p.holdW > 0.999) && !W.ritual.holding && p.pose !== 'wrestle' && p.pose !== 'embrace';
+      (p.holdW < 0.001 || p.holdW > 0.999) && !W.ritual.holding && p.pose !== 'wrestle' && p.pose !== 'embrace' &&
+      !p.talk && !p.gest && !(p.idl && p.idl.busy) && !ANIMATED[p.pose] && !(p._att > 0.01 && p._att < 0.99) && p.prop !== 'lamp';
     const lk = lo ? 1 : 0;
     let X = p._x, hipY;
     let hitC = null;
@@ -1460,6 +1939,7 @@
       const Qv = computeQ(p);
       if (p._seat) { X = p._seat[0]; hipY = p._seat[1]; }
       else hipY = p._y - Qv[HIP] * h;
+      if (p._hop > 0) hipY -= p._hop * h;
       if (p.from === 'dust' && em < 1) hipY += (1 - em) * h * 0.95;
       if (p.angel && !p._seat) hipY -= h * (0.07 + 0.02 * Math.sin(W.t * 1.1 + p.phase) + p.lift);
       setT(X, hipY, h, p.fd, Qv[ROT]);
@@ -1493,7 +1973,8 @@
     if (p.wings && !p.angel) { setCol('wing', ANGEL_WING, depth, ex + 0.1); setCol('wingF', ANGEL_WING, depth, ex, 0.8); }
     if (styleOf(p) === 'long' || (!lo && h >= 24)) setCol('hair', p.age === 'elder' ? GREY : HAIR, depth, ex, p.age === 'elder' ? 0.85 : 1);
     if (pk === 'coat' && !p.angel) setCol('arm', COAT[1], depth, ex); else aliasCol('arm', 'robe');
-    if (pk) setCol('prop', pk === 'jar' ? CLAY : pk === 'bundle' ? CLOTH : pk === 'sword' ? [200, 190, 170] : pk === 'blade' ? [176, 178, 180] : pk === 'wood' ? FIREWOOD : WOOD, depth, ex);
+    if (pk) setCol('prop', pk === 'jar' || pk === 'lamp' ? CLAY : pk === 'bundle' ? CLOTH : pk === 'sword' ? [200, 190, 170] : pk === 'blade' ? [176, 178, 180] : pk === 'wood' ? FIREWOOD :
+      pk === 'cup' ? [206, 168, 96] : pk === 'loaf' ? [204, 160, 104] : pk === 'scroll' ? [226, 212, 178] : pk === 'basket' ? [158, 122, 76] : WOOD, depth, ex);
     if (p.carry) setCol('baby', p.carry === 'lamb' ? LAMB : SWADDLE, depth, ex + 0.05);
     p._colc = saveCols(p._colc, PKEYS, ex, depth);
     }
@@ -1539,11 +2020,20 @@
       const r = h * (0.6 + (1 - em) * 0.8);
       glowAt(glowSprite('pale', [255, 246, 222], 1), PX - r, PY - r, r * 2, r * 2, (1 - em) * 0.8 * p.alpha);
     }
-    if (P_FLAME) drawFlame(ctx, P_FLAME[0], P_FLAME[1], h, alpha);
+    if (p._headL) { tp(p._headL[0], p._headL[1]); p._hx = PX; p._hy = PY; }
+    // 说话的人：头边一点随字句起伏的微光（无面目的小人，好认出是谁在说）
+    if (p.talk && p.talk.w > 0.05 && !p.crowd && p._headL && lively()) {
+      const r = h * 0.34;
+      glowAt(glowSprite('pale', [255, 246, 222], 1), p._hx - r, p._hy - r, r * 2, r * 2, alpha * p.talk.w * (0.05 + 0.1 * W.night) * (0.55 + 0.45 * (p._syl || 0)));
+    }
+    if (P_FLAME) {
+      drawFlame(ctx, P_FLAME[0], P_FLAME[1], h * (P_FLAME[2] || 1), alpha);
+      if (P_FLAME[2]) light('lamp:' + p.id, P_FLAME[0], P_FLAME[1], h * 2.6, 0.55 * alpha, [255, 200, 130]);
+    }
     if (P_SWORD) drawSword(ctx, h, alpha);
     ctx.globalAlpha = 1;
   }
-  function drawFlame(ctx, x, y, h, alpha) {
+  function drawFlame(ctx, x, y, h, alpha) {      // h：火的大小以人的身高计（瓦灯的火小些）
     const fl = 0.85 + 0.15 * Math.sin(W.t * 17) * Math.sin(W.t * 7.3);
     ctx.globalCompositeOperation = 'lighter';
     const r = h * 0.34 * fl;
@@ -1954,7 +2444,7 @@
       if (e.isAnimal) { w = e.M.len * e._h * (0.3 + 0.12 * e.lie); hh = 1.6 * e._h; }
       else {
         const q = e.pose;
-        w = e._h * (LOW[q] ? 0.5 : q === 'sit' || q === 'sleep' || q === 'kneel' || q === 'pray' || q === 'seat' ? 0.26 : 0.17);
+        w = e._h * (LOW[q] ? 0.5 : KNEELISH[q] || q === 'cower' || q === 'stoop' ? 0.26 : 0.17);
         hh = e._h * 0.04;
         if (LOW[q]) ox = (q === 'fall' ? 0.12 : -0.12) * e._h * (e.fd >= 0 ? 1 : -1);
       }
@@ -2031,7 +2521,7 @@
       if (p._vis) { px = p._x; foot = p._seat ? p._seat[1] + p._h * 0.3 : p._y; }
       else { px = p.nx * W.w; foot = p.ny != null ? p.ny * W.h : footY(p); }
       if (p.isAnimal) hgt = p.M.top * (p._vis ? p._h : scaleOf(p)) * (1 - 0.4 * (p.lie || 0));
-      else { const h = p._vis ? p._h : scaleOf(p); hgt = LOW[p.pose] ? h * 0.2 : p.pose === 'sit' || p.pose === 'sleep' || p.pose === 'kneel' || p.pose === 'pray' ? h * 0.7 : h * 0.95; if (p._seat) hgt = h * 0.75; }
+      else { const h = p._vis ? p._h : scaleOf(p); hgt = LOW[p.pose] ? h * 0.2 : (KNEELISH[p.pose] && p.pose !== 'seat') || p.pose === 'cower' || p.pose === 'stoop' ? h * 0.7 : h * 0.95; if (p._seat) hgt = h * 0.75; }
       const py = foot - hgt * 0.5;
       const d = Math.hypot(px - x, py - y);
       if (d < r && (!best || d < best.d)) best = { label: p.label, x: px, y: foot - hgt, d };
@@ -2045,6 +2535,10 @@
   function restore() {
     const snap = p => {
       if (p.dying) return false;
+      if (p._qPose) { p.tx = null; p.pose = p.isAnimal ? animalPose(p._qPose.pose) : p._qPose.pose; p._qPose = null; }
+      if (p._qFace) { const d = p._qFace.d; p._qFace = null; if (p.tx != null) p.faceEnd = d; else faceDir(p, d); }
+      if (p.gest && p.gest.kind === 'lookaround' && p.gest.f0 != null) p.facing = p.gest.f0;
+      p._qGest = null; p.talk = null; p.gest = null; p._hop = 0;
       p.delay = 0; p.alpha = p.targetAlpha; p.emerge = 1; p.poseT = 1; p.via = null; p.fd = p.facing;
       if (p.fly) { p.nx = p.fly.x1; p.ny = p.fly.land ? null : p.fly.y1; if (p.fly.pose) p.pose = p.fly.pose; p.fly = null; }
       if (p.tx != null && !p.follow) {
@@ -2087,8 +2581,26 @@
   };
   const DISCIPLE_ROBES = [[122, 104, 84], [104, 92, 80], [138, 116, 92], [96, 104, 118], [132, 98, 82], [112, 118, 96], [146, 128, 104], [100, 88, 96], [126, 110, 120], [140, 104, 88], [108, 100, 86]];
 
+  // 经文里的话由谁说：verse 的一行可写 who:'jesus'（整行都是他在说）、to:'peter'、how:'proclaim'，
+  //   或 talk:[['mary', 0, 0.45], ['gabriel', 0.5, 1, 'calm', 'mary']]（[谁, 从, 到（占这一行的比例）, how, to]）；
+  //   以及 gest:[['jesus', 'bless', 0.4], ...]（[谁, 手势, 在这一行的哪里（比例）]）。
+  //   那一行显出时，说话的人头随字句起伏、手随话比划，近旁面朝他的人侧耳去听。
+  GS.bus.on('scripture', line => {
+    if (!line || W.replaying || !(line.who || line.talk || line.gest)) return;
+    const hold = line.hold || Math.max(4.2, 1.6 + String(line.text || '').length * 0.2);
+    const later = (sec, fn) => (GS.book && GS.book.after ? GS.book.after(sec, fn) : setTimeout(fn, sec * 1000 / (W.fast || 1)));
+    // 稍迟一点再开口：这一句话的情节（人物的出场）先于它发生
+    if (line.who) for (const id of [].concat(line.who)) later(0.12, () => speak(id, hold - 0.4, { to: line.to, how: line.how }));
+    if (line.talk) for (const t of line.talk) {
+      const a = clamp(t[1] || 0, 0, 1), b = clamp(t[2] == null ? 1 : t[2], a, 1);
+      later(0.12 + a * hold, () => speak(t[0], Math.max(0.8, (b - a) * hold - 0.3), { how: t[3], to: t[4] }));
+    }
+    if (line.gest) for (const g of line.gest) later(0.12 + clamp(g[2] || 0, 0, 1) * hold, () => gesture(g[0], g[1], g[3]));
+  });
+
   GS.cast = {
     LOOK, DISCIPLE_ROBES, light,
+    speak, hush, gesture, attend, react, lively, GESTURES: Object.keys(GEST),
     init, resize() {}, update, draw, reset, restore, pick,
     add, remove, has, get, place, walk, run, pose, face, follow, glow, clear,
     crowd, crowdWalk, crowdPose, scatter, removeCrowd,
