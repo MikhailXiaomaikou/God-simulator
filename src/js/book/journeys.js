@@ -2102,6 +2102,9 @@
           // 船离岸：巴拿巴回身挥手，岸上的会众先后挥手相送
           [15.2, b => { shipTo('off', b); gest('barnabas', 'wave'); stir('churchB', 'wave', { spread: 1.2, share: 0.8 }); }],
           [16.4, () => { stir('churchA', 'wave', { spread: 1, share: 0.8 }); face('paul', 1); gest('paul', 'wave'); }],
+          // 水手拉绳张帆
+          [14.8, () => pose('sailor1', 'haul')],
+          [17, () => pose('sailor1', 'stand')],
           [17.6, () => { stir(['churchA', 'churchB'], 'wave', { spread: 0.8, share: 0.5 }); face('barnabas', -1); }],
           [18.6, b => { toPlace('cyprus', b); crowdRm('churchA'); crowdRm('churchB'); face('paul', -1); }],
           [19.2, b => { shipTo('moor', b); placeName(b, 'cyprus'); }],
@@ -2303,7 +2306,8 @@
             ['paul', 'silas', 'timothy'].forEach(id => face(id, -1));
             lv('jySail', 1, b); sfx(b, 'wave', { soft: true });
           }],
-          [24.4, () => { pose('paul', 'look'); }],
+          [22.4, () => pose('sailor1', 'haul')],
+          [24.4, () => { pose('paul', 'look'); pose('sailor1', 'stand'); }],
           [26.6, () => { pose('paul', 'stand'); }],
           [23, b => { shipTo('off', b); }],
           [27.1, b => { lv('jySail', 1, b); }],
@@ -2633,7 +2637,8 @@
             lv('jySail', 1, b);
             X('elders').forEach((x, i) => pose('el' + i, 'raise'));
           }],
-          [30.3, b => { shipTo('off', b); gest('paul', 'wave'); }],
+          [30.3, b => { shipTo('off', b); gest('paul', 'wave'); pose('sailor1', 'haul'); }],
+          [31.6, () => pose('sailor1', 'stand')],
           [31.3, b => { lv('jySail', 1, b); gest('timothy', 'wave'); }],
         ]);
       },
@@ -2796,7 +2801,9 @@
             ['julius', 'aristarchus', 's1', 'paul', 'pr3'].forEach(id => face(id, 1));
             chain('paul', 's1');
           }],
-          [5, b => { lv('jySail', 1, b); lv('gale', 0.25, b); lv('clouds', 0.55, b); sfx(b, 'wave', { soft: true }); }],
+          [5, b => { lv('jySail', 1, b); lv('gale', 0.25, b); lv('clouds', 0.55, b); sfx(b, 'wave', { soft: true }); pose('sailor1', 'haul'); }],
+          [6.4, () => gest('paul', 'lookaround')],
+          [7.6, () => { pose('sailor1', 'stand'); gest('aristarchus', 'nod'); }],
           [6.6, b => { toPlace('crete', b); shipTo('sea', b); }],
           // 友拉革罗：船被风抓住；众人惊惧，伏在甲板上
           [8.6, b => {
