@@ -195,6 +195,12 @@
   function glowAll(v, ids) { for (const id of ids || CHURCH()) glow(id, v); }
   function hold(a, b, on) { const c = C(); if (c.holdHands && alive(a) && alive(b)) c.holdHands(a, b, on); }
   function embrace(a, b, xf) { const c = C(); if (c.embrace && alive(a) && alive(b)) c.embrace(a, b, xf != null ? { at: xf } : {}); }
+  // 演技（新约）：说话、一次性的手势、众人先后转向 / 反应——重演时引擎自己略过（attend 立即到位）
+  const live = ids => [].concat(ids).filter(alive);
+  function say(id, sec, o) { const c = C(); if (c && c.speak && alive(id)) c.speak(id, sec, o || {}); }
+  function gest(id, kind, o) { const c = C(); if (c && c.gesture && alive(id)) c.gesture(id, kind, o); }
+  function heed(ids, target, o) { const c = C(); if (c && c.attend) c.attend(live(ids), target, o); }
+  function stir(ids, kind, o) { const c = C(); if (c && c.react) c.react(live(ids), kind, o); }
   // 纵深 v 的缓动（走过去时一同变；重演时直接到位）
   function setV(f, v, dur) {
     if (v == null || !f) return;
@@ -1816,81 +1822,82 @@
     { text: '愿恩惠、平安从神我们的父<br>并主耶稣基督归与你们。', ref: '哥林多前书 1:3', hold: 5 },
   ];
   const V1 = [
-    { text: '你们各人说：「我是属保罗的」；「我是属亚波罗的」；<br>「我是属矶法的」；「我是属基督的」。<br>基督是分开的吗？', ref: '哥林多前书 1:12–13', hold: 7 },
-    { text: '因为十字架的道理，在那灭亡的人为愚拙；<br>在我们得救的人，却为神的大能。', ref: '哥林多前书 1:18', hold: 6.5 },
-    { text: '神却拣选了世上愚拙的，叫有智慧的羞愧；<br>又拣选了世上软弱的，叫那强壮的羞愧。', ref: '哥林多前书 1:27', hold: 7 },
-    { text: '因为我曾定了主意，在你们中间不知道别的，<br>只知道耶稣基督并他钉十字架。', ref: '哥林多前书 2:2', hold: 6 },
+    { text: '你们各人说：「我是属保罗的」；「我是属亚波罗的」；<br>「我是属矶法的」；「我是属基督的」。<br>基督是分开的吗？', ref: '哥林多前书 1:12–13', hold: 7,
+      talk: [['stephanas', 0.04, 0.24, 'proclaim'], ['greek', 0.22, 0.44, 'proclaim'], ['crispus', 0.42, 0.62, 'proclaim'], ['chloe', 0.6, 0.8, 'proclaim'], ['paul', 0.8, 1, 'plead']] },
+    { text: '因为十字架的道理，在那灭亡的人为愚拙；<br>在我们得救的人，却为神的大能。', ref: '哥林多前书 1:18', hold: 6.5, who: 'paul', how: 'proclaim' },
+    { text: '神却拣选了世上愚拙的，叫有智慧的羞愧；<br>又拣选了世上软弱的，叫那强壮的羞愧。', ref: '哥林多前书 1:27', hold: 7, who: 'paul', how: 'teach' },
+    { text: '因为我曾定了主意，在你们中间不知道别的，<br>只知道耶稣基督并他钉十字架。', ref: '哥林多前书 2:2', hold: 6, who: 'paul', how: 'calm' },
   ];
   const V2 = [
-    { text: '因为那已经立好的根基就是耶稣基督，<br>此外没有人能立别的根基。', ref: '哥林多前书 3:11', hold: 6 },
-    { text: '岂不知你们是神的殿，<br>神的灵住在你们里头吗？', ref: '哥林多前书 3:16', hold: 5.5 },
-    { text: '因为我们是永生神的殿，就如神曾说：<br>我要在他们中间居住，在他们中间来往；<br>我要作他们的神；他们要作我的子民。', ref: '哥林多后书 6:16', hold: 8 },
-    { text: '岂不知你们的身子就是圣灵的殿吗？<br>这圣灵是从神而来，住在你们里头的；', ref: '哥林多前书 6:19', hold: 6.5 },
+    { text: '因为那已经立好的根基就是耶稣基督，<br>此外没有人能立别的根基。', ref: '哥林多前书 3:11', hold: 6, who: 'paul', how: 'teach' },
+    { text: '岂不知你们是神的殿，<br>神的灵住在你们里头吗？', ref: '哥林多前书 3:16', hold: 5.5, who: 'paul', how: 'proclaim' },
+    { text: '因为我们是永生神的殿，就如神曾说：<br>我要在他们中间居住，在他们中间来往；<br>我要作他们的神；他们要作我的子民。', ref: '哥林多后书 6:16', hold: 8, talk: [['paul', 0, 0.3, 'teach']] },
+    { text: '岂不知你们的身子就是圣灵的殿吗？<br>这圣灵是从神而来，住在你们里头的；', ref: '哥林多前书 6:19', hold: 6.5, who: 'paul', how: 'teach' },
   ];
   const V3 = [
-    { text: '你们聚会的时候，算不得吃主的晚餐；<br>因为吃的时候，各人先吃自己的饭，<br>甚至这个饥饿，那个酒醉。', ref: '哥林多前书 11:20–21', hold: 7 },
-    { text: '主耶稣被卖的那一夜，拿起饼来，<br>祝谢了，就擘开，说：<br>「这是我的身体，为你们舍的，<br>你们应当如此行，为的是记念我。」', ref: '哥林多前书 11:23–24', hold: 8 },
-    { text: '你们每逢吃这饼，喝这杯，<br>是表明主的死，直等到他来。', ref: '哥林多前书 11:26', hold: 5.5 },
-    { text: '我们虽多，仍是一个饼，一个身体，<br>因为我们都是分受这一个饼。', ref: '哥林多前书 10:17', hold: 6 },
+    { text: '你们聚会的时候，算不得吃主的晚餐；<br>因为吃的时候，各人先吃自己的饭，<br>甚至这个饥饿，那个酒醉。', ref: '哥林多前书 11:20–21', hold: 7, talk: [['paul', 0.36, 1, 'plead']] },
+    { text: '主耶稣被卖的那一夜，拿起饼来，<br>祝谢了，就擘开，说：<br>「这是我的身体，为你们舍的，<br>你们应当如此行，为的是记念我。」', ref: '哥林多前书 11:23–24', hold: 8, who: 'paul', how: 'teach' },
+    { text: '你们每逢吃这饼，喝这杯，<br>是表明主的死，直等到他来。', ref: '哥林多前书 11:26', hold: 5.5, who: 'paul', how: 'calm' },
+    { text: '我们虽多，仍是一个饼，一个身体，<br>因为我们都是分受这一个饼。', ref: '哥林多前书 10:17', hold: 6, who: 'paul', how: 'teach' },
   ];
   const V4 = [
-    { text: '恩赐原有分别，圣灵却是一位。<br>职事也有分别，主却是一位。<br>功用也有分别，神却是一位，<br>在众人里面运行一切的事。', ref: '哥林多前书 12:4–6', hold: 8 },
-    { text: '就如身子是一个，却有许多肢体；<br>而且肢体虽多，仍是一个身子；<br>基督也是这样。', ref: '哥林多前书 12:12', hold: 6.5 },
-    { text: '但如今，神随自己的意思<br>把肢体俱各安排在身上了。', ref: '哥林多前书 12:18', hold: 5.5 },
-    { text: '你们就是基督的身子，<br>并且各自作肢体。', ref: '哥林多前书 12:27', hold: 5 },
+    { text: '恩赐原有分别，圣灵却是一位。<br>职事也有分别，主却是一位。<br>功用也有分别，神却是一位，<br>在众人里面运行一切的事。', ref: '哥林多前书 12:4–6', hold: 8, who: 'paul', how: 'teach' },
+    { text: '就如身子是一个，却有许多肢体；<br>而且肢体虽多，仍是一个身子；<br>基督也是这样。', ref: '哥林多前书 12:12', hold: 6.5, who: 'paul', how: 'teach' },
+    { text: '但如今，神随自己的意思<br>把肢体俱各安排在身上了。', ref: '哥林多前书 12:18', hold: 5.5, who: 'paul', how: 'calm' },
+    { text: '你们就是基督的身子，<br>并且各自作肢体。', ref: '哥林多前书 12:27', hold: 5, who: 'paul', how: 'proclaim' },
   ];
   const V5 = [
     { text: '我若能说万人的方言，并天使的话语，<br>却没有爱，我就成了鸣的锣，响的钹一般。', ref: '哥林多前书 13:1', hold: 7 },
-    { text: '爱是恒久忍耐，又有恩慈；爱是不嫉妒；<br>爱是不自夸，不张狂，不做害羞的事，<br>不求自己的益处，不轻易发怒，<br>不计算人的恶，', ref: '哥林多前书 13:4–5', hold: 9 },
-    { text: '不喜欢不义，只喜欢真理；<br>凡事包容，凡事相信，<br>凡事盼望，凡事忍耐。', ref: '哥林多前书 13:6–7', hold: 6.5 },
-    { text: '爱是永不止息。', ref: '哥林多前书 13:8', hold: 4.2 },
+    { text: '爱是恒久忍耐，又有恩慈；爱是不嫉妒；<br>爱是不自夸，不张狂，不做害羞的事，<br>不求自己的益处，不轻易发怒，<br>不计算人的恶，', ref: '哥林多前书 13:4–5', hold: 9, who: 'paul', how: 'teach' },
+    { text: '不喜欢不义，只喜欢真理；<br>凡事包容，凡事相信，<br>凡事盼望，凡事忍耐。', ref: '哥林多前书 13:6–7', hold: 6.5, who: 'paul', how: 'teach' },
+    { text: '爱是永不止息。', ref: '哥林多前书 13:8', hold: 4.2, who: 'paul', how: 'proclaim' },
   ];
   const V6 = [
-    { text: '先知讲道之能终必归于无有；<br>说方言之能终必停止；<br>知识也终必归于无有。', ref: '哥林多前书 13:8', hold: 6.5 },
-    { text: '我们如今仿佛对着镜子观看，模糊不清，<br>到那时就要面对面了。<br>我如今所知道的有限，<br>到那时就全知道，如同主知道我一样。', ref: '哥林多前书 13:12', hold: 9 },
-    { text: '如今常存的有信，有望，有爱这三样，<br>其中最大的是爱。', ref: '哥林多前书 13:13', hold: 6 },
-    { text: '你们要追求爱，<br>也要切慕属灵的恩赐，', ref: '哥林多前书 14:1', hold: 4.5 },
+    { text: '先知讲道之能终必归于无有；<br>说方言之能终必停止；<br>知识也终必归于无有。', ref: '哥林多前书 13:8', hold: 6.5, who: 'paul', how: 'teach' },
+    { text: '我们如今仿佛对着镜子观看，模糊不清，<br>到那时就要面对面了。<br>我如今所知道的有限，<br>到那时就全知道，如同主知道我一样。', ref: '哥林多前书 13:12', hold: 9, who: 'paul', how: 'calm' },
+    { text: '如今常存的有信，有望，有爱这三样，<br>其中最大的是爱。', ref: '哥林多前书 13:13', hold: 6, who: 'paul', how: 'proclaim' },
+    { text: '你们要追求爱，<br>也要切慕属灵的恩赐，', ref: '哥林多前书 14:1', hold: 4.5, who: 'paul', how: 'teach' },
   ];
   const V7 = [
-    { text: '我当日所领受又传给你们的：第一，<br>就是基督照圣经所说，为我们的罪死了，<br>而且埋葬了；又照圣经所说，第三天复活了，', ref: '哥林多前书 15:3–4', hold: 7.5 },
-    { text: '但基督已经从死里复活，<br>成为睡了之人初熟的果子。', ref: '哥林多前书 15:20', hold: 5 },
-    { text: '你所种的，若不死就不能生。……<br>但神随自己的意思给他一个形体，<br>并叫各等子粒各有自己的形体。', ref: '哥林多前书 15:36–38', hold: 7.5 },
-    { text: '所种的是必朽坏的，复活的是不朽坏的；<br>所种的是羞辱的，复活的是荣耀的；', ref: '哥林多前书 15:42–43', hold: 6 },
+    { text: '我当日所领受又传给你们的：第一，<br>就是基督照圣经所说，为我们的罪死了，<br>而且埋葬了；又照圣经所说，第三天复活了，', ref: '哥林多前书 15:3–4', hold: 7.5, who: 'paul', how: 'teach' },
+    { text: '但基督已经从死里复活，<br>成为睡了之人初熟的果子。', ref: '哥林多前书 15:20', hold: 5, who: 'paul', how: 'proclaim' },
+    { text: '你所种的，若不死就不能生。……<br>但神随自己的意思给他一个形体，<br>并叫各等子粒各有自己的形体。', ref: '哥林多前书 15:36–38', hold: 7.5, who: 'paul', how: 'teach' },
+    { text: '所种的是必朽坏的，复活的是不朽坏的；<br>所种的是羞辱的，复活的是荣耀的；', ref: '哥林多前书 15:42–43', hold: 6, who: 'paul', how: 'proclaim' },
   ];
   const V8 = [
-    { text: '我如今把一件奥秘的事告诉你们：<br>我们不是都要睡觉，乃是都要改变，<br>就在一霎时，眨眼之间，<br>号筒末次吹响的时候。', ref: '哥林多前书 15:51–52', hold: 7.5 },
-    { text: '那时经上所记「死被得胜吞灭」的话就应验了。<br>死啊！你得胜的权势在哪里？<br>死啊！你的毒钩在哪里？', ref: '哥林多前书 15:54–55', hold: 7.5 },
-    { text: '感谢神，<br>使我们藉着我们的主耶稣基督得胜。', ref: '哥林多前书 15:57', hold: 5 },
-    { text: '你们务要警醒，在真道上站立得稳，<br>要作大丈夫，要刚强。<br>凡你们所做的都要凭爱心而做。', ref: '哥林多前书 16:13–14', hold: 6.5 },
+    { text: '我如今把一件奥秘的事告诉你们：<br>我们不是都要睡觉，乃是都要改变，<br>就在一霎时，眨眼之间，<br>号筒末次吹响的时候。', ref: '哥林多前书 15:51–52', hold: 7.5, who: 'paul', how: 'teach' },
+    { text: '那时经上所记「死被得胜吞灭」的话就应验了。<br>死啊！你得胜的权势在哪里？<br>死啊！你的毒钩在哪里？', ref: '哥林多前书 15:54–55', hold: 7.5, who: 'paul', how: 'proclaim' },
+    { text: '感谢神，<br>使我们藉着我们的主耶稣基督得胜。', ref: '哥林多前书 15:57', hold: 5, who: 'paul', how: 'proclaim' },
+    { text: '你们务要警醒，在真道上站立得稳，<br>要作大丈夫，要刚强。<br>凡你们所做的都要凭爱心而做。', ref: '哥林多前书 16:13–14', hold: 6.5, who: 'paul', how: 'teach' },
   ];
   const V9 = [
-    { text: '那吩咐光从黑暗里照出来的神，<br>已经照在我们心里，<br>叫我们得知神荣耀的光<br>显在耶稣基督的面上。', ref: '哥林多后书 4:6', hold: 8 },
-    { text: '我们有这宝贝放在瓦器里，<br>要显明这莫大的能力是出于神，<br>不是出于我们。', ref: '哥林多后书 4:7', hold: 6.5 },
-    { text: '我们四面受敌，却不被困住；<br>心里作难，却不至失望；<br>遭逼迫，却不被丢弃；<br>打倒了，却不至死亡。', ref: '哥林多后书 4:8–9', hold: 7.5 },
-    { text: '所以，我们不丧胆。<br>外体虽然毁坏，内心却一天新似一天。', ref: '哥林多后书 4:16', hold: 5.5 },
+    { text: '那吩咐光从黑暗里照出来的神，<br>已经照在我们心里，<br>叫我们得知神荣耀的光<br>显在耶稣基督的面上。', ref: '哥林多后书 4:6', hold: 8, who: 'paul', to: 'potter', how: 'teach' },
+    { text: '我们有这宝贝放在瓦器里，<br>要显明这莫大的能力是出于神，<br>不是出于我们。', ref: '哥林多后书 4:7', hold: 6.5, who: 'paul', how: 'teach' },
+    { text: '我们四面受敌，却不被困住；<br>心里作难，却不至失望；<br>遭逼迫，却不被丢弃；<br>打倒了，却不至死亡。', ref: '哥林多后书 4:8–9', hold: 7.5, who: 'paul', how: 'proclaim' },
+    { text: '所以，我们不丧胆。<br>外体虽然毁坏，内心却一天新似一天。', ref: '哥林多后书 4:16', hold: 5.5, who: 'paul', how: 'proclaim' },
   ];
   const V10 = [
-    { text: '愿颂赞归与我们的主耶稣基督的父神，<br>就是发慈悲的父，赐各样安慰的神。', ref: '哥林多后书 1:3', hold: 6.5 },
-    { text: '倒不如赦免他，安慰他，<br>免得他忧愁太过，甚至沉沦了。<br>所以我劝你们，<br>要向他显出坚定不移的爱心来。', ref: '哥林多后书 2:7–8', hold: 7.5 },
-    { text: '若有人在基督里，他就是新造的人，<br>旧事已过，都变成新的了。', ref: '哥林多后书 5:17', hold: 6 },
-    { text: '一切都是出于神；<br>他藉着基督使我们与他和好，<br>又将劝人与他和好的职分赐给我们。', ref: '哥林多后书 5:18', hold: 7 },
+    { text: '愿颂赞归与我们的主耶稣基督的父神，<br>就是发慈悲的父，赐各样安慰的神。', ref: '哥林多后书 1:3', hold: 6.5, who: 'paul', how: 'proclaim' },
+    { text: '倒不如赦免他，安慰他，<br>免得他忧愁太过，甚至沉沦了。<br>所以我劝你们，<br>要向他显出坚定不移的爱心来。', ref: '哥林多后书 2:7–8', hold: 7.5, who: 'paul', how: 'plead' },
+    { text: '若有人在基督里，他就是新造的人，<br>旧事已过，都变成新的了。', ref: '哥林多后书 5:17', hold: 6, who: 'paul', how: 'proclaim' },
+    { text: '一切都是出于神；<br>他藉着基督使我们与他和好，<br>又将劝人与他和好的职分赐给我们。', ref: '哥林多后书 5:18', hold: 7, who: 'paul', how: 'teach' },
   ];
   const V11 = [
     { text: '但那安慰丧气之人的神<br>藉着提多来安慰了我们；', ref: '哥林多后书 7:6', hold: 5 },
-    { text: '你们知道我们主耶稣基督的恩典：<br>他本来富足，却为你们成了贫穷，<br>叫你们因他的贫穷，可以成为富足。', ref: '哥林多后书 8:9', hold: 7.5 },
-    { text: '各人要随本心所酌定的，<br>不要作难，不要勉强，<br>因为捐得乐意的人是神所喜爱的。', ref: '哥林多后书 9:7', hold: 6.5 },
-    { text: '感谢神，因他有说不尽的恩赐！', ref: '哥林多后书 9:15', hold: 6.4 },
+    { text: '你们知道我们主耶稣基督的恩典：<br>他本来富足，却为你们成了贫穷，<br>叫你们因他的贫穷，可以成为富足。', ref: '哥林多后书 8:9', hold: 7.5, who: 'paul', how: 'teach' },
+    { text: '各人要随本心所酌定的，<br>不要作难，不要勉强，<br>因为捐得乐意的人是神所喜爱的。', ref: '哥林多后书 9:7', hold: 6.5, who: 'paul', how: 'teach' },
+    { text: '感谢神，因他有说不尽的恩赐！', ref: '哥林多后书 9:15', hold: 6.4, who: 'paul', how: 'proclaim' },
   ];
   const V12 = [
-    { text: '我若必须自夸，<br>就夸那关乎我软弱的事便了。', ref: '哥林多后书 11:30', hold: 5 },
-    { text: '……所以有一根刺加在我肉体上……<br>为这事，我三次求过主，叫这刺离开我。', ref: '哥林多后书 12:7–8', hold: 7 },
-    { text: '他对我说：「我的恩典够你用的，<br>因为我的能力是在人的软弱上显得完全。」<br>所以，我更喜欢夸自己的软弱，<br>好叫基督的能力覆庇我。', ref: '哥林多后书 12:9', hold: 9 },
-    { text: '……因我什么时候软弱，<br>什么时候就刚强了。', ref: '哥林多后书 12:10', hold: 5 },
+    { text: '我若必须自夸，<br>就夸那关乎我软弱的事便了。', ref: '哥林多后书 11:30', hold: 5, who: 'paul', how: 'calm' },
+    { text: '……所以有一根刺加在我肉体上……<br>为这事，我三次求过主，叫这刺离开我。', ref: '哥林多后书 12:7–8', hold: 7, who: 'paul', how: 'plead' },
+    { text: '他对我说：「我的恩典够你用的，<br>因为我的能力是在人的软弱上显得完全。」<br>所以，我更喜欢夸自己的软弱，<br>好叫基督的能力覆庇我。', ref: '哥林多后书 12:9', hold: 9, talk: [['paul', 0.6, 1, 'calm']] },
+    { text: '……因我什么时候软弱，<br>什么时候就刚强了。', ref: '哥林多后书 12:10', hold: 5, who: 'paul', how: 'proclaim' },
   ];
   const V13 = [
-    { text: '还有末了的话：愿弟兄们都喜乐。<br>要作完全人；要受安慰；要同心合意；<br>要彼此和睦。<br>如此，仁爱和平的神必常与你们同在。', ref: '哥林多后书 13:11', hold: 8.5 },
-    { text: '你们亲嘴问安，彼此务要圣洁。', ref: '哥林多后书 13:12', hold: 4.5 },
-    { text: '愿主耶稣基督的恩惠、神的慈爱、<br>圣灵的感动常与你们众人同在！', ref: '哥林多后书 13:14', hold: 7 },
+    { text: '还有末了的话：愿弟兄们都喜乐。<br>要作完全人；要受安慰；要同心合意；<br>要彼此和睦。<br>如此，仁爱和平的神必常与你们同在。', ref: '哥林多后书 13:11', hold: 8.5, who: 'paul', how: 'teach' },
+    { text: '你们亲嘴问安，彼此务要圣洁。', ref: '哥林多后书 13:12', hold: 4.5, who: 'paul', how: 'calm' },
+    { text: '愿主耶稣基督的恩惠、神的慈爱、<br>圣灵的感动常与你们众人同在！', ref: '哥林多后书 13:14', hold: 7, who: 'paul', how: 'proclaim' },
   ];
 
   // ════════════════════════════════════════════════════════════
@@ -1906,20 +1913,32 @@
         T(c, [
           [0, b => { tod(b, 0.29, 28); lv('coCross', 0, b); sfx(b, 'crowd', { soft: true }); }],
           [0.4, b => factionNames(b)],
-          [2.4, () => go('paul', F.one.paul, 'stand', { speed: 0.03 })],
+          // 各伙的人高声说「我是属……的」，同伙的点头附和；保罗从院边走到他们中间
+          [0.8, () => go('paul', F.one.paul, 'stand', { speed: 0.034 })],
+          [L[0] + 2.8, () => stir(['fort', 'slave'], 'nod', { spread: 0.6 })],
+          [L[0] + 4.2, () => { stir(['gaius'], 'nod'); gest('greek', 'point'); }],
+          [L[0] + 5.4, () => stir(['achaicus', 'widow'], 'nod', { spread: 0.6 })],
+          [L[0] + 6.6, () => { stir(['child', 'potter'], 'nod', { spread: 0.6 }); gest('chloe', 'reachup'); }],
+          // 「基督是分开的吗？」：保罗站在当中，两手摊开恳求
+          [L[0] + 7.2, () => { face('paul', -1); stir(MEMBERS, 'startle', { spread: 1, share: 0.5 }); }],
           // 十字架的道理：天边立起一个光的十字
           [L[1] + 0.2, b => { lv('coCross', 1, b); sfx(b, 'angel', { soft: true }); }],
+          [L[1] + 0.6, () => stir(CHURCH(), 'startle', { spread: 1.2, share: 0.7 })],
           [L[1] + 1.2, b => { S.united = true; arrange(F.one, 'stand', { speed: 0.03 }); sfx(b, 'harp', { soft: true }); }],
           [L[1] + 6, () => glowAll(0.22)],
-          // 神却拣选了世上愚拙的、软弱的
+          // 神却拣选了世上愚拙的、软弱的：卑微的人亮起来，一惊又仰起脸；有智慧的、强壮的低下头
           [L[2] + 0.4, b => {
             for (const id of HUMBLE) { glow(id, 0.5); sparkOn(b, id, 16, [255, 236, 196]); }
             pose('greek', 'bow'); pose('gaius', 'bow');
           }],
+          [L[2] + 1, () => { gest('child', 'leap', { n: 2 }); gest('slave', 'startle'); }],
+          [L[2] + 1.8, () => { gest('widow', 'reachup'); gest('potter', 'nod'); }],
           [L[2] + 4.2, () => { pose('greek', 'stand'); pose('gaius', 'stand'); }],
+          [L[2] + 5, () => gest('crispus', 'bowhead')],
           // 只知道耶稣基督并他钉十字架：众人都望着那光
           [L[3] + 0.3, b => { for (const id of MEMBERS) pose(id, 'gaze'); pose('paul', 'raise'); lv('coCross', 0.75, b); }],
           [L[3] + 4.5, () => { standAll(); glowAll(0.26); for (const id of HUMBLE) glow(id, 0.4); }],
+          [L[3] + 5.4, () => stir(MEMBERS, 'nod', { spread: 1.6, share: 0.6 })],
         ]);
       },
     },
@@ -1934,19 +1953,25 @@
         const beats = [
           [0, b => { tod(b, 0.36, 24); lv('coCross', 0, b); arrange(F.temple, 'stand'); lv('coTempleA', 1, b); }],
           [1.2, b => { lv('coTemple', 0.3, b); sfx(b, 'build', { soft: true }); }],
+          // 根基先立：众人站成一行，像殿的柱子
+          [L[0] + 4.4, () => stir(MEMBERS, 'nod', { spread: 1.6, share: 0.5 })],
           [L[1] + 0.2, b => { lv('coTemple', 0.7, b); sfx(b, 'harp', { soft: true }); }],
+          [L[1] + 1, () => stir(MEMBERS, 'lookaround', { spread: 1.6, share: 0.5 })],
           [L[1] + 3, b => lv('coTemple', 1, b)],
-          // 我要在他们中间居住：一道光降在殿中
+          // 我要在他们中间居住：一道光降在殿中；众人仰望
           [L[2] + 0.2, b => { lv('coDwell', 1, b); sfx(b, 'angel', { soft: true }); S.dwelt = 1; }],
+          [L[2] + 0.8, () => { pose('paul', 'gaze'); stir(MEMBERS, 'startle', { spread: 0.8, share: 0.5 }); }],
           [L[2] + 2.6, b => lv('coIdol', 1, b)],
+          [L[3] + 0.4, () => pose('paul', 'stand')],
           [L[3] + 3.5, b => { lv('coDwell', 0.35, b); for (const id of MEMBERS) pose(id, 'gaze'); }],
         ];
-        // 在他们中间来往：一点光自一人到一人，一个一个点亮
+        // 在他们中间来往：一点光自一人到一人，一个一个点亮——光到谁那里，谁就低头领受
         order.forEach((id, i) => {
           const t = L[2] + 1.6 + i * 0.55;
           beats.push([t, b => {
             glow(id, 0.42); S.dwelt = 2;
             if (!inst(b)) { const prev = i ? order[i - 1] : null; mote(b, prev ? () => pt(prev, 0.55) : () => [X('cx') * W.w, vY(X('cx'), 0.3) - PH(2)], id, { dur: 0.55, arc: 0.1, r: 6 }); sparkOn(b, id, 10, [255, 240, 210], 0.55); }
+            gest(id, i % 3 === 2 ? 'reachup' : 'bowhead', { dur: 1.8 });
           }]);
         });
         beats.push([L[3] + 6, () => standAll()]);
@@ -1967,26 +1992,38 @@
             arrange(F.sup1, 'stand', { poses: seated });
             for (const id of ['slave', 'widow', 'potter']) glow(id, 0.12);
           }],
-          [4.5, b => { lv('coLamps', 1, b); sfx(b, 'fire', { soft: true }); }],
+          // 富足的先吃，彼此说笑；穷的站在一旁，饥饿，叹息
+          [1.4, () => { say('greek', 2.2, { to: 'gaius' }); }],
+          [2.2, () => { say('gaius', 1.8, { to: 'greek' }); gest('crispus', 'nod'); }],
+          [3.2, () => { gest('widow', 'sigh'); }],
+          [4.5, b => { lv('coLamps', 1, b); sfx(b, 'fire', { soft: true }); gest('slave', 'bowhead'); }],
           // 该犹起来，招那些站在一旁的
           [L[0] + 5.2, () => { pose('gaius', 'stand'); face('gaius', -1); }],
-          [L[0] + 6.2, () => { arrange(F.sup2, 'sit'); pose('paul', 'stand'); glowAll(0.3); }],
-          // 拿起饼来，祝谢了，就擘开
-          [L[1] + 2.4, b => { pose('paul', 'raise'); lv('coBread', 1, b); sfx(b, 'harp', { soft: true }); }],
+          [L[0] + 5.8, () => gest('gaius', 'beckon')],
+          [L[0] + 6.6, () => { arrange(F.sup2, 'sit'); pose('paul', 'stand'); glowAll(0.3); }],
+          // 拿起饼来，祝谢了，就擘开：保罗两手捧饼举向天，擘开，又递给众人
+          [L[1] + 1.6, () => heed(MEMBERS, 'paul', { spread: 1.2 })],
+          [L[1] + 2.4, b => { pose('paul', 'lift'); lv('coBread', 1, b); sfx(b, 'harp', { soft: true }); }],
+          [L[1] + 4, () => { pose('paul', 'stand'); gest('paul', 'break'); }],
           [L[1] + 4.6, b => {
-            S.broken = true; pose('paul', 'stand');
+            S.broken = true;
             const T0 = () => { const q = tableGeo(); return [q.x - 9 * q.s, q.top - 4 * q.s]; };
             MEMBERS.forEach((id, i) => mote(b, T0, id, { dur: 1.2 + i * 0.07, delay: i * 0.12, r: 5, land: true }));
           }],
-          [L[1] + 6.6, () => glowAll(0.34)],
-          // 喝这杯
+          [L[1] + 5.4, () => { pose('paul', 'offer'); stir(MEMBERS, 'bowhead', { spread: 1.6, share: 0.7 }); }],
+          [L[1] + 6.6, () => { glowAll(0.34); pose('paul', 'stand'); }],
+          // 喝这杯：举杯，众人低头领受
+          [L[2] + 0.1, () => pose('paul', 'lift')],
           [L[2] + 0.3, b => {
             lv('coCup', 1, b);
             const T1 = () => { const q = tableGeo(); return [q.x + 10 * q.s, q.top - 8 * q.s]; };
             MEMBERS.forEach((id, i) => mote(b, T1, id, { dur: 1.2 + i * 0.07, delay: i * 0.12, r: 5, spr: 'wine', rgb: [255, 160, 120], land: true }));
           }],
-          // 我们虽多，仍是一个饼
+          [L[2] + 2.2, () => { pose('paul', 'stand'); stir(MEMBERS, 'nod', { spread: 1.6, share: 0.6 }); }],
+          // 我们虽多，仍是一个饼：众人彼此相望
           [L[3] + 0.3, b => { lv('coOne', 1, b); sfx(b, 'harp', { soft: true }); if (!inst(b) && fx()) { const q = tableGeo(); fx().ring(q.x, q.top, [255, 226, 170], M() * 0.3, 3, 1.4); } }],
+          [L[3] + 1.2, () => stir(MEMBERS, 'lookaround', { spread: 1.8, share: 0.6 })],
+          [L[3] + 4, () => { gest('paul', 'bless'); }],
         ]);
       },
     },
@@ -2000,17 +2037,24 @@
         const beats = [
           [0, b => { tod(b, 0.84, 14); lv('coOne', 0, b); lv('coBread', 0.25, b); lv('coCup', 0.25, b); arrange(F.ring, 'stand'); glowAll(0.32); BODYMAP = null; }],
           [L[1] + 0.3, b => { BODYMAP = null; lv('coBody', 1, b); lv('coBodyA', 1, b); sfx(b, 'stars', { soft: true }); }],
+          // 「肢体虽多，仍是一个身子」：众人转向身旁的人，牵起手来
+          [L[1] + 1.4, () => stir(MEMBERS, 'lookaround', { spread: 1, share: 0.5 })],
           [L[1] + 2.5, () => { hold('stephanas', 'gaius'); hold('crispus', 'chloe'); hold('achaicus', 'potter'); hold('fort', 'slave'); hold('widow', 'child'); }],
+          [L[1] + 3.4, () => stir(MEMBERS, 'nod', { spread: 1.4, share: 0.6 })],
+          // 神随自己的意思把肢体安排在身上：光的身子亮起，众人低头
           [L[2] + 0.3, b => { lv('coBodyLit', 1, b); sfx(b, 'harp', { soft: true }); }],
+          [L[2] + 1.2, () => stir(CHURCH(), 'bowhead', { spread: 1.8, share: 0.7 })],
           [L[3] + 0.3, b => { glowAll(0.4); sfx(b, 'angel', { soft: true }); }],
+          [L[3] + 1, () => gest('paul', 'bless')],
         ];
-        // 恩赐原有分别：各人头上点起一朵颜色不同的火
+        // 恩赐原有分别：各人头上点起一朵颜色不同的火——各人一惊，抬手、点头
         GIFT_IDS.forEach((id, i) => {
           beats.push([1.6 + i * 0.45, b => {
             S.gifts = i + 1;
             if (!inst(b)) { mote(b, () => [X('cx') * W.w, W.h * at(0.08, 0.3)], () => pt(id, 1.08), { dur: 0.9, arc: 0.05, r: 5, rgb: GIFT_COL[i], spr: 'pale' }); }
             if (i % 3 === 0) sfx(b, 'chime', { soft: true });
           }]);
+          if (id !== 'paul') beats.push([2.4 + i * 0.45, () => gest(id, i % 3 === 0 ? 'reachup' : i % 3 === 1 ? 'startle' : 'nod')]);
         });
         T(c, beats);
       },
@@ -2026,18 +2070,30 @@
         T(c, [
           [0, b => { tod(b, 0.9, 20); lv('coBodyA', 0, b); lv('coLoveA', 1, b); releaseAll(); }],
           // 鸣的锣，响的钹：希腊人高声说话，一圈圈空洞的灰环
+          // 鸣的锣，响的钹：希腊人举着手高声说话（没有爱），近旁的人背转身去
           [0.6, () => go('greek', Fl.greek0, 'raise')],
+          [1.6, () => say('greek', 5, { how: 'proclaim' })],
           [2.6, b => { fxl(b, { type: 'clang', from: () => pt('greek', 0.85), dur: 1.6 }); sfx(b, 'cymbal', { soft: true }); for (const id of ['stephanas', 'chloe', 'crispus']) face(id, id === 'crispus' ? -1 : 1); }],
+          [3.2, () => { gest('chloe', 'sigh'); gest('stephanas', 'refuse'); }],
           [3.7, b => { fxl(b, { type: 'clang', from: () => pt('greek', 0.85), dur: 1.6 }); sfx(b, 'cymbal', { soft: true }); }],
           [4.8, b => fxl(b, { type: 'clang', from: () => pt('greek', 0.85), dur: 1.6 })],
-          [6.4, () => { pose('greek', 'stand'); face('greek', -1); }],
-          // 爱是恒久忍耐，又有恩慈……
+          [6.4, () => { pose('greek', 'stand'); face('greek', -1); gest('greek', 'bowhead'); }],
+          // 爱是恒久忍耐，又有恩慈：长者跪下等孩子，伸手扶她；孩子点头
           [L[1] + 0.2, () => { go('child', Fl.child, 'stand'); go('crispus', Fl.crispus, 'kneel'); face('crispus', 1); }],
+          [L[1] + 1.8, () => gest('crispus', 'touch')],
           [L[1] + 2.4, b => link(0, b)],
+          [L[1] + 2.9, () => gest('child', 'nod')],
+          // 不求自己的益处：革来氏跪在寡妇身旁
           [L[1] + 2.8, () => { go('widow', Fl.widow, 'sit'); go('chloe', Fl.chloe, 'kneel'); }],
+          [L[1] + 4.6, () => gest('chloe', 'touch')],
           [L[1] + 5.2, b => link(1, b)],
+          [L[1] + 5.8, () => gest('widow', 'bowhead')],
+          // 不张狂：希腊人坐到奴仆身边
           [L[1] + 5.4, () => { go('greek', Fl.greek, 'sit'); go('slave', Fl.slave, 'sit'); }],
+          [L[1] + 7.4, () => { face('greek', 'slave'); gest('greek', 'give'); }],
           [L[1] + 8, b => link(2, b)],
+          [L[1] + 8.6, () => gest('slave', 'nod')],
+          // 凡事包容：两个分过党的人相拥；凡事相信：该犹与福徒拿都牵手
           [L[2] + 0.2, () => { go('achaicus', F.ring.stephanas.map((v, i) => (i < 2 ? v + 0.024 : v)), 'stand', { speed: 0.03 }); }],
           [L[2] + 2, () => embrace('stephanas', 'achaicus', at(0.637, 0.61))],
           [L[2] + 3.4, b => link(3, b)],
@@ -2046,6 +2102,7 @@
           [L[2] + 1, () => go('paul', Fl.paul, 'stand')],
           // 爱是永不止息
           [L[3] + 0.2, b => { lv('coLove', 1, b); glowAll(0.38); sfx(b, 'angel', { soft: true }); }],
+          [L[3] + 0.8, () => { gest('paul', 'bless'); stir(['potter', 'child', 'widow', 'slave'], 'nod', { spread: 1.6, share: 0.7 }); }],
         ]);
       },
     },
@@ -2058,8 +2115,10 @@
         const L = starts(V6);
         const beats = [
           [0, b => { tod(b, 0.247, 28); }],
-          // 仿佛对着镜子观看：爱的光丝暗下去，好让墙上的铜镜看得见
+          // 仿佛对着镜子观看：爱的光丝暗下去，好让墙上的铜镜看得见；众人转向那镜子
           [L[1] + 0.3, b => { lv('coMirror', 0.35, b); lv('coLoveA', 0.35, b); }],
+          [L[1] + 0.8, () => heed(CHURCH().filter(id => id !== 'paul'), X('mirror'), { spread: 1.4 })],
+          [L[1] + 1.6, () => stir(['chloe', 'child', 'potter', 'widow'], 'lookaround', { spread: 1, share: 0.6 })],
           // 到那时就要面对面了：自上而来的光；镜子明亮了
           [L[1] + 3.2, b => {
             lv('coAbove', 1, b); lv('coMirror', 1, b); flash(b, 0.18); sfx(b, 'angel', { soft: true });
@@ -2067,15 +2126,24 @@
             for (const id of CHURCH()) pose(id, 'gaze');
             glowAll(0.42);
           }],
+          [L[1] + 4.2, () => stir(CHURCH(), 'startle', { spread: 1, share: 0.5 })],
+          // 信、望、爱三点光：孩子指着天，众人仰望
           [L[2] + 0.4, b => { S.three = 1; const q = threePos(0); nameAt(b, THREE[0][0], q[0], q[1] + 40 * SU(), THREE[0][1], { px: 0.05 * M(), hold: 3.2, src: () => [q[0] + U.rand(-8, 8), q[1] + U.rand(-8, 8)] }); }],
+          [L[2] + 1, () => gest('child', 'point')],
           [L[2] + 1.6, b => { S.three = 2; const q = threePos(2); nameAt(b, THREE[2][0], q[0], q[1] + 40 * SU(), THREE[2][1], { px: 0.05 * M(), hold: 3.2, src: () => [q[0] + U.rand(-8, 8), q[1] + U.rand(-8, 8)] }); }],
           [L[2] + 2.8, b => { S.three = 3; lv('coThreeA', 1, b); const q = threePos(1); nameAt(b, THREE[1][0], q[0], q[1] + 44 * SU(), THREE[1][1], { px: 0.058 * M(), hold: 3.6, src: () => [q[0] + U.rand(-8, 8), q[1] + U.rand(-8, 8)] }); sfx(b, 'harp', { soft: true }); }],
           // 其中最大的是爱：玫瑰金的光铺满全地，众人之间的光丝又亮起来
           [L[2] + 4.6, b => { lv('coLoveBig', 1, b); lv('coLoveA', 0.7, b); lv('coLamps', 0, b); }],
+          [L[2] + 5.2, () => stir(CHURCH(), 'nod', { spread: 1.4, share: 0.6 })],
+          // 你们要追求爱：众人站好，彼此相望
           [L[3] + 0.3, b => { standAll(); lv('coAbove', 0.35, b); }],
+          [L[3] + 1.2, () => { stir(MEMBERS, 'lookaround', { spread: 1.6, share: 0.4 }); gest('paul', 'beckon'); }],
         ];
-        // 说方言之能终必停止：头上的火一朵一朵熄了
-        GIFT_IDS.forEach((id, i) => beats.push([0.6 + i * 0.42, b => { S.gOut = i + 1; if (!inst(b)) fxl(b, { type: 'puff', from: () => pt(id, 1.1), dur: 1.4 }); }]));
+        // 说方言之能终必停止：头上的火一朵一朵熄了——各人抬头望一眼，叹一口气
+        GIFT_IDS.forEach((id, i) => {
+          beats.push([0.6 + i * 0.42, b => { S.gOut = i + 1; if (!inst(b)) fxl(b, { type: 'puff', from: () => pt(id, 1.1), dur: 1.4 }); }]);
+          if (id !== 'paul' && i % 2) beats.push([0.9 + i * 0.42, () => gest(id, 'sigh', { dur: 2 })]);
+        });
         beats.push([0.1, b => lv('coThreeA', 1, b)]);
         T(c, beats);
       },
@@ -2093,19 +2161,28 @@
             tod(b, 0.3, 20); lv('coLoveBig', 0, b); lv('coThreeA', 0, b); lv('coAbove', 0, b); lv('coLoveA', 0, b); lv('coMirror', 0, b);
             arrange(F.field, 'stand', { speed: 0.04 }); face('grief', 1);
           }],
-          [5.6, b => { pose('paul', 'point'); sfx(b, 'wind', { soft: true }); for (let i = 0; i < 12; i++) mote(b, () => pt('paul', 0.6), toFurrow(i), { dur: 0.9, delay: i * 0.08, r: 3.5, arc: 0.3, rgb: [255, 236, 190] }); }],
+          // 保罗在田里撒种：一把一把撒出去
+          [5.6, b => { gest('paul', 'cast'); sfx(b, 'wind', { soft: true }); for (let i = 0; i < 12; i++) mote(b, () => pt('paul', 0.6), toFurrow(i), { dur: 0.9, delay: i * 0.08, r: 3.5, arc: 0.3, rgb: [255, 236, 190] }); }],
           [6.4, b => lv('coSown', 1, b)],
           [7.2, () => pose('paul', 'stand')],
+          [8.2, b => { gest('paul', 'cast'); for (let i = 12; i < 20; i++) mote(b, () => pt('paul', 0.6), toFurrow(i), { dur: 0.9, delay: (i - 12) * 0.08, r: 3.5, arc: 0.3, rgb: [255, 236, 190] }); }],
+          [9.4, () => { gest('potter', 'nod'); gest('child', 'lookaround'); }],
           // 第三天复活了：一棵发光的苗破土而出
           [L[0] + 7, b => { lv('coSprout', 1, b); lv('coFirstG', 1, b); sfx(b, 'chime', { soft: true }); if (!inst(b) && fx()) { const q = sheafXY(); fx().sparkle(q[0], q[1] - 6, 24, [220, 255, 190], 10, 'top'); } }],
-          // 初熟的果子
+          [L[0] + 7.4, () => { gest('child', 'startle'); stir(MEMBERS.filter(id => id !== 'child' && id !== 'potter'), 'startle', { spread: 1, share: 0.4 }); }],
+          // 初熟的果子：保罗指着那一捆，孩子跳起来
           [L[1] + 0.4, b => { lv('coFirst', 1, b); sfx(b, 'harp', { soft: true }); if (!inst(b) && fx()) { const q = sheafXY(); fx().ring(q[0], q[1] - PH(2) * 0.55, [255, 220, 140], M() * 0.16, 2.6, 1.3); } }],
+          [L[1] + 0.8, () => { pose('paul', 'point'); gest('child', 'leap', { n: 2 }); }],
+          [L[1] + 3.4, () => pose('paul', 'stand')],
           // 各等子粒各有自己的形体：满田长起来
           [L[2] + 0.4, b => { lv('coGrow', 1, b); lv('bloom', 0.55, b); sfx(b, 'wind', { soft: true }); }],
+          [L[2] + 1.2, () => { pose('potter', 'look'); gest('child', 'clap'); }],
           [L[2] + 3, () => { for (const id of MEMBERS) if (F.field[id] && F.field[id][0] < 0.8) pose(id, 'gaze'); }],
-          // 所种的是必朽坏的，复活的是不朽坏的
-          [L[3] + 0.3, b => { lv('coRipe', 1, b); glowAll(0.24); }],
-          [L[3] + 3, () => standAll()],
+          [L[2] + 4.6, () => pose('potter', 'stand')],
+          // 所种的是必朽坏的，复活的是不朽坏的：麦子熟了，保罗举手
+          [L[3] + 0.3, b => { lv('coRipe', 1, b); glowAll(0.24); pose('paul', 'raise'); }],
+          [L[3] + 3, () => { standAll(); pose('paul', 'stand'); }],
+          [L[3] + 4, () => stir(MEMBERS, 'nod', { spread: 1.6, share: 0.5 })],
         ];
         T(c, beats);
       },
@@ -2120,22 +2197,33 @@
         T(c, [
           [0, b => { tod(b, 0.4, 20); lv('coLoveA', 0, b); arrange(F.tombs, 'stand'); }],
           // 号筒末次吹响：一道光扫过天空；一霎时，眨眼之间
+          // 号筒末次吹响：一道光扫过天空——众人一惊，有的以臂遮眼
           [L[0] + 5.2, b => { sfx(b, 'trumpet'); fxl(b, { type: 'sweep', dur: 1.8 }); flash(b, 0.3); }],
+          [L[0] + 5.4, () => { stir(CHURCH(), 'startle', { spread: 0.6, share: 0.8 }); pose('widow', 'shield'); pose('chloe', 'shield'); pose('slave', 'shield'); }],
           [L[0] + 6.2, b => {
             lv('coTomb', 1, b); lv('coTombL', 1, b); sfx(b, 'quake', { soft: true });
             if (!inst(b)) { W.shake = Math.max(W.shake || 0, 0.25); for (const id of CHURCH()) sparkOn(b, id, 10, [255, 250, 236], 0.6); }
             glowAll(0.55);
           }],
-          [L[0] + 7.4, () => glowAll(0.32)],
-          // 死被得胜吞灭
+          [L[0] + 7.4, () => { glowAll(0.32); pose('widow', 'stand'); pose('chloe', 'stand'); pose('slave', 'stand'); }],
+          // 「死啊！你得胜的权势在哪里？」：保罗指着那些开了的坟墓
+          [L[1] + 0.6, () => { face('paul', 1); pose('paul', 'point'); }],
           [L[1] + 0.8, b => {
             lv('coDeath', 0, b);
             if (!inst(b) && fx()) { const Tg = tombGeo(); fx().ring((Tg.x0 + Tg.x1) / 2, Tg.base - Tg.hh * 0.5, [255, 240, 210], M() * 0.35, 3.2, 1.6); }
             sfx(b, 'angel', { soft: true });
           }],
-          // 感谢神，使我们得胜
-          [L[2] + 0.3, b => { for (const id of CHURCH()) pose(id, 'raise'); sfx(b, 'sing', { soft: true }); glowAll(0.4); }],
-          [L[3] + 0.5, b => { standAll(); lv('coTombL', 0.45, b); lv('coLoveA', 0.6, b); lv('coFirstG', 0.25, b); }],
+          [L[1] + 4, () => { pose('paul', 'stand'); stir(MEMBERS, 'nod', { spread: 1.4, share: 0.5 }); }],
+          // 感谢神，使我们得胜：众人举手、欢喜，高声称谢
+          [L[2] + 0.3, b => {
+            const ps = ['raise', 'rejoice', 'lift'];
+            CHURCH().forEach((id, i) => pose(id, id === 'paul' ? 'raise' : ps[i % 3]));
+            sfx(b, 'sing', { soft: true }); glowAll(0.4);
+          }],
+          [L[2] + 0.9, () => { say('stephanas', 1.8, { how: 'proclaim' }); say('widow', 1.6, { how: 'proclaim' }); say('greek', 1.6, { how: 'proclaim' }); }],
+          // 你们务要警醒，站立得稳：保罗转向众人
+          [L[3] + 0.5, b => { standAll(); lv('coTombL', 0.45, b); lv('coLoveA', 0.6, b); lv('coFirstG', 0.25, b); face('paul', -1); }],
+          [L[3] + 2.6, () => stir(MEMBERS, 'nod', { spread: 1.6, share: 0.6 })],
         ]);
       },
     },
@@ -2151,17 +2239,28 @@
         const beats = [
           [0, b => { tod(b, 0.86, 16); lv('coLoveA', 0, b); lv('coTombL', 0, b); lv('coFirstG', 0, b); lv('coJarsA', 1, b); arrange(F.work, 'stand', { poses: Object.assign({ potter: 'kneel' }, sitters) }); }],
           [1, b => lv('coKiln', 1, b)],
+          // 窑匠跪在窑边捏弄瓦器
+          [2.4, () => gest('potter', 'scribble')],
           [4, b => { lv('coLamps', 0.7, b); lv('coShine', 1, b); sfx(b, 'stars', { soft: true }); glowAll(0.3); }],
-          // 已经照在我们心里：那点光降下，进到保罗心里
+          // 已经照在我们心里：那点光降下，进到保罗心里——他仰起脸来
           [6.2, b => { lv('coShineD', 1, b); fxl(b, { type: 'descend', to: () => pt('paul', 0.62), dur: 3.4 }); }],
-          [9.4, b => { glow('paul', 0.55); ringOn(b, 'paul', [255, 240, 210], 0.14, 2.2, 0.62); sfx(b, 'harp', { soft: true }); }],
-          // 宝贝放在瓦器里：瓦器一个一个亮起
+          [6.6, () => { pose('paul', 'gaze'); gest('potter', 'scribble'); }],
+          [9.4, b => { glow('paul', 0.55); ringOn(b, 'paul', [255, 240, 210], 0.14, 2.2, 0.62); sfx(b, 'harp', { soft: true }); pose('paul', 'stand'); }],
+          [9.8, () => stir(MEMBERS.filter(id => id !== 'potter'), 'startle', { spread: 1, share: 0.4 })],
+          // 宝贝放在瓦器里：瓦器一个一个亮起——窑匠起来，众人转头去看
           [L[1] + 1.2, () => { pose('potter', 'stand'); pose('paul', 'point'); }],
+          [L[1] + 1.8, () => heed(MEMBERS.filter(id => id !== 'potter'), X('shelf0'), { spread: 1.6 })],
+          [L[1] + 3.4, () => { gest('potter', 'nod'); stir(['child', 'widow', 'slave'], 'nod', { spread: 1.2 }); }],
           [L[1] + 5.8, () => pose('paul', 'stand')],
-          // 四面受敌……打倒了，却不至死亡
+          // 四面受敌……打倒了，却不至死亡：风四面扑来，众人发抖；瓦器从裂缝里放出光
           [L[2] + 0.3, b => { lv('gale', 0.62, b); sfx(b, 'wind'); }],
+          [L[2] + 0.8, () => stir(MEMBERS, 'tremble', { spread: 1.4, share: 0.6 })],
           [L[2] + 2.8, b => { lv('coCrack', 1, b); sfx(b, 'chime', { soft: true }); }],
+          [L[2] + 3.4, () => stir(MEMBERS, 'startle', { spread: 1, share: 0.5 })],
+          // 所以，我们不丧胆：风住了；保罗两手向天
           [L[3] + 0.3, b => { lv('gale', 0.12, b); glowAll(0.34); }],
+          [L[3] + 1, () => gest('paul', 'reachup')],
+          [L[3] + 3, () => stir(MEMBERS, 'nod', { spread: 1.6, share: 0.6 })],
         ];
         JARS.forEach((j, i) => beats.push([L[1] + 0.6 + i * 0.6, b => {
           S.jars = i + 1;
@@ -2181,10 +2280,15 @@
         T(c, [
           [0, b => { tod(b, 0.262, 18); lv('coShine', 0, b); lv('coKiln', 0.25, b); lv('coLamps', 0.4, b); lv('coCrack', 0.4, b); standAll(); }],
           [0.8, () => { arrange(F.grief, 'stand', { speed: 0.035 }); for (const id of MEMBERS) if (!F.grief[id]) face(id, 1); }],
-          // 赦免他，安慰他：司提反抱住他
+          // 城外独坐的那个忧愁的人：低头叹息
+          [2.4, () => gest('grief', 'sigh')],
+          [5.2, () => gest('grief', 'bowhead')],
+          // 赦免他，安慰他：他站起来；司提反抱住他，革来氏伸手抚他，孩子点头
           [L[1] + 0.3, () => { pose('grief', 'stand'); face('grief', -1); }],
           [L[1] + 1.6, b => { embrace('stephanas', 'grief', at(0.827, 0.832)); sfx(b, 'weep', { soft: true }); }],
+          [L[1] + 3, () => { gest('chloe', 'touch'); gest('gaius', 'nod'); }],
           [L[1] + 3.6, b => { lv('coGrief', 0, b); glow('grief', 0.26); }],
+          [L[1] + 4.6, () => gest('child', 'nod')],
           // 旧事已过，都变成新的了：一圈新的光漫过全地
           [L[2] + 0.3, b => {
             lv('coNew', 1, b); lv('bloom', 1, b); lv('grass', 0.95, b); lv('coLamps', 0, b); lv('coKiln', 0, b);
@@ -2194,8 +2298,15 @@
             ringOn(b, 'grief', [220, 255, 190], 0.2, 2.6, 0.5); sparkOn(b, 'grief', 24, [230, 255, 200], 0.6);
             sfx(b, 'harp', { soft: true });
           }],
-          [L[2] + 3.6, () => { pose('stephanas', 'stand'); pose('grief', 'stand'); }],
-          [L[3] + 0.4, b => { glowAll(0.24); face('grief', -1); lv('coCrack', 0, b); lv('coJarsA', 0.4, b); }],
+          [L[2] + 1, () => stir(['chloe', 'gaius', 'child', 'paul'], 'startle', { spread: 0.8 })],
+          // 新造的人：他放开手，张臂欢喜
+          [L[2] + 3.6, () => { pose('stephanas', 'stand'); pose('grief', 'rejoice'); }],
+          [L[2] + 4.4, () => gest('child', 'leap', { n: 2 })],
+          // 与他和好：他转向众人，低头；保罗为他祝福
+          [L[3] + 0.4, b => { glowAll(0.24); pose('grief', 'stand'); face('grief', -1); lv('coCrack', 0, b); lv('coJarsA', 0.4, b); }],
+          [L[3] + 1.2, () => gest('grief', 'bowhead')],
+          [L[3] + 2, () => gest('paul', 'bless')],
+          [L[3] + 4, () => stir(MEMBERS.filter(id => !F.grief[id]), 'nod', { spread: 1.6, share: 0.5 })],
         ]);
       },
     },
@@ -2217,27 +2328,39 @@
             arrange(lineup, 'stand', { speed: 0.04 });
           }],
           [0.6, () => go('titus', Q.titus, 'stand', { speed: 0.03 })],
-          [0.8, () => go('paul', Q.paul, 'stand', { speed: 0.045 })],
+          // 提多从船上下来：保罗远远地看见，招手迎上去
+          [0.8, () => { go('paul', Q.paul, 'stand', { speed: 0.045 }); gest('paul', 'wave'); }],
+          [2, () => gest('titus', 'wave')],
           // 神藉着提多来安慰了我们
           [L[0] + 3.8, b => { embrace('paul', 'titus', at(0.476, 0.459)); sfx(b, 'harp', { soft: true }); }],
           [L[1] + 0.5, b => { S.chest = 'quay'; lv('coChest', 0.12, b); pose('paul', 'stand'); pose('titus', 'stand'); face('paul', 1); face('titus', 1); }],
-          // 捐得乐意的：寡妇第一个
+          [L[1] + 1.4, () => heed(MEMBERS.concat(['grief']), 'paul', { spread: 1.6 })],
+          [L[1] + 4.6, () => stir(MEMBERS.concat(['grief']), 'nod', { spread: 1.8, share: 0.5 })],
+          // 捐得乐意的：寡妇第一个，两手捧着她的两个小钱放进箱子
           [L[2] + 0.2, () => go('widow', Q.widowGive, 'stand', { speed: 0.03 })],
-          [L[2] + 2.2, b => { S.gave = 1; pose('widow', 'raise'); lv('coChest', 0.3, b); mote(b, () => pt('widow', 0.6), () => { const x = X('chest'); return [x * W.w, vY(x, 0.5) - 8 * SC(2)]; }, { dur: 0.8, r: 6, land: true }); sfx(b, 'coins', { soft: true }); }],
+          [L[2] + 1.6, () => pose('widow', 'offer')],
+          [L[2] + 2.2, b => { S.gave = 1; lv('coChest', 0.3, b); mote(b, () => pt('widow', 0.6), () => { const x = X('chest'); return [x * W.w, vY(x, 0.5) - 8 * SC(2)]; }, { dur: 0.8, r: 6, land: true }); sfx(b, 'coins', { soft: true }); }],
+          [L[2] + 3.2, () => { pose('widow', 'stand'); gest('paul', 'nod'); }],
           [L[2] + 4, () => { go('widow', Q.widow, 'stand', { speed: 0.03 }); }],
           // 感谢神，因他有说不尽的恩赐！箱子抬上船，帆张开，船往东去（在这一句里就没入天边）
           [L[3] - 0.8, () => { go('fort', Q.carry1, 'stand', { speed: 0.045 }); go('achaicus', Q.carry2, 'stand', { speed: 0.045 }); }],
           [L[3] + 0.4, b => { S.chest = 'carried'; lv('coChest', 1, b); }],
           [L[3] + 1.0, b => { S.chest = 'ship'; lv('coSail', 1, b); sfx(b, 'wind', { soft: true }); }],
           [L[3] + 1.6, b => { lv('coShip', 1, b); sfx(b, 'wave', { soft: true }); go('fort', Q.fort, 'stand', { speed: 0.04 }); go('achaicus', Q.achaicus, 'stand', { speed: 0.04 }); }],
+          [L[3] + 0.6, () => { gest('fort', 'nod'); gest('achaicus', 'nod'); }],
           [L[3] + 3.6, () => { pose('paul', 'raise'); pose('titus', 'raise'); for (const id of ['widow', 'child', 'slave']) pose(id, 'raise'); }],
+          [L[3] + 4.4, () => stir(['gaius', 'chloe', 'stephanas', 'crispus', 'potter'], 'wave', { spread: 1.2, share: 0.7 })],
           [L[3] + 7.2, () => standAll()],
         ];
-        givers.forEach((id, i) => beats.push([L[2] + 3 + i * 0.45, b => {
-          S.gave = i + 2; lv('coChest', Math.min(1, 0.3 + (i + 1) * 0.08), b);
-          mote(b, () => pt(id, 0.6), () => { const x = X('chest'); return [x * W.w, vY(x, 0.5) - 8 * SC(2)]; }, { dur: 0.9 + i * 0.05, r: 5, land: true });
-          if (i % 3 === 0) sfx(b, 'coins', { soft: true });
-        }]));
+        // 众人一个一个乐意地捐：各人两手递出去，又欢喜点头
+        givers.forEach((id, i) => {
+          beats.push([L[2] + 2.7 + i * 0.45, () => gest(id, 'give', { dur: 1.6 })]);
+          beats.push([L[2] + 3 + i * 0.45, b => {
+            S.gave = i + 2; lv('coChest', Math.min(1, 0.3 + (i + 1) * 0.08), b);
+            mote(b, () => pt(id, 0.6), () => { const x = X('chest'); return [x * W.w, vY(x, 0.5) - 8 * SC(2)]; }, { dur: 0.9 + i * 0.05, r: 5, land: true });
+            if (i % 3 === 0) sfx(b, 'coins', { soft: true });
+          }]);
+        });
         T(c, beats);
       },
     },
@@ -2250,8 +2373,9 @@
         const L = starts(V12), N = F.night;
         const sitters = {};
         for (const id in N) sitters[id] = 'sit';
+        // 三次求主：跪着仰面摊手求、合掌、再求——一点小光升起又熄灭
         const prayer = k => b => {
-          S.prayers = k; pose('paul', k % 2 ? 'pray' : 'kneel');
+          S.prayers = k; pose('paul', k % 2 ? 'beg' : 'pray');
           fxl(b, { type: 'rise', from: () => pt('paul', 0.7), dur: 2.6 });
           if (k === 1) sfx(b, 'whisper', { soft: true });
         };
@@ -2264,14 +2388,19 @@
             go('paul', N.paul, 'kneel', { speed: 0.035 });
           }],
           [5, b => { lv('coLamps', 1, b); lv('coJarsA', 0.2, b); glowAll(0.3); }],
-          // 一根刺：冷而暗的影
+          [6.2, () => stir(Object.keys(N).filter(id => id !== 'paul' && id !== 'paulUp'), 'bowhead', { spread: 2, share: 0.4 })],
+          // 一根刺：冷而暗的影；他一惊，发抖
           [L[1] + 0.3, b => { lv('coThorn', 1, b); glow('paul', 0.3); sfx(b, 'wind', { soft: true, low: true }); }],
+          [L[1] + 0.6, () => gest('paul', 'tremble')],
           [L[1] + 1.4, prayer(1)],
           [L[1] + 3.6, prayer(2)],
           [L[1] + 5.8, prayer(3)],
-          // 我的恩典够你用的：自上而来的光覆庇他
+          // 我的恩典够你用的：自上而来的光覆庇他；他低头领受，又点头
           [L[2] + 0.4, b => { lv('coCover', 1, b); lv('coThorn', 0.2, b); glow('paul', 0.55); pose('paul', 'kneel'); ringOn(b, 'paul', [255, 240, 210], 0.18, 2.6, 0.5); sfx(b, 'angel', { soft: true }); }],
-          // 因我什么时候软弱，什么时候就刚强了
+          [L[2] + 1, () => heed(Object.keys(N).filter(id => id !== 'paul' && id !== 'paulUp'), 'paul', { spread: 1.8 })],
+          [L[2] + 1.6, () => gest('paul', 'bowhead')],
+          [L[2] + 4.4, () => gest('paul', 'nod')],
+          // 因我什么时候软弱，什么时候就刚强了：他站起来，举手
           [L[3] + 0.4, () => { go('paul', N.paulUp, 'stand', { speed: 0.02 }); }],
           [L[3] + 2.2, () => pose('paul', 'raise')],
         ]);
@@ -2288,13 +2417,23 @@
         T(c, [
           [0, b => { tod(b, 0.272, 20); lv('coCover', 0.2, b); lv('coThorn', 0, b); lv('coJarsA', 0.35, b); standAll(); }],
           [0.6, () => arrange(F.final, 'stand', { speed: 0.04 })],
+          // 愿弟兄们都喜乐……要同心合意：众人围着他听，先后点头
+          [L[0] + 4.6, () => stir(CHURCH().filter(id => id !== 'paul'), 'nod', { spread: 1.8, share: 0.6 })],
+          [L[0] + 7, () => stir(CHURCH().filter(id => id !== 'paul'), 'lookaround', { spread: 1.4, share: 0.4 })],
           [L[2] + 3, b => lv('coLamps', 0, b)],
-          // 你们亲嘴问安
+          // 你们亲嘴问安：两两相拥；其余的人挥手、点头
           [L[1] + 0.2, b => { PAIRS.forEach(p => { const A = F.final[p[0]], B = F.final[p[1]]; embrace(p[0], p[1], (at(A[0], A[1]) + at(B[0], B[1])) / 2); }); sfx(b, 'harp', { soft: true }); }],
+          [L[1] + 1, () => { gest('titus', 'wave'); gest('grief', 'nod'); gest('crispus', 'nod'); gest('potter', 'wave'); }],
           [L[1] + 4.4, () => { for (const p of PAIRS) { pose(p[0], 'stand'); pose(p[1], 'stand'); } }],
-          // 恩惠、慈爱、感动：三道光
-          [L[2] + 0.3, b => { lv('coTri', 1, b); lv('coCover', 0, b); glowAll(0.42); for (const id of CHURCH()) pose(id, 'raise'); sfx(b, 'angel', { soft: true }); }],
-          [L[2] + 5, () => { standAll(); pose('paul', 'raise'); }],
+          // 恩惠、慈爱、感动：三道光；保罗举手祝福，众人举手
+          [L[2] + 0.3, b => {
+            lv('coTri', 1, b); lv('coCover', 0, b); glowAll(0.42);
+            const ps = ['raise', 'lift', 'raise', 'rejoice'];
+            CHURCH().forEach((id, i) => pose(id, id === 'paul' ? 'bless' : ps[i % 4]));
+            sfx(b, 'angel', { soft: true });
+          }],
+          [L[2] + 5, () => { standAll(); pose('paul', 'bless'); }],
+          [L[2] + 6, () => stir(CHURCH().filter(id => id !== 'paul'), 'bowhead', { spread: 1.4, share: 0.7 })],
         ]);
       },
     },

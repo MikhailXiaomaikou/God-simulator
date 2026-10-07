@@ -157,7 +157,12 @@
     }
   }
   function cglow(gid, v) { for (const m of cmembers(gid)) m.glow = v; }
-  const man = (pal, v0, v1, age) => (m, i) => { m.sex = 'm'; m.age = age || (i % 5 === 3 ? 'elder' : 'adult'); m.robe = pal[i % pal.length]; m.accent = null; m.prop = null; if (v1 != null) m.v = lerp(v0, v1, ((i * 0.618) % 1)); };
+  // 演技：说话、一次性的手势、众人先后转向、众人先后做同一个手势（重演时引擎自己什么也不做；转向立即到位）
+  function talk(id, sec, o) { const c = C(); if (c && c.speak) c.speak(id, sec, o); }
+  function gest(id, kind, o) { const c = C(); if (c && c.gesture) c.gesture(id, kind, o); }
+  function heed(ids, target, o) { const c = C(); if (c && c.attend) c.attend(ids, target, o); }
+  function stir(ids, kind, o) { const c = C(); if (c && c.react) c.react(ids, kind, o); }
+  const man =(pal, v0, v1, age) => (m, i) => { m.sex = 'm'; m.age = age || (i % 5 === 3 ? 'elder' : 'adult'); m.robe = pal[i % pal.length]; m.accent = null; m.prop = null; if (v1 != null) m.v = lerp(v0, v1, ((i * 0.618) % 1)); };
   const woman = (pal, v0, v1) => (m, i) => { m.sex = 'f'; m.age = 'adult'; m.robe = pal[i % pal.length]; m.accent = null; m.hairOpt = null; if (v1 != null) m.v = lerp(v0, v1, ((i * 0.618) % 1)); };
   const folk = (pal, v0, v1) => (m, i) => { m.robe = pal[i % pal.length]; if (m.age === 'child' && i % 2) m.age = 'adult'; if (v1 != null) m.v = lerp(v0, v1, ((i * 0.618) % 1)); };
 
@@ -1676,10 +1681,10 @@
     {
       kind: 'act', utter: '有一个撒种的出去撒种', cmd: 'sow --on 路旁 石头地 荆棘 好土  # 有耳可听的', ref: '13:3',
       verse: [
-        { text: '他用比喻对他们讲许多道理，说：「有一个撒种的出去撒种；<br>撒的时候，有落在路旁的，飞鸟来吃尽了；', ref: '马太福音 13:3–4', hold: 7 },
-        { text: '有落在土浅石头地上的，土既不深，发苗最快，<br>日头出来一晒，因为没有根，就枯干了；', ref: '马太福音 13:5–6', hold: 6.5 },
-        { text: '有落在荆棘里的，荆棘长起来，把它挤住了；<br>又有落在好土里的，就结实，有一百倍的，有六十倍的，有三十倍的。', ref: '马太福音 13:7–8', hold: 7.5 },
-        { text: '有耳可听的，就应当听！」', ref: '马太福音 13:9', hold: 4 },
+        { text: '他用比喻对他们讲许多道理，说：「有一个撒种的出去撒种；<br>撒的时候，有落在路旁的，飞鸟来吃尽了；', ref: '马太福音 13:3–4', hold: 7, who: 'jesus', how: 'teach' },
+        { text: '有落在土浅石头地上的，土既不深，发苗最快，<br>日头出来一晒，因为没有根，就枯干了；', ref: '马太福音 13:5–6', hold: 6.5, who: 'jesus', how: 'teach' },
+        { text: '有落在荆棘里的，荆棘长起来，把它挤住了；<br>又有落在好土里的，就结实，有一百倍的，有六十倍的，有三十倍的。', ref: '马太福音 13:7–8', hold: 7.5, who: 'jesus', how: 'teach' },
+        { text: '有耳可听的，就应当听！」', ref: '马太福音 13:9', hold: 4, who: 'jesus', how: 'proclaim' },
       ],
       apply(c) {
         T(c, [
@@ -1687,35 +1692,49 @@
             aura(X.pic0 - 0.01, X.pic1 + 0.01);
             tell(b, (X.pic0 + X.pic1) / 2, 0.35);
             pose('jesus', 'sit'); glow('jesus', 0.4);
-            cface('crowd', 1);
           }],
+          // 他一开口，岸上的人先后转过去，望着光里的画；门徒静听
+          [0.6, b => { heed('crowd', (X.pic0 + X.pic1) / 2, { spread: 2.4 }); pose('peter', 'listen'); pose('john', 'listen'); }],
           [1.2, b => {
             prop('field', 'field', { x0: X.pic0, x1: X.pic1, label: '田' });
             pic('sower', { label: '撒种的', x: X.pic0 - 0.012, facing: 1, robe: ROBE.sower, prop: 'bundle', v: 0.46, glow: 0.34 });
           }],
+          // 他一边走，一边一把一把地撒出去
           [2.4, b => {
             prop('field', null, { sow: 1 });
             walk('sower', X.pic1 - 0.02, { speed: (X.pic1 - X.pic0) * 0.07, pose: 'stand' });
             sfx(b, 'wind', { soft: true });
           }],
+          [2.8, b => { gest('sower', 'cast'); }],
           // 路旁的：飞鸟来吃尽了
           [3.6, b => { prop('field', null, { k: 1 }); sfx(b, 'wings', { soft: true }); sfx(b, 'bird'); }],
+          [5.4, b => { gest('sower', 'cast'); stir('crowd', 'point', { share: 0.25, spread: 1.4 }); }],
           [6.2, () => { prop('field', null, { k7: 1 }); }],
           [7.8, () => { prop('field', null, { k2: 1 }); }],
+          [8.2, b => { gest('sower', 'cast'); }],
           // 石头地：发苗最快；日头出来一晒，就枯干了
           [8.8, () => { prop('field', null, { k3: 1, rate: { k3: 0.6 } }); }],
+          [11, b => { gest('sower', 'cast'); }],
           [11.6, b => { W.goTo(DAYC(0.37, 0.31), 3, b.instant); flash(b, { type: 'sun', dur: 3.4 }); }],
           [12.4, () => { prop('field', null, { k4: 1, rate: { k4: 0.45 } }); }],
+          [13.6, b => { gest('sower', 'cast'); stir('crowd', 'sigh', { share: 0.3, spread: 1.6 }); }],
           // 荆棘：长起来，把它挤住了
-          [16.2, b => { prop('field', null, { k5: 1, rate: { k5: 0.28 } }); }],
+          [16.2, b => { prop('field', null, { k5: 1, rate: { k5: 0.28 } }); gest('sower', 'cast'); }],
           // 好土：结实，一百倍、六十倍、三十倍
           [19.6, b => { prop('field', null, { grow: 1, rate: { grow: 0.2 } }); sfx(b, 'harp', { soft: true }); }],
+          [21.2, b => { stir('crowd', 'nod', { share: 0.4, spread: 1.6 }); }],
+          // 撒种的回身望着那结实的好土，欢欢喜喜
+          [22, b => { face('sower', -1); pose('sower', 'look'); hold('sower', null); }],
           [23, b => { prop('field', null, { k6: 1, rate: { k6: 0.35 } }); }],
+          // 有耳可听的，就应当听：岸上的人都转回来望着他
           [25, b => {
-            face('sower', -1); pose('sower', 'raise'); hold('sower', null);
+            pose('sower', 'rejoice');
             cpose('crowd', 'stand'); glow('jesus', 0.45);
             beam(b, lerp(X.pic0, X.pic1, 0.87), 2, { v: 0.3, w: 90, r: 0.14, dur: 4 });
+            heed('crowd', 'jesus', { spread: 1.4 });
           }],
+          [26.6, b => { stir('crowd', 'nod', { share: 0.5, spread: 1.4 }); gest('peter', 'nod'); }],
+          [27.6, b => { gest('john', 'nod'); }],
         ]);
       },
     },
@@ -1724,8 +1743,8 @@
     {
       kind: 'promise', utter: '天国好像一粒芥菜种', cmd: 'plant 芥菜种 --smallest && grow --into 树 --lodge 飞鸟', ref: '13:31',
       verse: [
-        { text: '他又设个比喻对他们说：「天国好像一粒芥菜种，有人拿去种在田里。', ref: '马太福音 13:31', hold: 6 },
-        { text: '这原是百种里最小的，等到长起来，却比各样的菜都大，<br>且成了树，天上的飞鸟来宿在它的枝上。」', ref: '马太福音 13:32', hold: 7 },
+        { text: '他又设个比喻对他们说：「天国好像一粒芥菜种，有人拿去种在田里。', ref: '马太福音 13:31', hold: 6, who: 'jesus', how: 'teach' },
+        { text: '这原是百种里最小的，等到长起来，却比各样的菜都大，<br>且成了树，天上的飞鸟来宿在它的枝上。」', ref: '马太福音 13:32', hold: 7, who: 'jesus', how: 'teach' },
         { text: '这都是耶稣用比喻对众人说的话；若不用比喻，就不对他们说什么。', ref: '马太福音 13:34', hold: 6 },
       ],
       apply(c) {
@@ -1735,6 +1754,8 @@
             aura(X.tree - 0.12, X.tree + 0.12);
             tell(b, X.tree, 0.2);
           }],
+          [1, b => { heed('crowd', X.tree, { spread: 2 }); }],
+          // 有人拿去种在田里：他跪下，把那一粒按进土里
           [1.6, b => {
             pic('planter', { label: '种芥菜的', x: X.tree - 0.05, facing: 1, robe: ROBE.planter, v: 0.3 });
             walk('planter', X.tree - 0.014, { speed: 0.02, pose: 'kneel' });
@@ -1742,17 +1763,23 @@
           [3.6, b => {
             prop('tree', 'tree', { x: X.tree, v: 0.1, lit: 1, label: '芥菜种' });
             sparkleOn(b, 'planter', 12, [255, 236, 190], 0.2);
+            gest('planter', 'touch', { dur: 1.6 });
           }],
           [5.4, () => { pose('planter', 'stand'); walk('planter', X.tree - 0.065, { speed: 0.02 }); face('planter', 1); }],
           // 长起来：比各样的菜都大，且成了树
           [7.2, b => { prop('tree', null, { grow: 1, rate: { grow: 0.11 }, label: '芥菜树' }); sfx(b, 'wind', { soft: true }); }],
           [9, () => { pose('planter', 'gaze'); cface('crowd', 1); }],
+          [10.6, b => { stir('crowd', 'startle', { share: 0.3, spread: 1.6 }); }],
           // 天上的飞鸟来宿在它的枝上
           [13, b => { prop('tree', null, { k: 1, rate: { k: 0.22 } }); sfx(b, 'wings', { soft: true }); }],
-          [14.5, b => { sfx(b, 'bird'); }],
+          [13.8, b => { gest('planter', 'point'); }],
+          [14.5, b => { sfx(b, 'bird'); stir('crowd', 'point', { share: 0.25, spread: 1.2 }); }],
+          [16, b => { pose('planter', 'stand'); }],
           [16.6, b => { sfx(b, 'bird', { soft: true }); prop('tree', null, { lit: 0 }); }],
-          // 他若不用比喻，就不对他们说什么：众人都向着他
-          [18.4, b => { cface('crowd', -1); glow('jesus', 0.5); beamOn(b, 'jesus', { dur: 4, w: 80, r: 0.12 }); }],
+          // 他若不用比喻，就不对他们说什么：众人都转回来向着他
+          [17.4, b => { heed('crowd', 'jesus', { spread: 1.6 }); }],
+          [18.4, b => { glow('jesus', 0.5); beamOn(b, 'jesus', { dur: 4, w: 80, r: 0.12 }); }],
+          [19.4, b => { stir('crowd', 'nod', { share: 0.4, spread: 1.6 }); gest('jesus', 'bless'); }],
         ]);
       },
     },
@@ -1762,12 +1789,12 @@
       kind: 'promise', utter: '天国好像宝贝藏在地里', cmd: 'sell --all && buy 这块地  # 重价的珠子', ref: '13:44',
       verse: [
         { text: '当下，耶稣离开众人，进了房子。', ref: '马太福音 13:36', hold: 4 },
-        { text: '「天国好像宝贝藏在地里，人遇见了就把它藏起来，<br>欢欢喜喜地去变卖一切所有的，买这块地。', ref: '马太福音 13:44', hold: 7 },
-        { text: '天国又好像买卖人寻找好珠子，<br>遇见一颗重价的珠子，就去变卖他一切所有的，买了这颗珠子。」', ref: '马太福音 13:45–46', hold: 7.5 },
+        { text: '「天国好像宝贝藏在地里，人遇见了就把它藏起来，<br>欢欢喜喜地去变卖一切所有的，买这块地。', ref: '马太福音 13:44', hold: 7, who: 'jesus', how: 'teach' },
+        { text: '天国又好像买卖人寻找好珠子，<br>遇见一颗重价的珠子，就去变卖他一切所有的，买了这颗珠子。」', ref: '马太福音 13:45–46', hold: 7.5, who: 'jesus', how: 'teach' },
       ],
       apply(c) {
         T(c, [
-          // 离开众人：下船，上岸，往村里的房子去
+          // 离开众人：下船，上岸，往村里的房子去；众人挥手，散去
           [0, b => {
             fadePic(['planter'], ['tree']);
             prop('aura', null, { show: false });
@@ -1777,6 +1804,7 @@
             walk('jesus', X.hA + 0.02, { speed: 0.026, pose: 'sit' });
             cwalk('crowd', X.crowd0 + 0.06, X.crowd1 + 0.04, { speed: 0.02 }); cface('crowd', 1);
           }],
+          [0.3, b => { stir('crowd', 'wave', { share: 0.4, spread: 0.8 }); }],
           [1.8, () => { crm('crowd'); }],
           [0.8, () => { walk('peter', X.hA - 0.005, { speed: 0.028, pose: 'sit' }); walk('john', X.hA - 0.022, { speed: 0.028, pose: 'sit' }); }],
           [1.4, () => { if (!PORT) { walk('d1', X.hA - 0.04, { speed: 0.026, pose: 'sit' }); walk('d2', X.hA - 0.055, { speed: 0.026, pose: 'sit' }); } }],
@@ -1794,27 +1822,33 @@
             walk('plowman', X.treasure - 0.013, { speed: 0.024, pose: 'kneel' });
             walk('ox', X.treasure - 0.056, { speed: 0.018, pose: 'graze' });
           }],
-          // 人遇见了：地里的宝贝放出光来
+          // 人遇见了：地里的宝贝放出光来；他一惊，伸手去摸
           [8.8, b => { prop('treasure', null, { lit: 1, k: 1 }); pose('plowman', 'kneel'); hold('plowman', null); sfx(b, 'chime'); sfx(b, 'coins', { soft: true }); }],
-          // 就把它藏起来
-          [10.8, b => { prop('treasure', null, { k: 0, lit: 0.3 }); }],
+          [9.2, b => { gest('plowman', 'startle'); }],
+          [9.8, b => { gest('plowman', 'touch', { dur: 1.4 }); }],
+          // 就把它藏起来：俯身掩上
+          [10.8, b => { prop('treasure', null, { k: 0, lit: 0.3 }); gest('plowman', 'stoopdown', { dur: 1.4 }); }],
           // 欢欢喜喜地去变卖一切所有的
-          [11.8, b => { pose('plowman', 'raise'); sfx(b, 'laugh', { soft: true }); }],
+          [11.8, b => { pose('plowman', 'rejoice'); sfx(b, 'laugh', { soft: true }); }],
+          [12.6, b => { gest('plowman', 'leap', { n: 2 }); }],
           [13.4, () => { run('plowman', 0.99, { speed: 0.08 }); }],
           // 重价的珠子
           [14, b => {
             prop('pearl', 'pearl', { x: X.merch, v: 0.4, lit: 0, label: '重价的珠子' });
             pic('merchant', { label: '买卖人', x: 0.99, facing: -1, robe: ROBE.merchant, prop: 'bundle', v: 0.4, accent: [206, 176, 110] });
-            walk('merchant', X.merch, { speed: 0.03 });
+            walk('merchant', X.merch, { speed: 0.045, pose: 'look' });
           }],
           // 买这块地：他回来了，站在自己的地里
           [15.4, () => { walk('plowman', X.treasure + 0.012, { speed: 0.05, pose: 'stand' }); }],
           [17.4, b => { prop('pearl', null, { lit: 1 }); sfx(b, 'chime'); }],
-          [18.8, b => { pose('merchant', 'raise'); hold('merchant', null); sfx(b, 'coins', { soft: true }); face('plowman', -1); }],
+          [17.8, b => { pose('merchant', 'stand'); gest('merchant', 'startle'); }],
+          // 就去变卖他一切所有的：把所有的都交出去，买了这颗珠子
+          [18.6, b => { gest('merchant', 'give'); hold('merchant', null); sfx(b, 'coins', { soft: true }); face('plowman', -1); }],
+          [19.2, b => { gest('john', 'nod'); }],
           // 天国：二人都欢欢喜喜——光落在宝贝与珠子上
           [20.2, b => {
             prop('treasure', null, { lit: 1 });
-            pose('plowman', 'raise');
+            pose('plowman', 'rejoice'); pose('merchant', 'lift');
             beam(b, (X.treasure + X.merch) / 2, 2, { v: 0.45, w: 150, r: 0.18, dur: 4.5 });
             sfx(b, 'harp', { soft: true });
           }],
@@ -1826,10 +1860,10 @@
     {
       kind: 'act', utter: '有一个人从耶路撒冷下耶利哥去', cmd: 'grep 邻舍 --road 耶路撒冷..耶利哥', ref: '路加福音 10:30',
       verse: [
-        { text: '有一个律法师起来试探耶稣，说：「夫子！我该做什么才可以承受永生？」', ref: '路加福音 10:25', hold: 5.5 },
-        { text: '那人要显明自己有理，就对耶稣说：「谁是我的邻舍呢？」', ref: '路加福音 10:29', hold: 4.5 },
-        { text: '耶稣回答说：「有一个人从耶路撒冷下耶利哥去，落在强盗手中。<br>他们剥去他的衣裳，把他打个半死，就丢下他走了。', ref: '路加福音 10:30', hold: 7 },
-        { text: '偶然有一个祭司从这条路下来，看见他就从那边过去了。<br>又有一个利未人来到这地方，看见他，也照样从那边过去了。', ref: '路加福音 10:31–32', hold: 7 },
+        { text: '有一个律法师起来试探耶稣，说：「夫子！我该做什么才可以承受永生？」', ref: '路加福音 10:25', hold: 5.5, talk: [['lawyer', 0.55, 1, 'calm', 'jesus']] },
+        { text: '那人要显明自己有理，就对耶稣说：「谁是我的邻舍呢？」', ref: '路加福音 10:29', hold: 4.5, talk: [['lawyer', 0.45, 1, 'calm', 'jesus']] },
+        { text: '耶稣回答说：「有一个人从耶路撒冷下耶利哥去，落在强盗手中。<br>他们剥去他的衣裳，把他打个半死，就丢下他走了。', ref: '路加福音 10:30', hold: 7, talk: [['jesus', 0.1, 1, 'teach']] },
+        { text: '偶然有一个祭司从这条路下来，看见他就从那边过去了。<br>又有一个利未人来到这地方，看见他，也照样从那边过去了。', ref: '路加福音 10:31–32', hold: 7, who: 'jesus', how: 'teach' },
       ],
       apply(c) {
         T(c, [
@@ -1840,40 +1874,53 @@
             prop('boat', null, { show: false });
             S.where = 'luke';
           }],
-          [1.6, b => { lukeGroup(b); face('jesus', 1); }],
-          [3.2, b => {
-            add('lawyer', { label: '律法师', x: X.law + 0.06, facing: -1, robe: ROBE.lawyer, accent: [220, 214, 196], glow: 0.14, v: 0.36 });
-            walk('lawyer', X.law, { speed: 0.02, pose: 'raise' });
+          [1.6, b => {
+            lukeGroup(b); face('jesus', 1);
+            // 律法师起来，走到他面前
+            add('lawyer', { label: '律法师', x: X.law + 0.05, facing: -1, robe: ROBE.lawyer, accent: [220, 214, 196], glow: 0.14, v: 0.36 });
+            walk('lawyer', X.law, { speed: 0.03 });
           }],
-          [6, () => { pose('lawyer', 'stand'); face('jesus', 1); }],
-          [7.6, () => { pose('lawyer', 'point'); }],
-          // 有一个人从耶路撒冷下耶利哥去
+          [3.2, () => { face('lawyer', -1); face('jesus', 1); }],
+          // 律法上写的是什么？你念的是怎样呢？（路 10:26）他答了，耶稣点头
+          [5.8, b => { talk('jesus', 1.4, { to: 'lawyer' }); }],
+          [7.4, b => { gest('lawyer', 'nod'); }],
+          [10.6, b => { gest('lawyer', 'point'); }],
+          // 有一个人从耶路撒冷下耶利哥去：门徒与律法师静听
           [12.4, b => {
-            pose('lawyer', 'stand');
+            pose('lawyer', 'listen');
             aura(X.road0, X.road1);
             tell(b, (X.road0 + X.road1) / 2, 0.3);
             prop('road', 'road', { x0: X.road0, x1: X.road1, label: '下耶利哥的路' });
             prop('city', 'city', { x: 0.9, layer: 1, label: '耶路撒冷' });
           }],
+          [13, b => { pose('peter', 'listen'); pose('john', 'listen'); }],
           [13.4, b => {
             pic('traveler', { label: '落在强盗手中的人', x: X.road1 - 0.02, facing: -1, robe: ROBE.traveler, prop: 'bundle', v: onRoad(X.road1 - 0.02) });
             sink('traveler', onRoad(X.lie));
-            walk('traveler', X.lie + 0.02, { speed: 0.03 });
+            walk('traveler', X.lie + 0.02, { speed: 0.045 });
           }],
+          // 落在强盗手中：一团暗影扑来，他惊惧，抱头蹲下；被剥去衣裳，打个半死
           [16.6, b => { flash(b, { type: 'shadow', dur: 2.6, xf: X.lie }); sfx(b, 'wind', { low: true }); }],
-          [17.6, b => { hold('traveler', null); add('traveler', { robe: ROBE.stripped }); pose('traveler', 'fall'); sink('traveler', onRoad(X.lie, 0.1)); }],
+          [16.9, b => { gest('traveler', 'startle'); pose('traveler', 'cower'); }],
+          [17.8, b => { hold('traveler', null); add('traveler', { robe: ROBE.stripped }); pose('traveler', 'fall'); sink('traveler', onRoad(X.lie, 0.1)); }],
           [19.2, () => { pose('traveler', 'lie'); glow('traveler', 0.18); }],
-          // 祭司从这条路下来，看见他就从那边过去了
+          // 祭司从这条路下来，看见他（一惊），就从那边过去了
           [20.2, b => {
             pic('priest', { label: '祭司', x: X.road1 - 0.01, facing: -1, robe: ROBE.priest, accent: [120, 140, 200], v: onRoad(X.road1), hair: 'cloth' });
-            walk('priest', X.lie + 0.05, { speed: 0.04 });
+            walk('priest', X.lie + 0.05, { speed: 0.05 });
           }],
-          [22.6, () => { sink('priest', onRoad(X.lie, -0.1)); walk('priest', X.road0 + 0.01, { speed: 0.04 }); }],
+          [23, b => { gest('priest', 'startle'); }],
+          [23.6, () => { sink('priest', onRoad(X.lie, -0.1)); walk('priest', X.road0 + 0.01, { speed: 0.04 }); }],
           [23.4, b => {
             pic('levite', { label: '利未人', x: X.road1 - 0.01, facing: -1, robe: ROBE.levite, v: onRoad(X.road1) });
-            walk('levite', X.lie + 0.05, { speed: 0.04 });
+            walk('levite', X.lie + 0.05, { speed: 0.05 });
           }],
-          [25.8, () => { rm('priest'); sink('levite', onRoad(X.lie, -0.1)); walk('levite', X.road0 + 0.02, { speed: 0.04 }); }],
+          [24.6, b => { stir(['peter', 'john'], 'sigh', { spread: 1 }); }],
+          // 利未人也来看了看，低一低头，照样从那边过去了
+          [26.2, b => { gest('levite', 'bowhead', { dur: 1.2 }); }],
+          [26.4, () => { rm('priest'); }],
+          [27, () => { sink('levite', onRoad(X.lie, -0.1)); walk('levite', X.road0 + 0.02, { speed: 0.04 }); }],
+          [27.6, b => { gest('lawyer', 'bowhead'); }],
           [28.8, () => { rm('levite'); }],
         ]);
       },
@@ -1883,9 +1930,9 @@
     {
       kind: 'cmd', utter: '你去照样行吧', cmd: 'go --do likewise  # 是怜悯他的', ref: '路加福音 10:37',
       verse: [
-        { text: '惟有一个撒马利亚人行路来到那里，看见他就动了慈心，<br>上前用油和酒倒在他的伤处，包裹好了，扶他骑上自己的牲口，带到店里去照应他。', ref: '路加福音 10:33–34', hold: 8.5 },
-        { text: '第二天拿出二钱银子来，交给店主，说：<br>『你且照应他；此外所费用的，我回来必还你。』」', ref: '路加福音 10:35', hold: 6.5 },
-        { text: '「你想，这三个人哪一个是落在强盗手中的邻舍呢？」<br>他说：「是怜悯他的。」耶稣说：「你去照样行吧。」', ref: '路加福音 10:36–37', hold: 7 },
+        { text: '惟有一个撒马利亚人行路来到那里，看见他就动了慈心，<br>上前用油和酒倒在他的伤处，包裹好了，扶他骑上自己的牲口，带到店里去照应他。', ref: '路加福音 10:33–34', hold: 8.5, who: 'jesus', how: 'teach' },
+        { text: '第二天拿出二钱银子来，交给店主，说：<br>『你且照应他；此外所费用的，我回来必还你。』」', ref: '路加福音 10:35', hold: 6.5, who: 'jesus', how: 'teach' },
+        { text: '「你想，这三个人哪一个是落在强盗手中的邻舍呢？」<br>他说：「是怜悯他的。」耶稣说：「你去照样行吧。」', ref: '路加福音 10:36–37', hold: 7, talk: [['jesus', 0, 0.38, 'teach', 'lawyer'], ['lawyer', 0.42, 0.62, 'calm', 'jesus'], ['jesus', 0.66, 1, 'proclaim', 'lawyer']] },
       ],
       apply(c) {
         T(c, [
@@ -1897,9 +1944,15 @@
             beast('donkey', { kind: 'donkey', x: X.road1 + 0.02, layer: 2, facing: -1, label: '牲口', v: onRoad(X.lie, -0.02), follow: 'samaritan', dx: 0.03 });
             walk('samaritan', X.lie + 0.022, { speed: 0.04 });
           }],
+          // 看见他就动了慈心：一惊，跪在他身旁
+          [2.6, b => { gest('samaritan', 'startle'); }],
           [3.6, b => { pose('samaritan', 'kneel'); glow('samaritan', 0.55); sparkleOn(b, 'samaritan', 14, [255, 226, 170]); }],
+          // 用油和酒倒在他的伤处
           [5, b => { hold('samaritan', 'jar'); flash(b, { type: 'oil', dur: 3.2 }); }],
-          [8, b => { hold('samaritan', null); add('traveler', { robe: [232, 226, 212] }); glow('traveler', 0.35); }],
+          [5.3, b => { gest('samaritan', 'pour', { dur: 2.4 }); }],
+          // 包裹好了
+          [7.2, b => { hold('samaritan', null); gest('samaritan', 'touch', { dur: 1.6 }); }],
+          [8, b => { add('traveler', { robe: [232, 226, 212] }); glow('traveler', 0.35); }],
           // 扶他骑上自己的牲口，带到店里去
           [9.4, b => {
             prop('inn', 'house', { x: X.inn, v: 0.14, size: 1.2, tone: { rgb: [168, 150, 120], w: 30, h: 17, door: 0.14 }, lit: 1, label: '店' });
@@ -1908,16 +1961,22 @@
           [10.2, () => { ride('traveler', 'donkey'); }],
           [11, () => { walk('samaritan', X.inn + 0.045, { speed: 0.03 }); }],
           // 第二天：拿出二钱银子来，交给店主
-          [14.2, b => { if (!PORT) W.goTo(0.46, 6, b.instant); pic('innkeeper', { label: '店主', x: X.inn + 0.012, facing: 1, robe: ROBE.innkeeper, v: 0.24 }); }],
-          [17.2, b => { ride('traveler', null); place('traveler', X.inn + 0.028); pose('traveler', 'sit'); face('samaritan', -1); }],
-          [18.2, b => { flash(b, { type: 'coins', from: 'samaritan', to: 'innkeeper', n: 2, dur: 2 }); sfx(b, 'coins'); pose('samaritan', 'point'); }],
-          // 你去照样行吧
-          [20.6, b => { pose('samaritan', 'stand'); face('lawyer', -1); face('jesus', 1); pose('lawyer', 'bow'); }],
-          [23.6, b => {
+          [12.4, b => { if (!PORT) W.goTo(0.46, 6, b.instant); pic('innkeeper', { label: '店主', x: X.inn + 0.012, facing: 1, robe: ROBE.innkeeper, v: 0.24 }); }],
+          [13.6, b => { ride('traveler', null); place('traveler', X.inn + 0.028); pose('traveler', 'sit'); face('samaritan', -1); }],
+          [14.4, b => { flash(b, { type: 'coins', from: 'samaritan', to: 'innkeeper', n: 2, dur: 2 }); sfx(b, 'coins'); gest('samaritan', 'give'); }],
+          // 『你且照应他；此外所费用的，我回来必还你。』
+          [15, b => { talk('samaritan', 2.2, { to: 'innkeeper' }); }],
+          [16.8, b => { gest('innkeeper', 'nod'); }],
+          // 「你想……哪一个是邻舍呢？」「是怜悯他的。」——律法师低下头
+          [17.4, b => { face('lawyer', -1); face('jesus', 1); pose('lawyer', 'stand'); face('samaritan', -1); }],
+          [21.8, b => { gest('lawyer', 'bowhead', { dur: 1.6 }); }],
+          // 你去照样行吧：他指着那撒马利亚人
+          [23.2, b => {
             pose('jesus', 'point'); glow('jesus', 0.45);
             beamOn(b, 'samaritan', { dur: 4, w: 70, r: 0.1 });
           }],
-          [25.2, () => { pose('lawyer', 'stand'); face('lawyer', 1); walk('lawyer', 0.605, { speed: 0.022 }); pose('jesus', 'stand'); }],
+          [24.4, b => { pose('jesus', 'stand'); }],
+          [24.8, () => { face('lawyer', 1); walk('lawyer', 0.605, { speed: 0.04 }); }],
         ]);
       },
     },
@@ -1927,8 +1986,8 @@
       kind: 'call', utter: '马大！马大！你为许多的事思虑烦扰', cmd: 'choose 上好的福分 --keep  # 不可少的只有一件', ref: '路加福音 10:41',
       verse: [
         { text: '他们走路的时候，耶稣进了一个村庄。有一个女人，名叫马大，接他到自己家里。<br>她有一个妹子，名叫马利亚，在耶稣脚前坐着听他的道。', ref: '路加福音 10:38–39', hold: 8 },
-        { text: '马大伺候的事多，心里忙乱，就进前来，说：<br>「主啊，我的妹子留下我一个人伺候，你不在意吗？请吩咐她来帮助我。」', ref: '路加福音 10:40', hold: 7.5 },
-        { text: '耶稣回答说：「马大！马大！你为许多的事思虑烦扰，<br>但是不可少的只有一件；马利亚已经选择那上好的福分，是不能夺去的。」', ref: '路加福音 10:41–42', hold: 8 },
+        { text: '马大伺候的事多，心里忙乱，就进前来，说：<br>「主啊，我的妹子留下我一个人伺候，你不在意吗？请吩咐她来帮助我。」', ref: '路加福音 10:40', hold: 7.5, talk: [['martha', 0.3, 1, 'plead', 'jesus']] },
+        { text: '耶稣回答说：「马大！马大！你为许多的事思虑烦扰，<br>但是不可少的只有一件；马利亚已经选择那上好的福分，是不能夺去的。」', ref: '路加福音 10:41–42', hold: 8, talk: [['jesus', 0.08, 1, 'calm', 'martha']] },
       ],
       apply(c) {
         // 马大的家在村庄的中间偏右（近岸的空处），耶稣坐在门前，马利亚坐在他脚前
@@ -1950,21 +2009,29 @@
             if (!PORT) { walk('d1', 0.6, { speed: 0.03, pose: 'sit' }); walk('d2', 0.585, { speed: 0.03, pose: 'sit' }); }
           }],
           [2.4, () => { pose('martha', 'bow'); }],
+          [3.8, b => { pose('martha', 'stand'); gest('martha', 'beckon'); }],
           [4.4, b => {
             add('maryb', { label: '马利亚', sex: 'f', x: DOOR() + 0.006, facing: 1, robe: ROBE.maryb, accent: [226, 222, 212], glow: 0.28, v: 0.18 });
             walk('maryb', MY, { speed: 0.02, pose: 'sit' }); sink('maryb', 0.55);
-            pose('martha', 'stand'); hold('martha', 'jar');
+            hold('martha', 'jar');
           }],
+          // 马大伺候的事多，心里忙乱：灶前、门里，来回地忙
+          [6.8, () => { walk('martha', HX + 0.012, { speed: 0.03, pose: 'stoop' }); sink('martha', 0.3); }],
           [8.2, () => { face('jesus', -1); face('peter', -1); face('john', -1); disciples(id => { if (id === 'd1' || id === 'd2') face(id, 1); }); }],
-          // 马大伺候的事多，心里忙乱
-          [6.8, () => { walk('martha', HX + 0.012, { speed: 0.03, pose: 'bow' }); sink('martha', 0.3); }],
-          [9.2, () => { walk('martha', DOOR(), { speed: 0.035 }); sink('martha', 0.14); }],
-          [11.2, () => { walk('martha', HX + 0.012, { speed: 0.035, pose: 'bow' }); sink('martha', 0.3); }],
-          [13.4, () => { walk('martha', MY - 0.016, { speed: 0.035, pose: 'point' }); sink('martha', 0.3); face('martha', 1); }],
+          // 他坐着讲道，马利亚在他脚前坐着听
+          [8.6, b => { talk('jesus', 3.2, { how: 'teach', to: 'maryb' }); }],
+          [9.2, () => { walk('martha', DOOR(), { speed: 0.04 }); sink('martha', 0.14); }],
+          [10.2, b => { gest('martha', 'sigh'); gest('maryb', 'nod'); }],
+          // 就进前来：「主啊……你不在意吗？请吩咐她来帮助我。」
+          [10.6, () => { walk('martha', MY - 0.016, { speed: 0.04 }); sink('martha', 0.3); face('martha', 1); }],
+          [13.8, b => { gest('martha', 'point'); }],
+          [15.6, b => { gest('maryb', 'bowhead'); }],
           // 马大！马大！——不可少的只有一件
-          [18.6, b => { pose('martha', 'stand'); pose('jesus', 'raise'); face('martha', 1); }],
+          [18.6, b => { pose('martha', 'stand'); face('martha', 1); }],
           [20.2, b => { hold('martha', null); glow('martha', 0.4); }],
-          [22, b => { beamOn(b, 'maryb', { dur: 5, w: 70, r: 0.12 }); glow('maryb', 0.55); pose('jesus', 'sit'); sfx(b, 'harp', { soft: true }); }],
+          [22, b => { beamOn(b, 'maryb', { dur: 5, w: 70, r: 0.12 }); glow('maryb', 0.55); sfx(b, 'harp', { soft: true }); }],
+          [22.8, b => { gest('jesus', 'bless'); }],
+          [25.2, b => { gest('martha', 'bowhead', { dur: 2 }); }],
         ]);
       },
     },
@@ -1973,10 +2040,10 @@
     {
       kind: 'promise', utter: '你们祈求，就给你们', cmd: 'knock --at midnight --until open && give 饼 ×3', ref: '路加福音 11:9',
       verse: [
-        { text: '耶稣又说：「你们中间谁有一个朋友半夜到他那里去，说：『朋友！请借给我三个饼；<br>因为我有一个朋友行路，来到我这里，我没有什么给他摆上。』', ref: '路加福音 11:5–6', hold: 7.5 },
-        { text: '我告诉你们，虽不因他是朋友起来给他，<br>但因他情词迫切地直求，就必起来照他所需用的给他。', ref: '路加福音 11:8', hold: 6.5 },
-        { text: '我又告诉你们，你们祈求，就给你们；寻找，就寻见；叩门，就给你们开门。', ref: '路加福音 11:9', hold: 6.5 },
-        { text: '……何况天父，岂不更将圣灵给求他的人吗？」', ref: '路加福音 11:13', hold: 5 },
+        { text: '耶稣又说：「你们中间谁有一个朋友半夜到他那里去，说：『朋友！请借给我三个饼；<br>因为我有一个朋友行路，来到我这里，我没有什么给他摆上。』', ref: '路加福音 11:5–6', hold: 7.5, who: 'jesus', how: 'teach' },
+        { text: '我告诉你们，虽不因他是朋友起来给他，<br>但因他情词迫切地直求，就必起来照他所需用的给他。', ref: '路加福音 11:8', hold: 6.5, who: 'jesus', how: 'teach' },
+        { text: '我又告诉你们，你们祈求，就给你们；寻找，就寻见；叩门，就给你们开门。', ref: '路加福音 11:9', hold: 6.5, who: 'jesus', how: 'teach' },
+        { text: '……何况天父，岂不更将圣灵给求他的人吗？」', ref: '路加福音 11:13', hold: 5, who: 'jesus', how: 'teach' },
       ],
       apply(c) {
         const JX = PORT ? 0.524 : 0.518;
@@ -2004,23 +2071,30 @@
             tell(b, FH, 0.3);
             prop('fh', 'house', { x: FH, v: 0.12, size: 1.3, tone: { rgb: [170, 148, 118], w: 28, h: 18, door: -0.14, win: 0.28 }, k: 1, lit: 0.25, label: '朋友的家' });
           }],
+          // 半夜借饼的人提着灯来到朋友门前
           [4.6, b => {
-            pic('knocker', { label: '半夜借饼的人', x: X.fman0, facing: 1, robe: ROBE.knocker, prop: 'torch', v: 0.42, glow: 0.4 });
-            walk('knocker', FD() - 0.02, { speed: 0.03 });
+            pic('knocker', { label: '半夜借饼的人', x: X.fman0, facing: 1, robe: ROBE.knocker, prop: 'lamp', v: 0.42, glow: 0.4 });
+            walk('knocker', FD() - 0.02, { speed: 0.034 });
           }],
-          // 叩门
-          [8.4, b => { pose('knocker', 'raise'); flash(b, { type: 'knock', xf: FD(), v: 0.12, dur: 1.6 }); sfx(b, 'build', { soft: true }); }],
-          [10.4, b => { pose('knocker', 'stand'); }],
-          [11.6, b => { pose('knocker', 'raise'); flash(b, { type: 'knock', xf: FD(), v: 0.12, dur: 1.6 }); sfx(b, 'build', { soft: true }); }],
-          [13.6, b => { prop('fh', null, { lit: 1 }); pose('knocker', 'stand'); }],
+          // 叩门：「朋友！请借给我三个饼……」
+          [8.4, b => { gest('knocker', 'knock'); flash(b, { type: 'knock', xf: FD(), v: 0.12, dur: 1.6 }); sfx(b, 'build', { soft: true }); }],
+          [9.6, b => { talk('knocker', 2, { how: 'plead' }); }],
+          // 情词迫切地直求：再叩，再求（一手提着灯，一手叩门）
+          [11.6, b => { gest('knocker', 'knock'); flash(b, { type: 'knock', xf: FD(), v: 0.12, dur: 1.6 }); sfx(b, 'build', { soft: true }); }],
+          [12.4, b => { talk('knocker', 2, { how: 'plead' }); }],
+          [13.6, b => { prop('fh', null, { lit: 1 }); }],
+          // 就必起来照他所需用的给他
           [15.2, b => {
             prop('fh', null, { k: 0 });
             sfx(b, 'gate', { soft: true });
             pic('friend', { label: '朋友', x: FD(), facing: -1, robe: ROBE.friend, v: 0.16, glow: 0.4 });
             walk('friend', FD() - 0.006, { speed: 0.01 }); sink('friend', 0.34);
           }],
+          [16.6, b => { gest('friend', 'give'); }],
           [17.2, b => { flash(b, { type: 'loaves', dur: 2.2 }); hold('knocker', 'bundle'); }],
           [19.2, b => { pose('knocker', 'bow'); beamOn(b, 'knocker', { dur: 4, w: 60, r: 0.1 }); }],
+          [20.8, b => { pose('knocker', 'stand'); gest('friend', 'nod'); }],
+          [21.6, b => { stir(['peter', 'john', 'd1', 'd2'], 'nod', { share: 0.5, spread: 1.6 }); }],
           // 你们祈求，就给你们：他向着门徒
           [16.6, () => { face('jesus', -1); pose('jesus', 'sit'); }],
           // 何况天父，岂不更将圣灵给求他的人：是应许——高处聚起一团柔光，还没有降下
@@ -2030,6 +2104,7 @@
             glow('jesus', 0.5);
             sfx(b, 'angel', { soft: true });
           }],
+          [25.6, b => { stir(['peter', 'john', 'd1', 'd2'], 'startle', { share: 0.5, spread: 1 }); }],
           [28.4, b => { W.set('paSpirit', 0.45, b.instant); }],
         ]);
       },
@@ -2039,10 +2114,10 @@
     {
       kind: 'judge', utter: '无知的人哪，今夜必要你的灵魂', cmd: 'return 灵魂 --tonight  # 你所预备的要归谁呢', ref: '路加福音 12:20',
       verse: [
-        { text: '就用比喻对他们说：「有一个财主田产丰盛；<br>自己心里思想说：『我的出产没有地方收藏，怎么办呢？』', ref: '路加福音 12:16–17', hold: 6.5 },
-        { text: '又说：『我要这么办：要把我的仓房拆了，另盖更大的，……<br>然后要对我的灵魂说：灵魂哪，……只管安安逸逸地吃喝快乐吧！』', ref: '路加福音 12:18–19', hold: 7 },
-        { text: '神却对他说：『无知的人哪，今夜必要你的灵魂；你所预备的要归谁呢？』', ref: '路加福音 12:20', hold: 6 },
-        { text: '凡为自己积财，在神面前却不富足的，也是这样。」', ref: '路加福音 12:21', hold: 4.5 },
+        { text: '就用比喻对他们说：「有一个财主田产丰盛；<br>自己心里思想说：『我的出产没有地方收藏，怎么办呢？』', ref: '路加福音 12:16–17', hold: 6.5, who: 'jesus', how: 'teach' },
+        { text: '又说：『我要这么办：要把我的仓房拆了，另盖更大的，……<br>然后要对我的灵魂说：灵魂哪，……只管安安逸逸地吃喝快乐吧！』', ref: '路加福音 12:18–19', hold: 7, who: 'jesus', how: 'teach' },
+        { text: '神却对他说：『无知的人哪，今夜必要你的灵魂；你所预备的要归谁呢？』', ref: '路加福音 12:20', hold: 6, who: 'jesus', how: 'teach' },
+        { text: '凡为自己积财，在神面前却不富足的，也是这样。」', ref: '路加福音 12:21', hold: 4.5, who: 'jesus', how: 'teach' },
       ],
       apply(c) {
         T(c, [
@@ -2066,24 +2141,32 @@
           [3, b => {
             pic('rich', { label: '财主', x: X.rich, facing: -1, robe: ROBE.rich, accent: [220, 190, 120], v: 0.46, glow: 0.34 });
           }],
-          [5, () => { pose('rich', 'point'); }],
-          // 把仓房拆了，另盖更大的
-          [7.6, b => { prop('barns', null, { k: 1, rate: { k: 0.6 } }); sfx(b, 'collapse', { soft: true }); face('rich', 1); pose('rich', 'stand'); W.goTo(0.765, 4.5, b.instant); }],
+          // 他望着满田的出产，心里思想：「怎么办呢？」
+          [4, () => { pose('rich', 'look'); }],
+          [5.6, b => { pose('rich', 'stand'); gest('rich', 'lookaround'); }],
+          [6.4, b => { stir('many', 'nod', { share: 0.3, spread: 1.6 }); }],
+          // 把仓房拆了，另盖更大的：他转身指着仓房
+          [7.6, b => { prop('barns', null, { k: 1, rate: { k: 0.6 } }); sfx(b, 'collapse', { soft: true }); face('rich', 1); W.goTo(0.765, 4.5, b.instant); }],
+          [8, b => { gest('rich', 'point'); }],
           [8.8, b => { prop('barns', null, { grow: 1, rate: { grow: 0.2 } }); sfx(b, 'build'); }],
+          [10.4, b => { gest('rich', 'clap'); }],
           [11.2, b => { prop('barns', null, { k2: 1, rate: { k2: 0.3 } }); prop('crop', null, { grow: 0.12, rate: { grow: 0.3 } }); sfx(b, 'build', { soft: true }); }],
           // 天黑了：灵魂哪，只管安安逸逸地吃喝快乐吧（「今夜」的话出来之前，夜已经到了，灯已经点着）
           [12.4, b => { W.goTo(0.93, 3.2, b.instant); }],
           [13.2, b => {
-            face('rich', -1); pose('rich', 'sit');
+            face('rich', -1); pose('rich', 'sit'); hold('rich', 'cup');
             prop('lamp', 'lamp', { x: X.rich - 0.02, v: 0.5, lit: 1, label: '灯' });
           }],
-          // 今夜必要你的灵魂：灯灭了，人不见了
+          [14.2, b => { talk('rich', 1.8); }],
+          // 今夜必要你的灵魂：他一惊，杯落下；灯灭了，人不见了
           [16.4, b => { W.set('paCold', 1, b.instant); prop('aura', null, { tone: { cold: 1 } }); sfx(b, 'whisper'); }],
-          [18.2, b => { prop('lamp', null, { lit: 0, k: 1, rate: { lit: 0.7 } }); }],
+          [17.2, b => { gest('rich', 'startle'); stir('many', 'startle', { share: 0.4, spread: 1 }); }],
+          [18.2, b => { prop('lamp', null, { lit: 0, k: 1, rate: { lit: 0.7 } }); hold('rich', null); }],
           [19.8, () => { pose('rich', 'lie'); glow('rich', 0.05); }],
           [21.4, () => { rm('rich'); }],
           // 凡为自己积财，在神面前却不富足的
           [22.6, b => { prop('barns', null, { k3: 1, rate: { k3: 0.4 } }); prop('lamp', null, { k: 0 }); prop('hearth', null, { lit: 1 }); }],
+          [24.4, b => { stir('many', 'bowhead', { share: 0.5, spread: 2 }); gest('peter', 'nod'); }],
           [26, b => { W.set('paCold', 0.5, b.instant); }],
         ]);
       },
@@ -2093,10 +2176,10 @@
     {
       kind: 'cmd', utter: '勉强人进来，坐满我的屋子', cmd: 'invite --from 大街小巷 路上 篱笆 --until full', ref: '路加福音 14:23',
       verse: [
-        { text: '耶稣对他说：「有一人摆设大筵席，请了许多客。<br>到了坐席的时候，打发仆人去对所请的人说：『请来吧！样样都齐备了。』', ref: '路加福音 14:16–17', hold: 7 },
-        { text: '众人一口同音地推辞。……家主就动怒，对仆人说：<br>『快出去，到城里大街小巷，领那贫穷的、残废的、瞎眼的、瘸腿的来。』', ref: '路加福音 14:18–21', hold: 7.5 },
-        { text: '主人对仆人说：『你出去到路上和篱笆那里，勉强人进来，坐满我的屋子。』」', ref: '路加福音 14:23', hold: 6 },
-        { text: '从东、从西、从南、从北将有人来，在神的国里坐席。', ref: '路加福音 13:29', hold: 5 },
+        { text: '耶稣对他说：「有一人摆设大筵席，请了许多客。<br>到了坐席的时候，打发仆人去对所请的人说：『请来吧！样样都齐备了。』', ref: '路加福音 14:16–17', hold: 7, who: 'jesus', how: 'teach' },
+        { text: '众人一口同音地推辞。……家主就动怒，对仆人说：<br>『快出去，到城里大街小巷，领那贫穷的、残废的、瞎眼的、瘸腿的来。』', ref: '路加福音 14:18–21', hold: 7.5, who: 'jesus', how: 'teach' },
+        { text: '主人对仆人说：『你出去到路上和篱笆那里，勉强人进来，坐满我的屋子。』」', ref: '路加福音 14:23', hold: 6, who: 'jesus', how: 'teach' },
+        { text: '从东、从西、从南、从北将有人来，在神的国里坐席。', ref: '路加福音 13:29', hold: 5, who: 'jesus', how: 'proclaim' },
       ],
       apply(c) {
         const TV = 0.44, T0 = X.tab0, T1 = X.tab1;
@@ -2112,47 +2195,59 @@
             prop('table', 'table', { x0: T0, x1: T1, v: TV, lit: 1, k: 1, label: '大筵席' });
             crm('many');
           }],
+          // 家主打发仆人去请客
           [1.2, b => {
             pic('master', { label: '家主', x: X.master, facing: -1, robe: ROBE.master, accent: [230, 200, 130], v: 0.3, age: 'elder', prop: null });
             pic('servant', { label: '仆人', x: X.master - 0.02, facing: 1, robe: ROBE.servant, v: 0.5 });
-            walk('servant', X.called - 0.012, { speed: 0.035, pose: 'raise' });
+            walk('servant', X.called - 0.012, { speed: 0.035 });
           }],
           [3.4, b => {
             crowd('invited', { n: 3, x0: X.called + 0.004, x1: X.called + 0.036, layer: 2, label: '所请的人', glow: 0.3, from: 'light' }, man([[120, 96, 70], [96, 110, 120], [146, 118, 90]], 0.42, 0.66, 'adult'));
             cface('invited', -1);
           }],
-          // 众人一口同音地推辞：转身，往右边走开
-          [8.2, b => { cface('invited', 1); cwalk('invited', 1.06, 1.12, { speed: 0.03 }); sfx(b, 'crowd', { soft: true }); pose('servant', 'stand'); }],
-          [10, () => { walk('servant', X.master - 0.03, { speed: 0.035 }); crm('invited'); }],
-          [11.4, b => { pose('master', 'point'); face('master', -1); }],
-          // 领那贫穷的、残废的、瞎眼的、瘸腿的来
-          [12.6, b => {
-            walk('servant', T0 - 0.03, { speed: 0.04 });
+          // 『请来吧！样样都齐备了。』
+          [4.4, b => { face('servant', 1); gest('servant', 'beckon'); talk('servant', 2.2, { how: 'proclaim', to: 'invited' }); }],
+          // 众人一口同音地推辞：摆手，转身，往右边走开
+          [8.4, b => { stir('invited', 'refuse', { spread: 0.6 }); talk('invited', 1.6, { share: 0.9 }); }],
+          [9.6, b => { cface('invited', 1); cwalk('invited', 1.06, 1.12, { speed: 0.03 }); sfx(b, 'crowd', { soft: true }); }],
+          [10.4, b => { gest('servant', 'sigh'); }],
+          [11.2, () => { walk('servant', X.master - 0.03, { speed: 0.035 }); crm('invited'); }],
+          // 家主就动怒：『快出去，到城里大街小巷……』
+          [12.4, b => { pose('master', 'point'); face('master', -1); talk('master', 2.6, { how: 'proclaim', to: 'servant' }); }],
+          // 领那贫穷的、残废的、瞎眼的、瘸腿的来：仆人跑进城里，招他们进来坐席
+          [14.6, b => { gest('servant', 'nod'); run('servant', T0 - 0.03, { speed: 0.08 }); }],
+          [15, b => {
             crowd('poor', { n: PORT ? 3 : 6, x0: T0 - 0.05, x1: T0 - 0.01, layer: 2, label: '贫穷的、残废的、瞎眼的、瘸腿的', glow: 0.22, from: 'light' }, (m, i) => {
               folk(POOR)(m, i); m.v = 0.2 + (i % 3) * 0.05; if (i % 2 === 0) { m.prop = 'staff'; m.age = 'elder'; }
             });
+            pose('master', 'stand');
           }],
-          [15, b => { cwalk('poor', T0 + 0.01, lerp(T0, T1, PORT ? 0.35 : 0.5), { speed: 0.022, pose: 'sit' }); cface('poor', 1); pose('master', 'stand'); }],
-          [17.2, () => { cglow('poor', 0.4); }],
-          // 到路上和篱笆那里，勉强人进来
-          [17.8, b => {
-            walk('servant', X.called + 0.01, { speed: 0.05, pose: 'raise' });
+          [17.4, b => { face('servant', 1); gest('servant', 'beckon'); }],
+          [17.6, b => { cwalk('poor', T0 + 0.01, lerp(T0, T1, PORT ? 0.35 : 0.5), { speed: 0.022, pose: 'sit' }); cface('poor', 1); }],
+          // 主人对仆人说：『你出去到路上和篱笆那里，勉强人进来……』
+          [18, b => { face('master', -1); gest('master', 'point'); talk('master', 2.4, { how: 'proclaim' }); }],
+          [19, () => { cglow('poor', 0.4); }],
+          [19.8, b => {
+            run('servant', X.called + 0.01, { speed: 0.09 });
             crowd('hedge', { n: PORT ? 3 : 6, x0: X.called + 0.03, x1: X.called + 0.07, layer: 2, label: '路上和篱笆那里的人', glow: 0.26, from: 'light' }, (m, i) => { folk(PLAIN)(m, i); m.v = 0.2 + (i % 3) * 0.05; });
+            cface('hedge', -1);
           }],
-          [18.4, b => {
+          // 勉强人进来：他招手，拉着他们进来
+          [22.8, b => { face('servant', 1); gest('servant', 'beckon'); talk('servant', 1.6, { how: 'plead', to: 'hedge' }); }],
+          [23.2, b => {
             cwalk('hedge', lerp(T0, T1, PORT ? 0.45 : 0.55), T1 - 0.01, { speed: 0.04, pose: 'sit' }); cface('hedge', -1);
             sfx(b, 'crowd', { soft: true });
           }],
-          [20.2, () => { walk('servant', X.master + 0.024, { speed: 0.035 }); face('servant', -1); }],
-          // 坐满了
-          [23.4, () => { cglow('hedge', 0.4); }],
-          // 从东、从西、从南、从北将有人来
+          // 坐满了：家主举手祝福满席的人
           [24.4, b => {
             flash(b, { type: 'four', dur: 4.2 });
-            pose('master', 'raise');
+            pose('master', 'bless'); cglow('hedge', 0.4);
             sfx(b, 'harp');
           }],
+          [25, () => { walk('servant', X.master + 0.024, { speed: 0.04 }); face('servant', -1); }],
+          [25.6, b => { stir('poor', 'clap', { share: 0.4, spread: 1.4 }); stir('hedge', 'nod', { share: 0.5, spread: 1.4 }); }],
           [27.4, b => { pose('master', 'stand'); beamOn(b, 'master', { dur: 3, w: 60, r: 0.1 }); }],
+          [28.2, b => { gest('servant', 'nod'); stir(['peter', 'john', 'd1', 'd2'], 'nod', { share: 0.4, spread: 1.4 }); }],
         ]);
       },
     },
@@ -2161,10 +2256,10 @@
     {
       kind: 'bless', utter: '我失去的羊已经找着了', cmd: 'find 羊 --lost 1 --of 100 && rejoice --with 朋友 邻舍', ref: '路加福音 15:6',
       verse: [
-        { text: '众税吏和罪人都挨近耶稣，要听他讲道。<br>法利赛人和文士私下议论说：「这个人接待罪人，又同他们吃饭。」', ref: '路加福音 15:1–2', hold: 6.5 },
-        { text: '耶稣就用比喻说：「你们中间谁有一百只羊失去一只，<br>不把这九十九只撇在旷野、去找那失去的羊，直到找着呢？', ref: '路加福音 15:3–4', hold: 6.5 },
-        { text: '找着了，就欢欢喜喜地扛在肩上，回到家里，<br>就请朋友邻舍来，对他们说：『我失去的羊已经找着了，你们和我一同欢喜吧！』', ref: '路加福音 15:5–6', hold: 7.5 },
-        { text: '我告诉你们，一个罪人悔改，在天上也要这样为他欢喜，<br>较比为九十九个不用悔改的义人欢喜更大。」', ref: '路加福音 15:7', hold: 6 },
+        { text: '众税吏和罪人都挨近耶稣，要听他讲道。<br>法利赛人和文士私下议论说：「这个人接待罪人，又同他们吃饭。」', ref: '路加福音 15:1–2', hold: 6.5, talk: [['phar', 0.5, 1, 'calm']] },
+        { text: '耶稣就用比喻说：「你们中间谁有一百只羊失去一只，<br>不把这九十九只撇在旷野、去找那失去的羊，直到找着呢？', ref: '路加福音 15:3–4', hold: 6.5, who: 'jesus', how: 'teach' },
+        { text: '找着了，就欢欢喜喜地扛在肩上，回到家里，<br>就请朋友邻舍来，对他们说：『我失去的羊已经找着了，你们和我一同欢喜吧！』', ref: '路加福音 15:5–6', hold: 7.5, who: 'jesus', how: 'teach' },
+        { text: '我告诉你们，一个罪人悔改，在天上也要这样为他欢喜，<br>较比为九十九个不用悔改的义人欢喜更大。」', ref: '路加福音 15:7', hold: 6, who: 'jesus', how: 'teach' },
       ],
       apply(c) {
         T(c, [
@@ -2181,8 +2276,12 @@
             crowd('phar', { n: PORT ? 2 : 3, x0: PORT ? 0.35 : 0.395, x1: PORT ? 0.39 : 0.425, layer: 2, label: '法利赛人和文士', glow: 0.1 }, man(PHAR, 0.1, 0.5, 'adult'));
             cface('phar', 1);
           }],
+          // 耶稣转过来接待他们，招手叫他们近前
+          [2.4, b => { face('jesus', 1); gest('jesus', 'beckon'); }],
+          // 法利赛人和文士转过脸去，私下议论
+          [3, b => { cface('phar', -1); sfx(b, 'murmur', { soft: true }); }],
           [4.6, b => { cface('sinners', -1); sfx(b, 'crowd', { soft: true }); }],
-          [5.4, b => { cface('phar', -1); sfx(b, 'murmur', { soft: true }); }],
+          [5.2, b => { stir('sinners', 'bowhead', { share: 0.5, spread: 1.4 }); stir('phar', 'refuse', { share: 0.5, spread: 1 }); }],
           // 一百只羊失去一只
           [7.8, b => {
             aura(X.flock0 - 0.03, X.pic1 + 0.01);
@@ -2193,25 +2292,33 @@
             beast('lost', { kind: 'lamb', x: X.lost - 0.006, layer: 2, facing: -1, label: '失去的羊', v: 0.16, pose: 'stand' });
             sfx(b, 'bleat', { soft: true });
           }],
-          [10.4, b => { cface('phar', 1); cface('sinners', 1); walk('shepherd', X.lost - 0.03, { speed: 0.022 }); sfx(b, 'bleat', { far: true }); }],
+          [9.2, b => { gest('shepherd', 'lookaround'); }],
+          // 去找那失去的羊：手搭凉棚，四下里找
+          [10.4, b => { heed(['phar', 'sinners'], (X.flock0 + X.flock1) / 2, { spread: 1.6 }); walk('shepherd', X.lost - 0.03, { speed: 0.03, pose: 'look' }); sfx(b, 'bleat', { far: true }); }],
           // 找着了，就欢欢喜喜地扛在肩上
           [15.8, b => { pose('shepherd', 'kneel'); }],
           [17, b => { rm('lost', true); carry('shepherd', 'lamb'); pose('shepherd', 'stand'); glow('shepherd', 0.5); sparkleOn(b, 'shepherd', 16, [255, 236, 190]); sfx(b, 'bleat'); }],
-          [18.2, () => { walk('shepherd', X.flock0 - 0.02, { speed: 0.03 }); }],
-          [20.4, b => {
+          [17.4, b => { gest('shepherd', 'leap', { n: 1 }); }],
+          [19, () => { walk('shepherd', X.flock0 - 0.02, { speed: 0.05 }); }],
+          // 回到家里，请朋友邻舍来：『我失去的羊已经找着了，你们和我一同欢喜吧！』
+          [19.6, b => {
             crowd('friends', { n: PORT ? 2 : 4, x0: X.flock0 - 0.08, x1: X.flock0 - 0.045, layer: 2, label: '朋友邻舍', glow: 0.22, from: 'light' }, (m, i) => { folk(PLAIN)(m, i); m.v = 0.3 + i * 0.08; });
             cface('friends', 1);
           }],
-          [22.6, b => { cpose('friends', 'raise'); pose('shepherd', 'raise'); sfx(b, 'laugh', { soft: true }); }],
+          [22.6, b => { talk('shepherd', 2, { how: 'proclaim', to: 'friends' }); }],
+          [23.4, b => { cpose('friends', 'rejoice'); sfx(b, 'laugh', { soft: true }); }],
+          [24.4, b => { gest('shepherd', 'leap', { n: 2 }); stir('friends', 'leap', { share: 0.5, spread: 1 }); }],
           // 在天上也要这样为他欢喜：天上一圈金光绽开，欢喜的光留在天上
-          [23.8, b => {
+          [25, b => {
             S.hx = (X.flock0 + X.pic1) / 2;
             W.set('paHeaven', 1, b.instant);
             flash(b, { type: 'joy', dur: 3.6 });
             cglow('sinners', 0.3);
             sfx(b, 'angel', { soft: true });
           }],
-          [27, () => { cpose('friends', 'stand'); pose('shepherd', 'stand'); }],
+          [26, b => { heed('sinners', 'jesus', { spread: 1.4 }); }],
+          [27.2, b => { stir('sinners', 'nod', { share: 0.5, spread: 1.4 }); }],
+          [28.4, () => { cpose('friends', 'stand'); }],
         ]);
       },
     },
@@ -2220,9 +2327,9 @@
     {
       kind: 'bless', utter: '我失落的那块钱已经找着了', cmd: 'light 灯 && sweep 屋子 --until found', ref: '路加福音 15:9',
       verse: [
-        { text: '「或是一个妇人有十块钱，若失落一块，<br>岂不点上灯，打扫屋子，细细地找，直到找着吗？', ref: '路加福音 15:8', hold: 6.5 },
-        { text: '找着了，就请朋友邻舍来，对他们说：<br>『我失落的那块钱已经找着了，你们和我一同欢喜吧！』', ref: '路加福音 15:9', hold: 6.5 },
-        { text: '我告诉你们，一个罪人悔改，在神的使者面前也是这样为他欢喜。」', ref: '路加福音 15:10', hold: 5.5 },
+        { text: '「或是一个妇人有十块钱，若失落一块，<br>岂不点上灯，打扫屋子，细细地找，直到找着吗？', ref: '路加福音 15:8', hold: 6.5, who: 'jesus', how: 'teach' },
+        { text: '找着了，就请朋友邻舍来，对他们说：<br>『我失落的那块钱已经找着了，你们和我一同欢喜吧！』', ref: '路加福音 15:9', hold: 6.5, who: 'jesus', how: 'teach' },
+        { text: '我告诉你们，一个罪人悔改，在神的使者面前也是这样为他欢喜。」', ref: '路加福音 15:10', hold: 5.5, who: 'jesus', how: 'teach' },
       ],
       apply(c) {
         // 门口：她点上灯，就在门里门外、灯光照着的地上细细地找
@@ -2238,24 +2345,30 @@
             prop('coin', 'coin', { x: CX(), v: 0.46, k: 0, label: '失落的那块钱' });
           }],
           [1.4, b => { pic('woman', { label: '妇人', sex: 'f', x: D(), facing: -1, robe: ROBE.woman, accent: [230, 214, 196], v: 0.2, glow: 0.36 }); }],
-          // 点上灯：门里的灯光洒到门前的地上
+          // 点上灯：门里的灯光洒到门前的地上；她提着一盏瓦灯出来
           [3, b => {
-            prop('ch', null, { lit: 1 }); hold('woman', 'torch'); sfx(b, 'fire', { soft: true });
+            prop('ch', null, { lit: 1 }); hold('woman', 'lamp'); sfx(b, 'fire', { soft: true });
             prop('pool', 'pool', { x: D() - 0.006, v: 0.34, size: 1.1, lit: 1, rate: { lit: 0.8 } });
           }],
           // 打扫屋子，细细地找（手里拿着灯，弯着腰）
-          [4.6, () => { walk('woman', D() - (PORT ? 0.04 : 0.03), { speed: 0.018, pose: 'bow' }); sink('woman', 0.36); }],
-          [7.6, () => { walk('woman', D() + 0.012, { speed: 0.02, pose: 'bow' }); sink('woman', 0.44); }],
-          [9.2, b => { prop('coin', null, { k: 1 }); sfx(b, 'chime', { soft: true }); }],
+          [4.6, () => { walk('woman', D() - (PORT ? 0.04 : 0.03), { speed: 0.018, pose: 'stoop' }); sink('woman', 0.36); }],
+          [6.6, b => { gest('woman', 'lookaround'); }],
+          [7.6, () => { walk('woman', D() + 0.012, { speed: 0.02, pose: 'stoop' }); sink('woman', 0.44); }],
           // 找着了
-          [10.4, () => { walk('woman', CX() + 0.01, { speed: 0.025, pose: 'kneel' }); face('woman', -1); }],
-          [12.2, b => { prop('coin', null, { k: 0, rate: { k: 1.2 } }); flash(b, { type: 'glint', id: 'woman', frac: 0.8, r: 18, dur: 2.6 }); sfx(b, 'coins', { soft: true }); }],
-          [13.2, b => {
-            hold('woman', null); pose('woman', 'raise');
+          [9.2, b => { prop('coin', null, { k: 1 }); sfx(b, 'chime', { soft: true }); }],
+          [9.8, () => { walk('woman', CX() + 0.01, { speed: 0.025, pose: 'kneel' }); face('woman', -1); }],
+          [11, b => { gest('woman', 'stoopdown', { dur: 1.6 }); }],
+          [11.6, b => { prop('coin', null, { k: 0, rate: { k: 1.2 } }); flash(b, { type: 'glint', id: 'woman', frac: 0.8, r: 18, dur: 2.6 }); sfx(b, 'coins', { soft: true }); }],
+          // 就请朋友邻舍来：『我失落的那块钱已经找着了，你们和我一同欢喜吧！』
+          [12.4, b => {
+            hold('woman', null); pose('woman', 'stand');
             crowd('nbrs', { n: PORT ? 2 : 4, x0: HX - 0.14, x1: HX - 0.1, layer: 2, label: '朋友邻舍', glow: 0.22, from: 'light' }, woman([[160, 120, 100], [120, 128, 150], [176, 150, 110], [140, 110, 130]], 0.3, 0.55));
             cface('nbrs', 1);
           }],
-          [15.2, b => { cpose('nbrs', 'raise'); sfx(b, 'timbrel', { soft: true }); }],
+          [13, b => { gest('woman', 'beckon'); }],
+          [13.6, b => { talk('woman', 2.2, { how: 'proclaim', to: 'nbrs' }); }],
+          [14.4, b => { cpose('nbrs', 'rejoice'); sfx(b, 'timbrel', { soft: true }); }],
+          [15.6, b => { pose('woman', 'rejoice'); }],
           // 在神的使者面前也是这样为他欢喜
           [16.4, b => {
             S.hx = HX - 0.04;
@@ -2267,7 +2380,9 @@
             }
             sfx(b, 'angel');
           }],
+          [17.4, b => { stir('nbrs', 'leap', { share: 0.5, spread: 1 }); }],
           [19.6, () => { cpose('nbrs', 'stand'); pose('woman', 'stand'); }],
+          [20.4, b => { stir('sinners', 'nod', { share: 0.5, spread: 1.2 }); }],
         ]);
       },
     },
@@ -2276,10 +2391,10 @@
     {
       kind: 'act', utter: '一个人有两个儿子', cmd: 'split 家业 && cd 远方  # 任意放荡', ref: '路加福音 15:11',
       verse: [
-        { text: '耶稣又说：「一个人有两个儿子。小儿子对父亲说：<br>『父亲，请你把我应得的家业分给我。』他父亲就把产业分给他们。', ref: '路加福音 15:11–12', hold: 6.5 },
-        { text: '过了不多几日，小儿子就把他一切所有的都收拾起来，往远方去了。<br>在那里任意放荡，浪费资财。', ref: '路加福音 15:13', hold: 6 },
-        { text: '既耗尽了一切所有的，又遇着那地方大遭饥荒，就穷苦起来。<br>于是去投靠那地方的一个人；那人打发他到田里去放猪。', ref: '路加福音 15:14–15', hold: 6.5 },
-        { text: '他醒悟过来，就说：『我父亲有多少的雇工，口粮有余，我倒在这里饿死吗？<br>我要起来，到我父亲那里去……』', ref: '路加福音 15:17–18', hold: 6.5 },
+        { text: '耶稣又说：「一个人有两个儿子。小儿子对父亲说：<br>『父亲，请你把我应得的家业分给我。』他父亲就把产业分给他们。', ref: '路加福音 15:11–12', hold: 6.5, talk: [['jesus', 0, 0.36, 'teach'], ['son', 0.4, 0.74, 'calm', 'father']] },
+        { text: '过了不多几日，小儿子就把他一切所有的都收拾起来，往远方去了。<br>在那里任意放荡，浪费资财。', ref: '路加福音 15:13', hold: 6, who: 'jesus', how: 'teach' },
+        { text: '既耗尽了一切所有的，又遇着那地方大遭饥荒，就穷苦起来。<br>于是去投靠那地方的一个人；那人打发他到田里去放猪。', ref: '路加福音 15:14–15', hold: 6.5, who: 'jesus', how: 'teach' },
+        { text: '他醒悟过来，就说：『我父亲有多少的雇工，口粮有余，我倒在这里饿死吗？<br>我要起来，到我父亲那里去……』', ref: '路加福音 15:17–18', hold: 6.5, talk: [['jesus', 0, 0.16, 'teach'], ['son', 0.18, 1, 'calm']] },
       ],
       apply(c) {
         const H = X.home;
@@ -2303,27 +2418,33 @@
             pic('son', { label: '小儿子', x: H - (PORT ? 0.05 : 0.03), facing: 1, robe: ROBE.son, v: 0.44, glow: 0.34 });
             if (!PORT) pic('sv1', { label: '仆人', x: H + 0.046, facing: -1, robe: ROBE.servant, v: 0.14 });
           }],
-          [3.6, () => { walk('son', H - (PORT ? 0.03 : 0.014), { speed: 0.012, pose: 'raise' }); }],
-          [5.4, b => { pose('father', 'point'); flash(b, { type: 'coins', from: 'father', to: 'son', n: 3, dur: 2 }); sfx(b, 'coins'); }],
-          [6.6, () => { hold('son', 'bundle'); pose('son', 'stand'); pose('father', 'stand'); }],
-          // 往远方去了
+          // 『父亲，请你把我应得的家业分给我。』
+          [2.2, () => { walk('son', H - (PORT ? 0.03 : 0.014), { speed: 0.014 }); }],
+          // 他父亲就把产业分给他们：父亲把钱袋递过去
+          [5.4, b => { gest('father', 'give'); flash(b, { type: 'coins', from: 'father', to: 'son', n: 3, dur: 2 }); sfx(b, 'coins'); }],
+          [6.6, () => { hold('son', 'bundle'); gest('elder', 'sigh'); }],
+          // 往远方去了：父亲手搭凉棚，一直望着他去的路
           [8, () => { walk('son', X.far, { speed: 0.032 }); }],
-          [9.6, () => { face('father', 1); pose('father', 'gaze'); walk('elder', X.efield0 + 0.02, { speed: 0.02, pose: 'bow' }); hold('elder', 'staff'); }],
+          [9.6, () => { face('father', 1); pose('father', 'look'); walk('elder', X.efield0 + 0.02, { speed: 0.02, pose: 'bow' }); hold('elder', 'staff'); }],
           // 在那里任意放荡，浪费资财
+          [14.4, b => { pose('son', 'rejoice'); }],
           [15.6, b => { hold('son', null); flash(b, { type: 'glint', id: 'son', frac: 0.5, r: 14, dur: 1.8, rgb: 'gold' }); sfx(b, 'coins', { far: true }); }],
           // 饥荒：远方的地枯了；放猪
           [17.2, b => {
             prop('famine', 'famine', { x0: X.far - 0.08, x1: 1.01, layer: 2, k: 1, rate: { k: 0.3 }, label: '远方' });
-            add('son', { robe: ROBE.rags }); glow('son', 0.2);
+            add('son', { robe: ROBE.rags }); glow('son', 0.2); pose('son', 'stand');
             sfx(b, 'wind', { soft: true });
           }],
+          [18.2, b => { gest('son', 'lookaround'); }],
           [19.8, b => { prop('pigs', 'pigs', { x0: X.far - 0.05, x1: X.far + 0.06, layer: 2, label: '猪' }); pose('son', 'sit'); }],
-          // 他醒悟过来
+          [21.2, b => { gest('son', 'sigh', { dur: 2.4 }); }],
+          // 他醒悟过来：站起来，回头望着父家的方向
           [23.6, b => {
             pose('son', 'stand'); face('son', -1); glow('son', 0.42);
             sparkleOn(b, 'son', 10, [255, 236, 190]);
           }],
-          [26, () => { pose('son', 'gaze'); }],
+          [26.6, () => { pose('son', 'look'); }],
+          [28.6, b => { gest('father', 'sigh'); }],
         ]);
       },
     },
@@ -2332,10 +2453,10 @@
     {
       kind: 'bless', utter: '我这个儿子是死而复活，失而又得的', cmd: 'run --to 儿子 && restore 袍子 戒指 鞋  # 失而又得', ref: '路加福音 15:24',
       verse: [
-        { text: '于是起来，往他父亲那里去。相离还远，他父亲看见，就动了慈心，<br>跑去抱着他的颈项，连连与他亲嘴。', ref: '路加福音 15:20', hold: 7 },
-        { text: '儿子说：『父亲！我得罪了天，又得罪了你；<br>从今以后，我不配称为你的儿子。』', ref: '路加福音 15:21', hold: 5.5 },
-        { text: '父亲却吩咐仆人说：『把那上好的袍子快拿出来给他穿；<br>把戒指戴在他指头上；把鞋穿在他脚上；……』', ref: '路加福音 15:22', hold: 6.5 },
-        { text: '『因为我这个儿子是死而复活，失而又得的。』他们就快乐起来。', ref: '路加福音 15:24', hold: 5.5 },
+        { text: '于是起来，往他父亲那里去。相离还远，他父亲看见，就动了慈心，<br>跑去抱着他的颈项，连连与他亲嘴。', ref: '路加福音 15:20', hold: 7, who: 'jesus', how: 'teach' },
+        { text: '儿子说：『父亲！我得罪了天，又得罪了你；<br>从今以后，我不配称为你的儿子。』', ref: '路加福音 15:21', hold: 5.5, talk: [['son', 0.1, 1, 'plead', 'father']] },
+        { text: '父亲却吩咐仆人说：『把那上好的袍子快拿出来给他穿；<br>把戒指戴在他指头上；把鞋穿在他脚上；……』', ref: '路加福音 15:22', hold: 6.5, talk: [['father', 0.1, 1, 'proclaim']] },
+        { text: '『因为我这个儿子是死而复活，失而又得的。』他们就快乐起来。', ref: '路加福音 15:24', hold: 5.5, talk: [['father', 0, 0.62, 'proclaim']] },
       ],
       apply(c) {
         const H = X.home, MEET = X.meet;
@@ -2345,36 +2466,43 @@
             W.goTo(0.7, 6, b.instant);
             prop('pigs', null, { show: false });
             prop('famine', null, { k: 0, rate: { k: 0.12 } });
+            pose('son', 'stand');
             walk('son', X.far - 0.03, { speed: 0.03 });
-            face('father', 1); pose('father', 'gaze');
+            face('father', 1); pose('father', 'look');
           }],
-          [1, b => { hold('father', null); embrace('father', 'son', { run: true, at: MEET, weep: true }); sfx(b, 'heart', { soft: true }); }],
+          [0.6, b => { gest('father', 'startle'); }],
+          [1.2, b => { hold('father', null); embrace('father', 'son', { run: true, at: MEET, weep: true }); sfx(b, 'heart', { soft: true }); }],
           [3.8, b => { beam(b, MEET, 2, { v: 0.4, w: 110, r: 0.2, dur: 5.5 }); glow('father', 0.55); glow('son', 0.5); sfx(b, 'weep', { soft: true }); }],
-          // 父亲！我得罪了天，又得罪了你
+          // 『父亲！我得罪了天，又得罪了你……』他跪下；父亲站着望着他
           [8.2, () => { pose('son', 'kneel'); pose('father', 'stand'); face('father', 1); }],
-          [10.6, () => { pose('father', 'raise'); face('father', -1); }],
+          [12.6, b => { gest('father', 'touch', { dur: 1.6 }); }],
+          // 父亲却吩咐仆人：回头招呼家里的仆人
+          [14.6, () => { face('father', -1); }],
+          [15.2, b => { gest('father', 'beckon'); }],
           // 上好的袍子、戒指、鞋
-          [13, b => {
+          [15.4, b => {
             pic('sv1', { label: '仆人', x: H + 0.056, facing: 1, robe: ROBE.servant, v: 0.14 });
             pic('sv2', { label: '仆人', x: H + 0.04, facing: 1, robe: [134, 126, 108], v: 0.3 });
             run('sv1', MEET - 0.034, { speed: 0.08 }); run('sv2', MEET + 0.036, { speed: 0.08 });
             hold('sv1', 'coat');
           }],
-          [16.4, b => {
+          [17.6, b => { face('father', 1); gest('father', 'point'); }],
+          [18.2, b => {
             hold('sv1', null); pose('son', 'stand');
             add('son', { robe: ROBE.best, accent: [226, 190, 110] }); glow('son', 0.6);
             flash(b, { type: 'robe', dur: 2.2 }); sfx(b, 'harp');
           }],
-          [18, b => { flash(b, { type: 'glint', id: 'son', frac: 0.5, dx: 4, r: 8, dur: 1.6, rgb: 'gold' }); sfx(b, 'chime'); face('son', -1); face('father', -1); }],
+          [19.6, b => { flash(b, { type: 'glint', id: 'son', frac: 0.5, dx: 4, r: 8, dur: 1.6, rgb: 'gold' }); sfx(b, 'chime'); gest('sv2', 'stoopdown'); }],
+          [21, () => { face('son', -1); face('father', -1); }],
           // 他们就快乐起来：回家，点上灯，作乐跳舞
-          [19.6, () => {
+          [21.6, () => {
             walk('father', H + 0.004, { speed: 0.03 }); walk('son', H - (PORT ? 0.03 : 0.016), { speed: 0.03 }); hands('father', 'son', true);
             walk('sv1', H - (PORT ? 0.05 : 0.036), { speed: 0.034 }); walk('sv2', H - (PORT ? 0.075 : 0.056), { speed: 0.034 });
           }],
-          [21.4, b => { prop('fhouse', null, { k: 1, k2: 1, lit: 1 }); prop('hearth', null, { lit: 1 }); W.goTo(0.742, 5, b.instant); sfx(b, 'lyre'); }],
-          [24.2, b => { pose('sv1', 'raise'); pose('sv2', 'raise'); sfx(b, 'timbrel', { soft: true }); }],
-          [26, b => { pose('sv1', 'stand'); pose('sv2', 'raise'); face('sv2', -1); }],
-          [27.6, () => { pose('sv2', 'stand'); pose('sv1', 'raise'); }],
+          [23.4, b => { prop('fhouse', null, { k: 1, k2: 1, lit: 1 }); prop('hearth', null, { lit: 1 }); W.goTo(0.742, 5, b.instant); sfx(b, 'lyre'); }],
+          [25.6, b => { pose('sv1', 'rejoice'); sfx(b, 'timbrel', { soft: true }); }],
+          [26.4, b => { pose('sv2', 'rejoice'); stir('sinners', 'nod', { share: 0.4, spread: 1.4 }); }],
+          [27.4, b => { gest('sv2', 'leap'); gest('son', 'nod'); }],
         ]);
       },
     },
@@ -2383,10 +2511,10 @@
     {
       kind: 'call', utter: '儿啊！你常和我同在，我一切所有的都是你的', cmd: 'open 门 --for 大儿子  # 理当欢喜快乐', ref: '路加福音 15:31',
       verse: [
-        { text: '那时，大儿子正在田里。他回来，离家不远，听见作乐跳舞的声音，', ref: '路加福音 15:25', hold: 5.5 },
-        { text: '大儿子却生气，不肯进去；他父亲就出来劝他。', ref: '路加福音 15:28', hold: 4.5 },
-        { text: '他对父亲说：『我服事你这多年，从来没有违背过你的命，<br>你并没有给我一只山羊羔，叫我和朋友一同快乐。……』', ref: '路加福音 15:29', hold: 6.5 },
-        { text: '父亲对他说：『儿啊！你常和我同在，我一切所有的都是你的；<br>只是你这个兄弟是死而复活、失而又得的，所以我们理当欢喜快乐。』」', ref: '路加福音 15:31–32', hold: 8 },
+        { text: '那时，大儿子正在田里。他回来，离家不远，听见作乐跳舞的声音，', ref: '路加福音 15:25', hold: 5.5, who: 'jesus', how: 'teach' },
+        { text: '大儿子却生气，不肯进去；他父亲就出来劝他。', ref: '路加福音 15:28', hold: 4.5, who: 'jesus', how: 'teach' },
+        { text: '他对父亲说：『我服事你这多年，从来没有违背过你的命，<br>你并没有给我一只山羊羔，叫我和朋友一同快乐。……』', ref: '路加福音 15:29', hold: 6.5, talk: [['elder', 0.08, 1, 'proclaim', 'father']] },
+        { text: '父亲对他说：『儿啊！你常和我同在，我一切所有的都是你的；<br>只是你这个兄弟是死而复活、失而又得的，所以我们理当欢喜快乐。』」', ref: '路加福音 15:31–32', hold: 8, talk: [['father', 0.05, 1, 'plead']] },
       ],
       apply(c) {
         // 筵席在父家门前、院墙那一边；大儿子从田里回来，站在父家的另一边（院里的灯照到那里），父亲出来劝他
@@ -2398,27 +2526,32 @@
             hands('father', 'son', false);
             walk('father', H + 0.008, { speed: 0.02 }); walk('son', H - (PORT ? 0.022 : 0.014), { speed: 0.02 });
             sink('son', 0.3); sink('father', 0.2);
-            walk('sv1', H - (PORT ? 0.05 : 0.036), { speed: 0.02, pose: 'raise' }); walk('sv2', H - (PORT ? 0.075 : 0.056), { speed: 0.02 });
+            walk('sv1', H - (PORT ? 0.05 : 0.036), { speed: 0.02, pose: 'rejoice' }); walk('sv2', H - (PORT ? 0.075 : 0.056), { speed: 0.02 });
             prop('epool', 'pool', { x: (PL + E) / 2, v: 0.38, size: 1.05, lit: 0.7 });
           }],
-          // 大儿子从田里回来，离家不远，听见作乐跳舞的声音
-          [1.2, b => { pose('elder', 'stand'); hold('elder', null); walk('elder', E, { speed: 0.01 }); sink('elder', 0.4); glow('elder', 0.36); face('elder', -1); sfx(b, 'lyre', { soft: true }); }],
-          [3.2, b => { sfx(b, 'timbrel', { soft: true }); pose('sv2', 'raise'); }],
-          // 却生气，不肯进去：转过身去
-          [6.8, () => { face('elder', 1); pose('sv2', 'stand'); pose('sv1', 'stand'); }],
+          // 大儿子从田里回来，离家不远，听见作乐跳舞的声音：站住，望着那边
+          [1.2, b => { pose('elder', 'stand'); hold('elder', null); walk('elder', E, { speed: 0.01, pose: 'look' }); sink('elder', 0.4); glow('elder', 0.36); face('elder', -1); sfx(b, 'lyre', { soft: true }); }],
+          [3.2, b => { sfx(b, 'timbrel', { soft: true }); pose('sv2', 'rejoice'); gest('son', 'clap'); }],
+          [4.8, b => { gest('sv1', 'leap'); }],
+          // 却生气，不肯进去：转过身去，摆手
+          [6.8, () => { pose('elder', 'stand'); face('elder', 1); pose('sv2', 'stand'); pose('sv1', 'stand'); }],
+          [7.4, b => { gest('elder', 'refuse'); }],
           // 他父亲就出来劝他：伸出手来
-          [8.2, () => { walk('father', PL, { speed: 0.02, pose: 'point' }); sink('father', 0.38); glow('father', 0.5); }],
-          // 我服事你这多年……
-          [12.6, () => { face('elder', -1); pose('elder', 'point'); pose('father', 'stand'); }],
-          [16.6, () => { pose('elder', 'stand'); face('elder', 1); }],
+          [8.2, () => { walk('father', PL, { speed: 0.02, pose: 'reach' }); sink('father', 0.38); glow('father', 0.5); }],
+          // 我服事你这多年……（他转回来，冲着父亲说；父亲静静地听）
+          [12.6, () => { face('elder', -1); pose('father', 'listen'); face('father', 1); }],
+          [15.6, b => { gest('elder', 'point'); }],
+          [17.4, b => { gest('elder', 'refuse'); }],
+          [19, () => { face('elder', 1); }],
           // 儿啊！你常和我同在，我一切所有的都是你的——父亲的手一直伸着；比喻停在这里，大儿子怎样回答，经上没有说
-          [20, b => {
-            pose('father', 'point'); glow('father', 0.6);
+          [20.2, b => {
+            pose('father', 'reach'); glow('father', 0.6);
             prop('fhouse', null, { k2: 1, lit: 1 });
             prop('epool', null, { lit: 1 });
             beam(b, (PL + E) / 2, 2, { v: 0.4, w: 110, r: 0.18, dur: 5.5 });
             sfx(b, 'harp', { soft: true });
           }],
+          [24.4, b => { stir('phar', 'lookaround', { share: 0.4, spread: 1.2 }); }],
           [26.6, () => { face('son', -1); pose('son', 'raise'); }],
         ]);
       },

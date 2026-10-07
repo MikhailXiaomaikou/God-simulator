@@ -156,6 +156,13 @@
     f.follow = null; f.tx = null; f.fly = null; f.ny = null;
     C().remove(id, now ? { fade: false } : undefined);
   }
+  // 演技（新约各幕）：说话、手势、众人先后转向、先后反应（重演时引擎自己略过，或立即到位）
+  function say(id, sec, o) { const c = C(); if (c.speak && has(id)) c.speak(id, sec, o); }
+  function gest(id, kind, o) { const c = C(); if (c.gesture && has(id)) c.gesture(id, kind, o); }
+  function heed(ids, target, o) { const c = C(); if (c.attend) c.attend(ids, target, o); }
+  function stir(ids, kind, o) { const c = C(); if (c.react) c.react(ids, kind, o); }
+  // 几个人先后做同一件事：自 t0 秒起，每人相差 gap 秒（返回若干拍，接在时间线里）
+  const seq = (t0, gap, ids, fn) => ids.map((id, i) => [t0 + i * gap, b => fn(id, b, i)]);
   function sfx(b, name, o) {
     if (b && b.instant) return;
     const a = au();
@@ -174,7 +181,9 @@
   }
   const headOf = (id, k) => figPt(id, k == null ? 1 : k, 0) || [W.w * 0.7, W.h * 0.8, 40, 1];
   // 手的位置（按姿势估计）：[向前, 高]
-  const HAND = { seat: [0.25, 0.36], sit: [0.2, 0.24], stand: [0.08, 0.45], walk: [0.08, 0.45], raise: [0.06, 1.02], carry: [0.27, 0.62], point: [0.36, 0.72], kneel: [0.18, 0.32], pray: [0.1, 0.62], gaze: [0.06, 0.44], bow: [0.26, 0.3] };
+  const HAND = { seat: [0.25, 0.36], sit: [0.2, 0.24], stand: [0.08, 0.45], walk: [0.08, 0.45], raise: [0.06, 1.02], carry: [0.27, 0.62], point: [0.36, 0.72], kneel: [0.18, 0.32], pray: [0.1, 0.62], gaze: [0.06, 0.44], bow: [0.26, 0.3],
+    // 新约的身段：写（手在桌上）、读（胸前展开）、捧出、举向天、讲论、静听、伸手、祝福、求告、遮眼
+    write: [0.37, 0.42], read: [0.24, 0.7], offer: [0.3, 0.7], lift: [0.2, 1.03], teach: [0.24, 0.68], listen: [0.1, 0.52], reach: [0.32, 0.76], bless: [0.27, 0.95], beg: [0.3, 0.54], shield: [0.12, 0.86] };
   function handOf(id) {
     const f = fig(id);
     if (!f) return null;
@@ -1450,38 +1459,57 @@
       verse: [
         { text: '「基督耶稣降世，为要拯救罪人。」这话是可信的，是十分可佩服的。<br>在罪人中我是个罪魁。', ref: '提摩太前书 1:15', hold: 6.5 },
         { text: '然而，我蒙了怜悯，是因耶稣基督要在我这罪魁身上显明他一切的忍耐，<br>给后来信他得永生的人作榜样。', ref: '提摩太前书 1:16', hold: 7.5 },
-        { text: '但愿尊贵、荣耀归与那不能朽坏、不能看见、永世的君王、独一的神，<br>直到永永远远。阿们！', ref: '提摩太前书 1:17', hold: 7 },
+        { text: '但愿尊贵、荣耀归与那不能朽坏、不能看见、永世的君王、独一的神，<br>直到永永远远。阿们！', ref: '提摩太前书 1:17', hold: 7, talk: [['paul', 0.04, 0.92, 'proclaim']] },
       ],
       apply(c) {
+        const eph = () => ['timothy', 'bro', 'eldM'];
         T(c, [
+          // 保罗在灯下写信；一点光自天顶落下
           [0, b => {
             W.goTo(0.86, 18, b.instant);
             W.set('pstDescend', 1, b.instant);
             pose('timothy', 'gaze'); face('timothy', -1);
+            pose('paul', 'write');
             sfx(b, 'angel', { soft: true });
           }],
+          // 以弗所的人也看见了：一个手搭凉棚，一个仰起头来
+          [1.6, () => pose('bro', 'look')],
+          [2.4, () => pose('eldM', 'gaze')],
           // 落在地上：一圈光；路自这里向两头亮起
           [4, b => {
             W.set('pstRoad', 0.45, b.instant);
             if (!b.instant && fx()) { fx().ring(X.land * W.w, landY() - 6 * LS(2), [255, 240, 204], M() * 0.22, 2.4, 1.8); fx().sparkle(X.land * W.w, landY() - 8 * LS(2), 26, [255, 240, 210], 18 * SU(), 'top'); }
+            stir(eph(), 'startle', { spread: 0.8, share: 0.7 });
             sfx(b, 'chime');
           }],
-          // 罪魁：保罗放下笔，转身跪下；光沿路走进他的屋里
+          // 罪魁：保罗停了笔，抬起头；转身跪下，低头捶胸
+          [4.4, () => pose('paul', 'seat')],
           [5.2, () => { pose('paul', 'kneel'); face('paul', 1); }],
+          [6.1, () => gest('paul', 'beat', { dur: 2.4 })],
+          // 光沿路走进他的屋里：我蒙了怜悯——他仰起脸，摊开两手
           [7.6, b => { W.set('pstMercy', 1, b.instant); sfx(b, 'harp', { soft: true }); }],
+          [8.8, () => pose('paul', 'beg')],
+          [10.2, () => { pose('bro', 'stand'); pose('eldM', 'stand'); }],
           [12.6, b => {
             glow('paul', 0.42);
             ringOn(b, 'paul', 0.14, [255, 236, 190], 0.4); sparkleOn(b, 'paul', 22, [255, 236, 190], 0.5);
           }],
-          // 给后来信他得永生的人作榜样：光自他那里沿路一直到以弗所
+          [13.6, () => pose('paul', 'pray')],
+          // 给后来信他得永生的人作榜样：光自他那里沿路一直到以弗所；提摩太望着那光沿路来
           [14.5, b => {
             W.set('pstRoad', 1, b.instant);
             glow('timothy', 0.4); glow('bro', 0.3); glow('eldM', 0.3);
-            pose('timothy', 'stand'); pose('bro', 'raise'); pose('eldM', 'stand');
+            pose('timothy', 'look');
           }],
-          // 但愿尊贵、荣耀归与……独一的神
+          [15.6, () => { pose('timothy', 'stand'); pose('bro', 'raise'); gest('eldM', 'nod'); }],
+          // 但愿尊贵、荣耀归与……独一的神：保罗站起来举手；以弗所的人也举手、鞠躬
           [17.2, b => { pose('paul', 'raise'); sfx(b, 'bell', { soft: true }); }],
-          [22.4, () => { pose('paul', 'seat'); pose('bro', 'stand'); prop('study', null, { k2: 1 }); }],
+          [18.4, () => pose('timothy', 'lift')],
+          [19.2, () => pose('eldM', 'bow')],
+          // 阿们：众人点头；保罗又坐下写
+          [21.8, () => { pose('timothy', 'stand'); pose('eldM', 'stand'); pose('bro', 'stand'); }],
+          [22.4, () => { pose('paul', 'write'); prop('study', null, { k2: 1 }); }],
+          [22.9, () => stir(eph(), 'nod', { spread: 0.9 })],
         ]);
       },
     },
@@ -1490,31 +1518,49 @@
     {
       kind: 'act', utter: '他愿意万人得救，明白真道', cmd: 'for 人 in 万人: pray(人)  # 一盏一盏亮', ref: '提摩太前书 2:4',
       verse: [
-        { text: '我劝你，第一要为万人恳求、祷告、代求、祝谢；', ref: '提摩太前书 2:1', hold: 5.5 },
+        { text: '我劝你，第一要为万人恳求、祷告、代求、祝谢；', ref: '提摩太前书 2:1', hold: 5.5, who: 'paul', to: 'timothy', how: 'calm' },
         { text: '这是好的，在神我们救主面前可蒙悦纳。<br>他愿意万人得救，明白真道。', ref: '提摩太前书 2:3–4', hold: 6.5 },
         { text: '因为只有一位神，在神和人中间，只有一位中保，<br>乃是降世为人的基督耶稣；他舍自己作万人的赎价……', ref: '提摩太前书 2:5–6', hold: 7.5 },
       ],
       apply(c) {
         const pray = ['timothy', 'bro', 'eldM'];
         T(c, [
-          // 举起圣洁的手，随处祷告（2:8）
+          // 保罗搁下笔，向着以弗所说（劝）
           [0, b => {
             W.goTo(0.96, 20, b.instant);
-            pose('timothy', 'raise'); pose('bro', 'pray'); pose('eldM', 'raise');
+            pose('paul', 'seat');
             face('timothy', -1);
           }],
+          // 举起圣洁的手，随处祷告（2:8）：一个一个地举手、跪下
+          [0.6, () => pose('timothy', 'raise')],
           [1.2, b => { pray.forEach((id, i) => efx(b, { type: 'prayer', id, dur: 5.5, t: -i * 0.6, seed: i * 1.7 })); sfx(b, 'sing', { soft: true }); }],
-          // 万人：远近各地一盏一盏的灯
+          [1.4, () => pose('bro', 'pray')],
+          [2.2, () => pose('eldM', 'raise')],
+          // 保罗又低头写下去
+          [5.8, () => pose('paul', 'write')],
+          // 万人：远近各地一盏一盏的灯；提摩太手搭凉棚，望了这边又望那边
           [6.8, b => { W.set('pstAll', 1, b.instant); sfx(b, 'stars'); }],
+          [7.8, () => pose('timothy', 'look')],
+          [9.6, () => gest('eldM', 'nod')],
+          [10.4, () => face('timothy', 1)],
           [11, b => { sfx(b, 'chime', { soft: true }); }],
-          // 只有一位中保：天地之间一道光
+          [12.4, () => { face('timothy', -1); pose('timothy', 'stand'); }],
+          // 只有一位中保：天地之间一道光；众人先后跪下
           [14.8, b => {
             W.set('pstBeam', 1, b.instant);
             if (!b.instant && fx()) fx().ring(X.land * W.w, landY() - 20 * LS(2), [255, 246, 226], M() * 0.3, 2.8, 2);
             flashW(b, 0.25);
             sfx(b, 'harp');
-            pose('timothy', 'kneel'); pose('bro', 'kneel'); pose('eldM', 'kneel');
+            stir(pray, 'startle', { spread: 0.5 });
           }],
+          [15.2, () => pose('paul', 'seat')],
+          [15.5, () => pose('timothy', 'kneel')],
+          [16.2, () => gest('bro', 'bowhead')],
+          [16.6, () => pose('eldM', 'kneel')],
+          [17.6, () => gest('paul', 'bowhead')],
+          // 他舍自己作万人的赎价
+          [19.8, () => pose('timothy', 'pray')],
+          [20.4, () => stir(['bro', 'eldM'], 'bowhead', { spread: 0.8 })],
           // 那道光收回去（到末了戴冠冕的时候才再显出来），免得后来的光都叠在它里面
           [22, b => { W.set('pstBeam', 0, b.instant); }],
         ]);
@@ -1530,32 +1576,45 @@
         { text: '被传于外邦，被世人信服，被接在荣耀里。', ref: '提摩太前书 3:16', hold: 5.5 },
       ],
       apply(c) {
+        const eph = () => ['timothy', 'bro', 'eldM'];
         T(c, [
-          // 神的家：根基、柱石
+          // 神的家：根基、柱石；跪着的人先后站起来
           [0, b => {
             W.goTo(0.13, 22, b.instant);
-            pose('timothy', 'stand'); pose('bro', 'stand'); pose('eldM', 'stand');
+            pose('timothy', 'stand');
             prop('church', 'church', { x: X.church, size: X.churchSize, grow: 0, label: '神的家' });
             prop('church', null, { grow: 1 });
             sfx(b, 'build');
           }],
+          [0.6, () => pose('bro', 'stand')],
+          [1.1, () => pose('eldM', 'stand')],
           [3.5, b => {
-            sfx(b, 'build', { soft: true }); face('timothy', 1); face('bro', 1); face('eldM', 1);
+            sfx(b, 'build', { soft: true }); heed(eph(), X.church, { spread: 0.9 });
             nameOver(b, X.church, gY(2, X.church) - 96 * SU(), '神的家', { hold: 3.4, rgb: [255, 226, 176] });
           }],
-          // 神在肉身显现
-          [8.4, b => { efx(b, { type: 'figure', dur: 13 }); sfx(b, 'harp', { soft: true }); face('timothy', -1); face('bro', -1); face('eldM', -1); }],
-          // 被圣灵称义
+          // 提摩太指给他们看：这家就是永生神的教会
+          [4.8, () => gest('timothy', 'point')],
+          [6, () => stir(['bro', 'eldM'], 'nod', { spread: 0.8 })],
+          // 神在肉身显现：众人转回身来
+          [8.4, b => { efx(b, { type: 'figure', dur: 13 }); sfx(b, 'harp', { soft: true }); heed(eph(), X.land, { spread: 0.7 }); }],
+          // 无人不以为然
+          [9.4, () => stir(eph(), 'nod', { spread: 0.9 })],
+          // 被圣灵称义：弟兄抬头望那降下的鸽子
           [10.6, b => { efx(b, { type: 'dove', dur: 5.6 }); sfx(b, 'dove'); }],
+          [11.2, () => pose('bro', 'gaze')],
           // 被天使看见
-          [12.8, b => { efx(b, { type: 'host', dur: 6 }); sfx(b, 'angel', { soft: true }); }],
-          // 被传于外邦
-          [16.2, b => { efx(b, { type: 'nations', dur: 4.2 }); sfx(b, 'stars'); }],
-          // 被世人信服
-          [18, () => { pose('timothy', 'kneel'); pose('bro', 'kneel'); pose('eldM', 'kneel'); pose('paul', 'kneel'); }],
-          // 被接在荣耀里
+          [12.8, b => { efx(b, { type: 'host', dur: 6 }); sfx(b, 'angel', { soft: true }); pose('timothy', 'gaze'); }],
+          [13.4, () => pose('eldM', 'gaze')],
+          // 被传于外邦：提摩太手搭凉棚，望那光越过海去
+          [16.2, b => { efx(b, { type: 'nations', dur: 4.2 }); sfx(b, 'stars'); pose('timothy', 'look'); face('timothy', -1); }],
+          // 被世人信服：先后跪下
+          [18, () => { pose('timothy', 'kneel'); pose('paul', 'kneel'); }],
+          [18.5, () => pose('bro', 'kneel')],
+          [19, () => pose('eldM', 'kneel')],
+          // 被接在荣耀里：跪着的人向天伸手
           [19.4, b => { efx(b, { type: 'ascend', dur: 4.5 }); sfx(b, 'bell', { soft: true }); }],
-          [23.2, () => { pose('paul', 'seat'); }],
+          [20.2, () => stir(eph(), 'reachup', { spread: 0.8, share: 0.7 })],
+          [22.4, () => { pose('paul', 'write'); }],
         ]);
       },
     },
@@ -1566,7 +1625,8 @@
       verse: [
         { text: '凡神所造的物都是好的，若感谢着领受，就没有一样可弃的，<br>都因神的道和人的祈求成为圣洁了。', ref: '提摩太前书 4:4–5', hold: 7 },
         { text: '不可叫人小看你年轻，总要在言语、行为、爱心、信心、清洁上，<br>都作信徒的榜样。', ref: '提摩太前书 4:12', hold: 6.5 },
-        { text: '不可严责老年人，只要劝他如同父亲；劝少年人如同弟兄；<br>劝老年妇女如同母亲；劝少年妇女如同姊妹；总要清清洁洁的。', ref: '提摩太前书 5:1–2', hold: 7.5 },
+        { text: '不可严责老年人，只要劝他如同父亲；劝少年人如同弟兄；<br>劝老年妇女如同母亲；劝少年妇女如同姊妹；总要清清洁洁的。', ref: '提摩太前书 5:1–2', hold: 7.5,
+          talk: [['timothy', 0.02, 0.24, 'calm', 'eldM'], ['timothy', 0.27, 0.4, 'calm', 'yM'], ['timothy', 0.43, 0.6, 'calm', 'eldF'], ['timothy', 0.63, 0.8, 'calm', 'yF']] },
       ],
       apply(c) {
         T(c, [
@@ -1584,26 +1644,40 @@
             prop('table', null, { grow: 1, k: 1 });
             walk('bro', xo(X.table, -28), { speed: 0.02 }); walk('eldM', xo(X.table, 26), { speed: 0.02 });
           }],
-          [5.2, b => { pose('bro', 'raise'); pose('eldM', 'raise'); face('bro', 1); face('eldM', -1); sfx(b, 'harp', { soft: true }); }],
-          // 作信徒的榜样：提摩太宣读（4:13）
+          // 弟兄举手祝谢，老年人低头；弟兄擘开饼，递给他
+          [5.2, b => { pose('bro', 'lift'); face('bro', 1); face('eldM', -1); sfx(b, 'harp', { soft: true }); }],
+          [5.6, () => gest('eldM', 'bowhead')],
+          [6.7, () => pose('bro', 'stand')],
+          [6.9, () => gest('bro', 'break')],
+          [8.2, () => gest('bro', 'give')],
+          [8.8, () => gest('eldM', 'nod')],
+          // 作信徒的榜样：提摩太展开书卷宣读（4:13）
           [8.6, b => {
             S.timScroll = 1;
-            pose('timothy', 'carry'); face('timothy', 1);
+            pose('timothy', 'read'); face('timothy', 1);
             glow('timothy', 0.5);
             sparkleOn(b, 'timothy', 16, [255, 236, 190], 0.62);
           }],
-          // 老年人如同父亲，老年妇女如同母亲，少年人如同弟兄，少年妇女如同姊妹
+          [9.6, () => say('timothy', 5, { how: 'teach' })],
+          [10.4, () => heed(['bro', 'eldM'], 'timothy', { spread: 0.8 })],
+          [11.2, () => pose('bro', 'listen')],
+          [11.8, () => pose('eldM', 'listen')],
+          [13.6, () => stir(['bro', 'eldM'], 'nod', { spread: 1 })],
+          // 老年人如同父亲，老年妇女如同母亲，少年人如同弟兄，少年妇女如同姊妹：提摩太一个一个地劝
+          [15.6, () => pose('timothy', 'teach')],
           [16.2, b => {
             churchAt('eldF', { x: xo(X.eldF, 60), facing: -1 }); walk('eldF', X.eldF, { speed: 0.02 });
             churchAt('yM', { x: xo(X.yM, 60), facing: -1 }); walk('yM', X.yM, { speed: 0.022 });
             churchAt('yF', { x: xo(X.yF, 60), facing: -1 }); walk('yF', X.yF, { speed: 0.022 });
             walk('bro', X.bro, { speed: 0.02 }); walk('eldM', X.eldM, { speed: 0.02 });
           }],
-          [21.5, b => {
+          // 总要清清洁洁的：他向他们鞠躬，众人也低头还礼
+          [22.1, b => {
             pose('timothy', 'bow'); face('timothy', 1);
             church().forEach(id => { pose(id, 'stand'); face(id, -1); glow(id, 0.3); });
             sfx(b, 'crowd', { soft: true });
           }],
+          [22.8, () => stir(church(), 'bowhead', { spread: 1, share: 0.7 })],
           [24, () => { pose('timothy', 'stand'); }],
         ]);
       },
@@ -1618,6 +1692,7 @@
         { text: '就是那独一不死、住在人不能靠近的光里，是人未曾看见、也是不能看见的，<br>要将他显明出来。但愿尊贵和永远的权能都归给他。阿们！', ref: '提摩太前书 6:16', hold: 8 },
       ],
       apply(c) {
+        const eph = () => ['timothy'].concat(church());
         T(c, [
           // 一堆金银，化作尘土随风散去
           [0, b => {
@@ -1625,7 +1700,14 @@
             prop('coins', 'coins', { x: X.coins, v: PV('coins'), label: '金银' });
             sfx(b, 'coins');
           }],
+          // 众人转过来看那一堆金银；少年人指着它
+          [1, () => heed(eph(), X.coins, { spread: 1 })],
+          [2, () => gest('yM', 'point')],
           [3, b => { prop('coins', null, { k2: 1 }); W.set('gale', 0.35, b.instant); sfx(b, 'wind'); }],
+          // 不能带什么去：一惊；老年人叹一口气，提摩太点头
+          [3.4, () => stir(eph(), 'startle', { spread: 0.7, share: 0.6 })],
+          [4.6, () => gest('eldM', 'sigh')],
+          [5.6, () => gest('timothy', 'nod')],
           [6.6, b => { unprop('coins'); W.set('gale', 0, b.instant); }],
           // 打那美好的仗，持定永生：提摩太在许多见证人面前
           [7.8, b => {
@@ -1640,15 +1722,26 @@
             if (h && !b.instant) efx(b, { type: 'flare', x: h[0] / W.w, y: h[1] / W.h, r: 16, k: 0.9, dur: 2.6 });
             sfx(b, 'harp', { soft: true });
           }],
-          // 住在人不能靠近的光里
+          // 作了那美好的见证：他转向众人，高声说出来；众人点头
+          [12.7, () => { pose('timothy', 'stand'); face('timothy', 1); }],
+          [13.1, () => say('timothy', 2.6, { how: 'proclaim' })],
+          [14.3, () => stir(church(), 'nod', { spread: 0.9, share: 0.7 })],
+          // 住在人不能靠近的光里：以臂遮眼，先后跪下
           [16.2, b => {
             W.set('pstHidden', 1, b.instant);
             flashW(b, 0.5);
             sfx(b, 'angel');
           }],
-          [17.2, () => { pose('timothy', 'kneel'); church().forEach(id => pose(id, 'kneel')); pose('paul', 'kneel'); }],
+          [16.5, () => pose('timothy', 'shield')],
+          ...seq(16.8, 0.25, church(), id => pose(id, 'shield')),
+          [17.2, () => pose('paul', 'kneel')],
+          [18.2, () => pose('timothy', 'kneel')],
+          ...seq(18.5, 0.35, church(), id => pose(id, 'kneel')),
+          [20.6, () => stir(eph(), 'bowhead', { spread: 1.2, share: 0.6 })],
           [22.6, b => { W.set('pstHidden', 0.22, b.instant); }],
-          [24.4, () => { pose('timothy', 'stand'); church().forEach(id => pose(id, 'stand')); pose('paul', 'seat'); }],
+          // 阿们
+          [23.5, () => stir(eph(), 'nod', { spread: 0.8 })],
+          [24.4, () => { pose('timothy', 'stand'); church().forEach(id => pose(id, 'stand')); pose('paul', 'write'); }],
         ]);
       },
     },
@@ -1658,39 +1751,50 @@
       kind: 'promise', utter: '那无谎言的神在万古之先所应许的永生', cmd: 'sail 克里特 && light --each 城 长老', ref: '提多书 1:2',
       verse: [
         { text: '神的仆人，耶稣基督的使徒保罗，凭着神选民的信心与敬虔真理的知识，<br>盼望那无谎言的神在万古之先所应许的永生，', ref: '提多书 1:1–2', hold: 7.5 },
-        { text: '现在写信给提多，就是照着我们共信之道作我真儿子的。', ref: '提多书 1:4', hold: 5 },
+        { text: '现在写信给提多，就是照着我们共信之道作我真儿子的。', ref: '提多书 1:4', hold: 5, talk: [['paul', 0.08, 0.96, 'calm', 'titus']] },
         { text: '我从前留你在克里特，是要你将那没有办完的事都办整齐了，<br>又照我所吩咐你的，在各城设立长老。', ref: '提多书 1:5', hold: 7 },
       ],
       apply(c) {
         const give = () => roomX(0.99);
         T(c, [
+          // 保罗在桌前写信
           [0, b => {
             W.goTo(0.7, 24, b.instant);
             W.set('pstHidden', 0, b.instant);
             prop('study', null, { k2: 1.4 });
             paulAtDesk();
+            pose('paul', 'write');
             sfx(b, 'write');
-            // 提多自路上来
+            // 提多自路上来，在门外静静等着
             person('titus', { x: xo(give(), 60), facing: -1 });
-            walk('titus', xo(give(), 12), { speed: 0.016 });
+            walk('titus', xo(give(), 12), { speed: 0.016, pose: 'listen' });
           }],
           [4, b => { sparkleAt(b, roomX(DESK_F) * W.w, gY(2, roomX(DESK_F)) - HP() * 0.36, 20, [255, 236, 190], 10); }],
+          // 写完了：保罗停笔，点一点头
+          [7.2, () => pose('paul', 'seat')],
+          [7.6, () => gest('paul', 'nod')],
           // 写信给提多：保罗起来，把书信交在他手里
           [8.8, b => {
             attach('paul', null);
             walk('paul', xo(give(), -4), { speed: 0.016, pose: 'stand' });
             onFloor('paul');
             prop('study', null, { k2: 0 });
+            pose('titus', 'stand');
           }],
-          [11.6, b => { face('paul', 1); face('titus', -1); S.titLetter = 1; pose('titus', 'carry'); pose('paul', 'point'); sfx(b, 'scroll'); }],
-          // 往克里特：上船
+          [11.6, b => { face('paul', 1); face('titus', -1); pose('paul', 'offer'); pose('titus', 'reach'); sfx(b, 'scroll'); }],
+          [12.4, () => { S.titLetter = 1; pose('titus', 'carry'); pose('paul', 'stand'); }],
+          // 作我真儿子的：保罗为他祝福，提多低头领受
+          [12.7, () => gest('paul', 'bless')],
+          [13, () => gest('titus', 'bowhead', { dur: 2 })],
+          // 往克里特：上船；保罗挥手送他
           [13.4, b => {
             walk('titus', X.ship0[0], { speed: 0.014 });
             prop('ship', 'ship', { k: 0, label: '船' });
           }],
+          [15, () => gest('paul', 'wave')],
           [16.4, b => { rm('titus'); S.titLetter = 0; prop('ship', null, { k: 1 }); sfx(b, 'wave', { soft: true }); }],
           // 在各城设立长老：中丘上各城一盏一盏点起灯
-          // 近黄昏：各城的灯看得清楚
+          // 近黄昏：各城的灯看得清楚；保罗回到桌前，又写下去
           [18.6, b => {
             W.goTo(0.76, 10, b.instant);
             prop('crete', 'crete', { layer: 1, k: 0, label: '克里特', sp: 0.5 });
@@ -1699,7 +1803,8 @@
             sfx(b, 'bell', { soft: true });
             paulAtDesk({ walk: true });
           }],
-          [25.5, () => { unprop('ship'); }],
+          [21.6, () => pose('paul', 'write')],
+          [22.8, () => { unprop('ship'); }],
         ]);
       },
     },
@@ -1713,34 +1818,45 @@
         { text: '他为我们舍了自己，要赎我们脱离一切罪恶，<br>又洁净我们，特作自己的子民，热心为善。', ref: '提多书 2:14', hold: 6.5 },
       ],
       apply(c) {
+        const eph = () => ['timothy'].concat(church());
         T(c, [
-          // 夜尽天明：晨光自东（左）向西扫过大地
+          // 夜尽天明：众人坐着睡了；保罗守着灯
           [0, b => {
             unprop('ship');
             W.goTo(0.285, 12, b.instant);
-            church().forEach(id => pose(id, 'sit'));
-            pose('timothy', 'sit'); pose('paul', 'seat');
+            church().forEach(id => pose(id, 'sleep'));
+            pose('timothy', 'sleep'); pose('paul', 'seat');
           }],
+          // 晨光自东（左）向西扫过大地
           [3.5, b => { W.set('pstGrace', 1, b.instant); sfx(b, 'harp'); }],
-          [7, b => { glow('paul', 0.5); sparkleOn(b, 'paul', 14, [255, 226, 170], 0.5); }],
+          // 先照到保罗：他起来，转身向着光
+          [7, b => { glow('paul', 0.5); sparkleOn(b, 'paul', 14, [255, 226, 170], 0.5); pose('paul', 'gaze'); face('paul', -1); }],
+          // 照到以弗所的人：先后醒过来、抬起头，站起来
+          ...seq(8.3, 0.3, eph(), id => pose(id, 'sit')),
           [9.4, b => {
-            pose('timothy', 'stand'); glow('timothy', 0.55); sparkleOn(b, 'timothy', 12, [255, 226, 170], 0.6);
-            church().forEach((id, i) => { pose(id, 'stand'); glow(id, 0.42); });
+            glow('timothy', 0.55); sparkleOn(b, 'timothy', 12, [255, 226, 170], 0.6);
+            church().forEach((id, i) => { glow(id, 0.42); });
             sfx(b, 'bird');
           }],
-          // 等候……荣耀显现：众人向东仰望
-          [11.2, () => { pose('timothy', 'gaze'); church().forEach(id => { face(id, -1); pose(id, 'gaze'); }); face('timothy', -1); }],
-          // 热心为善：少年人拿着包袱、少年妇女拿着瓦罐，沿路出去
+          ...seq(9.8, 0.25, eph(), id => pose(id, 'stand')),
+          // 等候……荣耀显现：众人向东仰望，有的手搭凉棚远望
+          [11.6, () => heed(eph(), 0.1, { spread: 0.8 })],
+          ...seq(12, 0.3, eph(), (id, b, i) => pose(id, i % 2 ? 'look' : 'gaze')),
+          [14.6, () => gest('eldM', 'nod')],
+          // 热心为善：少年人拿着包袱、少年妇女拿着瓦罐，沿路出去；老年人为他们祝福，提摩太挥手
           [16.4, b => {
             pose('timothy', 'stand'); church().forEach(id => pose(id, 'stand'));
             const sp = PORT ? 0.04 : 0.03;
             if (inChurch('yM')) { person('yM', { prop: 'bundle' }); walk('yM', X.yMgo, { speed: sp }); }
             if (inChurch('yF')) { person('yF', { prop: 'jar' }); walk('yF', X.yFgo, { speed: sp }); }
             if (!inChurch('yF')) { person('eldF', { prop: 'jar' }); walk('eldF', X.yFgo, { speed: sp }); }
-            pose('eldM', 'raise');
+            pose('eldM', 'bless');
             sfx(b, 'crowd', { soft: true });
           }],
-          [23.5, () => { pose('eldM', 'stand'); }],
+          [17.4, () => gest('timothy', 'wave')],
+          [18.6, () => pose('paul', 'write')],
+          [20.2, () => stir(['bro', 'eldF'], 'nod', { spread: 0.8 })],
+          [22.6, () => { pose('eldM', 'stand'); }],
         ]);
       },
     },
@@ -1769,6 +1885,9 @@
             person('eldF', { prop: null });
             sfx(b, 'wind', { soft: true });
           }],
+          // 彼此相恨：有人摆手不理，有人叹气
+          [2.6, () => stir(all(), 'refuse', { spread: 1.6, share: 0.5 })],
+          [4.8, () => stir(all(), 'sigh', { spread: 1.4, share: 0.5 })],
           // 恩慈显明：灰暗退去，一眼泉涌出来
           [7.8, b => {
             W.set('gloom', 0, b.instant);
@@ -1777,9 +1896,11 @@
             sfx(b, 'splash');
             if (!b.instant && fx()) fx().ring(X.spring * W.w, gYv(X.spring, PV('spring')), [220, 236, 255], M() * 0.18, 2.2, 1.6);
           }],
-          // 人人来到泉边洗过：衣裳都亮了
+          // 众人一惊，先后转过身来望那泉
+          [8.3, () => { stir(all(), 'startle', { spread: 0.8, share: 0.7 }); heed(all(), X.spring, { spread: 1 }); }],
+          // 人人来到泉边，跪着俯身洗过：衣裳都亮了
           [10.2, b => {
-            all().forEach(id => { goTo(id, spot(id), 3.6, { pose: 'kneel' }); });
+            all().forEach(id => { goTo(id, spot(id), 3.6, { pose: 'wash' }); });
           }],
           [14, b => {
             S.renewed = 1;
@@ -1792,15 +1913,19 @@
             });
             sfx(b, 'harp');
           }],
-          // 厚厚浇灌：光如雨落下
+          // 洗过的人直起身来
+          ...seq(14.4, 0.25, all(), id => pose(id, 'kneel')),
+          // 厚厚浇灌：光如雨落下；众人先后站起来举手
           [17.8, b => {
             W.set('pstPour', 1, b.instant);
-            all().forEach(id => pose(id, 'raise'));
             sfx(b, 'rain', { soft: true });
           }],
+          ...seq(18, 0.3, all(), id => pose(id, 'raise')),
           // 各回各的地方（仍在光雨里）
           [21.6, () => { all().forEach(id => goTo(id, id === 'timothy' ? X.tim : X[id], 4.2, { pose: 'stand' })); }],
           [24.2, b => { W.set('pstPour', 0, b.instant); all().forEach(id => face(id, -1)); }],
+          // 可以凭着永生的盼望成为后嗣：众人点头
+          [25, () => stir(all(), 'nod', { spread: 1, share: 0.6 })],
         ]);
       },
     },
@@ -1838,32 +1963,46 @@
             W.set('gloom', 0, b.instant);
             sfx(b, 'chains');
           }],
+          // 我感谢神……祈祷的时候不住地想念你：保罗在监里跪下祷告
+          [3.2, () => pose('paul', 'pray')],
           [4.6, b => { nameOver(b, 0.72, W.h * 0.46, '罗马', { hold: 3.2 }); }],
           // 记念你的眼泪
           [5, b => { pose('timothy', 'weep', { weep: true }); sfx(b, 'weep', { soft: true }); }],
-          // 书信沿路到了提摩太手里
+          [5.8, () => heed(church(), 'timothy', { spread: 1 })],
+          [6.4, () => gest('guard', 'lookaround')],
+          // 他起来，坐在桌前写信
+          [7.2, () => { paulAtDesk(); pose('paul', 'write'); }],
+          // 书信沿路到了提摩太手里：他伸手接住，展开来读
           [8.6, b => {
             prop('cell', null, { k2: 1 });
             sfx(b, 'write');
             letterFly(b, () => { const p = getP('cell'); return p ? [roomG(p).x1, roomG(p).y - HP() * 0.5] : null; }, () => handOf('timothy'), 4.2, 40);
           }],
+          [11.6, () => pose('timothy', 'reach', { weep: false })],
           [12.8, b => {
             prop('cell', null, { k2: 0 });
-            pose('timothy', 'carry', { weep: false }); face('timothy', -1);
+            pose('timothy', 'read', { weep: false }); face('timothy', -1);
             S.fireAt = 'hands';
             W.set('pstFire', 0.2, b.instant);
             sfx(b, 'scroll');
           }],
-          // 再如火挑旺起来
+          [13.6, () => pose('paul', 'seat')],
+          // 再如火挑旺起来：他把那火举起来；众人一惊，又点头
           [15, b => {
             W.set('pstFire', 1, b.instant);
             glow('timothy', 0.6);
+            pose('timothy', 'lift');
             sfx(b, 'fire');
             const h = handOf('timothy');
             if (h && !b.instant && fx()) fx().sparkle(h[0], h[1] - 6 * SU(), 24, [255, 200, 120], 12 * SU(), 'top');
           }],
+          [15.6, () => stir(church(), 'startle', { spread: 0.8, share: 0.6 })],
+          [17.2, () => stir(church(), 'nod', { spread: 1, share: 0.6 })],
           // 不以为耻：他转向罗马，走上几步
           [18.4, () => { walk('timothy', X.timGo, { speed: 0.01, pose: 'carry' }); church().forEach(id => face(id, -1)); }],
+          // 与我为福音同受苦难：监里的保罗低头；提摩太点头
+          [21, () => gest('paul', 'bowhead')],
+          [22.8, () => gest('timothy', 'nod')],
         ]);
       },
     },
@@ -1872,7 +2011,7 @@
     {
       kind: 'act', utter: '神的道却不被捆绑', cmd: 'chmod +x 神的道  # 锁链 ≠ 捆绑', ref: '提摩太后书 2:9',
       verse: [
-        { text: '你要和我同受苦难，好像基督耶稣的精兵。', ref: '提摩太后书 2:3', hold: 4.5 },
+        { text: '你要和我同受苦难，好像基督耶稣的精兵。', ref: '提摩太后书 2:3', hold: 4.5, who: 'paul', how: 'proclaim' },
         { text: '你要记念耶稣基督乃是大卫的后裔，他从死里复活，正合乎我所传的福音。<br>我为这福音受苦难，甚至被捆绑，像犯人一样。然而神的道却不被捆绑。', ref: '提摩太后书 2:8–9', hold: 9 },
         { text: '你当竭力在神面前得蒙喜悦，作无愧的工人，<br>按着正意分解真理的道。', ref: '提摩太后书 2:15', hold: 6 },
       ],
@@ -1885,29 +2024,46 @@
             face('guard', -1);
           }],
           [1.6, b => { pose('paul', 'raise'); sfx(b, 'chains'); efx(b, { type: 'glint', dur: 1.2 }); }],
+          // 看守的兵一惊；远处的提摩太点头
+          [2.3, () => gest('guard', 'startle')],
+          [3.6, () => gest('timothy', 'nod')],
           // 他又坐下写；字化作光，从小窗飞出去，落在远近的地上
-          [5.8, b => { paulAtDesk(); prop('cell', null, { k2: 1 }); sfx(b, 'write'); }],
+          [5.8, b => { paulAtDesk(); pose('paul', 'write'); prop('cell', null, { k2: 1 }); sfx(b, 'write'); }],
           [8, b => { W.set('pstWord', 1, b.instant); sfx(b, 'scroll'); }],
-          [11, b => { sfx(b, 'stars'); }],
+          [9.4, () => gest('guard', 'lookaround')],
+          // 甚至被捆绑，像犯人一样：他叹一口气
+          [10.6, () => gest('paul', 'sigh')],
+          // 以弗所的人仰望那些落在远近地上的光
+          [11, b => { sfx(b, 'stars'); pose('timothy', 'gaze'); }],
+          [11.8, () => stir(church(), 'point', { spread: 1.2, share: 0.4 })],
+          // 然而神的道却不被捆绑：他抬起带锁链的手，向天伸去
+          [13, () => pose('paul', 'seat')],
           [13.6, b => {
             efx(b, { type: 'glint', dur: 1.6 });
             if (!b.instant && fx()) { const w0 = windowPt(); fx().ring(w0[0], w0[1], [255, 236, 190], M() * 0.25, 2.4, 1.6); }
             sfx(b, 'bell', { soft: true });
           }],
+          [13.8, () => gest('paul', 'reachup')],
+          [14.8, () => pose('timothy', 'carry')],
           // 作无愧的工人：提摩太把火放在灯台上，拿起书卷教导人
           [16.4, b => {
             prop('cell', null, { k2: 0 });
             prop('stand', 'stand', { x: X.stand, v: PV('stand'), label: '灯台' });
             walk('timothy', xo(X.stand, -9), { speed: 0.012, pose: 'stand' }); face('timothy', 1);
           }],
+          [18, () => gest('timothy', 'give')],
           [18.6, b => {
             S.fireAt = 'stand';
             S.timScroll = 1;
-            walk('timothy', X.timTeach, { speed: 0.01, pose: 'carry' });
+            walk('timothy', X.timTeach, { speed: 0.01, pose: 'read' });
             church().forEach(id => { face(id, -1); pose(id, 'sit'); });
             sfx(b, 'fire', { soft: true });
           }],
-          [21.2, () => { face('timothy', 1); pose('timothy', 'point'); }],
+          // 按着正意分解真理的道：他转向众人讲论，众人点头
+          [21.2, () => { face('timothy', 1); pose('timothy', 'teach'); }],
+          [21.5, () => say('timothy', 4.2, { how: 'teach' })],
+          [23, () => stir(church(), 'nod', { spread: 1.4, share: 0.5 })],
+          [24.2, () => pose('paul', 'write')],
         ]);
       },
     },
@@ -1933,12 +2089,19 @@
             face('timothy', -1); pose('timothy', 'carry');
             sfx(b, 'harp', { soft: true });
           }],
+          // 外祖母罗以教孩子读经，母亲友妮基也对他说；孩子听了一个，又转向另一个，点头
+          [1.4, () => say('lois', 4.2, { how: 'teach', to: 'child' })],
           [3.6, () => { face('child', -1); }],
+          [5.2, () => gest('child', 'nod')],
+          [6.2, () => say('eunice', 2.6, { to: 'child' })],
+          [7.4, () => gest('timothy', 'bowhead')],
+          [8.6, () => gest('child', 'nod')],
           // 神所默示：一口气自天吹过，所有的书卷都亮了
           [9.8, b => {
             efx(b, { type: 'breath', dur: 5.5 });
             sfx(b, 'wind', { soft: true });
           }],
+          [10.4, () => gest('lois', 'reachup')],
           [11.4, b => {
             W.set('pstScroll', 1, b.instant);
             flashW(b, 0.2);
@@ -1950,14 +2113,22 @@
               const k = handOf('child'); if (k) fx().sparkle(k[0], k[1], 14, [255, 232, 170], 10 * SU(), 'top');
             }
           }],
-          // 叫属神的人得以完全，预备行各样的善事
+          // 提摩太展开发光的书卷，转向众人讲论（于教训、督责、使人归正……）；众人点头
+          [11.8, () => pose('timothy', 'read')],
+          [12.4, () => stir(church(), 'startle', { spread: 0.8, share: 0.4 })],
+          [13.6, () => { pose('timothy', 'teach'); face('timothy', 1); }],
+          [13.9, () => say('timothy', 2.8, { how: 'teach' })],
+          [15.2, () => stir(church(), 'nod', { spread: 1, share: 0.6 })],
+          // 叫属神的人得以完全，预备行各样的善事：众人先后站起来
           [17.8, b => {
             unprop('vision');
             rm('lois'); rm('child'); rm('eunice'); S.child = 0;
             pose('timothy', 'raise'); glow('timothy', 0.62);
-            church().forEach(id => { pose(id, 'stand'); face(id, -1); });
+            church().forEach(id => face(id, -1));
           }],
-          [22.4, () => { pose('timothy', 'carry'); face('timothy', 1); }],
+          ...seq(18, 0.3, church(), id => pose(id, 'stand')),
+          [20.2, () => stir(church(), 'bowhead', { spread: 1.2, share: 0.5 })],
+          [22.2, () => { pose('timothy', 'carry'); face('timothy', 1); }],
         ]);
       },
     },
@@ -1968,7 +2139,7 @@
       verse: [
         { text: '我初次申诉，没有人前来帮助，竟都离弃我；但愿这罪不归与他们。', ref: '提摩太后书 4:16', hold: 6.5 },
         { text: '惟有主站在我旁边，加给我力量，使福音被我尽都传明，叫外邦人都听见；<br>我也从狮子口里被救出来。', ref: '提摩太后书 4:17', hold: 7.5 },
-        { text: '主必救我脱离诸般的凶恶，也必救我进他的天国。<br>愿荣耀归给他，直到永永远远。阿们。', ref: '提摩太后书 4:18', hold: 6.5 },
+        { text: '主必救我脱离诸般的凶恶，也必救我进他的天国。<br>愿荣耀归给他，直到永永远远。阿们。', ref: '提摩太后书 4:18', hold: 6.5, who: 'paul', how: 'calm' },
       ],
       apply(c) {
         T(c, [
@@ -1988,7 +2159,10 @@
             attach('paul', null);
             walk('paul', X.paulT, { speed: 0.026, pose: 'stand' });
           }],
-          // 竟都离弃我：同伴背过身去，离开审判座，经过监外往树那边走，不见了（一片冷跟着他们）
+          // 官长坐在审判座上，高声问他
+          [2.6, () => say('judge', 2.4, { how: 'proclaim', to: 'paul' })],
+          // 竟都离弃我：同伴摆摆手，背过身去，离开审判座，经过监外往树那边走，不见了（一片冷跟着他们）
+          [3.4, () => stir(['demas', 'comp'], 'refuse', { spread: 0.6 })],
           [4.4, b => {
             for (const id of ['demas', 'comp']) {
               const f = fig(id), to = X[id + 'Go'];
@@ -1996,22 +2170,30 @@
               efx(b, { type: 'depart', id, dur: 4.6 });
             }
           }],
+          // 他四下张望：没有人前来帮助；官长指着他
+          [5.8, () => gest('paul', 'lookaround')],
+          [6.6, () => gest('judge', 'point')],
           [7.7, () => { rm('demas'); rm('comp'); }],
           [7.4, () => { face('paul', 1); }],
-          // 惟有主站在我旁边
+          // 惟有主站在我旁边：官长与兵都一惊
           [8, b => {
             W.set('pstBeside', 1, b.instant);
             glow('paul', 0.62);
             flashW(b, 0.2);
             sfx(b, 'angel');
           }],
+          [8.4, () => stir(['judge', 'guard'], 'startle', { spread: 0.4 })],
           [9.6, b => { pose('paul', 'raise'); ringOn(b, 'paul', 0.24, [255, 244, 220], 0.6); }],
+          // 使福音被我尽都传明：他放下手，向官长高声讲明
+          [10.8, () => { pose('paul', 'stand'); face('paul', 1); }],
+          [11.1, () => say('paul', 3.6, { how: 'proclaim', to: 'judge' })],
           // 叫外邦人都听见：远近的光一齐一亮
           [12.4, b => {
-            pose('paul', 'stand');
             if (!b.instant && fx()) { const h = figPt('paul', 0.6, 0); if (h) fx().ring(h[0], h[1], [255, 236, 196], M() * 0.55, 3.2, 2); }
             sfx(b, 'stars');
           }],
+          // 我也从狮子口里被救出来：他举手向天
+          [14.8, () => pose('paul', 'lift')],
           // 审判座退去；他回到监里，那光仍在他旁边
           [16.8, b => {
             unprop('dais'); rm('judge');
@@ -2020,6 +2202,8 @@
             walk('guard', X.guard, { speed: 0.012 });
           }],
           [22.4, () => { prop('cell', null, { open: 0 }); pose('paul', 'seat'); face('paul', 1); }],
+          // 阿们
+          [23.4, () => gest('paul', 'nod')],
         ]);
       },
     },
@@ -2028,21 +2212,23 @@
     {
       kind: 'promise', utter: '也赐给凡爱慕他显现的人', cmd: 'finish 仗 路 道 && award 冠冕 --to 凡爱慕他显现的人', ref: '提摩太后书 4:8',
       verse: [
-        { text: '我现在被浇奠，我离世的时候到了。<br>那美好的仗我已经打过了，当跑的路我已经跑尽了，所信的道我已经守住了。', ref: '提摩太后书 4:6–7', hold: 8.5 },
+        { text: '我现在被浇奠，我离世的时候到了。<br>那美好的仗我已经打过了，当跑的路我已经跑尽了，所信的道我已经守住了。', ref: '提摩太后书 4:6–7', hold: 8.5, talk: [['paul', 0.28, 0.98, 'calm']] },
         { text: '从此以后，有公义的冠冕为我存留，就是按着公义审判的主到了那日要赐给我的；<br>不但赐给我，也赐给凡爱慕他显现的人。', ref: '提摩太后书 4:8', hold: 8.5 },
-        { text: '愿主与你的灵同在！愿恩惠常与你们同在！', ref: '提摩太后书 4:22', hold: 5.5 },
+        { text: '愿主与你的灵同在！愿恩惠常与你们同在！', ref: '提摩太后书 4:22', hold: 5.5, talk: [['paul', 0.02, 0.48, 'proclaim', 'timothy'], ['paul', 0.52, 0.98, 'proclaim']] },
       ],
       apply(c) {
         const ids = () => ['timothy'].concat(church());
         T(c, [
-          // 被浇奠：一股光自上浇下；锁链脱落，门开了
+          // 被浇奠：一股光自上浇下，他低下头；锁链脱落，门开了
           [0, b => {
             W.goTo(0.742, 12, b.instant);
             efx(b, { type: 'pour', id: 'paul', dur: 4.5 });
             sfx(b, 'harp', { soft: true });
           }],
+          [0.8, () => gest('paul', 'bowhead', { dur: 2.2 })],
           [2.2, b => { S.chain = 0; prop('cell', null, { open: 1 }); sfx(b, 'chains'); sfx(b, 'gate', { soft: true }); pose('paul', 'stand'); face('guard', 1); }],
-          // 当跑的路：老保罗拄杖沿着金色的路走到尽头
+          [2.6, () => gest('guard', 'startle')],
+          // 当跑的路：老保罗拄杖沿着金色的路走到尽头；以弗所的人望着他
           [3.2, b => {
             attach('paul', null);
             prop('road', null, { k: 1 });
@@ -2050,6 +2236,10 @@
             walk('guard', roomX(0.8), { speed: 0.012 }); onFloor('guard');
             ids().forEach(id => { face(id, -1); pose(id, 'stand'); });
           }],
+          // 我离世的时候到了：提摩太低头叹息，众人也低下头
+          [5.6, () => gest('timothy', 'sigh')],
+          [7.4, () => stir(church(), 'bowhead', { spread: 1.2, share: 0.6 })],
+          [8.6, () => gest('timothy', 'bowhead')],
           // 公义的冠冕：在他旁边的光归入天地之间的那道光；一圈光自天落在他头上
           [10.2, b => {
             W.set('pstBeam', 0.9, b.instant);
@@ -2058,21 +2248,27 @@
             W.set('pstCrown', 1, b.instant);
             sfx(b, 'bell');
           }],
+          [11, () => stir(ids(), 'startle', { spread: 0.8, share: 0.5 })],
           [13.8, b => { pose('paul', 'kneel'); ringOn(b, 'paul', 0.2, [255, 232, 170], 0.7); }],
-          // 也赐给凡爱慕他显现的人
+          // 也赐给凡爱慕他显现的人：众人先后跪下，向天伸手
           [15.6, b => {
             W.set('pstCrowns', 1, b.instant);
-            ids().forEach(id => pose(id, 'kneel'));
             sfx(b, 'sing', { soft: true });
           }],
-          // 愿主与你的灵同在！愿恩惠常与你们同在！
+          ...seq(15.8, 0.3, ids(), id => pose(id, 'kneel')),
+          [17.8, () => stir(ids(), 'reachup', { spread: 1, share: 0.6 })],
+          // 愿主与你的灵同在！保罗站起来为提摩太祝福；愿恩惠常与你们同在！
           [19.8, b => {
+            pose('paul', 'bless'); face('paul', 1);
             pose('timothy', 'raise');
             W.set('bloom', 1, b.instant);
             if (!b.instant && fx()) fx().ring(X.land * W.w, landY() - 20 * LS(2), [255, 236, 190], Math.max(W.w, W.h) * 0.8, 4, 2.4);
             sfx(b, 'harp');
           }],
+          [22.4, () => stir(church(), 'nod', { spread: 1, share: 0.7 })],
           [23.5, b => { W.set('pstBeam', 0.4, b.instant); pose('timothy', 'stand'); }],
+          ...seq(23.8, 0.3, church(), id => pose(id, 'stand')),
+          [25.4, () => pose('paul', 'stand')],
         ]);
       },
     },

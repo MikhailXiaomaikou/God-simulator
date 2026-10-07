@@ -172,6 +172,13 @@
   // 一群人前后错开（v0..v1，按次序，不随机）
   function crowdV(gid, v0, v1) { const c = C(); const g = c && c.crowds && c.crowds.get ? c.crowds.get(gid) : null; if (g) g.members.forEach((m, i) => { m.v = lerp(v0, v1, (i * 0.618) % 1); }); }
   function crowdFace(gid, d) { const c = C(); const g = c && c.crowds && c.crowds.get ? c.crowds.get(gid) : null; if (g) g.members.forEach(m => { if (!m.tx) { m.facing = d; if (W.replaying) m.fd = d; } }); }
+  // 演技（新约各幕）：说话、手势、众人先后转向、先后反应（重演时引擎自己略过，或立即到位）
+  function say(id, sec, o) { const c = C(); if (c.speak && has(id)) c.speak(id, sec, o); }
+  function gest(id, kind, o) { const c = C(); if (c.gesture && has(id)) c.gesture(id, kind, o); }
+  function heed(ids, target, o) { const c = C(); if (c.attend) c.attend(ids, target, o); }
+  function stir(ids, kind, o) { const c = C(); if (c.react) c.react(ids, kind, o); }
+  // 几个人先后做同一件事：自 t0 秒起，每人相差 gap 秒（返回若干拍，接在时间线里）
+  const seq = (t0, gap, ids, fn) => ids.map((id, i) => [t0 + i * gap, b => fn(id, b, i)]);
 
   // 在近地纵深里前后缓缓移动（v）：看时缓缓地走过去，重演时立即到位
   const VT = new Map();
@@ -1486,16 +1493,24 @@
         { text: '他按自己的旨意，用真道生了我们，<br>叫我们在他所造的万物中好像初熟的果子。', ref: '雅各书 1:18', hold: 6.5 },
       ],
       apply(c) {
+        const up = present().filter(id => id !== 'poor' && id !== 'widow' && id !== 'orphan');
         T(c, [
           [0, b => {
             W.goTo(0.3, 16, b.instant);
             W.set('lsAbove', 1, b.instant);
-            all(id => { if (id !== 'poor' && id !== 'widow' && id !== 'orphan') pose(id, 'gaze'); });
             sfx(b, 'harp');
           }],
+          // 站着的人先后仰起头来；坐着的孩子、寡妇、穷弟兄向天伸手，接那降下来的恩赐
+          ...seq(0.2, 0.35, up, id => pose(id, 'gaze')),
           [1.2, b => { W.set('lsGifts', 1, b.instant); sfx(b, 'stars', { soft: true }); }],
+          [2.6, () => gest('orphan', 'reachup')],
+          [3.8, () => gest('widow', 'reachup')],
           [5.2, b => { all(id => glow(id, 0.34)); pose('poor', 'sit'); face('poor', 1); sfx(b, 'chime'); }],
+          [6, () => gest('poor', 'reachup')],
+          // 彼得捧手向天祝谢
+          [6.6, () => pose('peter', 'lift')],
           [8.6, b => { const p = abovePt(); ringAt(b, p[0], p[1], 0.22, [255, 244, 214], 2.6, 1.6); sfx(b, 'bell', { soft: true }); }],
+          [9.4, () => stir(present(), 'nod', { spread: 1.2, share: 0.4 })],
           // 初熟的果子：花开了，鸟醒了
           [11, b => {
             W.set('bloom', 0.2, b.instant); W.set('herbs', 0.28, b.instant);
@@ -1504,7 +1519,11 @@
             face('hearer', 1); face('peter', -1); face('doer', -1); face('farmer', -1);
             sfx(b, 'bird', { soft: true });
           }],
+          // 农夫弯下腰去看田里初熟的果子
+          [12.2, () => pose('farmer', 'stoop')],
+          [13.4, () => gest('hearer', 'nod')],
           [14.6, b => W.set('lsAbove', 0.18, b.instant)],
+          [15.6, () => pose('farmer', 'stand')],
         ]);
       },
     },
@@ -1520,7 +1539,7 @@
       ],
       apply(c) {
         T(c, [
-          // 听道的人举起一面镜子，看自己
+          // 听道的人举起一面镜子，看自己，点点头
           [0, b => {
             W.goTo(0.335, 24, b.instant);
             W.set('lsAbove', 0, b.instant);
@@ -1528,24 +1547,36 @@
             W.set('lsMirror', 1, b.instant);
             sfx(b, 'chime', { soft: true });
           }],
-          // 看见，走后，随即忘了：他放下镜子，往左走过穷弟兄身边
+          [1.6, () => gest('hearer', 'nod')],
+          [3.4, () => gest('hearer', 'nod', { dur: 1 })],
+          // 看见，走后，随即忘了：他放下镜子，往左走过穷弟兄身边；穷弟兄向他仰面伸手，他没有停下
           [5.5, b => {
             W.set('lsMirror', 0, b.instant);
             goT('hearer', Pk('hearerAway'), 5, { pose: 'stand' });
             glow('hearer', 0.14);
           }],
+          [7.4, () => { face('poor', 'hearer'); pose('poor', 'beg'); }],
           [11, b => { face('hearer', -1); }],
-          // 看顾孤儿寡妇：彼得提一罐水过去
+          [10.2, () => pose('poor', 'sit')],
+          [10.6, () => gest('poor', 'sigh')],
+          // 看顾孤儿寡妇：彼得提一罐水过去，捧给寡妇；摸摸孩子
           [9.8, b => { hold('peter', 'jar'); go('peter', Pk('peterW'), { speed: 0.03, pose: 'stand' }); }],
+          [11.8, () => pose('peter', 'offer')],
           [12.8, b => {
             face('peter', 1); pose('widow', 'stand'); pose('orphan', 'stand'); face('widow', -1); face('orphan', -1);
             hold('peter', 'staff'); hold('widow', 'jar');
+            pose('peter', 'stand');
             glow('widow', 0.36); glow('orphan', 0.34);
             ringOn(b, 'widow', 0.08, [255, 232, 196], 0.5);
             sfx(b, 'pour', { soft: true });
           }],
-          // 神拣选了贫穷人：行道的妇人背着衣食走到穷弟兄那里
+          [13.9, () => gest('peter', 'touch')],
+          [14.8, () => gest('orphan', 'nod')],
+          [15.6, () => gest('widow', 'bowhead')],
+          // 神拣选了贫穷人：行道的妇人背着衣食走到穷弟兄那里，两手捧给他
           [16.4, b => { hold('doer', 'bundle'); goT('doer', Pk('doerP'), 4.4, { pose: 'stand' }); face('poor', 1); }],
+          [17.6, () => heed(['farmer', 'hearer'], 'doer', { spread: 1 })],
+          [20.4, () => pose('doer', 'offer')],
           [21.2, b => {
             face('doer', -1); face('poor', 1);
             hold('doer', null);
@@ -1557,9 +1588,12 @@
             sparkleOn(b, 'poor', 18, [255, 230, 180], 0.6);
             sfx(b, 'harp');
           }],
-          // 信心有了行为，就活了
-          [23.6, b => { sparkleOn(b, 'doer', 12, [255, 236, 196], 0.62); pose('poor', 'raise'); }],
+          [22.2, () => pose('doer', 'stand')],
+          // 信心有了行为，就活了：穷弟兄张开两臂欢喜；听道的人低下头，叹一口气
+          [23.6, b => { sparkleOn(b, 'doer', 12, [255, 236, 196], 0.62); pose('poor', 'rejoice'); }],
+          [25.6, () => gest('hearer', 'bowhead')],
           [26.8, b => { pose('poor', 'stand'); face('hearer', 1); }],
+          [27.8, () => gest('hearer', 'sigh')],
         ]);
       },
     },
@@ -1574,15 +1608,17 @@
       ],
       apply(c) {
         T(c, [
-          // 农夫与听道的人争吵；穷弟兄与行道的妇人往石台那边走开
+          // 农夫与听道的人争吵（舌头说大话）：你一句，我一句，指指点点；穷弟兄与行道的妇人往石台那边走开
           [0, b => {
             W.goTo(0.375, 22, b.instant);
             W.set('gale', 0.35, b.instant);
             face('farmer', 'hearer'); face('hearer', 'farmer');
-            pose('farmer', 'point'); pose('hearer', 'point');
+            pose('farmer', 'stand'); pose('hearer', 'stand');
             go('poor', Pk('pAside'), { speed: 0.03, pose: 'stand' }); go('doer', Pk('dAside'), { speed: 0.03, pose: 'stand' });
             sfx(b, 'crowd', { soft: true });
           }],
+          [0.2, () => say('farmer', 3.4, { how: 'proclaim', to: 'hearer' })],
+          [0.9, () => say('hearer', 3.6, { how: 'proclaim', to: 'farmer' })],
           // 口里的火星落进干草，也随风飞进林子
           [1.4, b => {
             const from = id => () => figPt(id, 0.9);
@@ -1590,20 +1626,36 @@
             trans(b, { type: 'spark', from: from('farmer'), to: firePt(1), dur: 1.7, delay: 0.1 });
             for (let i = 0; i < 3; i++) trans(b, { type: 'spark', from: from(i % 2 ? 'farmer' : 'hearer'), to: grovePt(1 + i * 2), dur: 3.2, delay: 0.2 + i * 0.12 });
           }],
-          [2.6, b => { W.set('lsFire', 1, b.instant); W.set('lsScar', 1, b.instant); sfx(b, 'fire'); }],
+          [1.8, () => gest('farmer', 'point')],
+          [2.6, b => { W.set('lsFire', 1, b.instant); W.set('lsScar', 1, b.instant); sfx(b, 'fire'); gest('hearer', 'refuse'); }],
+          [3.3, () => gest('farmer', 'point')],
+          // 远处的彼得转过身来，望那起火的地方，一惊
+          [3.8, () => { face('peter', -1); gest('peter', 'startle'); }],
           [4.4, b => { W.set('gale', 0.55, b.instant); face('poor', X.fire1); face('doer', X.fire1); }],
+          [4.8, () => stir(['poor', 'doer'], 'startle', { spread: 0.5 })],
+          [5.4, () => pose('doer', 'recoil')],
+          // 二人这才看见火：一惊
+          [5.8, () => { face('farmer', X.fire1); face('hearer', X.fire1); stir(['farmer', 'hearer'], 'startle', { spread: 0.4 }); }],
           // 从上头来的智慧：柔光降下，火灭了
           [7.8, b => { W.set('lsWisdom', 1, b.instant); W.set('gale', 0.12, b.instant); sfx(b, 'harp'); }],
+          [8.4, () => pose('doer', 'stand')],
           [9.6, b => {
             W.set('lsFire', 0, b.instant); W.set('lsSteam', 1, b.instant);
             pose('farmer', 'stand'); pose('hearer', 'bow');
             sfx(b, 'rain', { soft: true });
           }],
+          // 温良柔顺，满有怜悯：农夫转过来，叹一口气，伸手摸摸低头的那人；二人相拥
+          [10.6, () => { face('farmer', 'hearer'); gest('farmer', 'sigh'); }],
+          [11.6, () => gest('farmer', 'touch')],
           [12.6, b => { embrace('farmer', 'hearer'); glow('farmer', 0.4); glow('hearer', 0.36); sfx(b, 'harp', { soft: true }); }],
           [14.6, b => W.set('lsSteam', 0, b.instant)],
-          // 用和平所栽种的义果
+          [15, () => stir(['poor', 'doer'], 'nod', { spread: 0.8 })],
+          // 用和平所栽种的义果：二人松开手，众人转身望那棵小树；妇人指着树上的果子
           [17, b => { W.set('lsPeace', 1, b.instant); W.set('gale', 0, b.instant); sfx(b, 'chime'); }],
+          [18.4, () => { pose('farmer', 'stand'); pose('hearer', 'stand'); heed(['farmer', 'hearer', 'poor', 'doer'], Pk('ptree')[0], { spread: 0.8 }); }],
+          [20, () => gest('doer', 'point')],
           [21.4, b => { W.set('lsWisdom', 0, b.instant); const G = ptreeG(); sparkleAt(b, G.x, G.y - 26 * G.s, 16, [255, 226, 150], 12); }],
+          [21.8, () => stir(['farmer', 'hearer'], 'nod', { spread: 0.6 })],
         ]);
       },
     },
@@ -1626,20 +1678,26 @@
             hold('widow', null);
             sfx(b, 'crowd', { soft: true });
           }],
-          // 神就必亲近你们：光自天顶降下
+          // 神就必亲近你们：光自天顶降下；众人一惊
           [2.6, b => { W.set('lsNear', 1, b.instant); W.set('lsNearY', 1, b.instant); sfx(b, 'angel', { soft: true }); }],
-          [6.4, b => { faceSite(); all(id => pose(id, 'gaze')); }],
-          // 赐恩给谦卑的人：跪下
-          [8.8, b => { all(id => { pose(id, id === 'orphan' ? 'kneel' : 'pray'); glow(id, 0.34); }); sfx(b, 'bell', { soft: true }); }],
+          [3.4, () => stir(present(), 'startle', { spread: 1, share: 0.4 })],
+          // 心怀二意的人哪，要清洁你们的心：听道的人低头捶胸
+          [5, () => pose('hearer', 'beat')],
+          [6.4, b => { faceSite(); all(id => { if (id !== 'hearer') pose(id, 'gaze'); }); }],
+          // 赐恩给谦卑的人：先后跪下
+          [8.8, b => { all(id => glow(id, 0.34)); sfx(b, 'bell', { soft: true }); }],
+          ...seq(8.8, 0.3, present(), id => pose(id, id === 'orphan' ? 'kneel' : 'pray')),
           [11.6, b => { const p = nearPt(); ringAt(b, p[0], p[1], 0.2, [255, 244, 214], 2.4, 1.6); }],
-          // 主就必叫你们升高
+          [12.4, () => stir(present(), 'bowhead', { spread: 1.4, share: 0.6 })],
+          // 主就必叫你们升高：先后站起来举手；孩子欢喜
           [16.1, b => {
-            all(id => { pose(id, 'raise'); glow(id, 0.44); });
+            all(id => glow(id, 0.44));
             const p = nearPt(); ringAt(b, p[0], p[1], 0.45, [255, 240, 200], 3, 2);
             sparkleAt(b, p[0], p[1], 30, [255, 240, 210], 26);
             sfx(b, 'harp');
           }],
-          [20.4, b => { all(id => pose(id, 'stand')); }],
+          ...seq(16.1, 0.3, present(), id => pose(id, id === 'orphan' ? 'rejoice' : 'raise')),
+          ...seq(20.2, 0.25, present(), id => pose(id, 'stand')),
         ]);
       },
     },
@@ -1661,19 +1719,27 @@
             sfx(b, 'wind', { soft: true });
           }],
           [4.4, b => { face('farmer', -1); pose('farmer', 'sit'); }],
-          // 众人祷告；云聚起来
+          // 忍耐等候：农夫叹一口气；又站起来手搭凉棚，望天上有没有云
+          [6, () => gest('farmer', 'sigh')],
+          [7.4, () => pose('farmer', 'look')],
+          // 众人祷告（先后跪下）；云聚起来
           [8.3, b => {
-            for (const id of ['hearer', 'poor', 'peter', 'doer', 'widow', 'orphan']) pose(id, 'pray');
             W.set('clouds', 0.85, b.instant); W.set('storm', 0.3, b.instant);
             sfx(b, 'wind');
           }],
+          ...seq(8.3, 0.3, ['peter', 'hearer', 'poor', 'doer', 'widow', 'orphan'], id => pose(id, 'pray')),
+          [10.4, () => pose('farmer', 'gaze')],
           [11.6, b => { W.set('rain', 0.75, b.instant); sfx(b, 'rain'); sfx(b, 'thunder', { far: true, soft: true }); }],
-          // 地也生出土产
+          [12.2, () => stir(['hearer', 'poor', 'peter', 'doer', 'widow', 'orphan'], 'startle', { spread: 0.8, share: 0.5 })],
+          // 地也生出土产：农夫弯下腰看那出来的苗
           [13.6, b => {
             W.set('lsSprout', 1, b.instant); W.set('lsScar', 0, b.instant);
             W.set('bare', 0, b.instant); W.set('grass', 0.92, b.instant); W.set('herbs', 0.72, b.instant); W.set('bloom', 0.6, b.instant);
           }],
-          [16.4, b => { pose('farmer', 'raise'); face('farmer', -1); glow('farmer', 0.44); for (const id of ['hearer', 'poor', 'peter', 'doer', 'widow', 'orphan']) pose(id, 'gaze'); }],
+          [14.2, () => pose('farmer', 'stoop')],
+          // 农夫张臂欢喜；众人先后起来仰望
+          [16.4, b => { pose('farmer', 'rejoice'); face('farmer', -1); glow('farmer', 0.44); }],
+          ...seq(16.4, 0.25, ['hearer', 'poor', 'peter', 'doer', 'widow', 'orphan'], id => pose(id, 'gaze')),
           [20.4, b => { W.set('rain', 0, b.instant); W.set('storm', 0, b.instant); W.set('clouds', 0.4, b.instant); }],
           [22.4, b => { all(id => pose(id, 'stand')); W.setPop('bird', 16, W.w * 0.5, W.h * 0.4, b.instant); sfx(b, 'bird', { soft: true }); }],
         ]);
@@ -1684,7 +1750,7 @@
     {
       kind: 'act', utter: '重生了我们，叫我们有活泼的盼望', cmd: 'regenerate --hope 活泼 --seed 不能坏的', ref: '彼得前书 1:3',
       verse: [
-        { text: '愿颂赞归与我们主耶稣基督的父神！他曾照自己的大怜悯，<br>藉耶稣基督从死里复活，重生了我们，叫我们有活泼的盼望。', ref: '彼得前书 1:3', hold: 8 },
+        { text: '愿颂赞归与我们主耶稣基督的父神！他曾照自己的大怜悯，<br>藉耶稣基督从死里复活，重生了我们，叫我们有活泼的盼望。', ref: '彼得前书 1:3', hold: 8, talk: [['peter', 0.02, 0.96, 'proclaim']] },
         { text: '因为凡有血气的，尽都如草；他的美荣都像草上的花。<br>草必枯干，花必凋谢；惟有主的道是永存的。', ref: '彼得前书 1:24–25', hold: 8.5 },
       ],
       apply(c) {
@@ -1697,19 +1763,27 @@
             pose('farmer', 'stand'); face('farmer', -1);
             sfx(b, 'harp', { soft: true });
           }],
-          // 草必枯干，花必凋谢
+          // 愿颂赞归与……父神：彼得捧手向天；众人转过来听他；农夫弯腰看黄熟的庄稼
+          [0.5, () => pose('peter', 'lift')],
+          [1.6, () => heed(['hearer', 'poor', 'doer', 'widow', 'orphan'], 'peter', { spread: 1.4 })],
+          [2.6, () => gest('farmer', 'stoopdown')],
+          [3.8, () => pose('peter', 'stand')],
+          [5.6, () => stir(['hearer', 'poor', 'doer', 'widow', 'orphan'], 'nod', { spread: 1.2, share: 0.6 })],
+          // 草必枯干，花必凋谢：众人先后低下头，叹息
           [9.3, b => {
             W.set('lsWither', 1, b.instant);
             W.set('grass', 0.42, b.instant); W.set('bare', 0.55, b.instant); W.set('bloom', 0.08, b.instant); W.set('herbs', 0.3, b.instant);
-            all(id => pose(id, 'bow'));
             sfx(b, 'wind', { soft: true });
           }],
-          // 惟有主的道是永存的：「道」在田上成形，光的种子落下
+          ...seq(9.3, 0.3, present(), id => pose(id, 'bow')),
+          [11.6, () => stir(present(), 'sigh', { spread: 1.6, share: 0.5 })],
+          // 惟有主的道是永存的：「道」在田上成形，光的种子落下；众人一惊，转向那田
           [16.4, b => {
             const rows = fieldModel(), r = rows[2], xf = lerp(r.a, r.b, 0.5);
             nameAt(b, '道', Math.max(xf, PORT ? 0.4 : 0.56), PORT ? 0.56 : 0.5, { rgb: [255, 238, 190], src: () => [xf * W.w + (Math.random() - 0.5) * 40, baseY(2, xf, r.v) - 10] });
             sfx(b, 'chime');
           }],
+          [16.8, () => { const r = fieldModel()[2]; heed(present(), lerp(r.a, r.b, 0.5), { spread: 0.8 }); stir(present(), 'startle', { spread: 0.8, share: 0.4 }); }],
           [18.4, b => {
             W.set('lsHope', 1, b.instant);
             all(id => { pose(id, 'gaze'); glow(id, 0.42); });
@@ -1725,7 +1799,7 @@
     {
       kind: 'promise', utter: '我把所拣选、所宝贵的房角石安放在锡安', cmd: 'place 房角石 --at 锡安 --chosen --precious', ref: '彼得前书 2:6',
       verse: [
-        { text: '主乃活石，固然是被人所弃的，却是被神所拣选、所宝贵的。', ref: '彼得前书 2:4', hold: 6 },
+        { text: '主乃活石，固然是被人所弃的，却是被神所拣选、所宝贵的。', ref: '彼得前书 2:4', hold: 6, who: 'peter', how: 'teach' },
         { text: '因为经上说：看哪，我把所拣选、所宝贵的房角石安放在锡安；<br>信靠他的人必不至于羞愧。', ref: '彼得前书 2:6', hold: 7.5 },
         { text: '……匠人所弃的石头已作了房角的头块石头。', ref: '彼得前书 2:7', hold: 5.5 },
       ],
@@ -1737,11 +1811,14 @@
             go('farmer', Pk('gFarmer'), { speed: 0.035, pose: 'stand' });
             sfx(b, 'harp', { soft: true });
           }],
-          // 一道光落在被弃的石头上
+          // 一道光落在被弃的石头上；彼得指着它讲论
           [1.2, b => { W.set('lsBeam', 1, b.instant); sfx(b, 'angel', { soft: true }); }],
-          [3.8, b => { const sp = Pk('stone')[0]; all(id => { face(id, sp); pose(id, 'gaze'); }); }],
-          // 它升起来，安放在石台的角上
+          [1.8, () => { face('peter', Pk('stone')[0]); gest('peter', 'point'); }],
+          [3.8, b => { const sp = Pk('stone')[0]; all(id => { face(id, sp); if (id !== 'peter') pose(id, 'gaze'); }); }],
+          [6.4, () => pose('peter', 'gaze')],
+          // 它升起来，安放在石台的角上：众人一惊
           [7.3, b => { W.set('lsLift', 1, b.instant); sfx(b, 'wings', { soft: true }); }],
+          [7.8, () => stir(present(), 'startle', { spread: 0.8, share: 0.5 })],
           [11.9, b => {
             const G = houseG(), R = stoneRect(G, stoneModel().corner);
             ringAt(b, R.cx, R.cy, 0.28, [255, 240, 200], 2.6, 2);
@@ -1749,9 +1826,14 @@
             sfx(b, 'seal');
             nameAt(b, '房角石', X.site - (PORT ? 0.02 : 0.04), PORT ? 0.6 : 0.62, { src: () => [R.cx + (Math.random() - 0.5) * 20, R.cy] });
           }],
+          // 孩子跳起来；众人点头（信靠他的人必不至于羞愧）
+          [12.4, () => gest('orphan', 'leap', { n: 2 })],
+          [13.4, () => stir(present(), 'nod', { spread: 1.2, share: 0.5 })],
           [14.4, b => { W.set('lsBeam', 0.25, b.instant); faceSite(); }],
-          // 匠人所弃的石头作了房角的头块石头：众人俯伏
-          [16.1, b => { all(id => { pose(id, id === 'orphan' ? 'kneel' : 'pray'); glow(id, 0.38); }); sfx(b, 'bell', { soft: true }); }],
+          // 匠人所弃的石头作了房角的头块石头：众人先后俯伏
+          [16.1, b => { all(id => glow(id, 0.38)); sfx(b, 'bell', { soft: true }); }],
+          ...seq(16.1, 0.3, present(), id => pose(id, id === 'orphan' ? 'kneel' : 'pray')),
+          [19.6, () => stir(present(), 'bowhead', { spread: 1.4, share: 0.5 })],
         ]);
       },
     },
@@ -1760,7 +1842,7 @@
     {
       kind: 'call', utter: '你们来到主面前，也就像活石', cmd: 'build 灵宫 --from 活石[] --priests all', ref: '彼得前书 2:5',
       verse: [
-        { text: '你们来到主面前，也就像活石，被建造成为灵宫，<br>作圣洁的祭司，藉着耶稣基督奉献神所悦纳的灵祭。', ref: '彼得前书 2:5', hold: 9 },
+        { text: '你们来到主面前，也就像活石，被建造成为灵宫，<br>作圣洁的祭司，藉着耶稣基督奉献神所悦纳的灵祭。', ref: '彼得前书 2:5', hold: 9, talk: [['peter', 0.02, 0.62, 'proclaim']] },
         { text: '各人要照所得的恩赐彼此服事，作神百般恩赐的好管家。', ref: '彼得前书 4:10', hold: 6.5 },
       ],
       apply(c) {
@@ -1777,17 +1859,21 @@
             all(id => { pose(id, 'stand'); face(id, X.site); });
             sfx(b, 'crowd', { soft: true });
           }],
-          // 每人胸中升起一块光的石头，砌在房角石旁
+          // 每人胸中升起一块光的石头，砌在房角石旁：众人先后举手（彼得一面讲说）
           [1.6, b => {
             W.set('lsBuild', 1, b.instant); W.set('lsHouse', 0.6, b.instant);
-            all(id => pose(id, 'raise'));
             sfx(b, 'build', { soft: true });
           }],
+          ...seq(1.6, 0.3, present().filter(id => id !== 'peter'), id => pose(id, 'raise')),
           [4.6, b => sfx(b, 'build', { soft: true })],
           [6, b => { crowdPose('saints', 'raise'); crowdFace('saints', -1); }],
+          [6.8, () => pose('peter', 'raise')],
           [7.8, b => sfx(b, 'build', { soft: true })],
-          [10.3, b => { all(id => pose(id, id === 'peter' ? 'raise' : 'carry')); sfx(b, 'build', { soft: true }); }],
+          // 各人要照所得的恩赐彼此服事：两手捧出，转向身旁的人
+          [10.3, b => { sfx(b, 'build', { soft: true }); face('doer', 'widow'); face('farmer', 'poor'); face('poor', 'farmer'); }],
+          ...seq(10.3, 0.3, present().filter(id => id !== 'peter'), id => pose(id, 'offer')),
           [13.2, b => sfx(b, 'build', { soft: true })],
+          [13.6, () => stir(present(), 'nod', { spread: 1.2, share: 0.5 })],
           // 山墙
           [15, b => { W.set('lsRoof', 1, b.instant); sfx(b, 'chime'); }],
           // 灵宫立起来
@@ -1815,7 +1901,7 @@
     {
       kind: 'call', utter: '召你们出黑暗入奇妙光明', cmd: 'call --from 黑暗 --to 奇妙光明', ref: '彼得前书 2:9',
       verse: [
-        { text: '惟有你们是被拣选的族类，是有君尊的祭司，是圣洁的国度，是属神的子民，<br>要叫你们宣扬那召你们出黑暗入奇妙光明者的美德。', ref: '彼得前书 2:9', hold: 8.5 },
+        { text: '惟有你们是被拣选的族类，是有君尊的祭司，是圣洁的国度，是属神的子民，<br>要叫你们宣扬那召你们出黑暗入奇妙光明者的美德。', ref: '彼得前书 2:9', hold: 8.5, who: 'peter', how: 'proclaim' },
         { text: '因基督也曾一次为罪受苦，就是义的代替不义的，<br>为要引我们到神面前……', ref: '彼得前书 3:18', hold: 7 },
         { text: '你们从前好像迷路的羊，如今却归到你们灵魂的牧人监督了。', ref: '彼得前书 2:25', hold: 6 },
       ],
@@ -1840,18 +1926,27 @@
             all(id => { pose(id, 'stand'); glow(id, 0.4); });
             sfx(b, 'bleat', { far: true, soft: true });
           }],
+          // 在黑暗里的人四下张望，找不着路
+          [1.6, () => stir(['darkL', 'darkR'], 'lookaround', { spread: 1.4, share: 0.7 })],
           // 灵宫的门开了
           [4.2, b => { W.set('lsDoor', 1, b.instant); sfx(b, 'gate', { soft: true }); }],
-          // 奇妙的光自门里铺开
+          // 奇妙的光自门里铺开：黑暗里的人一惊，转过来望那光；彼得和行道的妇人招呼他们
           [5.6, b => { W.set('lsCall', 1, b.instant); sfx(b, 'harp'); const G = houseG(); ringAt(b, G.cx, G.y - G.doorH * 0.5, 0.6, [255, 236, 190], 4, 1.8); }],
+          [6, () => { stir(['darkL', 'darkR'], 'startle', { spread: 0.8 }); heed(['darkL', 'darkR'], X.site, { spread: 1 }); }],
+          [6.6, () => gest('peter', 'beckon')],
+          [7, () => { face('doer', 1); gest('doer', 'beckon'); }],
           [7.4, b => {
             const c2 = C();
             if (hasCrowd('darkL')) c2.crowdWalk('darkL', X.dLin0, X.dLin1, { speed: 0.03, pose: 'stand' });
             if (hasCrowd('darkR')) c2.crowdWalk('darkR', X.dRin0, X.dRin1, { speed: 0.03, pose: 'stand' });
             sfx(b, 'crowd', { soft: true });
           }],
-          [12.6, b => { crowdGlow('darkL', 0.32); crowdGlow('darkR', 0.32); crowdFace('darkL', 1); crowdFace('darkR', -1); crowdPose('darkL', 'gaze'); crowdPose('darkR', 'gaze'); }],
-          // 迷路的羊归到牧人那里：彼得立在灵宫门旁
+          // 义的代替不义的：众人低下头
+          [10.6, () => stir(present(), 'bowhead', { spread: 1.4, share: 0.5 })],
+          [12.6, b => { crowdGlow('darkL', 0.32); crowdGlow('darkR', 0.32); crowdFace('darkL', 1); crowdFace('darkR', -1); }],
+          // 走到光里的人（到了）仰望
+          [14.6, () => { crowdPose('darkL', 'gaze'); crowdPose('darkR', 'gaze'); }],
+          // 迷路的羊归到牧人那里：彼得立在灵宫门旁，招呼左右的羊
           [16.8, b => {
             go('peter', Pk('door'), { speed: 0.035, pose: 'stand' });
             const c2 = C();
@@ -1860,7 +1955,10 @@
             S.sheep = 1;
             sfx(b, 'bleat', { soft: true });
           }],
+          [19.2, () => { face('peter', -1); gest('peter', 'beckon'); }],
+          [21, () => { face('peter', 1); gest('peter', 'beckon'); }],
           [22.6, b => { face('peter', -1); crowdPose('lostL', 'lie'); crowdPose('lostR', 'lie'); all(id => pose(id, 'stand')); }],
+          [23.4, () => stir(present(), 'nod', { spread: 1, share: 0.5 })],
         ]);
       },
     },
@@ -1869,7 +1967,7 @@
     {
       kind: 'promise', utter: '将一切的忧虑卸给神，因为他顾念你们', cmd: 'mv ~/忧虑/* 神/  # 他顾念你们', ref: '彼得前书 5:7',
       verse: [
-        { text: '亲爱的弟兄啊，有火炼的试验临到你们，不要以为奇怪……<br>倒要欢喜；因为你们是与基督一同受苦……', ref: '彼得前书 4:12–13', hold: 7 },
+        { text: '亲爱的弟兄啊，有火炼的试验临到你们，不要以为奇怪……<br>倒要欢喜；因为你们是与基督一同受苦……', ref: '彼得前书 4:12–13', hold: 7, who: 'peter', how: 'calm' },
         { text: '务要谨守，警醒。因为你们的仇敌魔鬼，如同吼叫的狮子，遍地游行，<br>寻找可吞吃的人。你们要用坚固的信心抵挡他……', ref: '彼得前书 5:8–9', hold: 8 },
         { text: '你们要将一切的忧虑卸给神，因为他顾念你们。', ref: '彼得前书 5:7', hold: 6 },
       ],
@@ -1881,18 +1979,25 @@
             W.set('lsDark', 0.5, b.instant); W.set('lsDoor', 0.45, b.instant); W.set('lsOffer', 0.15, b.instant);
             W.set('lsTrial', 1, b.instant);
             for (const id of ['farmer', 'hearer', 'poor', 'doer', 'widow']) hold(id, 'bundle');
-            all(id => pose(id, id === 'widow' || id === 'orphan' ? 'sit' : 'bow'));
+            // 背着重担的人前屈着身子；寡妇与孩子坐着；彼得站着劝慰他们
+            all(id => pose(id, id === 'widow' || id === 'orphan' ? 'sit' : id === 'peter' ? 'stand' : 'burden'));
             crowdPose('saints', 'bow'); crowdPose('darkL', 'bow'); crowdPose('darkR', 'bow');
             sfx(b, 'fire', { far: true, soft: true });
           }],
-          [3.2, b => sfx(b, 'weep', { soft: true })],
+          [3.2, b => { sfx(b, 'weep', { soft: true }); gest('widow', 'sigh'); }],
+          [4, () => gest('orphan', 'tremble')],
+          // 倒要欢喜：有人抬起头来，点一点头
+          [5.6, () => stir(['farmer', 'hearer', 'poor', 'doer'], 'nod', { spread: 1, share: 0.5 })],
           // 如同吼叫的狮子遍地游行（只在旁白里）：一团冷暗的烟影从田边向众人游过来；低低的一阵冷风
           [8.3, b => {
             W.set('lsLion', 1, b.instant); W.set('lsLionX', 1, b.instant); W.set('lsLionBack', 0, b.instant);
             sfx(b, 'wind', { far: true, low: true });
           }],
+          [8.8, () => stir(present(), 'startle', { spread: 0.8, share: 0.5 })],
+          [9.4, () => pose('orphan', 'cower')],
           [10.2, b => { for (const id of ['farmer', 'hearer', 'poor']) face(id, -1); sfx(b, 'thunder', { far: true, soft: true }); }],
-          // 用坚固的信心抵挡他
+          [10.8, () => stir(present(), 'tremble', { spread: 1, share: 0.5 })],
+          // 用坚固的信心抵挡他：众人站稳；彼得举起手，高声说；众人摆手拒绝那烟影
           [12.4, b => {
             all(id => { pose(id, 'stand'); face(id, -1); glow(id, 0.42); });
             crowdFace('saints', -1); crowdFace('darkL', -1); crowdFace('darkR', -1);
@@ -1904,19 +2009,23 @@
             const lp = lionPt(); ringAt(b, lp[0], lp[1] - PH() * 0.4, 0.1, [230, 236, 255], 1.8, 1.2);
             sfx(b, 'bell', { soft: true });
           }],
+          [12.8, () => say('peter', 3, { how: 'proclaim' })],
+          [13.4, () => stir(['farmer', 'hearer', 'poor', 'doer'], 'refuse', { spread: 0.8, share: 0.7 })],
           [15.4, b => { W.set('lsLion', 0, b.instant); }],
-          // 将一切的忧虑卸给神：重担化作光升上去
+          // 将一切的忧虑卸给神：重担化作光升上去；众人向天伸手，又先后举起手来
           [17.6, b => {
             for (const id of NAMED) hold(id, id === 'peter' ? 'staff' : null);
             W.set('lsCast', 1, b.instant);
             sfx(b, 'harp');
           }],
+          [17.8, () => stir(present().filter(id => id !== 'peter'), 'reachup', { spread: 0.6 })],
           [19.2, b => {
             W.set('lsTrial', 0, b.instant); W.set('lsLion', 0, b.instant);
-            all(id => pose(id, 'raise'));
             crowdPose('saints', 'raise');
             sfx(b, 'wind', { soft: true });
           }],
+          ...seq(19.2, 0.25, present(), id => pose(id, 'raise')),
+          [21.2, () => stir(present(), 'sigh', { spread: 1, share: 0.4 })],
           [22.8, b => {
             all(id => pose(id, 'stand'));
             crowdPose('saints', 'stand');
@@ -1930,8 +2039,8 @@
     {
       kind: 'name', utter: '这是我的爱子，我所喜悦的', cmd: 'voice --from 极大荣光 --on 圣山', ref: '彼得后书 1:17',
       verse: [
-        { text: '……乃是亲眼见过他的威荣。他从父神得尊贵荣耀的时候，<br>从极大荣光之中有声音出来，向他说：「这是我的爱子，我所喜悦的。」', ref: '彼得后书 1:16–17', hold: 9 },
-        { text: '我们并有先知更确的预言，如同灯照在暗处。你们在这预言上留意，<br>直等到天发亮，晨星在你们心里出现的时候，才是好的。', ref: '彼得后书 1:19', hold: 9 },
+        { text: '……乃是亲眼见过他的威荣。他从父神得尊贵荣耀的时候，<br>从极大荣光之中有声音出来，向他说：「这是我的爱子，我所喜悦的。」', ref: '彼得后书 1:16–17', hold: 9, talk: [['peter', 0.02, 0.56, 'proclaim']] },
+        { text: '我们并有先知更确的预言，如同灯照在暗处。你们在这预言上留意，<br>直等到天发亮，晨星在你们心里出现的时候，才是好的。', ref: '彼得后书 1:19', hold: 9, talk: [['peter', 0.02, 0.72, 'teach']] },
       ],
       apply(c) {
         T(c, [
@@ -1946,24 +2055,29 @@
             crowdPose('saints', 'sit'); crowdPose('darkL', 'sit'); crowdPose('darkR', 'sit');
             sfx(b, 'fire', { soft: true });
           }],
-          // 远山上显出圣山的异象
+          // 远山上显出圣山的异象：众人一惊，转过去望
           [1.6, b => {
             W.set('lsHoly', 1, b.instant);
             all(id => face(id, X.holy));
             sfx(b, 'angel');
           }],
-          // 从极大荣光之中有声音出来
+          [2.4, () => stir(['farmer', 'hearer', 'poor', 'doer', 'widow', 'orphan'], 'startle', { spread: 0.8, share: 0.5 })],
+          // 从极大荣光之中有声音出来：众人跪下低头；彼得以臂遮眼（他在山上亲眼见过）
           [5.4, b => {
             const p = holyPt(), h = Math.max(22, M() * 0.05);
             ringAt(b, p[0], p[1] - h, 0.35, [255, 252, 240], 3.2, 2.2);
             flashW(b, 0.18);
             for (const id of ['farmer', 'hearer', 'poor', 'doer']) pose(id, 'kneel');
-            pose('peter', 'gaze');
+            pose('peter', 'shield');
             sfx(b, 'bell');
           }],
+          [6, () => stir(['widow', 'orphan', 'farmer', 'hearer', 'poor', 'doer'], 'bowhead', { spread: 1.2, share: 0.7 })],
+          [7.8, () => pose('peter', 'gaze')],
           [9.4, b => { W.set('lsHoly', 0, b.instant); }],
-          // 如同灯照在暗处
+          // 如同灯照在暗处：彼得举灯转向众人讲说；众人围着灯坐下听
           [10.3, b => { face('peter', -1); pose('peter', 'stand'); ringOn(b, 'peter', 0.12, [255, 200, 130], 1.05); for (const id of ['farmer', 'hearer', 'poor', 'doer', 'widow', 'orphan']) { face(id, Pk('lamp')[0]); pose(id, 'sit'); } }],
+          [11.4, () => heed(['saints', 'darkL', 'darkR'], 'peter', { spread: 1.4 })],
+          [12.8, () => stir(['farmer', 'hearer', 'poor', 'doer', 'widow', 'orphan'], 'nod', { spread: 1.4, share: 0.5 })],
           // 直等到天发亮，晨星在你们心里出现
           [14.6, b => { W.goTo(0.232, 11, b.instant); W.set('lsDark', 0, b.instant); W.set('lsStar', 1, b.instant); sfx(b, 'stars'); }],
           [17, b => {
@@ -1973,6 +2087,7 @@
             crowdPose('saints', 'stand'); crowdPose('darkL', 'stand'); crowdPose('darkR', 'stand');
             sfx(b, 'harp');
           }],
+          [19.2, () => stir(present(), 'nod', { spread: 1, share: 0.5 })],
           [21.4, b => { W.set('lsLamp', 0, b.instant); hold('peter', 'staff'); }],
         ]);
       },
@@ -1983,7 +2098,7 @@
       kind: 'act', utter: '主看一日如千年，千年如一日', cmd: 'sleep 1000y == sleep 1d  # 宽容，不是耽延', ref: '彼得后书 3:8',
       verse: [
         { text: '神也没有宽容上古的世代，曾叫洪水临到那不敬虔的世代，<br>却保护了传义道的挪亚一家八口……', ref: '彼得后书 2:5', hold: 7.5 },
-        { text: '亲爱的弟兄啊，有一件事你们不可忘记，<br>就是主看一日如千年，千年如一日。', ref: '彼得后书 3:8', hold: 6.5 },
+        { text: '亲爱的弟兄啊，有一件事你们不可忘记，<br>就是主看一日如千年，千年如一日。', ref: '彼得后书 3:8', hold: 6.5, who: 'peter', how: 'teach' },
         { text: '主所应许的尚未成就，有人以为他是耽延，其实不是耽延，乃是宽容你们，<br>不愿有一人沉沦，乃愿人人都悔改。', ref: '彼得后书 3:9', hold: 8 },
       ],
       apply(c) {
@@ -1995,17 +2110,28 @@
             all(id => { pose(id, 'stand'); face(id, -1); });
             sfx(b, 'wave', { soft: true });
           }],
+          // 天上方舟的异象：孩子指给人看；寡妇与农夫仰望；彼得点头
+          [1.4, () => gest('orphan', 'point')],
           [2.4, b => sfx(b, 'dove', { soft: true })],
+          [2.8, () => pose('widow', 'gaze')],
+          [3.4, () => pose('farmer', 'gaze')],
+          [5.6, () => gest('peter', 'nod')],
           [7, b => W.set('lsArk', 0, b.instant)],
-          // 一日如千年：日子飞逝，树长大，地返青，灵宫依旧
+          [7.4, () => { pose('widow', 'stand'); pose('farmer', 'stand'); }],
+          // 一日如千年：日子飞逝，树长大，地返青，灵宫依旧（彼得讲说；农夫在田里弯腰，寡妇坐下又起来）
           [8.8, b => {
             W.goTo(0.245, 2.8, b.instant);
             W.set('trees', 0.28, b.instant); W.set('grass', 0.95, b.instant); W.set('bare', 0, b.instant); W.set('bloom', 0.75, b.instant); W.set('herbs', 0.8, b.instant);
             W.set('lsWither', 0, b.instant); W.set('lsGold', 0, b.instant); W.set('lsHope', 0.7, b.instant);
             sfx(b, 'wind', { soft: true });
           }],
+          [9.2, () => heed(['hearer', 'poor', 'doer', 'widow', 'orphan'], 'peter', { spread: 1.2 })],
+          [10, () => pose('farmer', 'stoop')],
           [11.7, b => { W.goTo(0.245, 2.3, b.instant); }],
+          [12.6, () => pose('farmer', 'stand')],
+          [13, () => pose('widow', 'sit')],
           [14.1, b => { W.goTo(0.238, 2.8, b.instant); sfx(b, 'bird', { soft: true }); }],
+          [15.4, () => pose('widow', 'stand')],
           // 乃愿人人都悔改：又有人从远处来
           [16.6, b => {
             const c2 = C(), n = PORT ? 2 : 3;
@@ -2017,7 +2143,13 @@
             all(id => face(id, 1));
             sfx(b, 'crowd', { soft: true });
           }],
+          // 行道的妇人招手迎他们
+          [19.4, () => gest('doer', 'beckon')],
+          // 乃愿人人都悔改：他们跪下，低头捶胸；彼得为他们祝福，众人点头
           [21.2, b => { crowdPose('more', 'kneel'); crowdGlow('more', 0.38); ringAt(b, (X.more0 + X.more1) / 2 * W.w, baseY(2, (X.more0 + X.more1) / 2, X.moreV + 0.03) - PH() * 0.4, 0.12, [255, 236, 196], 2.2, 1.4); sfx(b, 'harp', { soft: true }); }],
+          [22.4, () => stir('more', 'beat', { spread: 1 })],
+          [23.4, () => gest('peter', 'bless')],
+          [24.6, () => stir(present(), 'nod', { spread: 1.2, share: 0.5 })],
         ]);
       },
     },
@@ -2027,7 +2159,7 @@
       kind: 'promise', utter: '新天新地，有义居在其中', cmd: 'await 新天新地  # 有义居在其中', ref: '彼得后书 3:13',
       verse: [
         { text: '但我们照他的应许，盼望新天新地，有义居在其中。', ref: '彼得后书 3:13', hold: 6.5 },
-        { text: '你们却要在我们主救主耶稣基督的恩典和知识上有长进。<br>愿荣耀归给他，从今直到永远。阿们！', ref: '彼得后书 3:18', hold: 8 },
+        { text: '你们却要在我们主救主耶稣基督的恩典和知识上有长进。<br>愿荣耀归给他，从今直到永远。阿们！', ref: '彼得后书 3:18', hold: 8, talk: [['peter', 0.02, 0.48, 'teach'], ['peter', 0.52, 0.96, 'proclaim']] },
       ],
       apply(c) {
         T(c, [
@@ -2036,20 +2168,28 @@
             W.set('lsNew', 1, b.instant); W.set('lsHouse', 1, b.instant); W.set('lsDoor', 0.4, b.instant);
             W.set('bloom', 1, b.instant); W.set('grass', 1, b.instant); W.set('herbs', 0.9, b.instant);
             W.setPop('bird', 22, W.w * 0.6, W.h * 0.3, b.instant);
-            all(id => { face(id, -1); pose(id, 'gaze'); glow(id, 0.48); });
+            all(id => { face(id, -1); glow(id, 0.48); });
             crowdPose('more', 'stand'); crowdFace('more', -1);
             crowdPose('saints', 'gaze'); crowdPose('darkL', 'gaze'); crowdPose('darkR', 'gaze');
             sfx(b, 'harp');
           }],
+          // 东边天际一片新的光：众人先后仰望，有的手搭凉棚远望（盼望）；孩子指着它
+          ...seq(0.1, 0.3, present(), id => pose(id, id === 'hearer' || id === 'doer' ? 'look' : 'gaze')),
           [3, b => { nameAt(b, '新天新地', X.newX, PORT ? 0.5 : 0.36, { rgb: [255, 240, 204], hold: 3.6 }); }],
+          [3.6, () => gest('orphan', 'point')],
+          [5.2, () => stir(present(), 'nod', { spread: 1, share: 0.5 })],
+          // 众人举手；彼得讲说（在恩典和知识上有长进），然后举手颂赞：愿荣耀归给他
           [7.8, b => {
             W.set('lsOffer', 1, b.instant);
-            all(id => pose(id, 'raise'));
+            all(id => pose(id, id === 'peter' ? 'stand' : 'raise'));
             crowdPose('saints', 'raise'); crowdPose('more', 'raise'); crowdPose('darkL', 'raise'); crowdPose('darkR', 'raise');
             const G = houseG(); ringAt(b, G.cx, G.top - G.roofH * 0.3, 0.8, [255, 244, 214], 4, 2.2);
             sfx(b, 'angel');
           }],
-          [13, b => { all(id => pose(id, 'stand')); crowdPose('saints', 'stand'); crowdPose('more', 'stand'); crowdPose('darkL', 'stand'); crowdPose('darkR', 'stand'); sfx(b, 'bird', { soft: true }); }],
+          [11.9, () => pose('peter', 'raise')],
+          // 阿们
+          [14.2, b => { all(id => pose(id, 'stand')); crowdPose('saints', 'stand'); crowdPose('more', 'stand'); crowdPose('darkL', 'stand'); crowdPose('darkR', 'stand'); sfx(b, 'bird', { soft: true }); }],
+          [15.2, () => { stir(present(), 'nod', { spread: 0.8, share: 0.8 }); stir(['saints', 'more', 'darkL', 'darkR'], 'nod', { spread: 1.2, share: 0.6 }); }],
         ]);
       },
     },

@@ -201,6 +201,14 @@
     f.follow = null; f.tx = null; f.fly = null; f.ny = null;
     C().remove(id, now ? { fade: false } : undefined);
   }
+  // 演技（新约各幕）：说话、手势、众人先后转向、先后反应（重演时引擎自己略过，或立即到位）
+  function say(id, sec, o) { const c = C(); if (c.speak && has(id)) c.speak(id, sec, o); }
+  function gest(id, kind, o) { const c = C(); if (c.gesture && has(id)) c.gesture(id, kind, o); }
+  function heed(ids, target, o) { const c = C(); if (c.attend) c.attend(ids, target, o); }
+  function stir(ids, kind, o) { const c = C(); if (c.react) c.react(ids, kind, o); }
+  // 几个人先后做同一件事：自 t0 秒起，每人相差 gap 秒（返回若干拍，接在时间线里）
+  const seq = (t0, gap, ids, fn) => ids.map((id, i) => [t0 + i * gap, b => fn(id, b, i)]);
+  const PRIESTS = ['priest1', 'priest2', 'hp'];
   const each = fn => PIDS.forEach((id, i) => fn(id, i));
   function allPose(p) { each(id => pose(id, p)); }
   function allFace(d) { each(id => face(id, d)); }
@@ -2379,7 +2387,10 @@
             flashW(b, 0.22); ringOn(b, 'jesus', 0.22); sparkleOn(b, 'jesus', 40, [255, 240, 206], 0.6);
             sfx(b, 'chime');
           }],
-          // 常用他权能的命令托住万有：一圈金光扫过全地
+          // 坐在冷影里的人一惊，先后转过来望他
+          [5, () => { stir(PIDS, 'startle', { spread: 1, share: 0.6 }); heed(PIDS, 'jesus', { spread: 1.6 }); }],
+          // 常用他权能的命令托住万有：他举手一命，一圈金光扫过全地
+          [6.8, () => gest('jesus', 'bless')],
           [7.4, b => {
             if (inst(b)) return;
             const h = headOf('jesus', 0.6), R = Math.hypot(W.w, W.h);
@@ -2387,7 +2398,10 @@
             for (const [xf, yf] of [[0.2, 0.8], [0.5, 0.72], [0.8, 0.85], [0.9, 0.7], [0.6, 0.9]]) bless(xf * W.w, yf * W.h, 0.3 * W.w);
             sfx(b, 'harp', { soft: true });
           }],
+          // 你是我的儿子，我今日生你：天上的声音（他仰望父；众人低头）
           [8.6, b => { lv('hbVoice', 1, b); pose('jesus', 'gaze'); sfx(b, 'bell', { soft: true }); }],
+          [9.4, () => stir(PIDS, 'bowhead', { spread: 1.4, share: 0.5 })],
+          [11.6, () => gest('p6', 'point')],
           [13.2, b => lv('hbVoice', 0, b)],
           // 神的使者都要拜他
           [15.6, b => {
@@ -2396,8 +2410,11 @@
             add('angelB', Object.assign({ x: ax[1], v: pv(0.16) }, o));
             sfx(b, 'angel');
           }],
+          [16.4, () => stir(PIDS, 'startle', { spread: 0.8, share: 0.5 })],
           [17.6, b => { pose('angelA', 'bow'); pose('angelB', 'bow'); face('jesus', 1); pose('jesus', 'stand'); }],
+          [18.6, () => stir(PIDS, 'bowhead', { spread: 1.4, share: 0.6 })],
           [20, b => { lv('hbBeam', 0.22, b); face('jesus', -1); }],
+          [20.8, () => gest('jesus', 'nod')],
         ]);
       },
     },
@@ -2406,7 +2423,7 @@
     {
       kind: 'bless', utter: '看哪，我与神所给我的儿女', cmd: 'usermod -aG 弟兄 儿女  # 并不以为耻', ref: '2:13',
       verse: [
-        { text: '所以，他称他们为弟兄也不以为耻，说：<br>我要将你的名传与我的弟兄，在会中我要颂扬你；<br>又说：……看哪，我与神所给我的儿女。', ref: '希伯来书 2:11–13', hold: 8 },
+        { text: '所以，他称他们为弟兄也不以为耻，说：<br>我要将你的名传与我的弟兄，在会中我要颂扬你；<br>又说：……看哪，我与神所给我的儿女。', ref: '希伯来书 2:11–13', hold: 8, talk: [['jesus', 0.2, 0.98, 'proclaim']] },
         { text: '惟独见那成为比天使小一点的耶稣；<br>因为受死的苦，就得了尊贵荣耀为冠冕，<br>叫他因着神的恩，为人人尝了死味。', ref: '希伯来书 2:9', hold: 7.5 },
         { text: '儿女既同有血肉之体，他也照样亲自成了血肉之体，<br>特要藉着死败坏那掌死权的，就是魔鬼，<br>并要释放那些一生因怕死而为奴仆的人。', ref: '希伯来书 2:14–15', hold: 8 },
       ],
@@ -2422,29 +2439,41 @@
           [0.8, () => { walk('jesus', X.jmid, { speed: 0.032 }); sink('jesus', pv(0.56)); }],
           [2.6, () => { rm('angelA'); rm('angelB'); }],
           [3.2, () => { face('p4', 1); face('p5', -1); face('p6', 1); face('p3', 1); pose('p2', 'sit'); face('p2', 1); }],
+          // 在会中我要颂扬你：他举起手来
           [4.2, b => { face('jesus', -1); pose('jesus', 'raise'); sfx(b, 'harp', { soft: true }); }],
-          [7.5, () => { face('jesus', 1); }],
+          // 看哪，我与神所给我的儿女：他转向那孩子，伸手；孩子抬起头来望他
+          [6.4, () => { face('jesus', 'p6'); pose('jesus', 'reach'); }],
+          [6.9, () => { face('p6', 'jesus'); gest('p6', 'startle'); }],
+          [8.2, () => pose('jesus', 'stand')],
           // 为人人尝了死味：他俯伏在地，冷影合拢在他身上，他的光低下去，几乎熄灭
           [9.4, b => {
             pose('jesus', 'fall'); glow('jesus', 0.04); lv('hbRadiance', 0, b); lv('hbDeath', 1, b);
             W.set('gloom', 0.5, inst(b));
             sfx(b, 'wind', { soft: true, low: true });
           }],
-          // 又站起来：光与光圈把冷影赶散
+          [10.2, () => stir(PIDS, 'startle', { spread: 0.8, share: 0.6 })],
+          [11.6, () => stir(PIDS, 'bowhead', { spread: 1.4, share: 0.7 })],
+          // 又站起来：光与光圈把冷影赶散；众人一惊，转过来望他
           [13.8, b => {
             W.set('gloom', 0, inst(b)); lv('hbDeath', 0, b); W.goTo(0.36, 8, inst(b));
             pose('jesus', 'stand'); glow('jesus', 0.62); lv('hbRadiance', 1, b);
             flashW(b, 0.3); ringOn(b, 'jesus', 0.3); ringOn(b, 'jesus', 0.16, [255, 248, 226]); sparkleOn(b, 'jesus', 44, [255, 240, 206], 0.5);
             sfx(b, 'harp');
           }],
-          // 释放那些一生因怕死而为奴仆的人：冷影退散，众人站起来
+          [14.4, () => { stir(PIDS, 'startle', { spread: 0.6 }); heed(PIDS, 'jesus', { spread: 1 }); }],
+          // 释放那些一生因怕死而为奴仆的人：冷影退散；他伸手拉起近旁的老人，又招呼众人起来
           [18.2, b => { lv('hbShadow', 0, b); sfx(b, 'chains', { soft: true }); sfx(b, 'wind', { soft: true }); }],
+          [18.4, () => { face('jesus', 'p4'); pose('jesus', 'reach'); }],
           [18.9, () => { pose('p4', 'stand'); glow('p4', 0.26); }],
           [19.4, () => { pose('p2', 'stand'); glow('p2', 0.26); }],
-          [19.9, () => { pose('p5', 'stand'); glow('p5', 0.26); }],
+          [19.7, () => { pose('jesus', 'stand'); face('jesus', 'p1'); }],
+          [19.9, () => { pose('p5', 'stand'); glow('p5', 0.26); gest('jesus', 'beckon'); }],
           [20.4, () => { pose('p1', 'stand'); glow('p1', 0.26); pose('p3', 'stand'); glow('p3', 0.26); }],
           [20.9, () => { pose('p6', 'stand'); glow('p6', 0.26); }],
-          [22.6, b => { peopleFace('jesus'); each(id => pose(id, 'raise')); PIDS.forEach(id => sparkleOn(b, id, 10, [255, 236, 190], 0.6)); sfx(b, 'crowd', { soft: true }); }],
+          // 众人围着他举手；那孩子欢喜跳跃；他为他们祝福
+          [22.6, b => { peopleFace('jesus'); PIDS.forEach(id => sparkleOn(b, id, 10, [255, 236, 190], 0.6)); sfx(b, 'crowd', { soft: true }); }],
+          ...seq(22.7, 0.25, PIDS, id => pose(id, id === 'p6' ? 'rejoice' : 'raise')),
+          [23.6, () => gest('jesus', 'bless')],
           [25.8, () => { allPose('stand'); face('jesus', -1); }],
         ]);
       },
@@ -2467,8 +2496,14 @@
             W.set('bare', 0.72, inst(b)); W.set('grass', 0.42, inst(b)); W.set('herbs', 0.3, inst(b)); W.set('bloom', 0.05, inst(b));
             W.goTo(0.44, 12, inst(b)); sfx(b, 'wind');
           }],
+          // 风沙里有人以臂遮眼；硬着心的人背过身去，摆手不听
+          [0.8, () => pose('p2', 'shield')],
           [1.6, () => { face('p1', -1); face('p5', 1); face('p3', -1); pose('p4', 'bow'); }],
+          [2.6, () => stir(['p1', 'p3', 'p5'], 'refuse', { spread: 1 })],
           [3.8, b => W.set('gale', 0.16, inst(b))],
+          [4.4, () => pose('p2', 'stand')],
+          // 像在旷野惹他发怒、试探他的时候一样：他叹息
+          [5.6, () => gest('jesus', 'sigh')],
           // 今日：地又青了，安息的金光落下，众人坐下安歇
           [8.4, b => {
             lv('hbWild', 0, b); W.set('gale', 0, inst(b));
@@ -2476,16 +2511,22 @@
             lv('hbRest', 1, b); sfx(b, 'harp', { soft: true });
             if (!inst(b)) bless(X.jmid * W.w, fY(X.jmid, pv(0.2)), 0.35 * W.w);
           }],
-          [9.4, () => { peopleFace('jesus'); pose('p4', 'stand'); }],
-          [10.4, () => each(id => pose(id, 'sit'))],
+          [9.4, () => { heed(PIDS, 'jesus', { spread: 1 }); pose('p4', 'stand'); }],
+          ...seq(10.2, 0.3, PIDS, id => pose(id, 'sit')),
           [11.6, () => pose('jesus', 'sit')],
+          // 歇了自己的工：众人松一口气
+          [13.4, () => stir(PIDS, 'sigh', { spread: 1.6, share: 0.6 })],
           // 神的道：一道光如两刃的剑掠过全地；各人心里一点光
           [17.2, b => {
             flash(b, { type: 'sweep', dur: 1.7 });
             PIDS.forEach((id, i) => flash(b, { type: 'heart', id, t: -(0.5 + i * 0.12), dur: 1.6 }));
             lv('hbRest', 0.4, b); sfx(b, 'whisper'); sfx(b, 'chime', { soft: true });
           }],
+          [17.6, () => stir(PIDS, 'startle', { spread: 0.8, share: 0.7 })],
+          // 他站起来讲论；连心中的思念和主意都能辨明——众人低下头
           [19.2, () => pose('jesus', 'stand')],
+          [19.8, () => { pose('jesus', 'teach'); say('jesus', 3.8, { how: 'teach' }); }],
+          [21.4, () => stir(PIDS, 'bowhead', { spread: 1.4, share: 0.6 })],
         ]);
       },
     },
@@ -2501,15 +2542,19 @@
       apply(c) {
         layout();
         T(c, [
-          [0, b => { W.goTo(0.44, 10, inst(b)); W.set('moon', 0, inst(b)); lv('hbRest', 0, b); walk('jesus', X.asc, { speed: 0.03 }); sink('jesus', pv(0.1)); each(id => pose(id, 'stand')); }],
-          [3.6, b => { face('jesus', -1); pose('jesus', 'raise'); peopleFace('jesus'); lv('hbCloud', 1, b); sfx(b, 'harp', { soft: true }); }],
-          // 升入高天：一朵光明的云把他接去
+          [0, b => { W.goTo(0.44, 10, inst(b)); W.set('moon', 0, inst(b)); lv('hbRest', 0, b); walk('jesus', X.asc, { speed: 0.03 }); sink('jesus', pv(0.1)); }],
+          ...seq(0.3, 0.3, PIDS, id => pose(id, 'stand')),
+          // 他举手为他们祝福（路 24:50–51）；众人低头领受
+          [3.6, b => { face('jesus', -1); pose('jesus', 'bless'); peopleFace('jesus'); lv('hbCloud', 1, b); sfx(b, 'harp', { soft: true }); }],
+          [4.2, () => stir(PIDS, 'bowhead', { spread: 0.8, share: 0.7 })],
+          // 升入高天：一朵光明的云把他接去；众人仰望，有的手搭凉棚
           [5, b => {
             const cy = cloudPos()[1] / W.h + (PORT ? 0.03 : 0.035);
-            fly('jesus', X.asc, cy, { dur: 4.6, pose: 'raise' });
-            each(id => pose(id, 'gaze'));
+            fly('jesus', X.asc, cy, { dur: 4.6, pose: 'bless' });
             sfx(b, 'angel', { soft: true });
           }],
+          ...seq(5.4, 0.3, PIDS, (id, b, i) => pose(id, i === 1 || i === 4 ? 'look' : 'gaze')),
+          [7.4, () => gest('p6', 'reachup')],
           [9.8, b => { rm('jesus'); lv('hbCloudUp', 1, b); lv('hbHeaven', 1, b); sfx(b, 'harp'); }],
           // 父的声音：天上的圣所里光一亮
           [12.4, b => {
@@ -2517,14 +2562,17 @@
             if (!inst(b)) { const H = heaven(); ringAt(b, H.mx, H.y, M() * 0.3, [255, 236, 190], 3, 1.6); flashW(b, 0.12); }
             sfx(b, 'bell', { soft: true });
           }],
+          [13, () => stir(PIDS, 'startle', { spread: 0.8, share: 0.4 })],
+          ...seq(15.2, 0.3, PIDS, id => pose(id, 'stand')),
           [16, b => lv('hbCloud', 0, b)],
-          // 坦然无惧地来到施恩的宝座前
+          // 坦然无惧地来到施恩的宝座前：为要得怜恤——有的跪着仰面摊手，有的举手
           [18.2, b => {
             lv('hbThrone', 1, b);
-            each((id, i) => walk(id, PXP(XL[id] + 0.03), { speed: 0.02, pose: 'raise' }));
+            each((id, i) => walk(id, PXP(XL[id] + 0.03), { speed: 0.02, pose: 'stand' }));
             sfx(b, 'crowd', { soft: true });
           }],
-          [22.8, () => each((id, i) => pose(id, i % 2 ? 'kneel' : 'raise'))],
+          ...seq(20.6, 0.4, PIDS, (id, b, i) => pose(id, i % 2 ? 'beg' : 'raise')),
+          [23.8, () => stir(PIDS, 'nod', { spread: 1.2, share: 0.4 })],
         ]);
       },
     },
@@ -2545,28 +2593,40 @@
             W.goTo(0.47, 12, inst(b));
             lv('hbBoat', 1, b); lv('hbBoatIn', 1, b); lv('hbToss', 1, b); lv('hbThrone', 0.35, b);
             W.set('gale', 0.62, inst(b)); W.set('storm', 0.28, inst(b)); W.set('clouds', 0.62, inst(b));
-            each(id => pose(id, 'stand'));
             sfx(b, 'wave'); sfx(b, 'wind');
           }],
+          ...seq(0.2, 0.25, PIDS, id => pose(id, 'stand')),
+          // 风浪里：一个以臂遮脸；众人望海上的小船，一个指着它，一个手搭凉棚，一个发抖
+          [1, () => pose('p2', 'shield')],
           [2.4, () => { peopleFace(-1); pose('p1', 'point'); }],
+          [3, () => pose('p3', 'look')],
+          [3.6, () => gest('p5', 'tremble')],
           // 主起了誓
           [4.6, b => {
             lv('hbThrone', 0.8, b);
             if (!inst(b)) { const H = heaven(); ringAt(b, H.mx, H.y, M() * 0.34, [255, 236, 190], 3, 1.8); flashW(b, 0.14); }
             sfx(b, 'seal');
           }],
-          [6, () => pose('p1', 'stand')],
-          // 锚链升起，通入幔内
+          [5, () => stir(PIDS, 'startle', { spread: 0.6, share: 0.5 })],
+          [6, () => { pose('p1', 'stand'); pose('p2', 'stand'); pose('p3', 'stand'); }],
+          // 锚链升起，通入幔内：众人的眼睛随着它往上去
           [8.4, b => { lv('hbAnchor', 1, b); sfx(b, 'chains', { soft: true }); }],
+          ...seq(9.2, 0.35, ['p3', 'p4', 'p6', 'p1'], id => pose(id, 'gaze')),
+          // 又坚固又牢靠
+          [11.6, () => gest('p4', 'nod')],
           [13.3, b => {
             if (!inst(b)) { const H = heaven(); ringAt(b, H.ax, H.ay, M() * 0.16, [255, 240, 200], 2.2, 1.6); sparkleAt(b, H.ax, H.ay, 30, [255, 240, 204], 12, 'top'); }
             sfx(b, 'harp');
           }],
+          // 风浪平息：众人松一口气，转过身来
           [13.8, b => { lv('hbToss', 0, b); W.set('gale', 0, inst(b)); W.set('storm', 0, inst(b)); W.set('clouds', 0.3, inst(b)); }],
-          [15, () => peopleFace(1)],
-          // 替他们祈求：光一粒一粒顺着链子下来
-          [17.2, b => { lv('hbPulse', 1, b); each((id, i) => pose(id, i % 2 ? 'pray' : 'kneel')); sfx(b, 'harp', { soft: true }); }],
-          [22.4, () => allPose('stand')],
+          [14.2, () => stir(PIDS, 'sigh', { spread: 1, share: 0.6 })],
+          ...seq(15, 0.25, PIDS, id => { face(id, 1); pose(id, 'stand'); }),
+          // 替他们祈求：光一粒一粒顺着链子下来；众人先后跪下祷告
+          [17.2, b => { lv('hbPulse', 1, b); sfx(b, 'harp', { soft: true }); }],
+          ...seq(17.3, 0.3, PIDS, (id, b, i) => pose(id, i % 2 ? 'pray' : 'kneel')),
+          [20.4, () => stir(PIDS, 'bowhead', { spread: 1.2, share: 0.5 })],
+          ...seq(22.4, 0.25, PIDS, id => pose(id, 'stand')),
         ]);
       },
     },
@@ -2584,14 +2644,21 @@
         T(c, [
           [0, b => {
             lv('hbAnchorA', 0.3, b); lv('hbPulse', 0, b); lv('hbPattern', 1, b); lv('hbThrone', 0.3, b);
-            W.goTo(0.5, 12, inst(b)); peopleFace(1); sfx(b, 'scroll');
+            W.goTo(0.5, 12, inst(b)); heed(PIDS, X.tab, { spread: 1.2 }); sfx(b, 'scroll');
           }],
-          // 地上照着样式立起帐幕
+          // 地上照着样式立起帐幕：老人手搭凉棚望那天上放下的光线；有人指着立起来的帐幕，孩子拍手
           [1.5, b => { lv('hbTab', 1, b); sfx(b, 'build'); }],
-          [4, b => sfx(b, 'build')],
-          [6.6, b => sfx(b, 'build')],
+          [2.6, () => pose('p4', 'look')],
+          [4, b => { sfx(b, 'build'); stir(PIDS, 'point', { spread: 1.2, share: 0.35 }); }],
+          [6.6, b => { sfx(b, 'build'); gest('p6', 'clap'); }],
+          [7.6, () => pose('p4', 'stand')],
           [9.2, b => { sfx(b, 'build', { soft: true }); lv('hbPattern', 0.25, b); }],
           [9.8, b => { lv('hbLamp', 1, b); lv('hbAltar', 1, b); sfx(b, 'fire', { soft: true }); }],
+          [10.4, () => stir(PIDS, 'nod', { spread: 1.2, share: 0.5 })],
+          // 已经坐在天上至大者宝座的右边：有人仰望天上的圣所
+          [12, () => { pose('p3', 'gaze'); pose('p5', 'gaze'); }],
+          [15.6, () => { pose('p3', 'stand'); pose('p5', 'stand'); }],
+          [17, () => gest('hp', 'bowhead')],
           // 祭司与大祭司
           [11.2, b => {
             // 祭司们在院子的门里显出来
@@ -2606,15 +2673,16 @@
             walk('priest2', (G.x0 + G.cw * 0.12) / W.w, { speed: 0.022 });
             walk('hp', (G.tx0 - 4 * G.s) / W.w, { speed: 0.024 });
           }],
-          // 众祭司常进头一层帐幕
+          // 众祭司常进头一层帐幕，行拜神的礼（一个鞠躬，一个跪下祷告）
           [18.8, () => {
             const G = tabG();
-            walk('priest1', (G.tx0 + G.tl * 0.3) / W.w, { speed: 0.02 }); sink('priest1', 0.01);
-            walk('priest2', (G.tx0 + G.tl * 0.52) / W.w, { speed: 0.02 }); sink('priest2', 0.01);
+            walk('priest1', (G.tx0 + G.tl * 0.3) / W.w, { speed: 0.02, pose: 'bow' }); sink('priest1', 0.01);
+            walk('priest2', (G.tx0 + G.tl * 0.52) / W.w, { speed: 0.02, pose: 'pray' }); sink('priest2', 0.01);
             walk('hp', (G.tv - G.tl * 0.02) / W.w, { speed: 0.024 }); sink('hp', 0.01);
           }],
-          // 大祭司一年一次独自进到幔子后面：香的烟云升起
-          [22.4, b => { const G = tabG(); walk('hp', G.mx / W.w, { speed: 0.02 }); lv('hbIncense', 1, b); sfx(b, 'bell', { soft: true }); }],
+          [21, () => stir(PIDS, 'bowhead', { spread: 1.4, share: 0.5 })],
+          // 大祭司一年一次独自进到幔子后面，两手捧着献上：香的烟云升起
+          [22.4, b => { const G = tabG(); walk('hp', G.mx / W.w, { speed: 0.02, pose: 'offer' }); lv('hbIncense', 1, b); sfx(b, 'bell', { soft: true }); }],
           [25.6, () => { const G = tabG(); walk('hp', (G.tv - G.tl * 0.1) / W.w, { speed: 0.02, pose: 'stand' }); }],
         ]);
       },
@@ -2638,24 +2706,38 @@
             lv('hbCome', 1, b); lv('hbHeaven', 1, b); lv('hbThrone', 0.6, b); lv('hbPattern', 0, b);
             flashW(b, 0.12); sfx(b, 'harp');
           }],
-          [2.2, () => { pose('priest1', 'bow'); pose('priest2', 'bow'); face('priest1', 1); face('priest2', 1); face('hp', 1); pose('hp', 'kneel'); peopleFace(1); }],
+          // 光降下来：祭司们一惊，俯下身去；众人先后转过来望那帐幕
+          [1, () => stir(PRIESTS, 'startle', { spread: 0.6 })],
+          [2.2, () => { pose('priest1', 'bow'); pose('priest2', 'bow'); face('priest1', 1); face('priest2', 1); face('hp', 1); pose('hp', 'kneel'); heed(PIDS, X.tab, { spread: 1.2 }); }],
+          [4.4, () => stir(PIDS, 'bowhead', { spread: 1.2, share: 0.6 })],
           // 献了一次永远的赎罪祭，就在神的右边坐下：坛上的火熄了；光退回天上
           [8.9, b => { lv('hbAltar', 0, b); lv('hbIncense', 0, b); lv('hbCome', 0.3, b); sfx(b, 'bell', { soft: true }); }],
-          // 幔子从上到下裂开
+          // 祭司抬头四下看那熄了的火；大祭司低头
+          [9.6, () => gest('priest1', 'lookaround')],
+          [11, () => gest('hp', 'bowhead')],
+          [12.4, () => stir(PIDS, 'nod', { spread: 1, share: 0.4 })],
+          // 幔子从上到下裂开：祭司惊退；荣光涌出，众人以臂遮眼
           [15.7, b => {
             lv('hbTear', 1, b); lv('hbGlory', 1, b); lv('hbHVeil', 1, b);
             shake(b, 0.35); flashW(b, 0.18); sfx(b, 'quake', { soft: true }); sfx(b, 'wind', { soft: true });
           }],
+          [15.9, () => { pose('priest1', 'recoil'); pose('priest2', 'recoil'); stir(PIDS, 'startle', { spread: 0.6 }); }],
+          ...seq(16.3, 0.25, PIDS, id => pose(id, 'shield')),
           // 又新又活的路；通到天上的阶梯
           [17.4, b => { lv('hbWay', 1, b); lv('hbStair', 1, b); sfx(b, 'harp'); }],
+          // 大祭司站起来，转身招呼众人进来
           [18.6, () => { pose('priest1', 'stand'); pose('priest2', 'stand'); pose('hp', 'stand'); face('hp', -1); }],
+          [19.3, () => gest('hp', 'beckon')],
           // 众人坦然走进院子
           [19.8, () => {
             const G = tabG();
             // 竖屏：院子窄，众人在院子前面（往前站）散开
             each((id, i) => { walk(id, PORT ? lerp(0.545, 0.86, i / 5) : (G.x0 + G.cw * (0.1 + i * 0.09)) / W.w, { speed: 0.03, pose: 'raise' }); sink(id, pv(COURT[i][1])); });
           }],
-          [25, b => { each((id, i) => pose(id, i % 2 ? 'kneel' : 'pray')); allGlow(0.36); sfx(b, 'sing', { soft: true }); }],
+          // 存着诚心和充足的信心来到神面前：先后跪下
+          [25, b => { allGlow(0.36); sfx(b, 'sing', { soft: true }); }],
+          ...seq(25, 0.35, PIDS, (id, b, i) => pose(id, i % 2 ? 'kneel' : 'pray')),
+          [27.6, () => stir(PRIESTS, 'bowhead', { spread: 0.8 })],
         ]);
       },
     },
@@ -2688,17 +2770,26 @@
           [2.4, b => lv('hbBoat', 0, b)],
           [3, b => { if (!inst(b)) ringAt(b, W.w * 0.5, W.h * 0.28, M() * 0.7, [214, 226, 255], 4, 1.2); }],
           [9, () => { each(id => face(id, 1)); ['priest1', 'priest2', 'hp'].forEach(id => face(id, 1)); }],
-          // 亚伯
+          // 亚伯：孩子指着天上那幅光的画
           [7.9, b => { lv('hbAbel', 1, b); lv('hbDimA', 1, b); sfx(b, 'fire', { soft: true }); }],
           [9.4, b => { const P = galPos('abel'); nameAt(b, '亚伯', P.x, P.y + P.R * 1.25, { size: 34 * SU() }); }],
-          // 以诺
+          [9.8, () => gest('p6', 'point')],
+          // 他虽然死了，却因这信，仍旧说话
+          [12.8, () => stir(PIDS, 'nod', { spread: 1.4, share: 0.5 })],
+          // 以诺被接去：一个站起来仰望，一个向天伸手
           [16.2, b => { lv('hbEnoch', 1, b); sfx(b, 'wind', { soft: true }); }],
+          [17, () => pose('p3', 'gaze')],
           [18, b => { const P = galPos('enoch'); nameAt(b, '以诺', P.x, P.y + P.R * 1.25, { size: 34 * SU() }); }],
-          [21.6, b => sfx(b, 'angel', { soft: true })],
-          // 挪亚
+          [18.6, () => gest('p5', 'reachup')],
+          [21.6, b => { sfx(b, 'angel', { soft: true }); pose('p3', 'sit'); }],
+          // 挪亚：一个指着那方舟；老人点头；鸽子飞来时，孩子拍手
           [24, b => { lv('hbNoah', 1, b); sfx(b, 'wave', { soft: true }); }],
+          [24.8, () => gest('p1', 'point')],
           [25.6, b => { const P = galPos('noah'); nameAt(b, '挪亚', P.x, P.y + P.R * 1.25, { size: 34 * SU() }); }],
+          [26.8, () => gest('p4', 'nod')],
           [28.4, b => sfx(b, 'dove', { soft: true })],
+          [28.8, () => gest('p6', 'clap')],
+          [30.2, () => stir(PRIESTS, 'nod', { spread: 1, share: 0.6 })],
         ]);
       },
     },
@@ -2717,6 +2808,10 @@
         T(c, [
           [0, b => { W.goTo(0.97, 12, inst(b)); lv('hbDimA', 0.32, b); lv('hbStars', 0.3, b); sfx(b, 'stars'); }],
           [3.6, b => lv('hbStars', 1, b)],
+          // 满天的星多起来：孩子站起来仰望，伸手一颗一颗地数；老人点头
+          [4, () => pose('p6', 'gaze')],
+          [5.4, () => gest('p6', 'point')],
+          [6.6, () => gest('p4', 'nod')],
           // 亚伯拉罕遵命出去，还不知往哪里去（光的人影，走在中丘上）
           [8.4, b => {
             const o = { layer: 1, facing: -1, angel: true, glow: 1, from: inst(b) ? 'none' : 'light' };
@@ -2726,7 +2821,11 @@
             walk('sarah', Math.min(0.995, X.abr1 + 0.028), { speed: 0.024 });
             sfx(b, 'camel', { soft: true, far: true });
           }],
+          [9.2, () => heed(PIDS, 'abraham', { spread: 1.2 })],
           [10.4, b => { const h = headOf('abraham', 1); nameAt(b, '亚伯拉罕', h[0], h[1] - (PORT ? 30 : 46) * SU(), { size: 30 * SU() }); }],
+          // 还不知往哪里去：他一边走，一边四下张望
+          [11.6, () => gest('p1', 'point')],
+          [12.4, () => gest('abraham', 'lookaround')],
           // 住在帐棚里，与以撒、雅各一样
           [16.7, b => {
             lv('hbTents', 1, b);
@@ -2738,12 +2837,21 @@
           // 名字一个一个地显出（先后错开，高低也错开，免得叠在一起）
           [17.2, b => { const h = headOf('isaac', 1); nameAt(b, '以撒', h[0], h[1] - (PORT ? 26 : 40) * SU(), { size: 28 * SU(), hold: 2.2 }); }],
           [21.4, b => { const h = headOf('jacob', 1); nameAt(b, '雅各', h[0], h[1] - (PORT ? 58 : 76) * SU(), { size: 28 * SU(), hold: 2.4 }); }],
+          // 以撒指着将来的事给雅各祝福（11:20），雅各低头
+          [21.8, () => face('isaac', 'jacob')],
+          [22.2, () => gest('isaac', 'bless')],
+          [22.8, () => gest('jacob', 'bowhead')],
           // 如同天上的星那样众多，海边的沙那样无数
           [24.5, b => {
             lv('hbSand', 1, b); pose('abraham', 'gaze'); pose('sarah', 'gaze'); face('abraham', 1);
             sfx(b, 'stars'); sfx(b, 'harp', { soft: true });
           }],
           [25.5, () => { each(id => face(id, 1)); pose('p3', 'gaze'); pose('p5', 'gaze'); }],
+          // 有人回头手搭凉棚望海边闪光的沙；孩子跳起来
+          [26.4, () => { face('p1', -1); pose('p1', 'look'); }],
+          [27.6, () => gest('p6', 'leap')],
+          [28.8, () => stir(['p2', 'p4'], 'nod', { spread: 0.8 })],
+          [30.2, () => pose('p1', 'sit')],
         ]);
       },
     },
@@ -2772,19 +2880,33 @@
             sfx(b, 'chime', { soft: true });
           }],
           [1.8, b => { const h = headOf('joseph', 1); nameAt(b, '约瑟', h[0], h[1] - (PORT ? 26 : 40) * SU(), { size: 28 * SU(), hold: 3.2 }); }],
+          [2.6, () => heed(PIDS, 'joseph', { spread: 1.2 })],
+          [3.8, () => gest('p4', 'nod')],
           [6.2, () => rm('joseph')],
           // 摩西与那不能看见的主（光柱先显出：拉着他们祖宗的手领他们的，是那不能看见的主）
           [1, b => { lv('hbMoses', 0.4, b); lv('hbDimB', 1, b); sfx(b, 'wind', { soft: true }); }],
           [6.9, b => { lv('hbMoses', 1, b); sfx(b, 'chime', { soft: true }); }],
           [7.2, b => { const P = galPos('moses'); nameAt(b, '摩西', P.x, P.y + P.R * 1.25, { size: 34 * SU() }); }],
-          // 过红海如行干地
+          // 如同看见那不能看见的主：有人手搭凉棚望那光柱
+          [8.4, () => pose('p3', 'look')],
+          [10.6, () => gest('p2', 'nod')],
+          [12.6, () => pose('p3', 'stand')],
+          // 过红海如行干地：众人一惊；一个妇人起来欢喜跳舞（如同米利暗），孩子们拍手
           [15.2, b => { lv('hbSea', 1, b); sfx(b, 'wave'); sfx(b, 'wind', { soft: true }); }],
+          [15.8, () => stir(PIDS, 'startle', { spread: 0.8, share: 0.5 })],
+          [17.6, () => pose('p2', 'rejoice')],
+          [19, () => stir(['p6', 'p5'], 'clap', { spread: 0.8 })],
+          [21, () => pose('p2', 'sit')],
           // 耶利哥：七日围绕，城墙倒塌
           [22.3, b => { lv('hbJericho', 1, b); sfx(b, 'horn'); }],
+          [23, () => pose('p1', 'look')],
           [25.2, b => { shake(b, 0.18); sfx(b, 'collapse', { soft: true }); sfx(b, 'shout', { soft: true }); }],
+          [25.4, () => { pose('p5', 'recoil'); stir(PIDS, 'startle', { spread: 0.5, share: 0.6 }); }],
           // 喇合的窗与朱红线绳
           [26.6, b => { lv('hbRahab', 1, b); sfx(b, 'chime'); }],
+          [27.2, () => { pose('p5', 'stand'); pose('p1', 'sit'); }],
           [27.4, b => { const P = galPos('jericho'); nameAt(b, '喇合', P.x, P.y + P.R * 1.25, { size: 34 * SU() }); }],
+          [28.6, () => stir(PIDS, 'nod', { spread: 1.2, share: 0.5 })],
         ]);
       },
     },
@@ -2802,27 +2924,36 @@
         T(c, [
           // 天快亮了：一幅幅光的画都升入一圈光明的云
           [0, b => { W.goTo(0.29, 17, inst(b)); lv('hbWit', 1, b); lv('hbDimB', 0.85, b); lv('hbHeaven', 0.55, b); lv('hbOil', 0, b); lv('hbWayA', 0.25, b); lv('hbAnchorA', 0.3, b); sfx(b, 'angel', { soft: true }); }],
-          [2, () => { each(id => pose(id, 'stand')); ['priest1', 'priest2', 'hp'].forEach(id => pose(id, 'stand')); }],
-          [4, () => each(id => pose(id, 'gaze'))],
-          // 放下各样的重担，奔那摆在我们前头的路程
+          // 众人先后站起来，仰望那云彩一般的见证人；孩子指给人看
+          ...seq(2, 0.25, PIDS, id => pose(id, 'stand')),
+          [2, () => { ['priest1', 'priest2', 'hp'].forEach(id => pose(id, 'stand')); }],
+          ...seq(4, 0.3, PIDS, id => pose(id, 'gaze')),
+          [5.6, () => gest('p6', 'point')],
+          // 放下各样的重担，奔那摆在我们前头的路程：他背着重担走到起点，弯腰放下，挺起身来
           [8.4, b => {
             S.runner = true;
             lv('hbRace', 1, b);
-            hold('p3', 'bundle'); pose('p3', 'stand');
-            walk('p3', X.start, { speed: 0.03 }); sink('p3', pv(RACE_V));
+            hold('p3', 'bundle'); pose('p3', 'burden');
+            walk('p3', X.start, { speed: 0.03, pose: 'burden' }); sink('p3', pv(RACE_V));
             sfx(b, 'chime', { soft: true });
           }],
+          [10.6, () => gest('p3', 'stoopdown', { dur: 1.3 })],
           [11, b => { hold('p3', null); S.bundle = true; sfx(b, 'build', { soft: true }); }],
+          [11.2, () => pose('p3', 'stand')],
+          // 他奔跑；众人转过来，拍手相助，又举起手来
           [12, b => {
             run('p3', goalX(), { speed: 0.05 });
-            each(id => { if (id !== 'p3') { face(id, 1); pose(id, 'raise'); } });
+            each(id => { if (id !== 'p3') { face(id, 1); pose(id, 'stand'); } });
             sfx(b, 'march', { soft: true });
           }],
+          [12.6, () => stir(PIDS.filter(id => id !== 'p3'), 'clap', { spread: 1, share: 0.6 })],
+          ...seq(14.4, 0.3, PIDS.filter(id => id !== 'p3'), id => pose(id, 'raise')),
           // 仰望：天上的光大大地亮起来
           [17.8, b => { lv('hbHeaven', 1, b); lv('hbThrone', 1, b); flashW(b, 0.14); sfx(b, 'harp'); }],
+          ...seq(18.2, 0.3, PIDS.filter(id => id !== 'p3'), id => pose(id, 'gaze')),
           [20.4, () => { face('p3', 1); pose('p3', 'gaze'); }],
           [23, b => { pose('p3', 'raise'); sparkleOn(b, 'p3', 24, [255, 240, 206], 0.8); }],
-          [25.4, () => each(id => { if (id !== 'p3') pose(id, 'stand'); })],
+          ...seq(25, 0.25, PIDS.filter(id => id !== 'p3'), id => pose(id, 'stand')),
         ]);
       },
     },
@@ -2845,20 +2976,28 @@
             W.set('storm', 0.8, inst(b)); W.set('gloom', 0.3, inst(b)); W.set('gale', 0.45, inst(b)); W.set('clouds', 0.85, inst(b));
             W.goTo(0.37, 14, inst(b));
             shake(b, 0.3); sfx(b, 'thunder');
-            each(id => pose(id, 'kneel')); ['priest1', 'priest2', 'hp'].forEach(id => pose(id, 'kneel'));
+            ['priest1', 'priest2', 'hp'].forEach(id => pose(id, 'cower'));
           }],
+          // 那能摸的山：众人蹲伏护头，浑身发抖（出 20:18–19）
+          ...seq(0.1, 0.25, PIDS, id => pose(id, 'cower')),
           [1.4, b => bolt(b, sinaiG().px)],
+          [1.8, () => stir(PIDS, 'tremble', { spread: 0.8 })],
           [2.4, b => sfx(b, 'horn')],
           [3.8, b => { bolt(b, sinaiG().px - 30); shake(b, 0.25); }],
           [5.6, b => { bolt(b, sinaiG().px + 20); sfx(b, 'horn'); sfx(b, 'thunder', { soft: true }); }],
-          // 锡安山，天上的耶路撒冷，千万的天使
+          [6, () => stir(PIDS.concat(PRIESTS), 'tremble', { spread: 1, share: 0.7 })],
+          // 锡安山，天上的耶路撒冷，千万的天使：众人先后站起来仰望；孩子欢喜
           [8.4, b => {
             lv('hbSinai', 0, b);
             W.set('storm', 0, inst(b)); W.set('gloom', 0, inst(b)); W.set('gale', 0, inst(b)); W.set('clouds', 0.35, inst(b));
             lv('hbZion', 1, b); lv('hbAngels', 1, b); lv('hbHeaven', 1, b);
             sfx(b, 'angel'); sfx(b, 'sing', { soft: true });
           }],
-          [9.6, () => { each(id => pose(id, 'gaze')); ['priest1', 'priest2', 'hp'].forEach(id => pose(id, 'gaze')); }],
+          ...seq(9.4, 0.3, PIDS, id => pose(id, 'gaze')),
+          [9.6, () => { ['priest1', 'priest2', 'hp'].forEach(id => pose(id, 'gaze')); }],
+          [11.8, () => pose('p6', 'rejoice')],
+          [12.6, () => stir(PIDS.filter(id => id !== 'p6'), 'reachup', { spread: 1.2, share: 0.4 })],
+          [14.6, () => pose('p6', 'gaze')],
           // 再一次震动天地：人手所造的帐幕化作光尘，不被震动的常存
           // （在帐幕中供职的祭司与大祭司也一同隐去：头一个已经除去）
           [16.2, b => {
@@ -2867,15 +3006,17 @@
             ['priest1', 'priest2', 'hp'].forEach(id => rm(id));
             shake(b, 1.1); flashW(b, 0.3); sfx(b, 'quake');
           }],
-          [16.8, () => each(id => pose(id, 'kneel'))],
+          ...seq(16.6, 0.2, PIDS, id => pose(id, 'kneel')),
           [17.8, b => shake(b, 0.8)],
+          [18, () => stir(PIDS, 'tremble', { spread: 0.8, share: 0.5 })],
           [19.4, b => shake(b, 0.55)],
-          // 我们的神乃是烈火
+          // 就当感恩……我们的神乃是烈火：有的举手，有的捧手向天祝谢
           [24, b => {
             lv('hbFire', 1, b);
-            each(id => pose(id, 'raise'));
             sfx(b, 'fire', { soft: true }); sfx(b, 'harp');
           }],
+          ...seq(24, 0.3, PIDS, (id, b, i) => pose(id, i % 2 ? 'lift' : 'raise')),
+          [26.8, () => stir(PIDS, 'nod', { spread: 1.2, share: 0.5 })],
           [28.4, b => lv('hbFire', 0.22, b)],
         ]);
       },
@@ -2904,15 +3045,26 @@
             add('guest', { label: '客旅', sex: 'm', age: 'adult', x: PX(0.95), layer: 2, v: pv(0.14), facing: -1, robe: ROBE.guest, accent: [200, 186, 160], prop: 'staff', glow: 0.2, pose: 'walk' });
             walk('guest', seatX('guest') + 0.02, { speed: 0.045 });
           }],
+          // 用爱心接待客旅：老人起来招呼他；一个妇人捧着饼迎上去
           [6.4, () => { face('p4', 1); pose('p4', 'stand'); face('p5', 1); }],
+          [6.9, () => gest('p4', 'beckon')],
+          [7.4, () => { hold('p5', 'loaf'); pose('p5', 'offer'); }],
           [8.4, b => { walk('guest', seatX('guest'), { speed: 0.02, pose: 'sit' }); pose('p4', 'sit'); lv('hbGuest', 1, b); }],
           // 我总不撇下你：天上的光落在他们身上
           [9, b => { lv('hbBless', 1, b); allGlow(0.46); sfx(b, 'harp'); }],
+          [9.6, () => gest('guest', 'nod')],
+          [10.2, () => { hold('p5', null); pose('p5', 'sit'); }],
+          // 要以自己所有的为足：老人擘开饼，递给客旅；众人点头
+          [11.4, () => gest('p4', 'break')],
+          [13, () => gest('p4', 'give')],
+          [14.4, () => stir(PIDS, 'nod', { spread: 1.2, share: 0.5 })],
           // 昨日、今日、一直到永远：夜过去，天又亮了；天上的光不变
           [16.8, b => { W.goTo(0.3, 9, inst(b)); lv('hbBless', 0.55, b); sfx(b, 'bell', { soft: true }); }],
-          // 不知不觉接待了天使：客旅站起来，他的光升上去
+          // 不知不觉接待了天使：客旅站起来，他的光升上去；众人一惊，起来仰望
           [19.4, b => { pose('guest', 'stand'); glow('guest', 1); lv('hbGuest', 1.6, b); sfx(b, 'angel', { soft: true }); }],
+          [19.8, () => stir(PIDS, 'startle', { spread: 0.8, share: 0.7 })],
           [20.6, b => { const f = fig('guest'); fly('guest', f ? f.nx : seatX('guest'), PORT ? 0.46 : 0.36, { dur: 3.2, pose: 'raise' }); }],
+          ...seq(21, 0.25, PIDS, id => pose(id, 'gaze')),
           [23.6, b => { sparkleOn(b, 'guest', 30, [255, 244, 220], 0.5); rm('guest'); lv('hbGuest', 0, b); }],
           // 愿恩惠常与你们众人同在
           [24.4, b => {
@@ -2926,7 +3078,9 @@
             }
             sfx(b, 'harp'); sfx(b, 'bird', { soft: true });
           }],
-          [28.4, () => each(id => pose(id, 'stand'))],
+          // 阿们
+          ...seq(28.2, 0.25, PIDS, id => pose(id, 'stand')),
+          [29.6, () => stir(PIDS, 'nod', { spread: 0.8, share: 0.7 })],
         ]);
       },
     },

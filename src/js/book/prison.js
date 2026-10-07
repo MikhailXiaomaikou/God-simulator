@@ -189,6 +189,15 @@
   function crowdPose(gid, p) { if (hasCrowd(gid)) C().crowdPose(gid, p); }
   function uncrowd(gid, now) { if (hasCrowd(gid)) C().removeCrowd(gid, now ? { fade: false } : undefined); }
   function crowdFace(gid, d) { const c = C(); if (!c.crowds || !c.crowds.get) return; const g = c.crowds.get(gid); if (g) g.members.forEach(m => { m.facing = d; if (W.replaying) m.fd = d; }); }
+  // 演技：说话、一次性的手势、众人先后转向 / 先后反应（重演时引擎自己什么也不做；attend 立即到位）
+  function say(id, sec, o) { const c = C(); if (c.speak && live(id)) c.speak(id, sec, o); }
+  function gest(id, kind, o) { const c = C(); if (c.gesture && (live(id) || hasCrowd(id))) c.gesture(id, kind, o); }
+  function heed(ids, target, o) { const c = C(); if (c.attend) c.attend(ids, target, o); }
+  function stir(ids, kind, o) { const c = C(); if (c.react) c.react(ids, kind, o); }
+  // 几个人先后换成同一个姿势（各差 gap 秒）：返回情节的拍子（重演时按先后一一到位）
+  const stagger = (ids, ps, t0, gap) => ids.map((id, i) => [t0 + i * (gap == null ? 0.35 : gap), () => pose(id, ps)]);
+  // 保罗坐在桌旁提笔写：近手一笔一笔地动（凳子只在「坐」时画出，所以不换身段，只叠上写字的手势）
+  function scribe(sec) { gest('paul', 'scribble', { dur: sec || 2.6 }); }
   const from = b => (b.instant ? 'none' : 'fade');
   function sfx(b, name, o) {
     if (b && b.instant) return;
@@ -1840,7 +1849,8 @@
   const V5 = [
     { text: '从前你们是暗昧的，但如今在主里面是光明的，<br>行事为人就当像光明的子女。', ref: '以弗所书 5:8', hold: 6 },
     { text: '所以主说：你这睡着的人当醒过来，从死里复活！<br>基督就要光照你了。', ref: '以弗所书 5:14', hold: 6.5 },
-    { text: '当用诗章、颂词、灵歌彼此对说，<br>口唱心和地赞美主。', ref: '以弗所书 5:19', hold: 5.5 },
+    { text: '当用诗章、颂词、灵歌彼此对说，<br>口唱心和地赞美主。', ref: '以弗所书 5:19', hold: 5.5,
+      talk: [['g1', 0.06, 0.55, 'proclaim'], ['j1', 0.3, 0.8, 'proclaim'], ['g2', 0.12, 0.6, 'proclaim'], ['j2', 0.38, 0.9, 'proclaim'], ['tychicus', 0.5, 1, 'proclaim']] },
   ];
   const V6 = [
     { text: '要穿戴神所赐的全副军装，就能抵挡魔鬼的诡计。', ref: '以弗所书 6:11', hold: 5.5 },
@@ -1884,7 +1894,8 @@
   ];
   const V13 = [
     { text: '……就是为我在捆锁中所生的儿子阿尼西谋求你。<br>他从前与你没有益处，但如今与你我都有益处。', ref: '腓利门书 1:10–11', hold: 7 },
-    { text: '他暂时离开你，或者是叫你永远得着他，<br>不再是奴仆，乃是高过奴仆，是亲爱的兄弟……', ref: '腓利门书 1:15–16', hold: 7 },
+    { text: '他暂时离开你，或者是叫你永远得着他，<br>不再是奴仆，乃是高过奴仆，是亲爱的兄弟……', ref: '腓利门书 1:15–16', hold: 7,
+      talk: [['philemon', 0.4, 0.96, 'calm']] },
     { text: '你若以我为同伴，就收纳他，如同收纳我一样。', ref: '腓利门书 1:17', hold: 5 },
     { text: '愿我们主耶稣基督的恩常在你的心里。阿们！', ref: '腓利门书 1:25', hold: 5.5 },
   ];
@@ -1926,18 +1937,36 @@
         const L = starts(V1);
         T(c, [
           [0, b => { W.goTo(0.36, 16, b.instant); W.set('prScroll', 0.3, b.instant); W.set('prWrite', 1, b.instant); sfx(b, 'write'); }],
+          // 1:1 保罗提笔写信；提摩太坐在对面看着；看守的兵无聊地四下张望
+          [0.2, () => scribe(2.8)],
           [3, b => { W.set('prWrite', 0, b.instant); }],
+          [3.4, () => gest('timothy', 'nod')],
+          [5, () => gest('guard', 'lookaround')],
+          // 1:3 愿颂赞归与父神：保罗坐着向天伸手
+          [L[1] + 0.4, () => gest('paul', 'reachup')],
           [L[1] + 1.4, b => {
             W.set('prBless', 1, b.instant);
             blessFall(b);
             sfx(b, 'harp');
             sfx(b, 'stars', { soft: true });
           }],
+          // 天上各样属灵的福气如金色的微光落下：推基古仰起脸，提摩太向天伸手，兵一惊
+          [L[1] + 1.8, () => pose('tychicus', 'gaze')],
+          [L[1] + 2.2, () => gest('guard', 'startle')],
+          [L[1] + 2.8, () => gest('timothy', 'reachup')],
+          [L[1] + 3.8, () => gest('guard', 'lookaround')],
+          [L[1] + 5.6, () => pose('tychicus', 'stand')],
+          [L[1] + 7.2, () => gest('guard', 'sigh')],
+          [L[2] + 0.6, () => gest('paul', 'nod')],
+          // 1:13 受了所应许的圣灵为印记：光落在三人身上，他们低下头
           [L[2] + 2.2, b => {
             for (const id of ['paul', 'timothy', 'tychicus']) { glow(id, id === 'paul' ? 0.34 : 0.3); ringFig(b, id, [226, 236, 255], 1.6); }
             sfx(b, 'seal', { soft: true });
           }],
+          [L[2] + 2.5, () => gest('tychicus', 'bowhead')],
+          [L[2] + 2.9, () => gest('timothy', 'bowhead')],
           [L[2] + 4.5, b => { W.set('prWrite', 1, b.instant); W.set('prScroll', 0.4, b.instant); }],
+          [L[2] + 4.6, () => scribe(1.8)],
           [L[2] + 5.2, b => {
             // 来见他的人：几个灰暗的外邦人，走进院子，低头坐下（死在过犯罪恶之中，弗 2:1）
             G_IDS().forEach((id, i) => {
@@ -1945,6 +1974,8 @@
               walk(id, gX(i), { speed: 0.03, pose: 'sit' });
             });
           }],
+          // 凡来见他的人，他全都接待：门口的推基古向他们招手
+          [L[2] + 5.8, () => { face('tychicus', -1); gest('tychicus', 'beckon'); }],
           [L[2] + 6.5, b => { W.set('prWrite', 0, b.instant); }],
           [L[2] + 7.6, b => { W.set('prPall', 1, b.instant); }],
         ]);
@@ -1959,6 +1990,8 @@
         const G = G_IDS();
         const beats = [
           [0, b => { W.goTo(0.42, 14, b.instant); }],
+          // 2:1 死在过犯罪恶之中：灰暗的人低头坐着，一动不动
+          [0.6, () => stir(G, 'bowhead', { spread: 1.4 })],
           [L[0] + 2.6, b => {
             W.set('prPall', 0, b.instant);
             if (!b.instant) {
@@ -1968,23 +2001,38 @@
             sfx(b, 'harp');
           }],
         ];
+        // 他叫你们活过来：一个一个站起来，衣袍有了颜色；站起来的一惊，又四下张望
         G.forEach((id, i) => beats.push([L[0] + 3.2 + i * 0.55, b => {
           add(id, { robe: G_ROBES[i], accent: G_ACC[i], glow: 0.26 });
           pose(id, 'stand');
           ringFig(b, id, [255, 236, 200], 1.3);
           sfx(b, 'chime', { soft: true });
-        }]));
+        }], [L[0] + 3.9 + i * 0.55, () => gest(id, 'startle')]));
+        beats.push([L[0] + 6.4, () => stir(G, 'lookaround', { share: 0.5, spread: 1 })]);
         beats.push([L[1] + 1, b => { W.set('prScroll', 0.5, b.instant); G.forEach(id => face(id, 1)); }]);
+        // 2:4–5 丰富的怜悯：他们仰望；保罗在桌旁写，又抬手为他们祝福
+        beats.push([L[1] + 1.2, () => scribe(2.4)]);
+        beats.push(...stagger(G, 'gaze', L[1] + 1.8, 0.3));
+        beats.push([L[1] + 4, () => gest('paul', 'bless')]);
+        beats.push([L[1] + 4.6, () => gest('tychicus', 'nod')]);
+        beats.push(...stagger(G, 'stand', L[1] + 5.2, 0.25));
+        beats.push([L[1] + 6.2, () => stir(G, 'nod', { share: 0.6, spread: 1.2 })]);
+        // 2:8 乃是神所赐的：两手捧着接过一点光
         beats.push([L[2] + 0.6, b => {
           W.set('prGift', 1, b.instant);
           G.forEach(id => pose(id, 'carry'));
           sfx(b, 'chime');
           G.forEach(id => { const p = figPt(id, 0.9); if (p) motes(b, p[0], p[1] - p[2] * 0.5, 6, GOLD, p[2] * 0.4, 16); });
         }]);
+        // 免得有人自夸：捧着光的人都低下头
+        beats.push([L[2] + 2.8, () => stir(G, 'bowhead', { spread: 1.4 })]);
+        beats.push([L[2] + 4.2, () => gest('paul', 'nod')]);
         beats.push([L[2] + 5.8, b => {
           W.set('prGift', 0, b.instant);
-          G.forEach(id => { pose(id, 'stand'); glow(id, 0.34); ringFig(b, id, [255, 230, 180], 1.1); });
+          G.forEach(id => { glow(id, 0.34); ringFig(b, id, [255, 230, 180], 1.1); });
         }]);
+        beats.push(...stagger(G, 'stand', L[2] + 5.8, 0.2));
+        beats.push([L[2] + 6.8, () => gest('timothy', 'nod')]);
         T(c, beats);
       },
     },
@@ -2003,12 +2051,20 @@
               hair: J_SEX[i] === 'f' ? 'veil' : 'cloth', beard: J_SEX[i] === 'm', glow: 0.2, from: from(b) }));
             G.forEach(id => face(id, 1));
           }],
+          [0.4, () => scribe(2.6)],
+          // 2:13 远离的、近处的：墙两边的人隔着墙相望；犹太人低声说话，外邦人叹气
+          [2, () => say(J[0], 2, { to: J[1] })],
+          [3.2, () => stir(G, 'sigh', { share: 0.5, spread: 1.2 })],
+          [4.6, () => stir(J, 'bowhead', { share: 0.5, spread: 1.2 })],
           [L[1] + 0.8, b => {
             S.wall = false;
             W.set('prWall', 0, b.instant);
             sfx(b, 'collapse', { soft: true });
             sfx(b, 'harp');
           }],
+          // 墙化为光、塌下：两边的人一惊，随即彼此招手，走到一处
+          [L[1] + 1.1, () => stir(G.concat(J), 'startle', { spread: 0.7 })],
+          [L[1] + 2.4, () => { gest(G[G.length - 1], 'beckon'); gest(J[0], 'beckon'); }],
           [L[1] + 3.6, b => {
             Mg.forEach((id, k) => { walk(id, mX(k), { speed: 0.018 }); });
           }],
@@ -2027,6 +2083,13 @@
             W.set('prHouse', 1, b.instant);
             sfx(b, 'harp');
           }],
+          // 神家里的人：牵着手的两人彼此点头；光的殿画成时众人先后仰望
+          [L[2] + 3, () => stir(Mg, 'nod', { spread: 1.4 })],
+          ...stagger(Mg, 'gaze', L[2] + 3.8, 0.2),
+          [L[2] + 4.6, () => gest('paul', 'bless')],
+          [L[2] + 5.4, () => gest('tychicus', 'nod')],
+          [L[2] + 6, () => gest('timothy', 'nod')],
+          ...stagger(Mg, 'stand', L[2] + 6.6, 0.15),
         ];
         T(c, beats);
       },
@@ -2046,11 +2109,20 @@
             for (let i = 0; i + 1 < Mg.length; i += 2) hold(Mg[i], Mg[i + 1], false);
           }],
           [1.2, b => { pose('paul', 'kneel'); W.set('prScroll', 0.7, b.instant); }],
+          // 3:14 我在父面前屈膝：保罗跪下合掌；屋里的人与院中的人低下头来
+          [2.6, () => pose('paul', 'pray')],
+          [3.4, () => { gest('guard', 'lookaround'); gest('timothy', 'bowhead'); }],
+          [4.2, () => stir(Mg.concat(['tychicus']), 'bowhead', { share: 0.6, spread: 1.6 })],
+          [6, () => gest('paul', 'bowhead', { dur: 2.4 })],
           [L[1] + 0.6, b => {
             W.set('prLoveA', 1, b.instant);
             W.set('prLove', 1, b.instant);
             sfx(b, 'harp');
           }],
+          // 3:18 长阔高深：四道光伸出去，众人先后仰望
+          ...stagger(Mg.concat(['tychicus']), 'gaze', L[1] + 1, 0.25),
+          [L[1] + 2.6, () => gest('guard', 'startle')],
+          ...stagger(Mg.concat(['tychicus']), 'stand', L[1] + 5.4, 0.2),
           [L[1] + 1.4, b => {
             if (b.instant) return;
             const G = loveGeo(), s = 0.05;
@@ -2065,7 +2137,10 @@
             sfx(b, 'chime');
           }],
           ...kindle(null, ALL_BELIEVERS(), 0.4, 0.25, L[2] + 1.5),
+          // 贯乎众人之中：金线一个一个点亮，被点亮的人随之点一点头
+          ...ALL_BELIEVERS().filter(id => id !== 'paul').map(id => [L[2] + 1.6 + ALL_BELIEVERS().indexOf(id) * 0.25, () => gest(id, 'nod')]),
           [L[2] + 5.5, b => { pose('paul', 'seat'); }],
+          [L[2] + 6, () => scribe(2.4)],
           [L[2] + 7.2, b => { W.set('prLoveA', 0, b.instant); W.set('prThreadA', 0, b.instant); }],
           [L[2] + 9.6, b => { W.set('prLove', 0, true); W.set('prThread', 0, true); }],
         ]);
@@ -2083,22 +2158,36 @@
             W.goTo(0.02, 8, b.instant);
             go.forEach((id, i) => walk(id, px('exitL') - 0.01 * i, { speed: 0.03 }));
           }],
+          // 夜深了：回家的人挥手道别，保罗举手为他们祝福
+          [0.3, () => stir(go, 'wave', { share: 0.6, spread: 1 })],
+          [0.9, () => gest('paul', 'bless')],
           [2.6, b => {
             sl.forEach((id, i) => { walk(id, lerp(px('m0'), px('m1'), (i + 0.5) / sl.length), { speed: 0.02, pose: 'lie' }); });
-            pose('guard', 'sit'); pose('tychicus', 'lie'); pose('timothy', 'lie');
+            pose('guard', 'sleep'); pose('tychicus', 'lie'); pose('timothy', 'lie');
           }],
+          // 众人睡了，只有保罗在灯下写
+          [3.6, b => { W.set('prWrite', 1, b.instant); scribe(3.6); }],
           [6.2, b => { go.forEach(id => rm(id)); }],
+          [7.4, b => { W.set('prWrite', 0, b.instant); }],
           [L[1] + 0.8, b => {
             W.set('prShine', 1, b.instant);
             sfx(b, 'angel', { soft: true });
           }],
+          // 5:14 你这睡着的人当醒过来：睡着的先后坐起来、站起来；兵一惊醒来
+          ...stagger(sl, 'sit', L[1] + 1.3, 0.3),
+          [L[1] + 1.5, () => pose('tychicus', 'sit')],
           [L[1] + 1.8, b => {
-            sl.forEach(id => { pose(id, 'stand'); glow(id, 0.36); });
-            pose('guard', 'stand'); pose('tychicus', 'stand'); pose('timothy', 'seat');
-            W.set('prHand', 1, b.instant);
+            pose('guard', 'stand'); pose('timothy', 'seat');
             sfx(b, 'chime');
           }],
+          [L[1] + 2.1, () => gest('guard', 'startle')],
           [L[1] + 2.4, b => { W.set('prCity', 1, b.instant); }],
+          ...sl.map((id, i) => [L[1] + 2.4 + i * 0.35, () => { pose(id, 'stand'); glow(id, 0.36); }]),
+          [L[1] + 2.7, () => pose('tychicus', 'stand')],
+          // 手里有了灯，全城的窗亮起：他们四下张望，有人指着城
+          [L[1] + 3.6, b => { W.set('prHand', 1, b.instant); }],
+          [L[1] + 4.2, () => stir(sl, 'lookaround', { share: 0.6, spread: 1 })],
+          [L[1] + 5.2, () => gest(sl[0], 'point')],
           [L[2] + 0.6, b => {
             W.set('prShine', 0.25, b.instant);
             sl.forEach(id => pose(id, 'raise'));
@@ -2106,7 +2195,12 @@
             sfx(b, 'sing');
             if (!b.instant) sl.forEach(id => { const p = figPt(id, 1.1); if (p) for (let i = 0; i < 5; i++) fxAdd({ k: 'note', x: p[0], y: p[1], dur: 3 + Math.random() * 2, delay: i * 0.6 }); });
           }],
-          [L[2] + 5.2, b => { sl.forEach(id => pose(id, 'stand')); W.set('prSong', 0, b.instant); W.set('prShine', 0, b.instant); W.set('prScroll', 0.85, b.instant); }],
+          // 口唱心和：保罗在桌旁点头，提摩太拍手和着
+          [L[2] + 1.6, () => gest('paul', 'nod')],
+          [L[2] + 2.2, () => gest('timothy', 'clap')],
+          [L[2] + 3.4, () => gest('guard', 'lookaround')],
+          [L[2] + 5.2, b => { W.set('prSong', 0, b.instant); W.set('prShine', 0, b.instant); W.set('prScroll', 0.85, b.instant); }],
+          ...stagger(sl, 'stand', L[2] + 5.2, 0.2),
         ]);
       },
     },
@@ -2130,18 +2224,39 @@
             walk('guard', px('guardUp'), { speed: 0.008 });
             face('guard', -1);
           }],
+          // 6:11 黎明，保罗站起来，转身看着锁着他的罗马兵的军装，一指；兵低头看看自己
+          [L[0] + 2.8, () => face('paul', 'guard')],
+          [L[0] + 3.4, () => gest('paul', 'point')],
+          [L[0] + 4.4, () => gest('guard', 'bowhead')],
+          [L[0] + 5.6, () => face('paul', -1)],
+          [L[1] - 0.6, () => heed(SLEEP().concat(['tychicus', 'timothy']), 'paul', { spread: 1.2 })],
+          // 一件一件穿戴：他讲论着，院中的人点头；盾牌一亮，众人一惊
+          [L[1] + 0.2, () => pose('paul', 'teach')],
           [L[1] + 0.6, b => { W.set('prBelt', 1, b.instant); armRing(b, 0.47); nm(b, '真理', 0, 0); sfx(b, 'chime', { soft: true }); }],
+          [L[1] + 1.2, () => stir(SLEEP(), 'nod', { share: 0.5, spread: 1.2 })],
           [L[1] + 2.8, b => { W.set('prPlate', 1, b.instant); armRing(b, 0.66); nm(b, '公义', 0, 1); sfx(b, 'chime', { soft: true }); }],
+          [L[1] + 4, () => gest('timothy', 'nod')],
           [L[1] + 5.0, b => { W.set('prShoes', 1, b.instant); armRing(b, 0.02); nm(b, '平安', 0, 2); sfx(b, 'chime', { soft: true }); }],
+          [L[1] + 6.4, () => gest('tychicus', 'nod')],
+          [L[2] - 0.6, () => pose('paul', 'stand')],
           [L[2] + 0.6, b => { W.set('prShield', 1, b.instant); armRing(b, 0.55); nm(b, '信德', 1, 0); sfx(b, 'bell', { soft: true }); }],
+          [L[2] + 0.9, () => stir(SLEEP(), 'startle', { share: 0.5, spread: 0.6 })],
           [L[2] + 2.8, b => { W.set('prHelm', 1, b.instant); armRing(b, 0.93); nm(b, '救恩', 1, 1); sfx(b, 'bell', { soft: true }); }],
+          // 拿着圣灵的宝剑，就是神的道：他举起手来
+          [L[2] + 4.8, () => pose('paul', 'raise')],
           [L[2] + 5.0, b => { W.set('prSword', 1, b.instant); armRing(b, 1.2); nm(b, '神的道', 1, 2); sfx(b, 'harp'); }],
+          [L[2] + 6.2, () => stir(SLEEP().concat(['tychicus']), 'nod', { share: 0.6, spread: 1 })],
+          [L[2] + 7.6, () => pose('paul', 'stand')],
+          // 6:20 带锁链的使者：他低头看腕上的锁链，兵也看着
           [L[3] + 0.4, b => { W.set('prChain', 1, b.instant); sfx(b, 'chains', { soft: true }); }],
+          [L[3] + 0.8, () => gest('paul', 'bowhead')],
+          [L[3] + 1.6, () => { face('guard', 'paul'); gest('guard', 'sigh'); }],
           [L[3] + 3.4, b => {
             S.arm = true;
             walk('paul', px('paul'), { speed: 0.008, pose: 'seat' });
             walk('guard', px('guard'), { speed: 0.008 });
             face('paul', -1);
+            face('guard', -1);
           }],
           [L[3] + 4.6, b => {
             S.sealed = 1;
@@ -2149,6 +2264,9 @@
             W.set('prChain', 0.25, b.instant);
             sfx(b, 'seal', { soft: true });
           }],
+          // 以弗所书封好：保罗双手递给推基古（他要把这信带去），推基古点头
+          [L[3] + 4.8, () => gest('paul', 'give')],
+          [L[3] + 5.4, () => gest('tychicus', 'nod')],
         ]);
       },
     },
@@ -2166,10 +2284,16 @@
             face('paul', -1);
             W.set('prScroll', 0.15, b.instant);
           }],
+          [0.2, () => scribe(2.4)],
           [0.6, b => {
             add('epaph', { label: '以巴弗提', sex: 'm', age: 'adult', x: px('epIn'), v: 0.26, facing: 1, robe: ROBE.ep, accent: ROBE.epAcc, beard: true, prop: 'bundle', glow: 0.22, from: from(b) });
             walk('epaph', px('ep'), { speed: 0.034 });
           }],
+          // 以巴弗提从腓立比来：院中的人与门口的推基古转过来看他，推基古招手
+          [2.6, () => heed(SLEEP().concat(['tychicus', 'timothy']), 'epaph', { spread: 1.2 })],
+          [3.8, () => gest('tychicus', 'wave')],
+          // 他把馈送放下，双手献上，向保罗问安
+          [6.1, () => gest('epaph', 'give')],
           [6.4, b => {
             S.gift = true;
             prop('epaph', null);
@@ -2177,18 +2301,33 @@
             W.set('prIncense', 1, b.instant);
             sfx(b, 'chime');
           }],
+          [6.9, () => say('epaph', 1.8, { to: 'paul' })],
+          // 极美的香气，为神所收纳：保罗点头，坐着向天伸手
+          [7.4, () => gest('paul', 'nod')],
+          [L[1] + 0.2, () => gest('paul', 'reachup')],
           [L[1] + 1, b => {
             for (const id of ALL_BELIEVERS().concat(['epaph'])) { if (!live(id)) continue; glow(id, 0.42); ringFig(b, id, [255, 232, 186], 1.2); }
             sfx(b, 'harp');
           }],
+          // 1:6 那在你们心里动了善工的，必成全：保罗为以巴弗提祝福，他低头领受
+          [L[1] + 2.4, () => gest('paul', 'bless')],
+          [L[1] + 3, () => gest('epaph', 'bowhead')],
+          [L[1] + 4, () => stir(SLEEP().concat(['timothy']), 'nod', { share: 0.6, spread: 1.2 })],
+          [L[1] + 4.8, () => scribe(2.2)],
           [L[2] + 0.4, b => {
             W.set('prIncense', 0, b.instant);
             soldiers.forEach((id, i) => { addSoldier(id, 1.02 + i * 0.03, phone() ? 0.55 : 0.12 + 0.18 * i, -1, b, { label: '御营的兵' }); walk(id, px(id), { speed: 0.03 }); });
             sfx(b, 'march', { soft: true });
           }],
+          // 1:13 御营的兵来了：众人转过去看；锁链亮起，看守的兵一惊，低头
+          [L[2] + 1.6, () => heed(['tychicus', 'epaph', 'timothy'], soldiers[0], { spread: 1 })],
           [L[2] + 4.6, b => { W.set('prChain', 1, b.instant); glow('guard', 0.3); ringFig(b, 'guard', [255, 226, 170], 1.4); sfx(b, 'chains', { soft: true }); }],
+          [L[2] + 4.8, () => { face('paul', 'guard'); gest('guard', 'startle'); }],
+          [L[2] + 5.6, () => gest('paul', 'nod')],
+          [L[2] + 6.2, () => gest('guard', 'bowhead')],
           ...soldiers.map((id, i) => [L[2] + 5.6 + i * 0.9, b => { glow(id, 0.28); ringFig(b, id, [255, 226, 170], 1.4); sfx(b, 'chime', { soft: true }); }]),
-          [L[2] + 7.6, b => { W.set('prChain', 0.25, b.instant); W.set('prScroll', 0.35, b.instant); }],
+          ...soldiers.map((id, i) => [L[2] + 6.9 + i * 0.9, () => gest(id, 'bowhead')]),
+          [L[2] + 7.6, b => { W.set('prChain', 0.25, b.instant); W.set('prScroll', 0.35, b.instant); face('paul', -1); }],
         ]);
       },
     },
@@ -2199,6 +2338,9 @@
       apply(c) {
         const L = starts(V8);
         const people = () => ALL_BELIEVERS().concat(['guard', 'epaph', 'pg1', 'pg2']).filter(live);
+        // 站着看的人（院中的人、门口的推基古、以巴弗提、御营的兵）
+        const watch = SLEEP().concat(['tychicus', 'epaph']);
+        const zx = () => zenith()[0] / W.w;
         T(c, [
           [0, b => {
             W.goTo(0.46, 10, b.instant);
@@ -2207,9 +2349,22 @@
             W.set('prScroll', 0.45, b.instant);
           }],
           [0.8, b => { W.set('prDesc', 0.55, b.instant); sfx(b, 'angel', { soft: true }); }],
+          // 2:6–7 一点光从至高处降下：众人先后仰望，目光随着它往下
+          [1.2, () => heed(watch.concat(['pg1', 'pg2', 'timothy']), zx(), { spread: 1.4 })],
+          ...stagger(watch, 'gaze', 1.4, 0.3),
+          [2.6, () => scribe(2.2)],
+          ...stagger(watch, 'stand', 5.2, 0.25),
+          [5.8, () => stir(watch, 'bowhead', { share: 0.6, spread: 1.2 })],
           [L[1] + 0.3, b => { W.set('prDesc', 1, b.instant); }],
           [L[1] + 1.2, b => { W.set('prCross', 1, b.instant); W.set('gloom', 0.32, b.instant); }],
+          // 2:8 以至于死，且死在十字架上：院中的人低头弯腰；有人掩面哭；保罗低下头
+          ...stagger(SLEEP(), 'bow', L[1] + 1.6, 0.35),
+          [L[1] + 1.9, () => gest('paul', 'bowhead')],
+          [L[1] + 2.4, () => pose(SLEEP()[SLEEP().length - 1], 'weep')],
+          [L[1] + 2.8, () => { gest('timothy', 'bowhead'); gest('epaph', 'sigh'); }],
+          [L[1] + 3.6, () => stir(['tychicus', 'guard', 'pg1', 'pg2'], 'bowhead', { share: 0.7, spread: 1.4 })],
           [L[1] + 4.4, b => { W.set('prDescA', 0.4, b.instant); }],
+          ...stagger(SLEEP(), 'stand', L[1] + 5.4, 0.3),
           [L[2] + 0.3, b => {
             W.set('prRise', 1, b.instant);
             W.set('prDescA', 1, b.instant);
@@ -2217,6 +2372,9 @@
             W.set('prCross', 0, b.instant);   // 光一升起，中丘上的十字架剪影就隐去（没有人对着罗马城里的十字架下拜）
             sfx(b, 'angel');
           }],
+          // 2:9 神将他升为至高：光升起，众人先后仰望，有人一惊
+          ...stagger(watch, 'gaze', L[2] + 0.6, 0.25),
+          [L[2] + 1.2, () => stir(watch.concat(['pg1', 'pg2', 'guard']), 'startle', { share: 0.4, spread: 0.8 })],
           [L[2] + 2.5, b => {
             W.set('prHigh', 1, b.instant);
             W.set('prHost', 1, b.instant);
@@ -2226,18 +2384,23 @@
             wordsAt(b, '耶稣', Z[0], Z[1] + W.h * (phone() ? 0.07 : 0.12), [255, 240, 206], { size: 0.05, hold: 4.4 });
             romans(b);
           }],
+          // 无不屈膝：屋里屋外的人一个接一个跪下俯伏；城里与街上的罗马人也先后屈身
           [L[2] + 3.8, b => {
-            for (const id of people()) pose(id, 'worship');
             crowdPose('romans', 'bow');
             W.set('prBowH', 1, b.instant);
             sfx(b, 'sing', { soft: true });
           }],
+          ...['paul', 'timothy', 'tychicus', 'guard', 'epaph', 'pg1', 'pg2'].concat(merged()).map((id, i) => [L[2] + 3.8 + i * 0.16, () => { if (live(id)) pose(id, 'worship'); }]),
+          // 3:20 我们却是天上的国民，等候救主从天降临：抬起头，有人手搭凉棚望着天
           [L[3] + 0.4, b => {
             for (const id of people()) pose(id, id === 'paul' || id === 'timothy' ? 'seat' : 'gaze');
             crowdPose('romans', 'gaze');
             W.set('prBowH', 0, b.instant);
             W.set('prDescA', 0, b.instant);
           }],
+          [L[3] + 1.4, () => pose('tychicus', 'look')],
+          [L[3] + 1.9, () => pose('epaph', 'look')],
+          [L[3] + 2.4, () => gest('paul', 'reachup')],
           [L[3] + 4.4, b => { for (const id of people()) if (id !== 'paul' && id !== 'timothy') pose(id, 'stand'); crowdPose('romans', 'stand'); W.set('prHost', 0.35, b.instant); }],
         ]);
       },
@@ -2262,9 +2425,17 @@
             leaves(b, 0.6, L[1] + 1.6, phone() ? 18 : 32);
             sfx(b, 'wind');
           }],
-          [L[0] + 0.5, b => { for (const id of court()) pose(id, 'raise'); sfx(b, 'timbrel', { soft: true }); motes(b, lerp(px('m0'), px('m1'), 0.5) * W.w, fieldY(px('m0'), 0.3) - 1.2 * PH(2), 18, GOLD, (px('m1') - px('m0')) * W.w, 30); }],
+          // 4:4 靠主常常喜乐：院中的人有的举手，有的张开两臂欢喜；提摩太拍手，保罗向天伸手
+          [L[0] + 0.5, b => { court().forEach((id, i) => pose(id, i % 2 ? 'rejoice' : 'raise')); sfx(b, 'timbrel', { soft: true }); motes(b, lerp(px('m0'), px('m1'), 0.5) * W.w, fieldY(px('m0'), 0.3) - 1.2 * PH(2), 18, GOLD, (px('m1') - px('m0')) * W.w, 30); }],
+          [L[0] + 1.2, () => gest('timothy', 'clap')],
+          [L[0] + 2, () => gest('paul', 'reachup')],
+          // 我再说，你们要喜乐
+          [L[0] + 2.8, () => gest('paul', 'nod')],
           [L[0] + 4.2, b => { for (const id of court()) pose(id, 'stand'); }],
           [5.5, b => { rm('pg1'); rm('pg2'); }],
+          // 4:6 应当一无挂虑：大风扑面，有人以臂遮脸，有人发抖
+          [5.8, () => { const cs = court(); if (cs.length) pose(cs[0], 'shield'); }],
+          [6.4, () => stir(court(), 'tremble', { share: 0.5, spread: 1 })],
           [L[1] + 2.2, b => {
             // 出人意外的平安：光穹罩住屋与院子，穹下风就止了（穹外的天上还有几道余风）
             W.set('prPeace', 1, b.instant);
@@ -2273,9 +2444,27 @@
             gusts(b, 0.1, 3.4, phone() ? 8 : 14, [0.08, 0.9], (x, y) => y > P.by - P.ry - 0.04 * W.h && x > P.cx - P.rx - 0.03 * W.w);
             sfx(b, 'harp');
           }],
+          // 风止了：遮脸的放下手臂，众人四下张望，仰望那光穹；保罗举手祝福
+          [L[1] + 2.5, () => { const cs = court(); if (cs.length) pose(cs[0], 'stand'); }],
+          [L[1] + 2.8, () => stir(court(), 'lookaround', { share: 0.6, spread: 1 })],
+          [L[1] + 4, () => gest('paul', 'bless')],
+          [L[1] + 4.6, () => stir(court(), 'nod', { share: 0.6, spread: 1.4 })],
+          [L[1] + 6.2, () => gest('timothy', 'nod')],
+          [L[1] + 7.4, () => gest('guard', 'lookaround')],
+          // 4:9 所学习的、所领受的……：以巴弗提走到门口，弯腰拾起包袱（书信在里面）；保罗嘱咐他
+          [L[2] + 0.4, () => scribe(2.4)],
           [L[2] + 0.5, b => { walk('epaph', px('door') , { speed: 0.02 }); W.set('prScroll', 0.8, b.instant); }],
-          [L[2] + 3.4, b => { prop('epaph', 'bundle'); W.set('prScroll', 0, true); sfx(b, 'seal', { soft: true }); face('epaph', -1); }],
+          [L[2] + 2.6, () => gest('epaph', 'stoopdown')],
+          [L[2] + 3.4, b => { prop('epaph', 'bundle'); W.set('prScroll', 0, true); sfx(b, 'seal', { soft: true }); }],
+          [L[2] + 4, () => { face('epaph', 1); say('paul', 2.6, { to: 'epaph', how: 'teach' }); }],
+          [L[2] + 6.8, () => gest('epaph', 'nod')],
+          // 4:13 凡事都能做：以巴弗提挥手道别，动身回腓立比；院中的人挥手，保罗举手祝福
+          [L[3] + 0.1, () => gest('epaph', 'wave')],
           [L[3] + 0.3, b => { walk('epaph', px('exitL'), { speed: 0.04 }); W.set('prPeace', 0.3, b.instant); }],
+          [L[3] + 0.9, () => stir(court().concat(['tychicus']), 'wave', { share: 0.6, spread: 1.2 })],
+          [L[3] + 1.8, () => gest('paul', 'bless')],
+          [L[3] + 3.2, () => gest('timothy', 'nod')],
+          [L[3] + 4.6, () => gest('tychicus', 'bowhead')],
           [L[3] + 6.2, b => { rm('epaph'); }],
         ]);
       },
@@ -2288,14 +2477,34 @@
         const L = starts(V10);
         T(c, [
           [0, b => { W.goTo(0.755, 18, b.instant); W.set('prPeace', 0, b.instant); S.gift = false; W.set('prScroll', 0.2, b.instant); }],
+          // 歌罗西书：保罗提笔又写
+          [0.3, () => scribe(2.4)],
           [L[0] + 1.2, b => { W.set('prOrb', 1, b.instant); sfx(b, 'angel', { soft: true }); }],
+          // 1:15 那不能看见之神的像：天顶一点光，众人先后转身仰望；有人低头
+          [L[0] + 1.6, () => heed(SLEEP().concat(['tychicus', 'timothy']), orbPt()[0] / W.w, { spread: 1.2 })],
+          ...stagger(SLEEP().concat(['tychicus']), 'gaze', L[0] + 2, 0.3),
+          [L[0] + 3.2, () => gest('paul', 'reachup')],
+          [L[0] + 4.8, () => stir(SLEEP(), 'bowhead', { share: 0.5, spread: 1 })],
           [L[1] + 0.8, b => {
             W.set('prMake', 1, b.instant);
             W.setPop('bird', 26, W.w * 0.62, W.h * 0.45, b.instant);
             sfx(b, 'stars');
             if (!b.instant) for (let i = 0; i < 8; i++) fxAdd({ k: 'leap', x: W.w * (0.06 + 0.3 * Math.random()), y: W.h * (0.66 + 0.25 * Math.random()), dur: 1.2, delay: i * 0.7 + Math.random() * 0.4 });
           }],
+          // 1:16 天上的、地上的：众星、飞鸟、海里跳起的鱼一齐显出——众人一惊，指点，四下张望；推基古手搭凉棚望海
+          [L[1] + 1.1, () => stir(SLEEP().concat(['guard']), 'startle', { share: 0.5, spread: 0.8 })],
+          [L[1] + 2, () => gest(SLEEP()[0], 'point')],
+          [L[1] + 2.6, () => pose('tychicus', 'look')],
+          [L[1] + 3.2, () => stir(SLEEP(), 'lookaround', { share: 0.5, spread: 1.2 })],
+          [L[1] + 4.2, () => gest(SLEEP()[SLEEP().length - 1], 'point')],
+          ...stagger(SLEEP(), 'stand', L[1] + 5.6, 0.25),
+          [L[1] + 6.2, () => pose('tychicus', 'stand')],
+          // 1:17 万有也靠他而立：金线自那光牵到万物；众人点头，保罗举手祝福
           [L[2] + 0.6, b => { W.set('prHoldA', 1, b.instant); W.set('prHold', 1, b.instant); sfx(b, 'harp'); }],
+          [L[2] + 1.4, () => stir(SLEEP().concat(['tychicus', 'timothy']), 'nod', { share: 0.6, spread: 1.4 })],
+          [L[2] + 3, () => gest('paul', 'bless')],
+          [L[2] + 4.2, () => stir(SLEEP(), 'lookaround', { share: 0.5, spread: 1 })],
+          [L[2] + 5.2, () => gest('guard', 'lookaround')],
           [L[3] + 0.8, b => {
             const O = orbPt();
             ringAt(b, O[0], O[1], [255, 236, 196], Math.hypot(W.w, W.h) * 0.8, 3.2);
@@ -2303,6 +2512,10 @@
             for (const id of ALL_BELIEVERS()) if (live(id)) glow(id, 0.44);
             glow('guard', 0.34);
           }],
+          // 1:20 万有都与自己和好了：光漾过众人，有人向天伸手；看守的兵也低下头
+          [L[3] + 1.2, () => stir(SLEEP().concat(['tychicus']), 'reachup', { share: 0.6, spread: 1.2 })],
+          [L[3] + 2.2, () => gest('guard', 'bowhead')],
+          [L[3] + 3.4, () => stir(SLEEP().concat(['timothy']), 'nod', { share: 0.6, spread: 1.2 })],
           [L[3] + 5, b => { W.set('prHoldA', 0.4, b.instant); }],
         ]);
       },
@@ -2322,21 +2535,37 @@
             walk('onesimus', px('oneK'), { speed: 0.042, pose: 'kneel' });
           }],
           [1.4, b => { W.set('prDebt', 1, b.instant); W.set('prErase', 0, true); W.set('prDebtUp', 0, true); W.set('prHold', 0, true); }],
+          // 逃走的奴仆来到门口：院中的人与推基古转过来看他；他跪下，低着头
+          [2.8, () => heed(SLEEP().concat(['tychicus', 'timothy']), 'onesimus', { spread: 1.4 })],
+          [4.4, () => stir(SLEEP(), 'sigh', { share: 0.4, spread: 1 })],
+          [6.4, () => gest('onesimus', 'bowhead')],
           [7.6, b => {
             face('onesimus', 1);
             const p = figPt('onesimus', 1.3);
             if (p) wordsAt(b, '阿尼西谋', p[0], p[1] - p[2] * 0.3, [236, 226, 210], { size: 0.032, hold: 3.4 });
           }],
+          // 2:13 神赦免了你们一切过犯：他仰起脸，摊开两手求怜悯
+          [8.4, () => pose('onesimus', 'beg')],
           [L[1] + 1.4, b => { W.set('prErase', 1, b.instant); sfx(b, 'chime'); }],
+          // 2:14 涂抹了字据：他看着上头的墨字一个一个化为光，一惊；众人点头
+          [L[1] + 2.2, () => gest('onesimus', 'startle')],
+          [L[1] + 3.4, () => stir(SLEEP().concat(['tychicus']), 'nod', { share: 0.6, spread: 1.2 })],
           [L[1] + 5.0, b => { W.set('prDebtUp', 1, b.instant); sfx(b, 'scroll'); }],
           // 字据一升起，保罗（锁着看守他的兵）就起身走到门口
+          [L[1] + 5.1, () => pose('paul', 'stand')],
           [L[1] + 5.5, b => {
             walk('paul', px('paulDoor'), { speed: 0.038, pose: 'stand' });
             walk('guard', px('guardDoor'), { speed: 0.038 });
           }],
+          // 保罗伸手扶他起来
+          [L[2] - 0.3, () => { face('paul', -1); pose('paul', 'reach'); }],
           [L[2] + 2.4, b => { W.set('prDebt', 0, b.instant); }],
           [L[2] + 0.1, b => { pose('onesimus', 'stand'); face('onesimus', 1); }],
           [L[2] + 0.5, b => { W.set('prShade', 0, b.instant); const H = houseGeo(); ringAt(b, H.cx, H.base - H.ph, [255, 236, 200], M() * 0.5, 2.6); sfx(b, 'harp'); }],
+          // 2:15 仗着十字架夸胜：院中的人拍手，推基古、提摩太点头
+          [L[2] + 2.4, () => stir(SLEEP(), 'clap', { share: 0.5, spread: 1 })],
+          [L[2] + 3.4, () => gest('tychicus', 'nod')],
+          [L[2] + 4.2, () => gest('timothy', 'nod')],
           // 保罗扶起他，抱住他（至少停留四五秒，才到下一句）
           [L[2] + 1.0, b => {
             const c = C();
@@ -2371,14 +2600,30 @@
             for (const id of ALL_BELIEVERS().concat(['guard', 'onesimus'])) if (live(id)) glow(id, 0.42);
             sfx(b, 'harp');
           }],
+          // 3:11 为奴的、自主的，惟有基督是包括一切：阿尼西谋走到众人中间，众人点头接纳他；他低下头
+          [L[0] + 1.8, () => stir(SLEEP().concat(['guard']), 'nod', { share: 0.6, spread: 1.2 })],
+          [L[0] + 2.6, () => scribe(2.4)],
+          [L[0] + 3.6, () => { heed(SLEEP(), 'onesimus', { spread: 0.8 }); gest(SLEEP()[0], 'beckon'); }],
+          [L[0] + 5, () => gest('onesimus', 'bowhead')],
+          // 3:12–14 存怜悯、恩慈……：五道光缠在他身上，他仰起脸来；众人看着他
           [L[1] + 0.5, b => { W.set('prVirtueA', 1, b.instant); W.set('prVirtue', 1, b.instant); sfx(b, 'chime', { soft: true }); }],
+          [L[1] + 0.8, () => pose('onesimus', 'gaze')],
+          [L[1] + 3.2, () => stir(SLEEP(), 'nod', { share: 0.5, spread: 1.4 })],
           [L[1] + 6.4, b => {
             add('onesimus', { robe: ROBE.one, accent: ROBE.oneAcc, glow: 0.44 });
             ringFig(b, 'onesimus', [255, 230, 180], 1.6);
             W.set('prVirtueA', 0, b.instant);
             sfx(b, 'bell', { soft: true });
           }],
+          // 爱心就是联络全德的：他换上新衣，一惊，张开两臂欢喜
+          [L[1] + 6.6, () => gest('onesimus', 'startle')],
+          [L[1] + 7.2, () => pose('onesimus', 'rejoice')],
           [L[1] + 8.4, b => { W.set('prVirtue', 0, true); }],
+          [L[1] + 9.2, () => pose('onesimus', 'stand')],
+          // 4:9 我又打发……阿尼西谋同去：保罗嘱咐推基古；院中的人挥手送行
+          [L[2] + 0.1, () => say('paul', 1.8, { to: 'tychicus' })],
+          [L[2] + 0.9, () => stir(SLEEP(), 'wave', { share: 0.6, spread: 1.2 })],
+          [L[2] + 1.2, () => gest('tychicus', 'nod')],
           [L[2] + 0.3, b => {
             S.boat = 'boarding';
             S.sealed = 0;
@@ -2395,12 +2640,17 @@
             walk('paul', px('paulDoor'), { speed: 0.04, pose: 'stand' });
             walk('guard', px('guardDoor'), { speed: 0.04 });
           }],
+          // 4:18 你们要记念我的捆锁：他举起锁着的手；兵低头；愿恩惠常与你们同在——他向远去的船举手祝福
           [L[3] + 0.5, b => {
             face('paul', -1);
             pose('paul', 'raise');
             W.set('prChain', 1, b.instant);
             sfx(b, 'chains', { soft: true });
           }],
+          [L[3] + 1.6, () => gest('guard', 'bowhead')],
+          [L[3] + 3.4, () => pose('paul', 'bless')],
+          [L[3] + 4, () => stir(SLEEP().concat(['timothy']), 'nod', { share: 0.6, spread: 1.2 })],
+          [L[3] + 5.8, () => pose('paul', 'stand')],
           [L[3] + 6.2, b => { W.set('prChain', 0.3, b.instant); }],
         ]);
       },
@@ -2439,6 +2689,13 @@
             walk('onesimus', px('oneMeet'), { speed: 0.032 });
             walk('tychicus', px('tychMeet'), { speed: 0.032 });
           }],
+          // 1:10 推基古带着逃走的奴仆回来了：家里的人转过来看，认出了他——一惊，低声相告
+          [4.4, () => heed(['philemon', 'apphia', 'archippus', 'church'], 'onesimus', { spread: 1.6 })],
+          [5.8, () => { gest('apphia', 'startle'); stir('church', 'startle', { share: 0.4, spread: 0.8 }); }],
+          [6.8, () => say('apphia', 1.6, { to: 'philemon' })],
+          [7.6, () => gest('archippus', 'point')],
+          // 推基古递上保罗的信；阿尼西谋跪下，低着头；腓利门展信念出来
+          [L[1] + 2, () => { face('tychicus', 'philemon'); gest('tychicus', 'give'); }],
           [L[1] + 2.6, b => {
             pose('onesimus', 'kneel'); face('onesimus', 1);
             prop('tychicus', null);
@@ -2446,6 +2703,10 @@
             pose('philemon', 'carry'); face('philemon', -1);
             sfx(b, 'scroll', { soft: true });
           }],
+          [L[1] + 3.4, () => gest('onesimus', 'bowhead')],
+          [L[1] + 4.6, () => stir('church', 'nod', { share: 0.5, spread: 1.4 })],
+          [L[1] + 5.6, () => gest('archippus', 'nod')],
+          // 1:17 收纳他，如同收纳我一样：腓利门放下信，走过去把他扶起抱住；家里的人拍手
           [L[2] + 0.6, b => {
             S.read = false;
             walk('philemon', px('philEmb'), { speed: 0.01, pose: 'embrace' });
@@ -2455,6 +2716,10 @@
             ringFig(b, 'onesimus', [255, 232, 190], 1.8);
             sfx(b, 'harp');
           }],
+          [L[2] + 2, () => stir('church', 'clap', { share: 0.5, spread: 1 })],
+          [L[2] + 2.6, () => gest('apphia', 'clap')],
+          [L[2] + 3.4, () => gest('tychicus', 'nod')],
+          // 1:25 恩常在你的心里：满屋的灯亮起，众人举手；推基古也举手；阿们——点头
           [L[3] + 0.5, b => {
             W.set('prGrace', 1, b.instant);
             W.set('prLamps', 1, b.instant);
@@ -2464,7 +2729,9 @@
             ringAt(b, H.cx, H.base - H.ph, [255, 230, 186], M() * 0.55, 3);
             sfx(b, 'bell', { soft: true });
           }],
-          [L[3] + 5.2, b => { crowdPose('church', 'stand'); pose('apphia', 'stand'); pose('archippus', 'stand'); }],
+          [L[3] + 1.2, () => pose('tychicus', 'raise')],
+          [L[3] + 4.4, () => stir('church', 'nod', { share: 0.6, spread: 0.8 })],
+          [L[3] + 5.2, b => { crowdPose('church', 'stand'); pose('apphia', 'stand'); pose('archippus', 'stand'); pose('tychicus', 'stand'); }],
         ]);
       },
     },

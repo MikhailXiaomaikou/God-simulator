@@ -155,6 +155,9 @@
   // 立即到空中那一点（不从地上飞起）
   function flySnap(id, x, y) { const prev = W.replaying; W.replaying = true; fly(id, x, y); W.replaying = prev; }
   function avoid(...r) { W.beastAvoid = r; }
+  // 演技：说话、一次性的手势（重演时人物模块自己略过）。宝座上的那一位只有光，从不给他说话的身子
+  function say(id, sec, o) { const c = C(); if (c.speak && fig(id)) U.safe('cast.speak', () => c.speak(id, sec, o)); }
+  function gest(id, kind, o) { const c = C(); if (c.gesture && fig(id)) U.safe('cast.gesture', () => c.gesture(id, kind, o)); }
   // 走到某处便隐去（进了屋；重演时直接移去）
   function leave(id, x, o) {
     const f = fig(id);
@@ -1788,11 +1791,11 @@
     { text: '念这书上预言的和那些听见又遵守其中所记载的，都是有福的，因为日期近了。', ref: '启示录 1:3', hold: 6 },
   ];
   const V1 = [
-    { text: '约翰写信给亚细亚的七个教会。但愿从那昔在、今在、以后永在的神……<br>有恩惠、平安归与你们！', ref: '启示录 1:4–5', hold: 7 },
+    { text: '约翰写信给亚细亚的七个教会。但愿从那昔在、今在、以后永在的神……<br>有恩惠、平安归与你们！', ref: '启示录 1:4–5', hold: 7, talk: [['john', 0.28, 1, 'calm']] },
     { text: '主神说：「我是阿拉法，我是俄梅戛，<br>是昔在、今在、以后永在的全能者。」', ref: '启示录 1:8', hold: 7.5 },
   ];
   const V2 = [
-    { text: '我约翰就是你们的弟兄，和你们在耶稣的患难、国度、忍耐里一同有分……<br>曾在那名叫拔摩的海岛上。', ref: '启示录 1:9', hold: 7 },
+    { text: '我约翰就是你们的弟兄，和你们在耶稣的患难、国度、忍耐里一同有分……<br>曾在那名叫拔摩的海岛上。', ref: '启示录 1:9', hold: 7, talk: [['john', 0.1, 0.92, 'calm']] },
     { text: '当主日，我被圣灵感动，听见在我后面有大声音如吹号，说：「你所看见的当写在书上，<br>达与以弗所、士每拿、别迦摩、推雅推喇、撒狄、非拉铁非、老底嘉那七个教会。」', ref: '启示录 1:10–11', hold: 10 },
   ];
   const V3 = [
@@ -1801,18 +1804,18 @@
     { text: '脚好像在炉中锻炼光明的铜；声音如同众水的声音。<br>他右手拿着七星……面貌如同烈日放光。', ref: '启示录 1:15–16', hold: 7.5 },
   ];
   const V4 = [
-    { text: '我一看见，就仆倒在他脚前，像死了一样。<br>他用右手按着我，说：「不要惧怕！我是首先的，我是末后的……」', ref: '启示录 1:17', hold: 7 },
-    { text: '「……又是那存活的；我曾死过，现在又活了，直活到永永远远；<br>并且拿着死亡和阴间的钥匙。」', ref: '启示录 1:18', hold: 7 },
-    { text: '「所以你要把所看见的，和现在的事，并将来必成的事，都写出来。」', ref: '启示录 1:19', hold: 6 },
+    { text: '我一看见，就仆倒在他脚前，像死了一样。<br>他用右手按着我，说：「不要惧怕！我是首先的，我是末后的……」', ref: '启示录 1:17', hold: 7, talk: [['son', 0.47, 1, 'calm', 'john']] },
+    { text: '「……又是那存活的；我曾死过，现在又活了，直活到永永远远；<br>并且拿着死亡和阴间的钥匙。」', ref: '启示录 1:18', hold: 7, who: 'son', to: 'john', how: 'calm' },
+    { text: '「所以你要把所看见的，和现在的事，并将来必成的事，都写出来。」', ref: '启示录 1:19', hold: 6, who: 'son', to: 'john', how: 'calm' },
   ];
   const V5 = [
-    { text: '「……那七星就是七个教会的使者，七灯台就是七个教会。」', ref: '启示录 1:20', hold: 5.5 },
-    { text: '圣灵向众教会所说的话，凡有耳的，就应当听！<br>得胜的，我必将神乐园中生命树的果子赐给他吃。', ref: '启示录 2:7', hold: 7 },
-    { text: '你将要受的苦你不用怕……你务要至死忠心，我就赐给你那生命的冠冕。', ref: '启示录 2:10', hold: 6.5 },
+    { text: '「……那七星就是七个教会的使者，七灯台就是七个教会。」', ref: '启示录 1:20', hold: 5.5, who: 'son', to: 'john', how: 'calm' },
+    { text: '圣灵向众教会所说的话，凡有耳的，就应当听！<br>得胜的，我必将神乐园中生命树的果子赐给他吃。', ref: '启示录 2:7', hold: 7, who: 'son', how: 'proclaim' },
+    { text: '你将要受的苦你不用怕……你务要至死忠心，我就赐给你那生命的冠冕。', ref: '启示录 2:10', hold: 6.5, who: 'son', to: 'john', how: 'calm' },
   ];
   const V6 = [
-    { text: '看哪，我站在门外叩门，若有听见我声音就开门的，<br>我要进到他那里去，我与他，他与我一同坐席。', ref: '启示录 3:20', hold: 8 },
-    { text: '得胜的，我要赐他在我宝座上与我同坐，<br>就如我得了胜，在我父的宝座上与他同坐一般。', ref: '启示录 3:21', hold: 7 },
+    { text: '看哪，我站在门外叩门，若有听见我声音就开门的，<br>我要进到他那里去，我与他，他与我一同坐席。', ref: '启示录 3:20', hold: 8, who: 'son', how: 'calm' },
+    { text: '得胜的，我要赐他在我宝座上与我同坐，<br>就如我得了胜，在我父的宝座上与他同坐一般。', ref: '启示录 3:21', hold: 7, talk: [['son', 0, 0.36, 'calm']] },
   ];
   const V7 = [
     { text: '此后，我观看，见天上有门开了。我初次听见好像吹号的声音，对我说：<br>「你上到这里来，我要将以后必成的事指示你。」', ref: '启示录 4:1', hold: 8.5 },
@@ -1836,7 +1839,7 @@
   ];
   const V12 = [
     { text: '我看见坐宝座的右手中有书卷，里外都写着字，用七印封严了。', ref: '启示录 5:1', hold: 6 },
-    { text: '我又看见一位大力的天使大声宣传说：<br>「有谁配展开那书卷，揭开那七印呢？」', ref: '启示录 5:2', hold: 6 },
+    { text: '我又看见一位大力的天使大声宣传说：<br>「有谁配展开那书卷，揭开那七印呢？」', ref: '启示录 5:2', hold: 6, talk: [['angel', 0.38, 1, 'proclaim']] },
     { text: '在天上、地上、地底下，没有能展开、能观看那书卷的。<br>因为没有配展开、配观看那书卷的，我就大哭。', ref: '启示录 5:3–4', hold: 7 },
   ];
   const V13 = [
@@ -1850,7 +1853,7 @@
     { text: '我又看见且听见，宝座与活物并长老的周围有许多天使的声音；他们的数目有千千万万，<br>大声说：曾被杀的羔羊是配得权柄、丰富、智慧、能力、尊贵、荣耀、颂赞的。', ref: '启示录 5:11–12', hold: 9 },
   ];
   const V15 = [
-    { text: '我又听见在天上、地上、地底下、沧海里，和天地间一切所有被造之物，都说：<br>「但愿颂赞、尊贵、荣耀、权势<br>都归给坐宝座的和羔羊，直到永永远远！」', ref: '启示录 5:13', hold: 9 },
+    { text: '我又听见在天上、地上、地底下、沧海里，和天地间一切所有被造之物，都说：<br>「但愿颂赞、尊贵、荣耀、权势<br>都归给坐宝座的和羔羊，直到永永远远！」', ref: '启示录 5:13', hold: 9, talk: [['john', 0.3, 1, 'proclaim']] },
     { text: '四活物就说：「阿们！」众长老也俯伏敬拜。', ref: '启示录 5:14', hold: 6 },
   ];
 
@@ -1904,9 +1907,14 @@
             sfx(b, 'stars');
             if (!b.instant) nameArc(0);
           }],
+          // 光弧划过：跪着祷告的约翰低下头
+          [2.4, () => gest('john', 'bowhead', { dur: 3 })],
           [L[1] - 1.4, b => { if (!b.instant) nameArc(1); sfx(b, 'harp'); }],
+          // 主神说：他一惊，站起来仰望；又举起两手敬拜那全能者
+          [L[1] + 0.4, () => gest('john', 'startle')],
           [L[1] + 1.2, () => { pose('john', 'gaze'); face('john', -1); }],
-          [L[2] - 1.5, b => W.set('trnArcA', 0.5, b.instant)],
+          [L[1] + 4.0, () => pose('john', 'lift')],
+          [L[2] - 1.5, b => { W.set('trnArcA', 0.5, b.instant); pose('john', 'gaze'); }],
         ]);
       },
     },
@@ -1918,16 +1926,25 @@
         const L = starts(V2);
         const t0 = L[1] + 1.4;
         const beats = [
-          [0, b => { W.set('trnArcA', 0, b.instant); W.goTo(0.31, 10, b.instant); }],
+          [0, b => { W.set('trnArcA', 0, b.instant); W.goTo(0.31, 10, b.instant); pose('john', 'stand'); }],
+          // 「曾在那名叫拔摩的海岛上」：他望一望四围的海
+          [4.2, () => gest('john', 'lookaround')],
+          // 在我后面有大声音如吹号：他一惊，不敢回头，低头静听
           [L[1] - 0.3, b => {
             W.set('trnVoice', 1, b.instant);
             sfx(b, 'trumpet');
             if (!b.instant) { const p = voicePt(); flashAt(b, p[0], p[1], PH(2) * 2.4); }
             pose('john', 'stand');
           }],
+          [L[1] - 0.1, () => gest('john', 'startle')],
+          [L[1] + 1.1, () => gest('john', 'bowhead', { dur: 1.6 })],
+          // 你所看见的当写在书上：坐下，膝上展开书卷，一笔一笔地写
           [L[1] + 2.4, b => { pose('john', 'sit'); face('john', -1); W.set('trnScroll', 1, b.instant); sfx(b, 'scroll'); }],
           [t0, b => W.set('trnChurch', 7, b.instant)],
+          [L[1] + 4.2, () => gest('john', 'scribble', { dur: 4.4 })],
           [L[1] + 5, b => sfx(b, 'write')],
+          [L[1] + 9.0, () => gest('john', 'nod')],
+          [L[1] + 10.4, () => gest('john', 'scribble', { dur: 3.6 })],
         ];
         for (let i = 0; i < 7; i++) beats.push([t0 + (i + 0.5) / 0.75, b => { churchName(b, i); sfx(b, 'chime', { soft: true }); }]);
         T(c, beats);
@@ -1941,18 +1958,30 @@
         const L = starts(V3);
         const beats = [
           [0, b => { W.set('trnScroll', 0, b.instant); pose('john', 'stand'); W.goTo(0.32, 8, b.instant); }],
+          // 我转过身来：七个金灯台一盏一盏立起，他一惊，手搭凉棚细看
           [0.8, () => face('john', 1)],
           [1.4, b => W.set('trnLamps', 7, b.instant)],
+          [1.9, () => gest('john', 'startle')],
+          [3.8, () => pose('john', 'look')],
+          // 灯台中间有一位好像人子：大光，以臂遮眼
           [L[1] - 0.6, b => {
             sonAdd(b);
             W.set('trnSon', 0.6, b.instant); W.set('trnVoice', 0, b.instant); W.set('trnVeil', 1, b.instant);
             sfx(b, 'angel');
             if (!b.instant) { const p = voicePt(); flashAt(b, p[0], p[1], PH(2) * 3); }
           }],
+          [L[1] - 0.2, () => pose('john', 'shield')],
+          [L[1] + 3.4, () => pose('john', 'gaze')],
+          // 声音如同众水的声音
           [L[2] - 0.2, b => sfx(b, 'wave', { soft: true })],
+          [L[2] + 0.2, () => say('son', 3.2, { how: 'proclaim' })],
+          [L[2] + 1.0, () => gest('john', 'tremble')],
           [L[2] + 2.4, b => { W.set('trnStars', 1, b.instant); sfx(b, 'stars'); }],
+          // 面貌如同烈日放光：又遮住眼，踉跄着到他脚前，仆倒
+          [L[2] + 4.0, () => pose('john', 'shield')],
           [L[2] + 4.6, b => { W.set('trnSon', 1, b.instant); sfx(b, 'harp'); }],
-          [L[3] - 4.2, () => walk('john', X('johnF'), { speed: 0.03, pose: 'fall' })],
+          [L[3] - 3.6, () => walk('john', X('johnF'), { speed: 0.03, pose: 'fall' })],
+          [L[3] - 3.0, () => gest('john', 'tremble', { dur: 2.2 })],
         ];
         for (let i = 0; i < 7; i++) beats.push([1.4 + (i + 0.8) / 0.9, b => sfx(b, 'bell', { soft: true })]);
         T(c, beats);
@@ -1965,16 +1994,25 @@
       apply(c) {
         const L = starts(V4);
         T(c, [
+          // 仆倒在他脚前，像死了一样；他俯身用右手按着约翰，说：不要惧怕
           [0, () => { pose('john', 'fall'); face('son', -1); }],
+          [0.6, () => gest('john', 'tremble', { dur: 2 })],
           [1.2, () => pose('son', 'bow')],
           [2.6, b => {
             glow('john', 0.6);
             sfx(b, 'harp');
             if (!b.instant) { const p = figPt('john', 0.1); if (p) fx().sparkle(p[0], p[1], 26, [255, 240, 210], 14, 'top'); }
           }],
-          [4.2, () => { pose('son', 'stand'); pose('john', 'kneel'); face('john', 1); }],
+          // 约翰跪起来；人子直起身
+          [4.8, () => { pose('john', 'kneel'); face('john', 1); }],
+          [5.6, () => pose('son', 'stand')],
           [L[1] + 1.5, b => { sfx(b, 'angel', { soft: true }); if (!b.instant) { const f = fig('son'); if (f) { const p = partOf(f, HEAD); flashAt(b, p[0], p[1], PH(2) * 2.2); } } }],
+          [L[1] + 2.0, () => gest('john', 'bowhead')],
+          [L[1] + 5.4, () => gest('john', 'nod')],
+          // 你要把所看见的都写出来：膝上又展开书卷，写
           [L[2] + 0.2, b => { W.set('trnScroll', 1, b.instant); sfx(b, 'write'); }],
+          [L[2] + 1.4, () => gest('john', 'scribble', { dur: 3.4 })],
+          [L[2] + 5.2, () => gest('john', 'scribble', { dur: 2.2 })],
         ]);
       },
     },
@@ -1987,10 +2025,16 @@
         const t0 = L[1] - 1.2;
         const beats = [
           [0, b => { W.goTo(0.37, 12, b.instant); W.set('trnScroll', 0, b.instant); pose('john', 'stand'); }],
-          [0.8, () => pose('son', 'raise')],
+          [1.2, () => pose('john', 'listen')],
+          // 举起右手的七星，送往七个教会；约翰手搭凉棚，望着它们飞往远处的岸上
+          [t0 - 1.0, () => pose('son', 'raise')],
           [t0, b => { W.set('trnSent', 1, b.instant); W.set('trnThreads', 1, b.instant); }],
+          [t0 + 0.8, () => pose('john', 'look')],
           [t0 + 9.4, () => { pose('son', 'stand'); pose('john', 'gaze'); }],
+          // 至死忠心，我就赐给你那生命的冠冕
           [L[2] + 1.2, b => fxPush(b, { type: 'crownring', dur: 3.2, i: 1 })],
+          [L[2] + 2.6, () => gest('john', 'nod')],
+          [L[2] + 5.0, () => gest('john', 'bowhead')],
         ];
         for (let i = 0; i < 7; i++) {
           beats.push([t0 + (i * 0.085) * 10 + 0.3, b => sfx(b, 'stars', { soft: true })]);
@@ -2015,15 +2059,23 @@
             sink('son', 0.04);
             face('john', 1); pose('john', 'stand');
           }],
-          [6.4, () => { face('son', 1); pose('son', 'point'); }],
+          // 约翰远远地望着
+          [3.0, () => pose('john', 'look')],
+          // 他站在门外，一下一下地叩门
+          [6.4, () => { face('son', 1); pose('son', 'knock'); }],
           [6.6, b => sfx(b, 'knock')],
           [7.8, b => sfx(b, 'knock', { soft: true })],
           [8.6, () => pose('son', 'stand')],
           [9.0, b => { W.set('trnDoorO', 1, b.instant); sfx(b, 'gate'); }],
-          // 开门的人站在亮着的门口
+          // 开门的人站在亮着的门口，低头，招手请他进来
           [9.8, b => add('host', { label: '开门的人', sex: 'm', age: 'adult', robe: [128, 98, 70], x: door(), layer: 2, facing: -1, v: 0.02, glow: 0.4, beard: true, from: b.instant ? 'none' : 'fade', prop: null })],
+          [10.2, () => gest('host', 'bowhead', { dur: 1.4 })],
+          [10.6, () => { pose('john', 'stand'); gest('son', 'nod'); }],
+          [11.0, () => gest('host', 'beckon', { dur: 1.6 })],
           // 他进到那人那里去
-          [11.4, () => { rm('host'); leave('son', door(), { speed: 0.018 }); }],
+          [11.4, () => leave('son', door(), { speed: 0.018 })],
+          [12.4, () => rm('host')],
+          [14.6, () => gest('john', 'nod')],
           [13.6, b => {
             rm('son');
             W.set('trnTable', 1, b.instant); W.set('trnSon', 0, b.instant);
@@ -2044,7 +2096,10 @@
             sfx(b, 'trumpet');
             pose('john', 'gaze'); face('john', 1);
           }],
+          [0.3, () => gest('john', 'startle')],
           [2.4, b => { W.set('trnGateO', 1, b.instant); sfx(b, 'gate', { soft: true }); }],
+          // 你上到这里来：他向天伸出两手
+          [5.4, () => gest('john', 'reachup', { dur: 3.6 })],
           // 屋门掩上，窗里仍有灯
           [3.4, b => { W.set('trnDoorO', 0, b.instant); W.set('trnTable', 0, b.instant); }],
           // 一点光自约翰身上顺着那道光升到天上的门里（「我立刻被圣灵感动」）
@@ -2067,8 +2122,15 @@
       apply(c) {
         const L = starts(V8);
         T(c, [
+          // 宝座：一闪大光，约翰一惊，俯伏下拜
           [0, b => { W.set('trnThrone', 1, b.instant); sfx(b, 'angel'); visionFlash(b, 0, -54, 200); pose('john', 'kneel'); glow('john', 0.55); }],
+          [0.3, () => gest('john', 'startle')],
+          [2.2, () => pose('john', 'worship')],
+          // 绿宝石的虹：他抬起头来，向那光伸手
+          [L[1] - 0.6, () => pose('john', 'kneel')],
           [L[1] - 0.3, b => { W.set('trnBow', 1, b.instant); sfx(b, 'harp'); }],
+          [L[1] + 0.6, () => gest('john', 'reachup', { dur: 3.4 })],
+          [L[1] + 4.6, () => gest('john', 'bowhead')],
           [L[2] - 0.5, b => W.set('trnGate', 0, b.instant)],
         ]);
       },
@@ -2081,9 +2143,16 @@
         const L = starts(V9);
         const beats = [
           [0, b => W.set('trnElders', 24, b.instant)],
+          // 二十四个座位：他四下里望
+          [1.6, () => gest('john', 'lookaround')],
+          // 闪电、雷轰：他一惊，蹲伏下来护着头
           [L[1] - 0.2, b => { W.set('trnZap', 1, b.instant); sfx(b, 'thunder'); visionFlash(b, 0, -56, 260); }],
+          [L[1] - 0.1, () => gest('john', 'startle')],
+          [L[1] + 0.5, () => pose('john', 'cower')],
           [L[1] + 2.4, b => { W.set('trnFire7', 1, b.instant); sfx(b, 'fire', { soft: true }); }],
+          [L[1] + 3.6, () => pose('john', 'kneel')],
           [L[1] + 4.6, b => sfx(b, 'thunder', { soft: true, far: true })],
+          [L[1] + 4.8, () => gest('john', 'tremble')],
         ];
         for (let i = 0; i < 5; i++) beats.push([0.6 + i * 2, b => sfx(b, 'harp', { soft: true })]);
         T(c, beats);
@@ -2094,10 +2163,14 @@
       kind: 'act', utter: '宝座中和宝座周围有四个活物', cmd: 'spawn 活物 狮子 牛犊 人 飞鹰 --wings 6 --eyes all', ref: '4:6', tint: [255, 236, 200],
       verse: V10,
       apply(c) {
-        const t0 = 3.4;
+        const t0 = 3.4, L10 = starts(V10);
         const beats = [
           [0, b => { W.set('trnGlass', 1, b.instant); sfx(b, 'stars'); }],
           [t0, b => W.set('trnBeasts', 4, b.instant)],
+          // 四活物一个一个显出：他一惊，又发抖；遍体满了眼睛——他低下头
+          [t0 + 0.7, () => gest('john', 'startle')],
+          [t0 + 4.4, () => gest('john', 'tremble')],
+          [L10[1] + 3.6, () => gest('john', 'bowhead', { dur: 3 })],
         ];
         for (let i = 0; i < 4; i++) beats.push([t0 + (i + 0.3) / 0.55, b => { sfx(b, 'wings'); visionFlash(b, BEASTS[i].lx, BEASTS[i].ly - 10, 90); }]);
         T(c, beats);
@@ -2113,12 +2186,21 @@
           [0, b => { W.set('trnHoly', 1, b.instant); holyPulse(b); }],
           [1.4, b => holyPulse(b)],
           [2.8, b => holyPulse(b)],
-          [L[1] - 0.3, b => { W.set('trnFall', 1, b.instant); sfx(b, 'harp'); pose('john', 'pray'); }],
+          // 圣哉！圣哉！圣哉！每一声他都低一低头
+          [1.4, () => gest('john', 'bowhead', { dur: 1.3 })],
+          [2.8, () => gest('john', 'bowhead', { dur: 1.3 })],
+          [4.4, () => pose('john', 'pray')],
+          // 长老俯伏敬拜：约翰也随着俯伏
+          [L[1] - 0.3, b => { W.set('trnFall', 1, b.instant); sfx(b, 'harp'); }],
+          [L[1] + 0.3, () => pose('john', 'worship')],
           [L[1] + 1.8, b => { W.set('trnCrowns', 1, b.instant); sfx(b, 'chime'); }],
+          // 你创造了万物：一道光扫过全地；他抬起头来，合手
           [L[2] - 0.2, b => {
             sfx(b, 'angel');
             if (!b.instant) { const V = VG(); fxPush(b, { type: 'sweep', dur: 5, y0: V.y }); }
           }],
+          [L[2] + 0.6, () => pose('john', 'pray')],
+          [L[2] + 3.2, () => gest('john', 'nod')],
           [L[2] + 5, b => { W.set('trnFall', 0, b.instant); pose('john', 'kneel'); }],
         ]);
       },
@@ -2138,9 +2220,16 @@
             flySnap('angel', A[0], A[1]);
             sfx(b, 'trumpet');
           }],
+          [L[1] - 0.2, () => gest('john', 'startle')],
           [L[1] + 1.4, () => pose('angel', 'point')],
+          // 大声宣传：放下手来，向四方高声问
+          [L[1] + 2.4, () => pose('angel', 'stand')],
+          // 有谁配？约翰四下里望，没有一个
+          [L[1] + 4.2, () => gest('john', 'lookaround')],
           [L[2] - 0.2, b => { W.set('trnHush', 1, b.instant); pose('angel', 'stand'); }],
-          [L[2] + 3, b => { pose('john', 'weep'); sfx(b, 'weep'); }],
+          [L[2] + 0.8, () => gest('john', 'sigh')],
+          // 我就大哭
+          [L[2] + 3, b => { pose('john', 'weep', { weep: true }); sfx(b, 'weep'); }],
         ]);
       },
     },
@@ -2151,13 +2240,19 @@
       apply(c) {
         const L = starts(V13);
         T(c, [
-          [0, b => { W.set('trnHush', 0, b.instant); pose('john', 'kneel'); sfx(b, 'lion', { soft: true, far: true }); }],
+          // 「不要哭！」——他还跪着抽泣；听见了，止住哭，抬起头来
+          [0, b => { W.set('trnHush', 0, b.instant); pose('john', 'kneel', { weep: true }); sfx(b, 'lion', { soft: true, far: true }); }],
+          [2.6, () => { pose('john', 'kneel', { weep: false }); gest('john', 'startle'); }],
+          [5.4, () => gest('john', 'nod')],
           [L[1] - 0.4, b => { W.set('trnLamb', 1, b.instant); sfx(b, 'bleat', { soft: true }); sfx(b, 'angel'); visionFlash(b, LAMB_AT[0], LAMB_AT[1] - 12 * lambK(), 120); }],
           [L[1] + 1.2, () => pose('john', 'gaze')],
           // 七角七眼，就是神的七灵：七盏火灯的火飞入羔羊
           [L[1] + 2.2, b => { W.set('trnSeven', 1, b.instant); sfx(b, 'fire', { soft: true }); }],
+          // 奉差遣往普天下去：他目送七道光远去
           [L[1] + 5.4, b => { W.set('trnRays', 1, b.instant); sfx(b, 'stars'); }],
+          [L[1] + 5.8, () => gest('john', 'lookaround')],
           [L[2] - 0.3, b => { W.set('trnTake', 1, b.instant); sfx(b, 'scroll'); }],
+          [L[2] + 1.0, () => gest('john', 'reachup', { dur: 2.4 })],
           [L[2] + 3.6, () => pose('john', 'kneel')],
         ]);
       },
@@ -2169,11 +2264,21 @@
       apply(c) {
         const L = starts(V14);
         T(c, [
-          [0, b => { W.set('trnFall', 1, b.instant); W.set('trnHarps', 1, b.instant); rm('angel'); pose('john', 'pray'); sfx(b, 'harp'); }],
+          // 俯伏在羔羊面前：约翰也随着俯伏，再合手祷告（众圣徒的祈祷也自他升上去）
+          [0, b => { W.set('trnFall', 1, b.instant); W.set('trnHarps', 1, b.instant); rm('angel'); pose('john', 'worship'); sfx(b, 'harp'); }],
           [1.4, b => prayers(b)],
+          [2.6, () => pose('john', 'pray')],
+          // 他们唱新歌：他抬头静听，点头
           [L[1] - 0.3, b => { W.set('trnFall', 0, b.instant); sfx(b, 'sing'); }],
+          [L[1] + 0.6, () => pose('john', 'kneel')],
+          [L[1] + 3.8, () => gest('john', 'nod')],
+          // 千千万万的天使满了全天：他站起来仰望，又举起两手
           [L[2] - 0.4, b => { W.set('trnHost', 1, b.instant); sfx(b, 'angel'); }],
+          [L[2] + 0.2, () => pose('john', 'gaze')],
+          [L[2] + 1.0, () => gest('john', 'lookaround')],
           [L[2] + 3.4, b => sfx(b, 'sing')],
+          [L[2] + 4.6, () => pose('john', 'lift')],
+          [L[3] - 1.2, () => pose('john', 'kneel')],
         ]);
       },
     },
@@ -2201,8 +2306,11 @@
             if (!b.instant && GS.fx && GS.fx.ring) { const V = VG(), p = vp(V, 0, -56); GS.fx.ring(p[0], p[1], [255, 236, 200], Math.hypot(W.w, W.h) * 0.8, 4.5, 2.2); }
             sfx(b, 'sing');
           }],
+          // 一切被造之物都说颂赞：约翰也站起来，举起两手同说
+          [0.8, () => pose('john', 'lift')],
           [2.6, b => { sfx(b, 'bird'); if (!b.instant) U.safe('breach', () => { const S0 = GS.sea; if (S0 && S0._whales && S0._setSt && S0._whales[0]) S0._setSt(S0._whales[0], 'breach', 3.4); }); }],
           [5.2, b => sfx(b, 'whale')],
+          // 阿们：众长老俯伏敬拜，约翰也俯伏，点头
           [L[1] - 0.3, b => {
             W.set('trnAmen', 1, b.instant); W.set('trnFall', 1, b.instant);
             pose('john', 'worship');
@@ -2213,6 +2321,7 @@
             }
             sfx(b, 'bell');
           }],
+          [L[1] + 1.2, () => gest('john', 'nod')],
           [L[1] + 2.6, b => sfx(b, 'harp')],
         ]);
       },

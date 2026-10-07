@@ -166,6 +166,21 @@
   function rm(id) { if (has(id)) C().remove(id); }
   function robe(id, rgb, acc) { const p = fig(id); if (!p) return; C().add(id, acc ? { robe: rgb, accent: acc } : { robe: rgb }); }
   function avoid(...rs) { W.beastAvoid = rs.map(r => [clamp(Math.min(r[0], r[1]), 0, 1), clamp(Math.max(r[0], r[1]), 0, 1)]); }
+  function prop(id, k) { const c = C(); if (c.prop && has(id)) c.prop(id, k); }
+  // 演技：说话、一次性的手势、众人先后转向 / 先后反应（重演时引擎自己什么也不做；attend 立即到位）
+  function say(id, sec, o) { const c = C(); if (c.speak && has(id)) c.speak(id, sec, o); }
+  function gest(id, kind, o) { const c = C(); if (c.gesture && has(id)) c.gesture(id, kind, o); }
+  function heed(ids, target, o) { const c = C(); if (c.attend) c.attend(ids, target, o); }
+  function stir(ids, kind, o) { const c = C(); if (c.react) c.react(ids, kind, o); }
+  // 几个人先后换成同一个姿势（各差 gap 秒）：返回情节的拍子（重演时按先后一一到位）
+  const stagger = (ids, ps, t0, gap) => ids.map((id, i) => [t0 + i * (gap == null ? 0.4 : gap), () => pose(id, ps)]);
+  // 保罗在桌前提笔：俯身一笔一笔地写，写完坐直（只在他坐在凳上、不在走路时；写完一定回到坐着）
+  function pen(t0, t1) {
+    return [
+      [t0, () => { const p = fig('paul'); if (p && p.tx == null && p.pose === 'seat') pose('paul', 'write'); }],
+      [t1, () => { const p = fig('paul'); if (p && p.pose === 'write') pose('paul', 'seat'); }],
+    ];
+  }
 
   // 园中的众人（加拉太的信徒）与其余的人
   const FOLK = ['jew', 'greek', 'slave', 'free', 'woman', 'father', 'child', 'tutor'];
@@ -189,7 +204,9 @@
 
   // 人物身上的一点（像素）：肩、胸、头
   const HIPS = { stand: 0.49, walk: 0.49, run: 0.48, kneel: 0.27, pray: 0.27, bow: 0.46, worship: 0.27, fall: 0.07, lie: 0.07,
-    sit: 0.126, seat: 0.27, raise: 0.49, gaze: 0.49, carry: 0.49, point: 0.49, wrestle: 0.42, weep: 0.48, embrace: 0.48, ride: 0.3 };
+    sit: 0.126, seat: 0.27, raise: 0.49, gaze: 0.49, carry: 0.49, point: 0.49, wrestle: 0.42, weep: 0.48, embrace: 0.48, ride: 0.3,
+    // 新约的身段（轭、重担随之落在肩上）
+    write: 0.27, wash: 0.27, beg: 0.27, stoop: 0.42, cower: 0.37, burden: 0.47, haul: 0.47, row: 0.17 };
   function bodyOf(id) {
     const p = typeof id === 'string' ? fig(id) : id;
     if (!p) return null;
@@ -1531,15 +1548,25 @@
             write(b, 1);
             if (!inst(b)) { const G = treeGeo(); letterTo(b, G.x, G.y - 30 * LS(2), 12); }
           }],
-          [1.2, () => { faceAll(['jew', 'greek', 'woman', 'slave', 'free', 'father', 'tutor', 'child'], TREE_F); }],
+          // 1:3 保罗提笔写下问安的话；园中的众人先后转向园子当中
+          ...pen(0.2, 4.4),
+          [1.2, () => heed(FOLK, LX(TREE_F), { spread: 1.6 })],
+          [4.9, () => gest('paul', 'bless')],
           // 1:4 一道光自上而来，落在园子当中；一粒光的种子落进地里
           [6.9, b => { lv('gaGift', 1, b); sfx(b, 'harp', { soft: true }); }],
+          // 众人先后仰起脸来看那光
+          ...stagger(FOLK, 'gaze', 7.2, 0.28),
           [8.4, b => {
             lv('gaTree', 0.1, b); lv('gaTreeG', 0.6, b); S.sprout = true;
             if (!inst(b)) { const G = treeGeo(); ringAt(b, G.x, G.y, [255, 240, 200], 0.2, 2.6, 1.4); sparkAt(b, G.x, G.y - 4, 22, [255, 244, 214], 10); }
             sfx(b, 'chime', { soft: true });
           }],
+          [8.7, () => stir(FOLK, 'startle', { share: 0.4, spread: 0.8 })],
           [9.4, b => { lv('gaHaze', 0.05, b); glowAll(FOLK, 0.16); }],
+          [9.8, () => gest('child', 'point')],          // 孩童指着地里发出来的芽
+          // 为我们的罪舍己：众人低下头来
+          ...stagger(FOLK, 'stand', 10.8, 0.25),
+          [11.6, () => stir(FOLK, 'bowhead', { share: 0.55, spread: 1.4 })],
           [12.6, b => lv('gaGift', 0, b)],
           // 1:6–7 搅扰的人来了，手里带着轭；灰冷的雾随他们爬进园中
           [13.4, b => {
@@ -1550,10 +1577,15 @@
             lv('gaHaze', 0.55, b);
             sfx(b, 'whisper', { soft: true, x: 0.9 });
           }],
+          [14.8, () => heed(['jew', 'slave', 'father', 'tutor', 'child'], 'tr1', { spread: 1.4 })],
+          // 我希奇你们这么快离开……：桌前的保罗叹一口气
+          [15.4, () => gest('paul', 'sigh')],
           [17.2, () => { for (const id of YOKED) faceF(id, 0.66); face('tr1', -1); face('tr2', -1); }],
+          // 要把基督的福音更改了：他们凑近外邦人，絮絮地劝
+          [17.3, () => { say('tr1', 2.4, { to: 'greek', how: 'plead' }); say('tr2', 2.2, { to: 'free', how: 'plead' }); }],
           // 他们把轭递过去，套在外邦人的肩上
           [18, b => {
-            pose('tr1', 'point'); pose('tr2', 'point');
+            pose('tr1', 'offer'); pose('tr2', 'offer');
             for (const id of YOKED) addFx(b, { type: 'yokefly', from: YOKE_FROM[id], to: id, dur: 1.35 });
           }],
           // 轭落在肩上（与递过去的弧同时落定）
@@ -1564,7 +1596,9 @@
             if (!inst(b)) for (const id of YOKED) { const B = bodyOf(id); if (B) motes(B.sx, B.sy, 8, [150, 156, 170], 10 * SU(), { speed: 12, life: 1.6, alpha: 0.5 }); }
             sfx(b, 'chains', { soft: true, x: 0.7 });
           }],
+          [20.2, () => stir(YOKED, 'sigh', { spread: 1 })],
           [20.8, () => { pose('tr1', 'stand'); pose('tr2', 'stand'); for (const id of ['jew', 'slave', 'father']) faceF(id, 0.5); }],
+          [21.6, () => { gest('father', 'sigh'); gest('paul', 'bowhead'); }],
         ]);
       },
     },
@@ -1587,6 +1621,9 @@
             W.set('gloom', 0.22, inst(b));
           }],
           [1.6, () => { pose('paul', 'bow'); glow('paul', 0.04); }],
+          // 怎样极力逼迫残害神的教会：他低头捶胸，叹息
+          [3, () => gest('paul', 'beat')],
+          [5.6, () => gest('paul', 'sigh')],
           // 1:15 一根光柱落在他身上
           [7, b => {
             W.set('gloom', 0, inst(b));
@@ -1594,7 +1631,10 @@
             sfx(b, 'angel', { soft: true, x: 0.5 });
             if (!inst(b)) { W.flash = Math.max(W.flash || 0, 0.25); }
           }],
-          [7.6, () => pose('paul', 'kneel')],
+          // 大光里以臂遮眼，随即跪下；跪着向天伸手（将他儿子启示在我心里）
+          [7.2, () => pose('paul', 'shield')],
+          [8.4, () => pose('paul', 'kneel')],
+          [9.6, () => gest('paul', 'reachup')],
           [11.2, b => {
             glow('paul', 0.45); pose('paul', 'stand');
             if (!inst(b)) { const B = bodyOf('paul'); if (B) { ringAt(b, B.cx, B.cy, [255, 236, 190], 0.3, 2.6, 1.6); sparkAt(b, B.cx, B.cy, 26, [255, 240, 200], 14); } }
@@ -1605,12 +1645,23 @@
             lv('gaRoad', 1, b); lv('gaRoadA', 1, b); S.road = true;
             sfx(b, 'harp', { soft: true });
           }],
-          [15, () => { faceAll(['jew', 'slave', 'father', 'tutor', 'child'], PAUL_F); }],
+          // 叫我把他传在外邦人中：他手搭凉棚，顺着光路望向外邦人的园子
+          [12.9, () => { face('paul', 1); pose('paul', 'look'); }],
+          [14.9, () => pose('paul', 'stand')],
+          [15, () => heed(['jew', 'slave', 'father', 'tutor', 'child'], 'paul', { spread: 1.4 })],
           [16.2, b => { glowAll(FOLK.filter(id => YOKED.indexOf(id) < 0), 0.22); if (!inst(b)) for (const id of ['jew', 'slave', 'father', 'child']) { const B = bodyOf(id); if (B) sparkAt(b, B.cx, B.cy, 10, [255, 226, 170], 8); } }],
-          // 1:23–24 他们就为我的缘故，归荣耀给神
-          [18.4, b => { for (const id of ['jew', 'slave', 'father', 'tutor', 'child']) pose(id, 'raise'); sfx(b, 'sing', { soft: true }); }],
+          // 1:23 听说那从前逼迫我们的……：众人一惊，彼此传说
+          [16.8, () => stir(['jew', 'slave', 'father', 'tutor', 'child'], 'startle', { share: 0.5, spread: 0.8 })],
+          [17.3, () => { say('jew', 2, { to: 'father' }); }],
+          [17.9, () => gest('father', 'nod')],
+          // 1:24 他们就为我的缘故，归荣耀给神
+          [18.4, b => sfx(b, 'sing', { soft: true })],
+          ...stagger(['jew', 'slave', 'father', 'tutor', 'child'], 'raise', 18.5, 0.35),
           [19.6, () => { pose('paul', 'seat'); face('paul', 1); }],
-          [23, b => { for (const id of ['jew', 'slave', 'father', 'tutor', 'child']) pose(id, 'stand'); lv('gaRoadA', 0.45, b); S.praise = true; }],
+          [20.3, () => gest('woman', 'sigh')],          // 负轭的人还低着头
+          ...pen(20.6, 23.8),
+          [23, b => { lv('gaRoadA', 0.45, b); S.praise = true; }],
+          ...stagger(['jew', 'slave', 'father', 'tutor', 'child'], 'stand', 23, 0.3),
         ]);
       },
     },
@@ -1620,7 +1671,8 @@
       kind: 'act', utter: '人称义不是因行律法，乃是因信耶稣基督', cmd: 'unset 隔断 && justify --by 信 --not 行律法', ref: '2:16',
       verse: [
         { text: '后来，矶法到了安提阿；……<br>从雅各那里来的人未到以先，<br>他和外邦人一同吃饭，及至他们来到，<br>他因怕奉割礼的人，就退去与外邦人隔开了。', ref: '加拉太书 2:11–12', hold: 8.5 },
-        { text: '但我一看见他们行的不正，与福音的真理不合，<br>就在众人面前对矶法说：「你既是犹太人，<br>若随外邦人行事，不随犹太人行事，<br>怎么还勉强外邦人随犹太人呢？」', ref: '加拉太书 2:14', hold: 9 },
+        { text: '但我一看见他们行的不正，与福音的真理不合，<br>就在众人面前对矶法说：「你既是犹太人，<br>若随外邦人行事，不随犹太人行事，<br>怎么还勉强外邦人随犹太人呢？」', ref: '加拉太书 2:14', hold: 9,
+          talk: [['paul', 0.42, 1, 'proclaim', 'peter']], gest: [['paul', 'point', 0.7], ['peter', 'bowhead', 0.93]] },
         { text: '既知道人称义不是因行律法，<br>乃是因信耶稣基督，……<br>因为凡有血气的，没有一人因行律法称义。', ref: '加拉太书 2:16', hold: 7.5 },
       ],
       apply(c) {
@@ -1635,20 +1687,33 @@
             for (const id in SEAT) go(id, SEAT[id], SEAT_V, 'sit', { speed: 0.045 });
             sfx(b, 'crowd', { soft: true });
           }],
+          // 保罗在桌前写下这一句
+          ...pen(0.3, 3.6),
+          [3.4, () => heed(['tutor', 'child'], 'peter', { spread: 1 })],
           [5.2, () => {
             for (const id in SEAT) face(id, SEAT[id] < 0.34 ? 1 : -1);
             face('peter', 1);
           }],
+          // 他和外邦人一同吃饭：矶法擘开饼，同席的人点头，彼此说话
+          [5.3, () => gest('peter', 'break')],
+          [6.2, () => { say('greek', 1.6, { to: 'peter' }); gest('father', 'nod'); }],
           // 及至他们来到：搅扰的人走到桌子东头
           [5.8, () => { go('tr1', 0.68, 0.4, 'stand', { speed: 0.03 }); go('tr2', 0.73, 0.3, 'stand', { speed: 0.03 }); }],
-          // 他就退去与外邦人隔开了；其余的犹太人也随着他
-          [6.6, b => { go('peter', 0.58, 0.44, 'stand', { speed: 0.035 }); lv('gaSplit', 1, b); S.split = true; }],
-          [7.4, () => go('jew', 0.625, 0.5, 'stand', { speed: 0.035 })],
-          [8.6, () => { for (const id of ['greek', 'father', 'woman', 'slave', 'free']) faceF(id, 0.6); }],
-          // 2:14 保罗当面抵挡他（在桌子东头的前面，众人面前）
-          [10, b => { go('paul', 0.53, 0.7, 'stand', { speed: 0.05 }); sfx(b, 'wind', { soft: true }); }],
-          [16.2, () => { face('paul', 1); face('peter', -1); face('jew', -1); pose('paul', 'point'); }],
-          [19.4, () => pose('paul', 'stand')],
+          // 他因怕奉割礼的人：矶法一惊，起身退去，与外邦人隔开了；其余的犹太人也随着他
+          [7, () => gest('peter', 'startle')],
+          [7.6, b => { go('peter', 0.58, 0.44, 'stand', { speed: 0.04 }); lv('gaSplit', 1, b); S.split = true; }],
+          [8.2, () => go('jew', 0.625, 0.5, 'stand', { speed: 0.04 })],
+          [8.6, () => heed(['greek', 'father', 'woman', 'slave', 'free'], LX(0.6), { spread: 1.4 })],
+          [9.6, () => stir(['greek', 'father', 'woman', 'slave', 'free'], 'sigh', { share: 0.6, spread: 1.2 })],
+          // 2:14 保罗一看见，就起身走去，当面抵挡他（在桌子东头的前面，众人面前）
+          [8.8, () => pose('paul', 'stand')],
+          [9.4, b => { go('paul', 0.53, 0.7, 'stand', { speed: 0.062 }); sfx(b, 'wind', { soft: true }); }],
+          [11.4, () => { gest('peter', 'bowhead'); heed(['tr1', 'tr2'], 'peter', { spread: 0.6 }); }],
+          [13.2, () => { face('paul', 1); face('peter', -1); face('jew', -1); }],
+          [13.4, () => heed(['greek', 'father', 'woman', 'slave', 'free', 'tutor', 'child'], 'paul', { spread: 1.2 })],
+          // 随着矶法退去的犹太人也低下头；同席的外邦人彼此看看
+          [16.8, () => gest('jew', 'bowhead')],
+          [17.6, () => stir(['greek', 'father', 'slave'], 'nod', { share: 0.5, spread: 1 })],
           // 2:16 光落在所有人身上，一样的光
           [20, b => {
             lv('gaFaith', 1, b); S.faith = true;
@@ -1656,6 +1721,12 @@
             sfx(b, 'harp', { soft: true });
             if (!inst(b)) { const G = treeGeo(); ringAt(b, G.x, G.y - 10, [255, 236, 190], 0.4, 3.4, 1.4); }
           }],
+          // 人称义乃是因信：保罗接着对矶法讲论；同席的外邦人向光伸手，矶法点头
+          [20.4, () => { pose('paul', 'teach'); say('paul', 4.6, { to: 'peter', how: 'teach' }); }],
+          [21, () => stir(['greek', 'father', 'woman', 'slave', 'free'], 'reachup', { share: 0.6, spread: 1.4 })],
+          [23.2, () => gest('peter', 'nod')],
+          [24, () => stir(['greek', 'father', 'woman', 'slave', 'free', 'jew'], 'nod', { share: 0.6, spread: 1.4 })],
+          [25.4, () => pose('paul', 'stand')],
           [26.2, b => lv('gaFaith', 0.12, b)],
         ]);
       },
@@ -1680,6 +1751,8 @@
             sfx(b, 'chime', { soft: true, x: 0.6 });
           }],
           [1.2, () => { face('paul', -1); }],
+          // 他望着远山上一笔一笔画出来的十字架
+          [1.8, () => pose('paul', 'gaze')],
           [3.2, b => {
             pose('paul', 'kneel');
             // 现在活着的不再是我：一缕灰影自他身上散去
@@ -1691,8 +1764,12 @@
             if (!inst(b)) { const B = bodyOf('paul'); if (B) { ringAt(b, B.cx, B.cy, [255, 232, 180], 0.22, 2.4, 1.4); sparkAt(b, B.cx, B.cy, 22, [255, 236, 190], 10); } }
             sfx(b, 'harp', { soft: true });
           }],
-          // 他是爱我，为我舍己：十字架的光一线落进他心里
+          // 乃是基督在我里面活着：跪着合掌
+          [6, () => pose('paul', 'pray')],
+          // 他是爱我，为我舍己：十字架的光一线落进他心里；他低下头，长长地叹一口气
           [9, b => { addFx(b, { type: 'thread', dur: 5.2 }); sfx(b, 'heart', { soft: true }); }],
+          [10.8, () => gest('paul', 'bowhead')],
+          [12.4, () => gest('paul', 'sigh')],
           [13.4, () => pose('paul', 'stand')],
           // 3:1 众人都转向远山；桌子撤去
           [15.4, b => {
@@ -1702,13 +1779,19 @@
           [16.2, () => {
             go('father', 0.25, 0.4); go('greek', 0.32, 0.5, 'bow'); go('free', 0.4, 0.56, 'bow'); go('woman', 0.7, 0.58, 'bow'); go('slave', 0.66, 0.3);
           }],
+          // 无知的加拉太人哪：保罗转向众人，恳切地说；说到「活画在你们眼前」，一指远山
+          [16.4, () => say('paul', 4, { to: 'greek', how: 'plead' })],
           [17.2, b => {
-            faceAll(['jew', 'slave', 'father', 'tutor', 'child', 'peter'], XLp(XC, port()));
-            for (const id of ['jew', 'slave', 'father', 'tutor', 'child', 'peter']) pose(id, 'gaze');
+            heed(['jew', 'slave', 'father', 'tutor', 'child', 'peter'], XC, { spread: 1.2 });
             lv('gaCrossB', 1, b);
           }],
-          [19.2, () => { go('paul', PAUL_F, PAUL_V, 'seat', { speed: 0.055 }); }],
-          [22.6, () => { for (const id of ['jew', 'slave', 'father', 'tutor', 'child', 'peter']) pose(id, 'stand'); faceAll(['greek', 'woman', 'free'], XLp(XC, port())); }],
+          ...stagger(['jew', 'slave', 'father', 'tutor', 'child', 'peter'], 'gaze', 17.3, 0.35),
+          [18.8, () => { face('paul', -1); gest('paul', 'point'); }],
+          [20.4, () => { go('paul', PAUL_F, PAUL_V, 'seat', { speed: 0.065 }); }],
+          // 谁又迷惑了你们呢？负轭的人低头叹息
+          [21.2, () => stir(['greek', 'woman', 'free'], 'sigh', { spread: 1.2 })],
+          [22.6, () => { faceAll(['greek', 'woman', 'free'], XLp(XC, port())); }],
+          ...stagger(['jew', 'slave', 'father', 'tutor', 'child', 'peter'], 'stand', 22.6, 0.25),
           [24.4, b => { lv('gaCrossB', 0.25, b); face('paul', 1); }],
         ]);
       },
@@ -1730,11 +1813,16 @@
             lv('gaFaith', 0, b);
             glowAll(BELIEVERS, 0.3); glow('paul', 0.4);
           }],
+          ...pen(0.2, 4),
           [4.5, b => {
-            for (const id of ['jew', 'slave', 'father', 'tutor', 'child', 'peter']) pose(id, 'gaze');
             lv('gaStars', 1, b); S.stars = true;
             sfx(b, 'stars', { soft: true });
           }],
+          // 众人先后仰望满天的星；孩童向天伸手，师傅在旁对他讲：以信为本的人，就是亚伯拉罕的子孙
+          ...stagger(['jew', 'slave', 'father', 'tutor', 'child', 'peter'], 'gaze', 4.6, 0.35),
+          [6.6, () => gest('child', 'reachup')],
+          [7.6, () => say('tutor', 2.6, { to: 'child', how: 'teach' })],
+          [9.8, () => gest('child', 'nod')],
           // 万国都必因你得福：星光一点一点落在每个人头上；远近的山上亮起万国的灯
           [10.5, b => {
             lv('gaNations', 1, b);
@@ -1748,12 +1836,21 @@
             }
             sfx(b, 'chime', { soft: true });
           }],
+          // 星光落在头上：有人向天伸手，有人点头；负轭的人仍低着头叹息
+          [12.3, () => stir(['jew', 'slave', 'father', 'tutor', 'child', 'peter'], 'reachup', { share: 0.5, spread: 1.6 })],
           [13.4, b => {
             glowAll(BELIEVERS, 0.38);
             lv('gaHaze', 0.3, b);
             if (!inst(b)) for (const id of believersHere()) { const B = bodyOf(id); if (B) sparkAt(b, B.x, B.y - B.h, 8, [236, 240, 255], 6); }
           }],
-          [18.4, b => { for (const id of ['jew', 'slave', 'father', 'tutor', 'child', 'peter']) pose(id, 'stand'); sfx(b, 'harp', { soft: true }); }],
+          [13.8, () => stir(YOKED, 'sigh', { spread: 1.4 })],
+          [15, () => stir(['jew', 'slave', 'father', 'tutor', 'peter'], 'nod', { share: 0.6, spread: 1.4 })],
+          [18.4, b => sfx(b, 'harp', { soft: true })],
+          ...stagger(['jew', 'slave', 'father', 'tutor', 'child', 'peter'], 'stand', 18.4, 0.3),
+          // 和有信心的亚伯拉罕一同得福：桌前的保罗举手祝福，又提笔写
+          [19.4, () => gest('paul', 'bless')],
+          [20.6, () => stir(['jew', 'father', 'peter'], 'nod', { share: 0.7, spread: 1.2 })],
+          ...pen(21, 23.8),
         ]);
       },
     },
@@ -1774,23 +1871,31 @@
             lv('gaTree', 0.45, b); lv('gaTreeG', 0.8, b);
             W.set('grass', 0.8, inst(b)); W.set('bare', 0.14, inst(b));
           }],
+          ...pen(0.2, 3.6),
           // 师傅牵着孩童，把他领到树前（走在众人的前面，好叫人看清他们）
           [1.6, () => {
             glow('tutor', 0.32); glow('child', 0.34);
             go('tutor', 0.51, 0.68, 'stand', { speed: 0.024, dx: -PAIR() });
             go('child', 0.51, 0.68, 'stand', { speed: 0.024, dx: PAIR() });
           }],
+          [3.8, () => heed(['jew', 'greek', 'slave', 'free', 'woman', 'father', 'peter'], 'child', { spread: 1.8 })],
+          [6, () => gest('child', 'lookaround')],
           [8, b => lv('gaStars', 0, b)],
-          // 不在师傅的手下了：他放了手，退后一步；孩童自己走到树下
-          [10, () => { hands('tutor', 'child', false); }],
-          [10.6, () => { go('child', TREE_F - 0.02, 0.34, 'stand', { speed: 0.012 }); go('tutor', 0.45, 0.74, 'bow', { speed: 0.012 }); }],
+          // 训蒙的师傅：一路走来，他低头对孩童讲；孩童点头
+          [8.1, () => say('tutor', 1.8, { to: 'child', how: 'teach' })],
+          [9.4, () => gest('child', 'nod')],
+          // 不在师傅的手下了：他放了手，指一指那树，退后一步；孩童自己走到树下
+          [10, () => { hands('tutor', 'child', false); face('tutor', 1); gest('tutor', 'point', { dur: 1.4 }); }],
+          [11, () => { go('child', TREE_F - 0.02, 0.34, 'stand', { speed: 0.012 }); go('tutor', 0.45, 0.74, 'bow', { speed: 0.012 }); }],
           [12.6, () => { face('tutor', 1); face('child', -1); }],
-          // 都是神的儿子：一道光落在孩童身上，光自他向众人漾开
+          // 都是神的儿子：一道光落在孩童身上，光自他向众人漾开；孩童仰起脸，跳起来，张开两臂欢喜
           [13.2, b => {
             lv('gaSon', 1, b); glow('child', 0.6); S.sons = true;
             if (!inst(b)) { const B = bodyOf('child'); if (B) { ringAt(b, B.cx, B.cy, [255, 240, 200], 0.3, 2.8, 1.5); sparkAt(b, B.cx, B.cy, 24, [255, 244, 214], 10); } W.flash = Math.max(W.flash || 0, 0.12); }
             sfx(b, 'harp', { soft: true });
           }],
+          [13.4, () => pose('child', 'gaze')],
+          [14.1, () => gest('child', 'leap', { n: 2 })],
           [14.4, b => {
             glowAll(BELIEVERS.filter(id => id !== 'child'), 0.34); lv('gaHaze', 0.2, b);
             if (!inst(b)) {
@@ -1798,7 +1903,13 @@
               for (const id of believersHere()) { const P = bodyOf(id); if (P && id !== 'child') sparkAt(b, P.cx, P.cy, 10, [255, 236, 190], 6); }
             }
           }],
+          // 光漾到众人身上：有人向天伸手，有人点头
+          [15.2, () => stir(['jew', 'slave', 'father', 'peter'], 'reachup', { share: 0.55, spread: 1.4 })],
+          [15.9, () => pose('child', 'rejoice')],
           [16.4, b => { pose('tutor', 'stand'); lv('gaSon', 0.25, b); }],
+          [16.9, () => stir(['jew', 'greek', 'slave', 'free', 'woman', 'father', 'peter'], 'nod', { share: 0.5, spread: 1.4 })],
+          [17.3, () => { gest('tutor', 'nod'); gest('paul', 'nod'); }],
+          [18.3, () => pose('child', 'stand')],
         ]);
       },
     },
@@ -1833,7 +1944,14 @@
             });
             sfx(b, 'chime', { soft: true });
           }],
-          // 3:28 隔开的都回来；众人围着树，成双成对地牵手
+          // 衣裳亮起来：有人一惊，低头看看自己，又点点头
+          ...pen(0.3, 3.6),
+          [1.4, () => stir(BELIEVERS, 'startle', { share: 0.35, spread: 1.2 })],
+          [2.8, () => stir(BELIEVERS, 'nod', { share: 0.45, spread: 1.6 })],
+          // 3:28 隔开的都回来：矶法与犹太人招手，众人围着树，成双成对地牵手
+          [5.6, () => heed(['peter', 'jew'], 'greek', { spread: 0.6 })],
+          [5.9, () => { gest('jew', 'beckon'); gest('father', 'beckon'); }],
+          [9.6, () => gest('child', 'lookaround')],
           [6.4, b => {
             lv('gaSplit', 0, b); S.split = false;
             for (const id in RING) { const q = RING[id]; go(id, q[0], q[1], YOKED.indexOf(id) >= 0 ? 'bow' : 'stand', { speed: 0.03, dx: q[2] * PAIR() }); }
@@ -1859,7 +1977,16 @@
             }
             sfx(b, 'harp', { soft: true });
           }],
+          // 牵着手的两人彼此点头；矶法、师傅、孩童仰望空中的「一」
+          [12.7, () => stir(['jew', 'greek', 'slave', 'free', 'woman', 'father'], 'nod', { spread: 1.1 })],
+          ...stagger(['peter', 'tutor', 'child'], 'gaze', 12.9, 0.4),
           [15.6, b => { W.set('bloom', 0.3, inst(b)); W.set('herbs', 0.6, inst(b)); glowAll(BELIEVERS, 0.36); }],
+          ...stagger(['peter', 'tutor', 'child'], 'stand', 15.7, 0.35),
+          // 3:29 就是亚伯拉罕的后裔：孩童跳起来；桌前的保罗举手祝福，又提笔写
+          [16.6, () => gest('child', 'leap', { n: 2 })],
+          [17.6, () => gest('peter', 'nod')],
+          [18.4, () => gest('paul', 'bless')],
+          ...pen(19.2, 21.8),
           [19.6, b => lv('gaOne', 0.3, b)],
         ]);
       },
@@ -1870,7 +1997,8 @@
       kind: 'call', utter: '阿爸！父！', cmd: 'send 儿子的灵 --into 你们的心  # 阿爸，父', ref: '4:6',
       verse: [
         { text: '及至时候满足，神就差遣他的儿子，<br>为女子所生，且生在律法以下，<br>要把律法以下的人赎出来，<br>叫我们得着儿子的名分。', ref: '加拉太书 4:4–5', hold: 8.5 },
-        { text: '你们既为儿子，<br>神就差他儿子的灵进入你们的心，<br>呼叫：「阿爸！父！」', ref: '加拉太书 4:6', hold: 6.5 },
+        { text: '你们既为儿子，<br>神就差他儿子的灵进入你们的心，<br>呼叫：「阿爸！父！」', ref: '加拉太书 4:6', hold: 6.5,
+          talk: [['child', 0.78, 1, 'proclaim'], ['slave', 0.8, 1, 'proclaim'], ['woman', 0.82, 1, 'proclaim'], ['peter', 0.84, 1, 'proclaim'], ['jew', 0.86, 1, 'proclaim']] },
         { text: '可见，从此以后，<br>你不是奴仆，乃是儿子了；<br>既是儿子，就靠着神为后嗣。', ref: '加拉太书 4:7', hold: 6.5 },
       ],
       apply(c) {
@@ -1881,15 +2009,23 @@
             write(b, 8);
             lv('gaTree', 0.7, b);
           }],
-          // 时候满足：一点光自天顶降到远山的村庄里
+          ...pen(0.2, 3.4),
+          // 时候满足：一点光自天顶降到远山的村庄里；众人先后望向远山，有人手搭凉棚，孩童指着
           [1.2, b => {
             addFx(b, { type: 'orb', x0: XB * W.w - W.w * 0.04, y0: -10, x1: XB * W.w, y1: gY(0, XB) - 3, r: 5 * SU(), dur: 4.4 });
             sfx(b, 'angel', { soft: true, x: 0.9 });
           }],
+          [2, () => heed(BELIEVERS, XB, { spread: 1.6 })],
+          [2.9, () => pose('tutor', 'look')],
+          [3.4, () => pose('peter', 'look')],
           [5.4, b => {
             lv('gaSent', 1, b); lv('gaStar', 1, b); S.sent = true;
             if (!inst(b)) ringAt(b, XB * W.w, gY(0, XB) - 3, [255, 236, 190], 0.12, 2.4, 1.2);
           }],
+          [5.7, () => gest('child', 'point')],
+          [6.6, () => stir(['jew', 'slave', 'father', 'woman'], 'nod', { share: 0.6, spread: 1.4 })],
+          [7.8, () => pose('tutor', 'stand')],
+          [8.2, () => pose('peter', 'stand')],
           // 儿子的灵自灵所在之处流进每个人心里
           [9.8, b => {
             if (!inst(b) && fx()) {
@@ -1906,13 +2042,15 @@
             hands('woman', 'father', false);
             sfx(b, 'heart', { soft: true });
           }],
-          // 呼叫「阿爸！父！」：柔光自天顶降在众人身上，人人仰起脸来——父是自上而来的光
+          // 呼叫「阿爸！父！」：柔光自天顶降在众人身上，人人先后仰起脸来——父是自上而来的光
           [12.3, b => {
             lv('gaAbba', 1, b); S.abba = true;
-            for (const id of BELIEVERS) { pose(id, 'gaze'); faceF(id, TREE_F); }
+            heed(BELIEVERS, LX(TREE_F), { spread: 1 });
             sfx(b, 'angel', { soft: true, x: 0.75 });
             if (!inst(b)) { const G = treeGeo(); sparkAt(b, G.x, W.h * 0.08, 30, [255, 246, 226], W.w * 0.08); }
           }],
+          ...stagger(BELIEVERS, 'gaze', 12.3, 0.2),
+          [14, () => stir(['jew', 'peter', 'tutor', 'woman'], 'reachup', { share: 0.6, spread: 1.2 })],
           // 4:7 儿子、后嗣：在那光里，孩童奔向父亲，相拥
           [15.2, b => {
             for (const id of BELIEVERS) if (id !== 'child' && id !== 'father') pose(id, YOKED.indexOf(id) >= 0 && S.yoked.length ? 'bow' : 'stand');
@@ -1923,16 +2061,22 @@
             robe('child', HEIR_ROBE); glow('child', 0.55);
             if (!inst(b)) { const B = bodyOf('child'); if (B) sparkAt(b, B.cx, B.cy, 18, [255, 240, 200], 8); }
           }],
-          // 4:7 你不是奴仆，乃是儿子了：为奴的那人换上儿子的衣裳
+          // 4:7 你不是奴仆，乃是儿子了：为奴的那人换上儿子的衣裳，一惊，随即张开两臂欢喜；自主的为他拍手
           [18.2, b => {
             hands('slave', 'free', false);
             robe('slave', SON_ROBE, [200, 170, 110]);
-            pose('slave', 'raise'); glow('slave', 0.5); S.heir = true;
+            glow('slave', 0.5); S.heir = true;
+            gest('slave', 'startle');
             if (!inst(b)) { const B = bodyOf('slave'); if (B) { ringAt(b, B.cx, B.cy, [255, 236, 190], 0.18, 2.2, 1.3); sparkAt(b, B.cx, B.cy, 22, [255, 240, 200], 10); } }
             sfx(b, 'harp', { soft: true });
           }],
+          [19, () => pose('slave', 'rejoice')],
+          [19.6, () => { face('free', 'slave'); gest('free', 'clap'); }],
+          [20.4, () => stir(['jew', 'woman', 'peter', 'tutor'], 'nod', { share: 0.6, spread: 1.2 })],
+          [20.8, () => gest('paul', 'bless')],
           [21.5, b => { lv('gaHearts', 0.4, b); lv('gaAbba', 0.3, b); }],
-          [23, () => pose('slave', 'stand')],
+          ...pen(21.8, 24.6),
+          [22.4, () => pose('slave', 'stand')],
         ]);
       },
     },
@@ -1952,6 +2096,7 @@
             lv('gaTree', 0.8, b); lv('gaBlos', 0.35, b); lv('gaAbba', 0, b); lv('gaStar', 0, b);
             if (!inst(b)) for (const id of S.yoked) { const B = bodyOf(id); if (B) motes(B.sx, B.sy, 10, [255, 236, 190], B.h * 0.3, { speed: 10, life: 1.4, size: 1.3 }); }
           }],
+          ...pen(0.2, 3),
           // 轭断了，落在地上
           [1.8, b => {
             const br = [];
@@ -1965,20 +2110,34 @@
             }
             sfx(b, 'shatter', { x: 0.65 }); sfx(b, 'chains', { soft: true });
           }],
+          // 轭断了的一刻：三个人一惊；众人转过来看
+          [2, () => stir(YOKED, 'startle', { spread: 0.5 })],
+          [2.4, () => heed(['jew', 'slave', 'father', 'tutor', 'child', 'peter'], 'free', { spread: 1 })],
+          // 站立得稳：三个人直起腰来，举手、欢喜；众人拍手，孩童跳起来
           [3.2, b => {
-            for (const id of YOKED) pose(id, 'raise');
+            pose('greek', 'rejoice'); pose('woman', 'raise'); pose('free', 'raise');
             lv('gaHaze', 0, b);
             W.setPop('bird', 26, treeX(), treeY() - treeH() * 0.6, inst(b));
             sfx(b, 'bird', {}); sfx(b, 'wings', { soft: true });
           }],
+          [4, () => stir(['jew', 'slave', 'father', 'peter'], 'clap', { share: 0.6, spread: 1 })],
           // 搅扰的人走了
           [4.4, () => { go('tr1', XLp(1.08, port()), 0.12, 'stand', { speed: 0.035 }); go('tr2', XLp(1.1, port()), 0.04, 'stand', { speed: 0.035 }); S.trouble = 'gone'; }],
-          [8.6, () => { rm('tr1'); rm('tr2'); for (const id of YOKED) pose(id, 'stand'); }],
-          // 5:13 总要用爱心互相服事：自主的在为奴的面前跪下服事他
-          [9.4, () => { face('free', 'slave'); face('slave', 'free'); pose('free', 'kneel'); }],
+          [4.8, () => gest('child', 'leap', { n: 2 })],
+          [7, () => pose('greek', 'raise')],
+          [8.6, () => { rm('tr1'); rm('tr2'); }],
+          ...stagger(YOKED, 'stand', 8.6, 0.35),
+          // 5:13 总要用爱心互相服事：自主的在为奴的面前跪下，俯身服事他；为奴的一惊，伸手扶他的肩
+          [9.4, () => { face('free', 'slave'); face('slave', 'free'); pose('free', 'wash'); }],
           [10.4, b => { S.serve = true; const B = bodyOf('free'); if (B && !inst(b)) sparkAt(b, B.cx, B.cy, 12, [255, 226, 170], 8); sfx(b, 'harp', { soft: true }); }],
+          [10.6, () => gest('slave', 'startle')],
+          [11.8, () => gest('slave', 'touch')],
           [12.4, () => { face('woman', 'greek'); face('greek', 'woman'); pose('woman', 'bow'); pose('greek', 'bow'); }],
+          // 「爱人如己」：桌前的保罗举手祝福；众人点头
+          [13.8, () => gest('paul', 'bless')],
+          [14.4, () => stir(['jew', 'father', 'peter', 'tutor'], 'nod', { share: 0.65, spread: 1.4 })],
           [15.6, () => { pose('woman', 'stand'); pose('greek', 'stand'); }],
+          [16.4, () => { gest('woman', 'nod'); }],
         ]);
       },
     },
@@ -2001,8 +2160,13 @@
             lv('gaBroke', 0, b);
             sfx(b, 'wind', { soft: true });
           }],
-          [2, () => { for (const id of BELIEVERS) { faceF(id, TREE_F); } }],
-          [4.6, () => { for (const id of ['jew', 'greek', 'slave', 'free', 'woman', 'peter', 'tutor']) pose(id, 'gaze'); }],
+          ...pen(0.4, 3.6),
+          // 当顺着圣灵而行：众人先后转向那树，仰望它长大、开花
+          [2, () => heed(BELIEVERS, LX(TREE_F), { spread: 1.4 })],
+          ...stagger(['jew', 'greek', 'slave', 'free', 'woman', 'peter', 'tutor'], 'gaze', 4.4, 0.3),
+          // 九样果子一样一样亮起：每亮一样，园中便有一个人应一下
+          ...[['woman', 'reachup'], ['child', 'leap'], ['jew', 'nod'], ['slave', 'bowhead'], ['father', 'nod'],
+            ['tutor', 'nod'], ['peter', 'nod'], ['greek', 'bowhead'], ['free', 'nod']].map((q, i) => [6.9 + (i + 1) / 9 / 0.085 - 0.2, () => gest(q[0], q[1])]),
           // 九样果子一样一样亮起，各有其名
           [6.9, b => {
             lv('gaFruit', 1, b); S.fruits = 9;
@@ -2027,7 +2191,8 @@
             if (!inst(b)) { const G = treeGeo(); ringAt(b, G.x, G.y - G.s * 0.7, [255, 240, 200], 0.5, 3.4, 1.4); }
             sfx(b, 'bird', {});
           }],
-          [20, () => { for (const id of BELIEVERS) pose(id, 'stand'); }],
+          [17.6, () => { gest('child', 'clap'); gest('paul', 'bless'); }],
+          ...stagger(BELIEVERS, 'stand', 18, 0.12),
         ]);
       },
     },
@@ -2052,21 +2217,30 @@
             S.sack = 'one'; lv('gaSack', 1, b);
             sfx(b, 'wind', { soft: true });
           }],
-          [1.4, () => { hands('slave', 'free', false); hands('woman', 'father', false); for (const id in WALK) goIn(id, WALK[id][0], WALK[id][1], 'stand', 4); }],
-          // 6:1 背着重担的人跌倒了：担子落在地上
+          // 背着重担的人弯着腰走在后面
+          [1.4, () => { hands('slave', 'free', false); hands('woman', 'father', false); for (const id in WALK) goIn(id, WALK[id][0], WALK[id][1], id === 'free' ? 'burden' : 'stand', 4); }],
+          ...pen(0.3, 3.4),
+          [5.6, () => gest('free', 'sigh')],
+          // 6:1 背着重担的人跌倒了：担子落在地上；众人一惊，转过来
           [7.2, b => {
             pose('free', 'fall', { stop: true }); S.fell = true; S.sack = 'down';
             if (!inst(b)) { const B = bodyOf('free'); if (B) motes(B.x - B.fd * B.h * 0.3, B.y - 3, 10, [150, 140, 128], B.h * 0.3, { speed: 14, vy: -8, life: 1.2, alpha: 0.5 }); }
             sfx(b, 'build', { soft: true, x: 0.6 });
           }],
-          [8.4, () => { go('greek', WALK.free[0] - 0.06, 0.86, 'kneel', { speed: 0.03 }); go('slave', WALK.free[0] + 0.065, 0.84, 'kneel', { speed: 0.035 }); }],
+          [7.5, () => { stir(['tutor', 'peter', 'jew', 'greek', 'slave'], 'startle', { spread: 0.7 }); heed(['tutor', 'peter', 'jew'], 'free', { spread: 1 }); }],
+          // 属灵的人用温柔的心把他挽回：两人赶过去，弯下腰来扶他
+          [8.4, () => { go('greek', WALK.free[0] - 0.06, 0.86, 'stoop', { speed: 0.03 }); go('slave', WALK.free[0] + 0.065, 0.84, 'stoop', { speed: 0.035 }); }],
           [10.8, () => { face('greek', 1); face('slave', -1); }],
           [11.4, b => {
             pose('free', 'kneel');
             if (!inst(b)) { const B = bodyOf('free'); if (B) sparkAt(b, B.cx, B.cy, 12, [206, 236, 255], 8); }
           }],
+          [11.7, () => { pose('greek', 'reach'); pose('slave', 'reach'); }],
           [12.8, () => { pose('free', 'stand'); pose('greek', 'stand'); pose('slave', 'stand'); face('free', 1); }],
-          // 6:2 把担子分过来一同担当：一个大的分成两个小的，暖光落在两人的肩上
+          [13.6, () => { face('free', 'slave'); gest('free', 'nod'); }],
+          // 6:2 把担子分过来：为奴的伸手接过一半
+          [14.2, () => { face('slave', 'free'); gest('slave', 'give'); }],
+          // 一同担当：一个大的分成两个小的，暖光落在两人的肩上
           [14.8, b => {
             S.shared = true; S.sack = 'two';
             if (!inst(b)) for (const id of ['free', 'slave']) {
@@ -2079,7 +2253,10 @@
           [16.2, () => {
             go('free', 0.29, 0.86, 'stand', { speed: 0.016 }); go('slave', 0.345, 0.85, 'stand', { speed: 0.016 }); go('greek', 0.4, 0.84, 'stand', { speed: 0.016 });
           }],
+          [17.2, () => stir(['tutor', 'peter', 'jew'], 'nod', { share: 0.7, spread: 1.2 })],
+          [18.6, () => gest('paul', 'nod')],
           [20, () => { for (const id of ['tutor', 'peter', 'jew', 'free', 'greek', 'slave']) faceF(id, TREE_F); }],
+          [20.4, () => stir(['free', 'greek', 'slave'], 'nod', { share: 0.7, spread: 1 })],
         ]);
       },
     },
@@ -2099,12 +2276,19 @@
             W.goTo(0.69, 24, inst(b));
             write(b, 12);
             lv('gaField', 1, b); lv('gaPathA', 0.35, b); lv('gaSack', 0, b);
+            // 父亲挎着种子的篮子下到田里
+            prop('father', 'basket');
             go('father', f0, 0.74, 'stand', { speed: 0.045 });
             go('free', 0.62, 0.44); go('greek', 0.5, 0.5); go('slave', 0.68, 0.34); go('jew', 0.38, 0.52); go('peter', 0.3, 0.46); go('tutor', 0.22, 0.42);
             go('child', 0.46, 0.56); go('woman', 0.44, 0.36);
           }],
-          // 父亲在田里撒种
+          ...pen(0.3, 3.4),
+          // 父亲在田里撒种：一边走，一边一把一把地撒出去；众人先后转过来看
           [2.8, b => { go('father', f1, 0.74, 'stand', { speed: 0.017 }); S.sown = true; sfx(b, 'wind', { soft: true }); }],
+          ...[3.4, 5.8, 8.2].map(t => [t, () => gest('father', 'cast', { dur: 2.2 })]),
+          [4.2, () => heed(['jew', 'peter', 'tutor', 'child', 'woman', 'greek', 'slave', 'free'], 'father', { spread: 1.8 })],
+          // 不要自欺，神是轻慢不得的：桌前的保罗郑重地点头
+          [6.4, () => gest('paul', 'nod')],
           ...[3.6, 4.6, 5.6, 6.6, 7.6, 8.6, 9.6].map(t => [t, b => {
             if (inst(b) || !fx()) return;
             const B = bodyOf('father'); if (!B) return;
@@ -2114,15 +2298,25 @@
           }]),
           // 到了时候就要收成：出苗、抽穗、黄熟
           [10.4, b => { lv('gaSprout', 1, b); sfx(b, 'chime', { soft: true }); }],
+          // 出苗了：孩童指着；众人点头；师傅手搭凉棚望那一片田
+          [11, () => gest('child', 'point')],
+          [12.4, () => stir(['jew', 'peter', 'woman', 'free', 'greek', 'slave'], 'nod', { share: 0.5, spread: 1.4 })],
           [13.6, b => { lv('gaGold', 1, b); }],
+          [14, () => pose('tutor', 'look')],
+          [14.4, () => gest('child', 'leap', { n: 2 })],
           [16.4, b => { if (!inst(b)) ringAt(b, LX(0.73) * W.w, baseY(2, LX(0.73), 0.76), [255, 222, 150], 0.3, 3, 1.2); sfx(b, 'harp', { soft: true }); }],
-          // 6:10 众人收割：禾捆立在田里
+          [16.6, () => pose('tutor', 'stand')],
+          // 6:10 众人收割：弯腰割下，禾捆立在田里；父亲放下种子的篮子，也弯下腰来
           [17.8, () => {
-            go('greek', 0.66, 0.72, 'bow', { speed: 0.03 }); go('slave', 0.76, 0.78, 'bow', { speed: 0.03 });
-            face('father', -1); pose('father', 'bow');
+            go('greek', 0.66, 0.72, 'stoop', { speed: 0.03 }); go('slave', 0.76, 0.78, 'stoop', { speed: 0.03 });
+            prop('father', null);
+            face('father', -1); pose('father', 'stoop');
           }],
           [20.4, b => { lv('gaSheaf', 1, b); S.reaped = true; sfx(b, 'sing', { soft: true }); }],
-          [23, () => { for (const id of ['greek', 'slave', 'father']) pose(id, 'stand'); }],
+          [21, () => gest('child', 'clap')],
+          [21.6, () => stir(['woman', 'jew', 'peter'], 'nod', { share: 0.7, spread: 1.2 })],
+          ...stagger(['greek', 'slave', 'father'], 'stand', 22.8, 0.4),
+          [23.6, () => gest('father', 'beckon')],        // 向信徒一家的人招手：来分享收成
         ]);
       },
     },
@@ -2133,7 +2327,8 @@
       verse: [
         { text: '请看我亲手写给你们的字是何等的大呢！', ref: '加拉太书 6:11', hold: 5.5 },
         { text: '但我断不以别的夸口，<br>只夸我们主耶稣基督的十字架；……<br>受割礼不受割礼都无关紧要，<br>要紧的就是作新造的人。', ref: '加拉太书 6:14–15', hold: 9 },
-        { text: '弟兄们，<br>愿我主耶稣基督的恩常在你们心里。<br>阿们！', ref: '加拉太书 6:18', hold: 7 },
+        { text: '弟兄们，<br>愿我主耶稣基督的恩常在你们心里。<br>阿们！', ref: '加拉太书 6:18', hold: 7,
+          talk: [['paul', 0.04, 0.84, 'proclaim']], gest: [['jew', 'nod', 0.88], ['child', 'nod', 0.9], ['woman', 'nod', 0.92], ['peter', 'nod', 0.94]] },
       ],
       apply(c) {
         const FIN = {
@@ -2154,33 +2349,43 @@
             }
             sfx(b, 'write', {});
           }],
+          // 6:11 亲手写的大字：他俯身一笔一笔地写，写完一指那升起的大字——请看！
+          ...pen(0.1, 4.4),
           [1.4, () => {
             for (const id in FIN) go(id, FIN[id][0], FIN[id][1], 'stand', { speed: 0.03, dx: id === 'child' ? PAIR() * 2 : 0 });
           }],
-          // 6:14 十字架又亮起来
-          [7, b => { lv('gaCrossB', 1, b); faceAll(BELIEVERS, XLp(XC, port())); sfx(b, 'chime', { soft: true, x: 0.6 }); }],
-          // 6:15 新造的人：园子全然更新
+          [4.8, () => { face('paul', 1); gest('paul', 'point'); }],
+          [5.6, () => stir(['jew', 'peter', 'tutor', 'woman'], 'nod', { share: 0.5, spread: 1.2 })],
+          // 6:14 十字架又亮起来：众人先后转向远山，有人仰望
+          [7, b => { lv('gaCrossB', 1, b); heed(BELIEVERS, XC, { spread: 1.4 }); sfx(b, 'chime', { soft: true, x: 0.6 }); }],
+          ...stagger(['jew', 'peter', 'tutor', 'father', 'woman'], 'gaze', 7.8, 0.4),
+          [9.6, () => gest('paul', 'bowhead')],
+          ...stagger(['jew', 'peter', 'tutor', 'father', 'woman'], 'stand', 11, 0.3),
+          // 6:15 新造的人：园子全然更新；众人一惊，孩童跳起来
           [12, b => {
             lv('gaNew', 1, b); S.renewed = true;
             if (!inst(b)) { const G = treeGeo(); ringAt(b, G.x, G.y - G.s * 0.5, [255, 244, 214], 0.6, 3.6, 1.4); sparkAt(b, G.x, G.y - G.s * 0.7, 40, [255, 240, 200], G.s * 0.4); }
             sfx(b, 'harp', {});
           }],
-          [13.4, () => { faceAll(BELIEVERS, PAUL_F); }],
-          // 6:18 书信卷起；他站起来举手；恩光落在每个人心里
+          [12.4, () => stir(BELIEVERS, 'startle', { share: 0.4, spread: 0.8 })],
+          [13.4, () => heed(BELIEVERS, LX(PAUL_F), { spread: 1.4 })],
+          [14, () => gest('child', 'leap', { n: 2 })],
+          // 6:18 他双手递出书信，书信卷起；他站起来举手祝福；恩光落在每个人心里
+          [15.8, () => gest('paul', 'give')],
           [16.6, b => { lv('gaSeal', 1, b); S.sealed = true; sfx(b, 'scroll', { soft: true }); }],
           [17.6, b => {
-            pose('paul', 'raise'); face('paul', 1);
+            pose('paul', 'bless'); face('paul', 1);
             lv('gaGrace', 1, b); lv('gaHearts', 0.8, b); S.grace = true;
             glowAll(BELIEVERS, 0.45);
             sfx(b, 'angel', { soft: true });
           }],
-          [19.4, () => { for (const id of BELIEVERS) pose(id, 'raise'); }],
+          ...stagger(BELIEVERS, 'raise', 19.4, 0.25),
           [23.6, b => {
-            for (const id of BELIEVERS) pose(id, 'stand');
             pose('paul', 'stand');
             W.goTo(0.8, 30, inst(b));
             lv('gaCrossB', 0.6, b);
           }],
+          ...stagger(BELIEVERS, 'stand', 23.6, 0.12),
         ]);
       },
     },

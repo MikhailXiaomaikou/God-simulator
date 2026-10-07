@@ -160,6 +160,11 @@
       if (W.replaying) m.fd = m.facing;
     }
   }
+  // 演技：说话、一次性的手势、众人先后转向、众人先后做同一个手势（重演时引擎自己什么也不做；转向立即到位）
+  function talk(id, sec, o) { const c = C(); if (c && c.speak) c.speak(id, sec, o); }
+  function gest(id, kind, o) { const c = C(); if (c && c.gesture) c.gesture(id, kind, o); }
+  function heed(ids, target, o) { const c = C(); if (c && c.attend) c.attend(ids, target, o); }
+  function stir(ids, kind, o) { const c = C(); if (c && c.react) c.react(ids, kind, o); }
   const spreadV = (v0, v1) => (m, i) => { m.v = lerp(v0, v1, ((i * 0.618) % 1)); };
   const dressCrowd = (pal, v0, v1, g) => (m, i) => { m.robe = pal[i % pal.length]; if (v1 != null) m.v = lerp(v0, v1, ((i * 0.618) % 1)); if (g != null) m.glow = g; };
 
@@ -1738,25 +1743,33 @@
       kind: 'promise', utter: '人若不重生，就不能见神的国', cmd: 'born --again --from 上头  # 夜里来的人', ref: JN + '3:3',
       verse: [
         { text: '这人夜里来见耶稣，说：「拉比，我们知道你是由神那里来作师傅的；<br>因为你所行的神迹，若没有神同在，无人能行。」', ref: JN + '3:2', hold: 7 },
-        { text: '耶稣回答说：「我实实在在地告诉你，人若不重生，就不能见神的国。」', ref: JN + '3:3', hold: 6 },
-        { text: '尼哥德慕说：「人已经老了，如何能重生呢？岂能再进母腹生出来吗？」', ref: JN + '3:4', hold: 5.5 },
+        { text: '耶稣回答说：「我实实在在地告诉你，人若不重生，就不能见神的国。」', ref: JN + '3:3', hold: 6, talk: [['jesus', 0.12, 1, 'teach', 'nic']] },
+        { text: '尼哥德慕说：「人已经老了，如何能重生呢？岂能再进母腹生出来吗？」', ref: JN + '3:4', hold: 5.5, talk: [['nic', 0.15, 1, 'plead', 'jesus']] },
       ],
       apply(c) {
         T(c, [
+          // 他举着火把，夜里来；到了灯旁，向他欠身
           [0, b => {
             add('nic', { label: '尼哥德慕', sex: 'm', age: 'elder', x: X.nicIn, layer: 2, facing: -1, pose: 'stand', robe: ROBE.nic, accent: [206, 176, 112], glow: 0.3, prop: 'torch' });
-            walk('nic', X.nic, { speed: 0.042 });
+            walk('nic', X.nic, { speed: 0.06, pose: 'bow' });
             avoid([0.5, 1]);
           }],
           [3, b => { nameOn(b, 'nic', '尼哥德慕'); }],
-          [7.2, () => { face('nic', -1); pose('nic', 'sit'); face('jesus', 1); }],
-          [8.4, b => {
+          [4, b => { face('jesus', 1); gest('jesus', 'nod'); }],
+          // 「拉比，我们知道你是由神那里来作师傅的……」
+          [5.2, b => { pose('nic', 'stand'); talk('nic', 2.6, { how: 'calm', to: 'jesus' }); }],
+          [7.8, () => { face('nic', -1); pose('nic', 'sit'); face('jesus', 1); }],
+          // 人若不重生：一道光自上头轻轻落下
+          [9.4, b => {
             W.set('lgtFrom', 1, b.instant); glow('jesus', 0.6);
             beam(b, S.fromX, 2, { dur: 5, w: 120, r: 0.2 });
             sfx(b, 'harp', { soft: true });
           }],
-          [15.2, b => { pose('nic', 'gaze'); glow('nic', 0.42); sfx(b, 'wind', { soft: true }); }],
-          [20, b => { W.set('lgtFrom', 0.35, b.instant); }],
+          [11.6, b => { gest('nic', 'startle'); }],
+          // 「人已经老了，如何能重生呢？」他摊着手，不明白
+          [15.2, b => { glow('nic', 0.42); sfx(b, 'wind', { soft: true }); }],
+          [20.2, b => { W.set('lgtFrom', 0.35, b.instant); gest('nic', 'sigh'); }],
+          [21.4, b => { gest('jesus', 'nod'); }],
         ]);
       },
     },
@@ -1765,17 +1778,21 @@
     {
       kind: 'act', utter: '神爱世人', cmd: 'for 人 in 世人: 爱(人)  # 甚至将他的独生子赐给他们', ref: JN + '3:16',
       verse: [
-        { text: '「风随着意思吹，你听见风的响声，却不晓得从哪里来，往哪里去；<br>凡从圣灵生的，也是如此。」', ref: JN + '3:8', hold: 7 },
-        { text: '「神爱世人，甚至将他的独生子赐给他们，<br>叫一切信他的，不致灭亡，反得永生。」', ref: JN + '3:16', hold: 8 },
-        { text: '「光来到世间……<br>但行真理的必来就光，要显明他所行的是靠神而行。」', ref: JN + '3:19，21', hold: 7 },
+        { text: '「风随着意思吹，你听见风的响声，却不晓得从哪里来，往哪里去；<br>凡从圣灵生的，也是如此。」', ref: JN + '3:8', hold: 7, who: 'jesus', to: 'nic', how: 'teach' },
+        { text: '「神爱世人，甚至将他的独生子赐给他们，<br>叫一切信他的，不致灭亡，反得永生。」', ref: JN + '3:16', hold: 8, who: 'jesus', to: 'nic', how: 'teach' },
+        { text: '「光来到世间……<br>但行真理的必来就光，要显明他所行的是靠神而行。」', ref: JN + '3:19，21', hold: 7, who: 'jesus', how: 'teach' },
       ],
       apply(c) {
         T(c, [
           [0, b => {
             W.set('gale', 0.55, b.instant); W.set('lgtWind', 1, b.instant); W.set('clouds', 0.45, b.instant);
-            pose('nic', 'sit'); sfx(b, 'wind');
+            pose('nic', 'sit'); face('nic', -1); face('jesus', 1); sfx(b, 'wind');
           }],
+          // 你听见风的响声，却不晓得从哪里来、往哪里去：他回头四下里望
+          [2.2, b => { gest('nic', 'lookaround', { dur: 3 }); }],
+          [5.6, b => { gest('nic', 'nod'); }],
           [7, b => { W.set('gale', 0.08, b.instant); W.set('lgtWind', 0, b.instant); W.set('clouds', 0.3, b.instant); }],
+          // 神爱世人：普天下的屋里一盏一盏点起灯来
           [8.4, b => {
             S.worldX = X.jNight;
             W.set('lgtWorld', 1, b.instant); glow('jesus', 0.8); W.set('lgtFrom', 0.7, b.instant);
@@ -1783,13 +1800,14 @@
             if (!b.instant && fx()) { const h = headOf('jesus', 0.6); fx().ring(h[0], h[1], [255, 236, 190], M() * 0.45, 3.2, 2); }
             sfx(b, 'harp'); sfx(b, 'stars', { soft: true });
           }],
-          [17.2, b => {
-            W.goTo(0.27, 6.5, b.instant);
-            pose('nic', 'stand'); glow('nic', 0.5);
-            walk('nic', X.nicOut, { speed: 0.018 });
-            sfx(b, 'bird', { soft: true });
-          }],
+          [10.2, b => { gest('nic', 'startle'); }],
+          [12.6, b => { gest('nic', 'bowhead', { dur: 3 }); }],
+          // 光来到世间：东方破晓；他站起来，欠身辞别，走进晨光里
+          [17.2, b => { W.goTo(0.27, 6.5, b.instant); sfx(b, 'bird', { soft: true }); }],
+          [20.2, b => { pose('nic', 'stand'); glow('nic', 0.5); }],
+          [21, b => { gest('nic', 'bowhead', { dur: 1.6 }); }],
           [22, b => { W.set('lgtFrom', 0, b.instant); glow('jesus', 0.45); }],
+          [22.8, b => { walk('nic', X.nicOut, { speed: 0.05 }); gest('jesus', 'bless'); }],
           [25.5, b => { W.set('lgtWorld', 0, b.instant); rm('nic'); prop('jeru', null, { lit: 0.2 }); }],
         ]);
       },
@@ -1800,8 +1818,8 @@
       kind: 'ask', utter: '请你给我水喝', cmd: 'ask 撒马利亚的妇人 --for 水  # 约有午正', ref: JN + '4:7',
       verse: [
         { text: '于是到了撒马利亚的一座城，名叫叙加……<br>在那里有雅各井；耶稣因走路困乏，就坐在井旁。那时约有午正。', ref: JN + '4:5–6', hold: 7.5 },
-        { text: '有一个撒马利亚的妇人来打水。耶稣对她说：「请你给我水喝。」', ref: JN + '4:7', hold: 5.5 },
-        { text: '撒马利亚的妇人对他说：「你既是犹太人，怎么向我一个撒马利亚妇人要水喝呢？」<br>原来犹太人和撒马利亚人没有来往。', ref: JN + '4:9', hold: 7 },
+        { text: '有一个撒马利亚的妇人来打水。耶稣对她说：「请你给我水喝。」', ref: JN + '4:7', hold: 5.5, talk: [['jesus', 0.62, 1, 'calm', 'woman']] },
+        { text: '撒马利亚的妇人对他说：「你既是犹太人，怎么向我一个撒马利亚妇人要水喝呢？」<br>原来犹太人和撒马利亚人没有来往。', ref: JN + '4:9', hold: 7, talk: [['woman', 0.1, 0.72, 'calm', 'jesus']] },
       ],
       apply(c) {
         T(c, [
@@ -1824,12 +1842,22 @@
           }],
           [1.2, b => { nameX(b, '叙加', X.townGate, 70, { hold: 3 }); }],
           [2.8, b => { nameX(b, '雅各井', X.well, 44, { hold: 3 }); }],
+          // 因走路困乏，就坐在井旁：坐下，叹一口气
+          [4.6, b => { gest('jesus', 'sigh', { dur: 2.4 }); }],
           [7.6, () => { ['peter', 'john', 'andrew'].forEach(id => rm(id)); }],
           [8.8, () => { face('jesus', 1); face('woman', -1); }],
+          // 她来打水：俯身向井里，打上水来
+          [9.6, b => { pose('woman', 'bow'); sfx(b, 'splash', { soft: true }); }],
           [10.2, b => { nameOn(b, 'woman', '撒马利亚的妇人'); }],
-          [10.6, b => { pose('woman', 'bow'); sfx(b, 'splash', { soft: true }); }],
-          [13.4, () => { pose('woman', 'stand'); }],
+          [11.6, () => { pose('woman', 'stand'); }],
+          // 「请你给我水喝。」她一惊
+          [13.2, b => { gest('woman', 'startle'); }],
+          // 「你既是犹太人，怎么向我一个撒马利亚妇人要水喝呢？」
           [15.6, () => { face('woman', -1); }],
+          [19.2, b => { gest('woman', 'refuse', { dur: 1.6 }); }],
+          // 原来犹太人和撒马利亚人没有来往：她四下望一望
+          [21, b => { gest('woman', 'lookaround'); }],
+          [22.4, b => { gest('jesus', 'nod'); }],
         ]);
       },
     },
@@ -1838,9 +1866,9 @@
     {
       kind: 'promise', utter: '人若喝我所赐的水就永远不渴', cmd: 'spring --in 心里 --until 永生', ref: JN + '4:14',
       verse: [
-        { text: '耶稣回答说：「凡喝这水的还要再渴；人若喝我所赐的水就永远不渴。<br>我所赐的水要在他里头成为泉源，直涌到永生。」', ref: JN + '4:13–14', hold: 8 },
+        { text: '耶稣回答说：「凡喝这水的还要再渴；人若喝我所赐的水就永远不渴。<br>我所赐的水要在他里头成为泉源，直涌到永生。」', ref: JN + '4:13–14', hold: 8, talk: [['jesus', 0.06, 1, 'teach', 'woman']] },
         { text: '那妇人就留下水罐子，往城里去，对众人说：<br>「你们来看！有一个人将我素来所行的一切事都给我说出来了，莫非这就是基督吗？」', ref: JN + '4:28–29', hold: 7.5 },
-        { text: '「……我告诉你们，举目向田观看，庄稼已经熟了，可以收割了。」', ref: JN + '4:35', hold: 6 },
+        { text: '「……我告诉你们，举目向田观看，庄稼已经熟了，可以收割了。」', ref: JN + '4:35', hold: 6, talk: [['jesus', 0.06, 1, 'teach']] },
       ],
       apply(c) {
         T(c, [
@@ -1850,29 +1878,42 @@
             if (!b.instant && fx()) { const p = getP('well'); if (p) { const q = wellPos(p); fx().ring(q.x, q.y - 12 * q.s, [206, 236, 255], M() * 0.2, 2.4, 1.6); } }
             sfx(b, 'splash'); sfx(b, 'harp', { soft: true });
           }],
-          // 门徒回来（4:27）
+          [1.6, b => { gest('woman', 'startle'); }],
+          // 门徒回来（4:27），就希奇耶稣和一个妇人说话
           [2.5, () => {
             discAdd(X.townGate + 0.03);
             discTo(X.jWell, { speed: 0.05 });
           }],
+          [3.4, () => { pose('woman', 'listen'); }],
+          [6.4, b => { gest('woman', 'nod'); }],
+          [7.2, b => { stir(DISC, 'startle', { share: 0.7, spread: 1.2 }); }],
+          // 那妇人就留下水罐子，往城里去
           [9.3, () => {
             hold('woman', null);
             prop('jar', 'jar', { x: X.jarAt, v: 0.05, label: '水罐子' });
             pose('woman', 'stand');
-            run('woman', X.townGate, { speed: 0.09 });
+            run('woman', X.townGate - 0.02, { speed: 0.09 });
           }],
-          [13.5, b => {
+          // 城里的人出来；她对众人说：「你们来看！……莫非这就是基督吗？」
+          [11.4, b => {
             crowd('samar', { n: 9, x0: X.townGate - 0.01, x1: X.townGate + 0.05, layer: 2, label: '撒马利亚人' }, dressCrowd(SAMAR, 0.04, 0.34, 0.12));
-            cwalk('samar', X.field0 + 0.01, X.field1 + 0.01, { speed: 0.025 });
+            cface('samar', -1);
             sfx(b, 'crowd', { soft: true });
           }],
-          [14.5, () => { walk('woman', X.field1 + 0.03, { speed: 0.03 }); }],
+          [12.4, b => { face('woman', 1); talk('woman', 3.2, { how: 'proclaim', to: 'samar' }); }],
+          [13.6, b => { stir('samar', 'startle', { share: 0.5, spread: 1 }); }],
+          [14.6, b => { face('woman', -1); gest('woman', 'beckon'); heed('samar', 'jesus', { spread: 1 }); }],
+          [15.4, b => { cwalk('samar', X.field0 + 0.01, X.field1 + 0.01, { speed: 0.03 }); talk('samar', 2.4, { share: 0.5 }); }],
+          [16, () => { walk('woman', X.field1 + 0.03, { speed: 0.03 }); }],
+          // 举目向田观看：他指着田
           [18.2, b => {
             prop('field', null, { k: 1, k2: 1 });
             pose('jesus', 'point'); face('jesus', 1);
             sfx(b, 'wind', { soft: true });
           }],
-          [23.5, () => { pose('jesus', 'stand'); cface('samar', -1); face('woman', -1); }],
+          [19, b => { heed(DISC, X.field1, { spread: 1 }); }],
+          [21.6, b => { pose('jesus', 'stand'); stir(DISC, 'nod', { share: 0.6, spread: 1.2 }); }],
+          [23.5, () => { cface('samar', -1); face('woman', -1); }],
         ]);
       },
     },
@@ -1882,8 +1923,8 @@
       kind: 'cmd', utter: '起来，拿你的褥子走吧', cmd: 'rise --take 褥子 && walk  # 不靠池水，只凭一句话', ref: JN + '5:8',
       verse: [
         { text: '在耶路撒冷，靠近羊门有一个池子，希伯来话叫作毕士大，旁边有五个廊子；<br>里面躺着瞎眼的、瘸腿的、血气枯干的许多病人。', ref: JN + '5:2–3', hold: 7.5 },
-        { text: '在那里有一个人，病了三十八年。耶稣……问他说：「你要痊愈吗？」<br>病人回答说：「先生，水动的时候，没有人把我放在池子里……」', ref: JN + '5:5–7', hold: 8.5 },
-        { text: '耶稣对他说：「起来，拿你的褥子走吧！」<br>那人立刻痊愈，就拿起褥子来走了。', ref: JN + '5:8–9', hold: 6 },
+        { text: '在那里有一个人，病了三十八年。耶稣……问他说：「你要痊愈吗？」<br>病人回答说：「先生，水动的时候，没有人把我放在池子里……」', ref: JN + '5:5–7', hold: 8.5, talk: [['jesus', 0.3, 0.5, 'calm', 'lame'], ['lame', 0.56, 1, 'plead']] },
+        { text: '耶稣对他说：「起来，拿你的褥子走吧！」<br>那人立刻痊愈，就拿起褥子来走了。', ref: JN + '5:8–9', hold: 6, talk: [['jesus', 0, 0.42, 'proclaim', 'lame']] },
       ],
       apply(c) {
         T(c, [
@@ -1905,7 +1946,12 @@
             avoid([0.45, 1]);
           }],
           [1.6, b => { nameX(b, '毕士大', lerp(X.pool0, X.pool1, 0.5), 62); }],
+          // 坐着的病人望着池水，叹息
+          [4.4, b => { stir(['sick1', 'sick3'], 'sigh', { spread: 1.6 }); }],
+          [6.4, b => { gest('sick3', 'lookaround'); stir(DISC, 'bowhead', { share: 0.5, spread: 1.4 }); }],
+          // 耶稣看见他躺着：「你要痊愈吗？」
           [9.9, b => { face('jesus', 1); nameOn(b, 'lame', '病了三十八年的人'); }],
+          [10.6, b => { gest('jesus', 'bowhead', { dur: 1.4 }); }],
           // 水动了（5:7）：别的病人抢着下到池子里；他撑起身来，却没有人把他放下去
           [13.2, b => {
             prop('pool', null, { k: 0.6, k2: 1 });
@@ -1917,19 +1963,23 @@
               sink('sick' + i, 0.2);
             });
           }],
+          [14.2, b => { gest('lame', 'touch', { dur: 2 }); }],
           [16.4, b => { pose('lame', 'lie'); face('lame', -1); face('jesus', 1); sfx(b, 'splash', { soft: true }); }],
           // 起来（5:8）：不在水边，只凭一句话
-          [19.7, b => {
+          [18.8, b => {
             prop('pool', null, { k: 0, k2: 0 });
             pose('jesus', 'point'); glow('jesus', 0.6);
             if (!b.instant && fx()) { const h = headOf('jesus', 0.6), q = headOf('lame', 0.2); fx().ring(h[0], h[1], [255, 236, 196], Math.hypot(q[0] - h[0], q[1] - h[1]) * 1.2 + 20, 1.8, 1.8); }
             sfx(b, 'harp');
           }],
-          [20.7, b => { pose('lame', 'stand'); glow('lame', 0.6); sparkleOn(b, 'lame', 22); }],
-          [22, b => { show('mat', false); hold('lame', 'bundle'); pose('jesus', 'stand'); ringOn(b, 'lame', [255, 236, 196], 0.12, 1.6); }],
-          // 往城里去：从池子前面走过（不踩进水里），出了画面
-          [23.2, () => { sink('lame', PORT ? 0.62 : 0.58); walk('lame', 1.06, { speed: 0.06 }); }],
-          [28.5, () => { rm('lame'); }],
+          [20.9, b => { pose('lame', 'stand'); glow('lame', 0.6); sparkleOn(b, 'lame', 22); }],
+          [21.5, b => { gest('lame', 'leap', { n: 1 }); stir(['sick0', 'sick1', 'sick2', 'sick3', 'sick4'], 'startle', { share: 0.8, spread: 1 }); }],
+          // 就拿起褥子来：弯腰拾起，扛在肩上
+          [22.4, b => { pose('jesus', 'stand'); gest('lame', 'stoopdown', { dur: 1.6 }); }],
+          [23.2, b => { show('mat', false); hold('lame', 'bundle'); ringOn(b, 'lame', [255, 236, 196], 0.12, 1.6); }],
+          // 往城里去：从池子前面走过（不踩进水里），出了画面（下一句话开头时隐去）
+          [24, () => { sink('lame', PORT ? 0.62 : 0.58); walk('lame', 1.06, { speed: 0.066 }); }],
+          [24.6, b => { heed(['sick1', 'sick3', 'sick4'], 'lame', { spread: 1 }); }],
         ]);
       },
     },
@@ -1939,9 +1989,9 @@
       kind: 'name', utter: '我就是生命的粮', cmd: 'bread --from 天上 --of 生命  # 到我这里来的，必定不饿', ref: JN + '6:35',
       verse: [
         { text: '众人见耶稣和门徒都不在那里，就上了船，往迦百农去找耶稣。', ref: JN + '6:24', hold: 5.5 },
-        { text: '他们又说：「……我们的祖宗在旷野吃过吗哪，如经上写着说：『他从天上赐下粮来给他们吃。』」<br>耶稣说：「……神的粮就是那从天上降下来、赐生命给世界的。」', ref: JN + '6:30–33', hold: 8.5 },
-        { text: '耶稣说：「我就是生命的粮。到我这里来的，必定不饿；信我的，永远不渴。」', ref: JN + '6:35', hold: 6 },
-        { text: '耶稣就对那十二个门徒说：「你们也要去吗？」<br>西门‧彼得回答说：「主啊，你有永生之道，我们还归从谁呢？」', ref: JN + '6:67–68', hold: 6.5 },
+        { text: '他们又说：「……我们的祖宗在旷野吃过吗哪，如经上写着说：『他从天上赐下粮来给他们吃。』」<br>耶稣说：「……神的粮就是那从天上降下来、赐生命给世界的。」', ref: JN + '6:30–33', hold: 8.5, talk: [['cap', 0.04, 0.5, 'calm'], ['jesus', 0.56, 1, 'teach']] },
+        { text: '耶稣说：「我就是生命的粮。到我这里来的，必定不饿；信我的，永远不渴。」', ref: JN + '6:35', hold: 6, talk: [['jesus', 0.04, 1, 'proclaim']] },
+        { text: '耶稣就对那十二个门徒说：「你们也要去吗？」<br>西门‧彼得回答说：「主啊，你有永生之道，我们还归从谁呢？」', ref: JN + '6:67–68', hold: 6.5, talk: [['jesus', 0.08, 0.38, 'calm', 'peter'], ['peter', 0.42, 1, 'plead', 'jesus']] },
       ],
       apply(c) {
         T(c, [
@@ -1970,9 +2020,10 @@
             sfx(b, 'crowd', { soft: true });
           }],
           [8.6, () => { face('jesus', 1); cface('cap', -1); cface('capB', -1); }],
-          [10.4, () => { cpose('cap', 'sit'); cpose('capB', 'sit'); cface('cap', -1); cface('capB', -1); }],
+          // 他们坐下听他讲：「我们的祖宗在旷野吃过吗哪……」
+          [11.4, () => { cpose('cap', 'sit'); cpose('capB', 'sit'); cface('cap', -1); cface('capB', -1); }],
           // 他从天上赐下粮来（6:31–33）：暖光如吗哪，细细地飘落在众人中间
-          [11.2, b => {
+          [11.6, b => {
             S.mannaX = (X.cap0 + X.cap1) / 2;
             W.set('lgtManna', 1, b.instant); W.set('lgtGather', 0, true);
             sfx(b, 'stars', { soft: true });
@@ -1991,13 +2042,17 @@
             if (!b.instant && fx()) { const h = headOf('jesus', 0.6); fx().ring(h[0], h[1], [255, 228, 170], M() * 0.3, 2.8, 2); }
             sfx(b, 'bell', { soft: true });
           }],
+          [21.4, b => { stir('cap', 'nod', { share: 0.35, spread: 1.6 }); stir('capB', 'refuse', { share: 0.5, spread: 1.4 }); talk('capB', 1.8, { share: 0.6 }); }],
           // 从此他门徒中多有退去的（6:66）；你们也要去吗？
           [23.4, () => {
             cpose('capB', 'stand');
-            cwalk('capB', 1.04, 1.14, { speed: 0.045 });
             face('jesus', -1);
           }],
-          [27, b => { pose('peter', 'kneel'); glow('peter', 0.45); sparkleOn(b, 'peter', 12); crm('capB'); }],
+          [24.6, () => { cface('capB', 1); cwalk('capB', 1.04, 1.14, { speed: 0.045 }); }],
+          // 「主啊，你有永生之道，我们还归从谁呢？」彼得跪下
+          [26.4, b => { pose('peter', 'kneel'); }],
+          [28, b => { glow('peter', 0.45); sparkleOn(b, 'peter', 12); stir(['john', 'andrew'], 'nod', { spread: 1 }); }],
+          [30, () => { crm('capB'); }],
         ]);
       },
     },
@@ -2006,8 +2061,8 @@
     {
       kind: 'name', utter: '我是世界的光', cmd: 'light --world  # 跟从我的，就不在黑暗里走', ref: JN + '8:12', hold: 3.4,
       verse: [
-        { text: '节期的末日，就是最大之日，耶稣站着高声说：「人若渴了，可以到我这里来喝。<br>信我的人就如经上所说：『从他腹中要流出活水的江河来。』」', ref: JN + '7:37–38', hold: 8 },
-        { text: '耶稣又对众人说：「我是世界的光。<br>跟从我的，就不在黑暗里走，必要得着生命的光。」', ref: JN + '8:12', hold: 8 },
+        { text: '节期的末日，就是最大之日，耶稣站着高声说：「人若渴了，可以到我这里来喝。<br>信我的人就如经上所说：『从他腹中要流出活水的江河来。』」', ref: JN + '7:37–38', hold: 8, talk: [['jesus', 0.16, 1, 'proclaim']] },
+        { text: '耶稣又对众人说：「我是世界的光。<br>跟从我的，就不在黑暗里走，必要得着生命的光。」', ref: JN + '8:12', hold: 8, talk: [['jesus', 0.08, 1, 'proclaim']] },
       ],
       apply(c) {
         T(c, [
@@ -2031,14 +2086,16 @@
           [2.2, b => { prop('jeru', null, { k: 1 }); sfx(b, 'fire', { soft: true }); }],
           // 耶稣站着高声说（7:37）：过节的人被他的光照着，转过来，向他走近
           [3.4, b => {
-            pose('jesus', 'raise'); glow('jesus', 0.6);
+            face('jesus', 1); glow('jesus', 0.6);
             cglow('feast', 0.4); cface('feast', -1);
             cwalk('feast', X.jFeast + 0.05, X.feast1 - 0.05, { speed: 0.022 });
             sfx(b, 'harp', { soft: true });
           }],
           // 从他腹中要流出活水的江河来（7:38）：从他脚前流到每一个人那里，又向前流出去
           [4.8, b => { W.set('lgtRiver', 1, b.instant); sfx(b, 'splash', { soft: true }); }],
-          [8.6, () => { pose('jesus', 'stand'); cface('feast', -1); }],
+          [6, b => { gest('jesus', 'bless'); }],
+          [6.8, b => { stir('feast', 'startle', { share: 0.4, spread: 1.6 }); }],
+          [8.6, () => { cface('feast', -1); }],
           // 我是世界的光（8:12）：一道暖白的光自他向外——灯、殿里的大灯、人，一一亮起
           [10.3, b => {
             S.shineX = X.jFeast;
@@ -2047,6 +2104,7 @@
             if (!b.instant && fx()) { const h = headOf('jesus', 0.55); fx().ring(h[0], h[1], [255, 246, 226], M() * 0.5, 4, 2.2); fx().sparkle(h[0], h[1], 30, [255, 246, 226], 16 * SU(), 'top'); }
             sfx(b, 'angel', { soft: true }); sfx(b, 'stars', { soft: true });
           }],
+          [10.8, b => { stir('feast', 'startle', { share: 0.6, spread: 1.4 }); stir(DISC, 'startle', { spread: 1 }); }],
           [13.4, () => { cglow('feast', 0.55); cpose('feast', 'gaze'); }],
           // 跟从我的（8:12）：众人跟着他，走在光里
           [15.2, () => {
@@ -2055,7 +2113,7 @@
             discTo(X.jFeast + 0.03, { speed: 0.016 });
             cwalk('feast', X.jFeast + 0.075, X.feast1 - 0.07, { speed: 0.016 });
           }],
-          [18.6, () => { face('jesus', 1); cface('feast', -1); }],
+          [18.4, () => { face('jesus', 1); cface('feast', -1); }],
         ]);
       },
     },
@@ -2065,9 +2123,9 @@
       kind: 'cmd', utter: '你往西罗亚池子里去洗', cmd: 'wash --at 西罗亚  # 奉差遣 → see --color', ref: JN + '9:7',
       verse: [
         { text: '耶稣过去的时候，看见一个人生来是瞎眼的。', ref: JN + '9:1', hold: 4.5 },
-        { text: '「我在世上的时候，是世上的光。」耶稣说了这话，就吐唾沫在地上，用唾沫和泥抹在瞎子的眼睛上，<br>对他说：「你往西罗亚池子里去洗。」……他去一洗，回头就看见了。', ref: JN + '9:5–7', hold: 8.5 },
-        { text: '他说：「……有一件事我知道，从前我是眼瞎的，如今能看见了。」', ref: JN + '9:25', hold: 6 },
-        { text: '耶稣……后来遇见他，就说：「你信神的儿子吗？」……<br>他说：「主啊，我信！」就拜耶稣。', ref: JN + '9:35–38', hold: 6.5 },
+        { text: '「我在世上的时候，是世上的光。」耶稣说了这话，就吐唾沫在地上，用唾沫和泥抹在瞎子的眼睛上，<br>对他说：「你往西罗亚池子里去洗。」……他去一洗，回头就看见了。', ref: JN + '9:5–7', hold: 8.5, talk: [['jesus', 0, 0.22, 'teach']] },
+        { text: '他说：「……有一件事我知道，从前我是眼瞎的，如今能看见了。」', ref: JN + '9:25', hold: 6, talk: [['blind', 0.08, 1, 'proclaim']] },
+        { text: '耶稣……后来遇见他，就说：「你信神的儿子吗？」……<br>他说：「主啊，我信！」就拜耶稣。', ref: JN + '9:35–38', hold: 6.5, talk: [['jesus', 0.3, 0.56, 'calm', 'blind'], ['blind', 0.62, 0.86, 'plead', 'jesus']] },
       ],
       apply(c) {
         T(c, [
@@ -2086,15 +2144,21 @@
             avoid([0.45, 1]);
           }],
           [1.2, b => { W.set('lgtGrey', 1, b.instant); W.set('bloom', 0.2, b.instant); }],
-          // 吐唾沫在地上，用唾沫和泥抹在瞎子的眼睛上（9:6）
-          [6.9, () => { face('jesus', 1); pose('jesus', 'kneel'); }],
-          [8.2, () => { pose('jesus', 'point'); }],
-          [9.2, () => { pose('jesus', 'stand'); pose('blind', 'stand'); face('blind', -1); }],
-          [9.7, b => { walk('blind', X.washed + 0.012, { speed: 0.046, pose: 'bow' }); sink('blind', 0.26); nameX(b, '西罗亚', X.siloam, 30); }],
+          // 他听见脚步声，侧着头四下里听；耶稣看见他，站住，低头望着他
+          [2.2, b => { gest('blind', 'lookaround'); }],
+          [3.2, b => { face('jesus', 1); gest('jesus', 'bowhead', { dur: 2 }); }],
+          // 吐唾沫在地上，用唾沫和泥（弯腰到地），抹在瞎子的眼睛上（9:6）
+          [7.6, () => { face('jesus', 1); pose('jesus', 'stoop'); }],
+          [9, () => { pose('jesus', 'reach'); }],
+          // 「你往西罗亚池子里去洗。」他指着池子
+          [10, b => { pose('jesus', 'stand'); talk('jesus', 1.6, { to: 'blind' }); }],
+          [10.6, () => { pose('blind', 'stand'); face('blind', -1); }],
+          [10.8, b => { face('jesus', -1); gest('jesus', 'point'); }],
+          [11.2, b => { walk('blind', X.washed + 0.012, { speed: 0.06, pose: 'bow' }); sink('blind', 0.26); nameX(b, '西罗亚', X.siloam, 30); }],
           // 他去一洗，回头就看见了（9:7）：颜色从池边一圈一圈涌回全世界
-          [13.9, b => {
+          [14.4, b => {
             W.set('lgtSee', 1, b.instant);
-            pose('blind', 'raise'); hold('blind', null); glow('blind', 0.6);
+            pose('blind', 'rejoice'); hold('blind', null); glow('blind', 0.6);
             W.set('bloom', 1, b.instant);
             if (!b.instant && fx()) {
               const x = S.seeX * W.w, y = baseY(2, S.seeX, 0.3) - 14 * LS(2);
@@ -2104,14 +2168,19 @@
             }
             sfx(b, 'harp'); sfx(b, 'bird');
           }],
-          [18.2, b => { W.set('lgtGrey', 0, b.instant); pose('blind', 'stand'); }],
+          [15, b => { gest('blind', 'leap', { n: 2 }); stir(DISC, 'startle', { spread: 1 }); }],
+          // 「从前我是眼瞎的，如今能看见了。」
+          [16.2, b => { pose('blind', 'stand'); face('blind', 1); }],
+          [18.2, b => { W.set('lgtGrey', 0, b.instant); gest('blind', 'lookaround'); }],
           // 后来遇见他（9:35）：门徒先退到他身后（右边），他走到那人面前
-          [23.4, () => {
+          [22.6, () => {
             discTo(X.jMeet, { speed: 0.035, side: -1 });
-            walk('jesus', X.jMeet, { speed: 0.035 });
+            walk('jesus', X.jMeet, { speed: 0.05 });
             face('blind', 1);
           }],
-          [27.4, b => { face('jesus', -1); pose('blind', 'worship'); glow('jesus', 0.6); sfx(b, 'harp', { soft: true }); }],
+          [24.8, () => { face('jesus', -1); }],
+          [27.6, b => { pose('blind', 'worship'); glow('jesus', 0.6); sfx(b, 'harp', { soft: true }); }],
+          [28.4, b => { gest('jesus', 'bless'); }],
         ]);
       },
     },
@@ -2120,9 +2189,9 @@
     {
       kind: 'name', utter: '我是好牧人', cmd: 'lead 羊 --by-name --out  # 合成一群，归一个牧人', ref: JN + '10:11',
       verse: [
-        { text: '「……看门的就给他开门；羊也听他的声音。他按着名叫自己的羊，把羊领出来。<br>既放出自己的羊来，就在前头走，羊也跟着他，因为认得他的声音。」', ref: JN + '10:3–4', hold: 8 },
-        { text: '「我是好牧人；好牧人为羊舍命。」', ref: JN + '10:11', hold: 5 },
-        { text: '「我另外有羊，不是这圈里的；我必须领他们来，<br>他们也要听我的声音，并且要合成一群，归一个牧人了。」', ref: JN + '10:16', hold: 7.5 },
+        { text: '「……看门的就给他开门；羊也听他的声音。他按着名叫自己的羊，把羊领出来。<br>既放出自己的羊来，就在前头走，羊也跟着他，因为认得他的声音。」', ref: JN + '10:3–4', hold: 8, who: 'jesus', how: 'teach' },
+        { text: '「我是好牧人；好牧人为羊舍命。」', ref: JN + '10:11', hold: 5, who: 'jesus', how: 'proclaim' },
+        { text: '「我另外有羊，不是这圈里的；我必须领他们来，<br>他们也要听我的声音，并且要合成一群，归一个牧人了。」', ref: JN + '10:16', hold: 7.5, who: 'jesus', how: 'teach' },
       ],
       apply(c) {
         T(c, [
@@ -2138,14 +2207,18 @@
             W.set('grass', 0.8, b.instant); W.set('bloom', 0.6, b.instant);
             avoid([0.42, 1]);
           }],
+          // 看门的就给他开门；他按着名叫自己的羊（招手），把羊领出来
           [4.2, b => { prop('fold', null, { open: 1 }); sfx(b, 'gate', { soft: true }); DISC.forEach(id => rm(id)); }],
+          [4.6, b => { face('jesus', 1); gest('jesus', 'beckon', { dur: 1.8 }); }],
           [5.4, b => {
             walk('jesus', X.jPast, { speed: 0.02 });
             cwalk('flock', X.flock0, X.flock1, { speed: 0.018, pose: 'graze' });
             sfx(b, 'bleat');
           }],
           [9.3, b => { sfx(b, 'bleat', { soft: true }); }],
-          [13.8, b => {
+          // 好牧人：他抱起一只小羊
+          [13.6, b => { face('jesus', 1); gest('jesus', 'stoopdown', { dur: 1.3 }); }],
+          [14.4, b => {
             face('jesus', 1); babe('jesus', 'lamb'); glow('jesus', 0.65);
             W.set('grass', 1, b.instant); W.set('bloom', 0.95, b.instant);
             ringOn(b, 'jesus', [255, 236, 190], 0.22);
@@ -2158,6 +2231,7 @@
             sfx(b, 'bleat', { soft: true });
           }],
           [17.2, () => { face('jesus', -1); walk('jesus', X.jPast - 0.018, { speed: 0.012 }); }],
+          [19.6, b => { gest('jesus', 'nod'); }],
           [22.5, b => { flash(b, { type: 'fold', xf: (X.other0 + X.flock1) / 2, r: 0.26, dur: 4 }); face('jesus', 1); sfx(b, 'harp', { soft: true }); }],
         ]);
       },
@@ -2168,9 +2242,9 @@
       kind: 'name', utter: '复活在我，生命也在我', cmd: 'resurrect --life  # 你信这话吗？', ref: JN + '11:25',
       verse: [
         { text: '有一个患病的人，名叫拉撒路，住在伯大尼，就是马利亚和她姊姊马大的村庄。……<br>耶稣到了，就知道拉撒路在坟墓里已经四天了。', ref: JN + '11:1，17', hold: 7 },
-        { text: '马大听见耶稣来了，就出去迎接他；马利亚却仍然坐在家里。<br>马大对耶稣说：「主啊，你若早在这里，我兄弟必不死。」', ref: JN + '11:20–21', hold: 6.5 },
-        { text: '耶稣对她说：「复活在我，生命也在我。信我的人虽然死了，也必复活；<br>凡活着信我的人必永远不死。你信这话吗？」', ref: JN + '11:25–26', hold: 7 },
-        { text: '马大说：「主啊，是的，我信你是基督，是神的儿子，就是那要临到世界的。」', ref: JN + '11:27', hold: 5.5 },
+        { text: '马大听见耶稣来了，就出去迎接他；马利亚却仍然坐在家里。<br>马大对耶稣说：「主啊，你若早在这里，我兄弟必不死。」', ref: JN + '11:20–21', hold: 6.5, talk: [['martha', 0.55, 1, 'plead', 'jesus']] },
+        { text: '耶稣对她说：「复活在我，生命也在我。信我的人虽然死了，也必复活；<br>凡活着信我的人必永远不死。你信这话吗？」', ref: JN + '11:25–26', hold: 7, talk: [['jesus', 0.04, 1, 'proclaim', 'martha']] },
+        { text: '马大说：「主啊，是的，我信你是基督，是神的儿子，就是那要临到世界的。」', ref: JN + '11:27', hold: 5.5, talk: [['martha', 0.08, 1, 'plead', 'jesus']] },
       ],
       apply(c) {
         T(c, [
@@ -2192,14 +2266,22 @@
             avoid([0.42, 1]);
           }],
           [1.8, b => { nameX(b, '伯大尼', lerp(X.vill0, Math.min(1, X.vill1), 0.45), 66); }],
-          [9.4, b => {
+          // 来安慰她们的人哀哭（11:19）
+          [2.6, b => { talk('jews', 3.6, { how: 'plead', share: 0.5 }); }],
+          // 他已经四天了：耶稣叹息
+          [5.6, b => { gest('jesus', 'sigh'); }],
+          // 马大听见耶稣来了，就出去迎接他；马利亚却仍然坐在家里
+          [8.6, b => {
             run('martha', X.jBeth + (PORT ? 0.05 : 0.034));
             sink('martha', PORT ? 0.2 : 0.04);
             sfx(b, 'weep', { soft: true });
           }],
+          [9.4, b => { gest('maryb', 'bowhead', { dur: 2.4 }); }],
           [10.4, b => { nameOn(b, 'martha', '马大'); }],
-          [12.4, () => { face('martha', -1); face('jesus', 1); }],
+          [11.8, () => { face('martha', -1); face('jesus', 1); }],
+          [15, b => { gest('martha', 'bowhead', { dur: 1.6 }); }],
           // 复活在我，生命也在我（11:25）：一道光贴着地从他那里奔到石头边，石缝透出光来，坟前的草与花一丛丛开了
+          [16.4, () => { pose('martha', 'listen'); }],
           [17.2, b => {
             glow('jesus', 0.7);
             ringOn(b, 'jesus', [255, 240, 204], 0.3, 2.8);
@@ -2216,7 +2298,10 @@
             cpose('jews', 'stand'); cface('jews', -1); cglow('jews', 0.2);
             for (const m of cmembers('jews')) m.robe = mix(m.robe, [206, 196, 184], 0.32);
           }],
-          [25.5, b => { pose('martha', 'kneel'); glow('martha', 0.45); sfx(b, 'harp', { soft: true }); }],
+          [21.6, b => { stir('jews', 'startle', { share: 0.4, spread: 1.4 }); gest('maryb', 'startle'); }],
+          // 「主啊，是的，我信……」她跪下
+          [24.4, b => { pose('martha', 'kneel'); glow('martha', 0.45); sfx(b, 'harp', { soft: true }); }],
+          [28.6, b => { gest('jesus', 'bless'); }],
         ]);
       },
     },

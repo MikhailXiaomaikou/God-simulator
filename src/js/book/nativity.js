@@ -167,6 +167,12 @@
   function embrace(a, b, o) { const c = C(); if (c.embrace && has(a) && has(b)) U.safe('cast.embrace', () => c.embrace(a, b, o)); }
   function ride(id, m) { const c = C(); if (c.ride && has(id)) U.safe('cast.ride', () => c.ride(id, m)); }
   function fly(id, x, y, o) { const c = C(); if (c.fly && has(id)) c.fly(id, x, y, o); }
+  // 演技：说话、一次性的手势、众人转向、众人先后的反应（重演时自动什么也不做；heed 立即到位）
+  function say(id, sec, o) { const c = C(); if (c.speak) c.speak(id, sec, o); }
+  function gest(id, kind, o) { const c = C(); if (c.gesture) c.gesture(id, kind, o); }
+  function heed(ids, target, o) { const c = C(); if (c.attend) c.attend(ids, target, o); }
+  function stir(ids, kind, o) { const c = C(); if (c.react) c.react(ids, kind, o); }
+  const SHEP = ['shep1', 'shep2', 'shep3'], MAGI = ['magus1', 'magus2', 'magus3'], TEACH = ['teach1', 'teach2', 'teach3', 'teach4'];
   // 走到某处便隐去（重演时直接移去）
   function leave(id, x, o) {
     if (!has(id)) return;
@@ -1434,8 +1440,8 @@
       kind: 'act', utter: '天使加百列奉神的差遣', cmd: 'send 加百列 --to 拿撒勒 --msg "主和你同在了"', ref: '路加福音 1:26',
       verse: [
         { text: '到了第六个月，天使加百列奉神的差遣往加利利的一座城去（这城名叫拿撒勒），<br>到一个童女那里……童女的名字叫马利亚；', ref: '路加福音 1:26–27', hold: 7.5 },
-        { text: '天使进去，对她说：「蒙大恩的女子，我问你安，主和你同在了！」', ref: '路加福音 1:28', hold: 6 },
-        { text: '天使对她说：「马利亚，不要怕！你在神面前已经蒙恩了。<br>你要怀孕生子，可以给他起名叫耶稣。……」', ref: '路加福音 1:30–31', hold: 7 },
+        { text: '天使进去，对她说：「蒙大恩的女子，我问你安，主和你同在了！」', ref: '路加福音 1:28', hold: 6, talk: [['gabriel', 0.14, 1, 'calm', 'mary']] },
+        { text: '天使对她说：「马利亚，不要怕！你在神面前已经蒙恩了。<br>你要怀孕生子，可以给他起名叫耶稣。……」', ref: '路加福音 1:30–31', hold: 7, talk: [['gabriel', 0.08, 1, 'calm', 'mary']] },
       ],
       apply(c) {
         T(c, [
@@ -1446,17 +1452,27 @@
             beam(b, X.gabriel, { v: 0.12, dur: 5, w: 90, r: 0.2 });
             sfx(b, 'angel');
           }],
+          // 她正在井边打水（井在她的右边）
+          [0.3, () => { face('mary', 1); gest('mary', 'stoopdown', { dur: 2.4 }); }],
           [1.2, b => {
             add('gabriel', { label: '加百列', sex: 'm', age: 'adult', x: X.gabriel, facing: -1, angel: true, glow: 1, v: 0.12, from: b.instant ? 'none' : 'light' });
-            face('mary', 1);
           }],
+          // 光里有一位：她一惊
+          [2.6, () => { face('mary', 1); gest('mary', 'startle'); }],
           [3.4, b => { glow('mary', 0.45); sparkleOn(b, 'mary', 16); }],
-          // 蒙大恩的女子：她惊慌，跪下
-          [9.2, b => { hold('mary', null); pose('mary', 'kneel'); pose('gabriel', 'raise'); sfx(b, 'harp', { soft: true }); }],
-          [16.4, b => { pose('gabriel', 'point'); }],
+          [5.6, () => { gest('gabriel', 'nod'); }],
+          // 蒙大恩的女子，我问你安：天使举手问安
+          [8.9, b => { gest('gabriel', 'bless', { dur: 3.4 }); sfx(b, 'harp', { soft: true }); }],
+          // 马利亚因这话就很惊慌：放下水罐，跪下，反复思想这样问安是什么意思
+          [10.6, () => { gest('mary', 'tremble'); }],
+          [11.8, () => { hold('mary', null); pose('mary', 'kneel'); }],
+          [14.2, () => { gest('mary', 'bowhead', { dur: 2.2 }); }],
+          // 不要怕！你要怀孕生子
+          [17.8, () => { gest('gabriel', 'bless', { dur: 2.6 }); }],
           // 可以给他起名叫耶稣
           [18.4, b => { nameOver(b, X.maryWell, nameTop(X.maryWell), '耶稣', { hold: 3.4 }); }],
-          [22.6, () => { pose('gabriel', 'stand'); }],
+          [20.8, () => { gest('mary', 'bowhead', { dur: 2.6 }); }],
+          [22.6, () => { pose('gabriel', 'stand'); pose('mary', 'kneel'); }],
         ]);
       },
     },
@@ -1465,21 +1481,29 @@
     {
       kind: 'act', utter: '出于神的话，没有一句不带能力的', cmd: 'assert(神的话.every(带能力))  # ✓', ref: '路加福音 1:37',
       verse: [
-        { text: '马利亚对天使说：「我没有出嫁，怎么有这事呢？」', ref: '路加福音 1:34', hold: 5 },
-        { text: '天使回答说：「圣灵要临到你身上，至高者的能力要荫庇你……<br>因为，出于神的话，没有一句不带能力的。」', ref: '路加福音 1:35–37', hold: 7.5 },
-        { text: '马利亚说：「我是主的使女，情愿照你的话成就在我身上。」<br>天使就离开她去了。', ref: '路加福音 1:38', hold: 7 },
+        { text: '马利亚对天使说：「我没有出嫁，怎么有这事呢？」', ref: '路加福音 1:34', hold: 5, talk: [['mary', 0.2, 1, 'calm', 'gabriel']] },
+        { text: '天使回答说：「圣灵要临到你身上，至高者的能力要荫庇你……<br>因为，出于神的话，没有一句不带能力的。」', ref: '路加福音 1:35–37', hold: 7.5, talk: [['gabriel', 0.08, 1, 'proclaim', 'mary']] },
+        { text: '马利亚说：「我是主的使女，情愿照你的话成就在我身上。」<br>天使就离开她去了。', ref: '路加福音 1:38', hold: 7, talk: [['mary', 0.06, 0.66, 'calm']] },
       ],
       apply(c) {
         T(c, [
-          [0, () => { pose('mary', 'gaze'); face('mary', 1); pose('gabriel', 'stand'); }],
-          // 圣灵要临到你身上，至高者的能力要荫庇你
+          // 她抬起头来，站起，问天使
+          [0, () => { pose('mary', 'stand'); face('mary', 1); pose('gabriel', 'stand'); }],
+          [3.6, () => { gest('gabriel', 'nod'); }],
+          // 圣灵要临到你身上，至高者的能力要荫庇你：光明的云在她头上，她仰望
           [6.6, b => { W.set('natShadow', 1, b.instant); glow('mary', 0.75); sfx(b, 'harp'); sfx(b, 'wind', { soft: true }); }],
+          [7.6, () => { pose('mary', 'gaze'); }],
           [9.4, b => { sparkleOn(b, 'mary', 26, [255, 246, 226]); }],
-          // 我是主的使女
-          [15.4, b => { pose('mary', 'pray'); W.set('natShadow', 0.35, b.instant); }],
+          // 出于神的话，没有一句不带能力的
+          [11.4, () => { gest('gabriel', 'reachup', { dur: 2.6 }); }],
+          [13.4, () => { pose('mary', 'stand'); gest('mary', 'bowhead', { dur: 1.8 }); }],
+          // 我是主的使女：她跪下，合掌
+          [15.3, b => { pose('mary', 'pray'); W.set('natShadow', 0.35, b.instant); }],
+          [18, () => { gest('gabriel', 'bless', { dur: 2 }); }],
           // 天使就离开她去了
-          [18.8, b => { fly('gabriel', X.gabriel + 0.02, -0.15, { dur: 4 }); sfx(b, 'wings', { soft: true }); }],
+          [19.4, b => { fly('gabriel', X.gabriel + 0.02, -0.15, { dur: 4 }); sfx(b, 'wings', { soft: true }); }],
           [21.6, b => { rm('gabriel'); W.set('natShadow', 0, b.instant); glow('mary', 0.42); }],
+          [22.4, () => { gest('mary', 'bowhead', { dur: 2.4 }); }],
         ]);
       },
     },
@@ -1489,8 +1513,8 @@
       kind: 'act', utter: '那有权能的，为我成就了大事', cmd: 'magnify(主)  # 我心尊主为大', ref: '路加福音 1:49',
       verse: [
         { text: '那时候，马利亚起身，急忙往山地里去，来到犹大的一座城；<br>进了撒迦利亚的家，问伊利莎白安。', ref: '路加福音 1:39–40', hold: 6.5 },
-        { text: '伊利莎白一听马利亚问安，所怀的胎就在腹里跳动。伊利莎白且被圣灵充满，<br>高声喊着说：「你在妇女中是有福的！你所怀的胎也是有福的！……」', ref: '路加福音 1:41–42', hold: 7.5 },
-        { text: '马利亚说：我心尊主为大；我灵以神我的救主为乐；……<br>那有权能的，为我成就了大事；他的名为圣。', ref: '路加福音 1:46–49', hold: 7.5 },
+        { text: '伊利莎白一听马利亚问安，所怀的胎就在腹里跳动。伊利莎白且被圣灵充满，<br>高声喊着说：「你在妇女中是有福的！你所怀的胎也是有福的！……」', ref: '路加福音 1:41–42', hold: 7.5, talk: [['elizabeth', 0.56, 1, 'proclaim', 'mary']] },
+        { text: '马利亚说：我心尊主为大；我灵以神我的救主为乐；……<br>那有权能的，为我成就了大事；他的名为圣。', ref: '路加福音 1:46–49', hold: 7.5, talk: [['mary', 0.06, 1, 'proclaim']] },
       ],
       apply(c) {
         T(c, [
@@ -1507,14 +1531,23 @@
             add('elizabeth', { label: '伊利莎白', sex: 'f', age: 'elder', x: X.lizDoor, facing: -1, pose: 'stand', robe: [128, 106, 136], glow: 0.3, prop: null, v: 0.05 });
             walk('elizabeth', X.meetE, { speed: 0.012 });
           }],
+          // 问伊利莎白安
+          [5.9, () => { face('mary', 'elizabeth'); say('mary', 1.5, { to: 'elizabeth' }); }],
           [7.6, () => { embrace('mary', 'elizabeth', { at: (X.meetM + X.meetE) / 2 }); }],
           // 胎在腹里跳动；伊利莎白被圣灵充满
           [9.4, b => { flash(b, { type: 'leap', id: 'elizabeth', dur: 2.2 }); sparkleOn(b, 'elizabeth', 22, [255, 240, 200], 0.45); glow('elizabeth', 0.75); sfx(b, 'chime'); }],
-          [13.6, () => { pose('elizabeth', 'raise'); pose('mary', 'stand'); face('mary', 1); }],
-          // 马利亚的颂歌：四围开出花来
-          [16.4, b => { pose('mary', 'raise'); pose('elizabeth', 'stand'); W.set('natFlowers', 1, b.instant); W.set('bloom', 0.55, b.instant); sfx(b, 'sing', { soft: true }); sfx(b, 'bird'); }],
-          [20, b => { sparkleOn(b, 'mary', 20); }],
-          [23, () => { pose('mary', 'stand'); }],
+          [9.6, () => { gest('elizabeth', 'startle'); }],
+          // 高声喊着说：二人分开，她对着马利亚说「你在妇女中是有福的」
+          [11, () => { pose('elizabeth', 'stand'); pose('mary', 'stand'); face('mary', 1); face('elizabeth', -1); }],
+          [14.2, () => { gest('elizabeth', 'bless', { dur: 2.4 }); }],
+          // 马利亚的颂歌：我心尊主为大（举手向天）；四围开出花来
+          [16.4, b => { pose('mary', 'lift'); pose('elizabeth', 'listen'); W.set('natFlowers', 1, b.instant); W.set('bloom', 0.55, b.instant); sfx(b, 'sing', { soft: true }); sfx(b, 'bird'); }],
+          // 我灵以神我的救主为乐
+          [18.6, () => { pose('mary', 'rejoice'); }],
+          [20, b => { sparkleOn(b, 'mary', 20); gest('elizabeth', 'nod'); }],
+          // 那有权能的，为我成就了大事；他的名为圣
+          [21.4, () => { pose('mary', 'stand'); }],
+          [22.8, () => { gest('mary', 'bowhead', { dur: 2.2 }); }],
         ]);
       },
     },
@@ -1537,20 +1570,27 @@
             leave('mary', X.maryDoor, { speed: 0.06 });
             add('josephnt', look('josephnt', { x: X.josSleep, facing: -1, pose: 'sit', v: 0.12, glow: 0.3 }));
           }],
-          [2.2, b => { lampsNaz(b, 0.8); }],
+          // 正思念这事的时候：他坐在门前，叹一口气，低下头
+          [1, () => { gest('josephnt', 'sigh'); }],
+          [2.2, b => { lampsNaz(b, 0.8); gest('josephnt', 'bowhead', { dur: 1.6 }); }],
           [3.2, () => { pose('josephnt', 'lie'); }],
           // 梦中：主的使者
           [4.2, b => { S.dreamX = X.josSleep; S.dreamDir = 1; W.set('natDream', 1, b.instant); sfx(b, 'angel', { soft: true }); }],
           // 以马内利（主藉先知所说的话）
           [11.4, b => { nameOver(b, X.josSleep, baseY(2, X.josSleep, 0.12) - 2.2 * PH(2), '以马内利', { hold: 3.6 }); }],
-          // 约瑟醒了
-          [18.6, b => { W.set('natDream', 0, b.instant); W.goTo(0.3, 4, b.instant); lampsNaz(b, 0.3); pose('josephnt', 'stand'); glow('josephnt', 0.2); }],
-          [20, b => {
-            walk('josephnt', X.maryDoor + 0.02, { speed: 0.04 });
+          // 约瑟醒了：坐起来，定一定神，站起
+          [18.6, b => { W.set('natDream', 0, b.instant); W.goTo(0.3, 4, b.instant); lampsNaz(b, 0.3); pose('josephnt', 'sit'); glow('josephnt', 0.2); }],
+          [19.2, () => { pose('josephnt', 'stand'); }],
+          [19.9, () => { gest('josephnt', 'nod'); }],
+          [20.4, b => {
+            walk('josephnt', X.maryDoor + 0.02, { speed: 0.045 });
             add('mary', look('mary', { x: X.maryDoor, facing: 1, pose: 'stand', v: 0.1, glow: 0.42, carry: null, prop: null }));
           }],
-          [23.2, () => { hands('josephnt', 'mary', true); face('josephnt', 1); walk('josephnt', X.josDoor + 0.012, { speed: 0.03 }); walk('mary', X.josDoor - 0.006, { speed: 0.03 }); }],
-          [24.6, b => { lampsNaz(b, 0); }],
+          // 把妻子娶过来：他对她说，她点头，二人牵着手回去
+          [22.6, () => { say('josephnt', 1.2, { to: 'mary' }); }],
+          [23.3, () => { gest('mary', 'nod'); }],
+          [24, () => { hands('josephnt', 'mary', true); face('josephnt', 1); walk('josephnt', X.josDoor + 0.012, { speed: 0.03 }); walk('mary', X.josDoor - 0.006, { speed: 0.03 }); }],
+          [24.8, b => { lampsNaz(b, 0); }],
         ]);
       },
     },
@@ -1589,21 +1629,31 @@
           [6.2, () => {
             crowd('guests', { n: 4, x0: PX(0.93), x1: PX(0.99), layer: 2, label: '众人', prop: null }, dressAs(TRAV, 0.12, 0.3));
           }],
-          [13.6, () => { crm('trav'); face('josephnt', 1); pose('josephnt', 'point'); }],
-          // 客店的门关上
-          [16.3, b => { W.set('natInn', 0, b.instant); sfx(b, 'gate', { soft: true }); pose('josephnt', 'stand'); }],
-          [17.6, () => {
-            walk('josephnt', X.josS, { speed: 0.024 });
-            walk('donkey', X.maryK + 0.006, { speed: 0.022 });
+          // 望见了伯利恒：约瑟边走边指给马利亚看；那时马利亚的身孕已经重了
+          [8.8, () => { gest('josephnt', 'point'); }],
+          [10.6, () => { gest('mary', 'sigh'); }],
+          // 到了客店门前：约瑟叩门，店里的人转过来看
+          [12.6, () => { face('josephnt', 1); pose('josephnt', 'knock'); }],
+          [13.6, () => { crm('trav'); heed('guests', 'josephnt', { spread: 1.2 }); }],
+          [14.6, () => { pose('josephnt', 'stand'); say('josephnt', 1.6, { to: 'guests', how: 'plead' }); }],
+          // 自己的人倒不接待他：摆手，转过身去，客店的门关上
+          [15.6, () => { stir('guests', 'refuse', { spread: 0.8, share: 0.75 }); }],
+          [16.3, b => { W.set('natInn', 0, b.instant); sfx(b, 'gate', { soft: true }); heed('guests', 1, { spread: 0.9 }); }],
+          [16.9, () => { gest('josephnt', 'sigh'); }],
+          [17.3, () => { gest('mary', 'bowhead', { dur: 2 }); }],
+          // 他们回到城边石洞里的马棚
+          [17.8, () => {
+            walk('josephnt', X.josS, { speed: 0.03 });
+            walk('donkey', X.maryK + 0.006, { speed: 0.032 });
           }],
-          [21, b => { crm('guests'); beast('ox', { kind: 'ox', label: '牛', x: X.ox, facing: -1, pose: 'lie' }); W.set('natStable', 1, b.instant); }],
-          [23, () => {
+          [20.8, b => { crm('guests'); beast('ox', { kind: 'ox', label: '牛', x: X.ox, facing: -1, pose: 'lie' }); W.set('natStable', 1, b.instant); }],
+          [21.6, () => {
+            face('josephnt', -1);
             ride('mary', null);
             // 驴到牛的旁边（洞的右边）：马槽的左边留给跪拜的牧羊人
             walk('donkey', X.donkeyR, { speed: 0.03 }); face('donkey', -1);
           }],
-          [24.2, () => { walk('mary', X.maryK, { speed: 0.02, pose: 'sit' }); face('josephnt', -1); }],
-          [26, () => { face('mary', 1); }],
+          [22.1, () => { walk('mary', X.maryK, { speed: 0.02, pose: 'sit' }); face('mary', 1); }],
         ]);
       },
     },
@@ -1631,9 +1681,12 @@
             if (!b.instant) { const h = headOf('mary', 0.55); ringAt(b, h[0], h[1], [255, 240, 206], M() * 0.22, 2.4, 1.8); sparkleAt(b, h[0], h[1], 26, [255, 246, 226], 12); }
             sfx(b, 'chime');
           }],
-          // 用布包起来，放在马槽里：她俯身把他放在马槽里
+          // 她低头看怀里的孩子；约瑟望着他们，点一点头
+          [5.2, () => { gest('mary', 'bowhead', { dur: 1.4 }); }],
+          [5.5, () => { gest('josephnt', 'nod'); }],
+          // 用布包起来，放在马槽里：她弯下腰把他放在马槽里
           [6.4, b => {
-            face('mary', 1); pose('mary', 'bow'); babe('mary', null);
+            face('mary', 1); pose('mary', 'stoop'); babe('mary', null);
             S.babe = 1; W.set('natBirth', 1, b.instant);
             if (!b.instant) { const G = stableGeom(); sparkleAt(b, G.mx, G.mg - 0.4 * G.p, 30, [255, 246, 226], 14); }
             sfx(b, 'angel', { soft: true });
@@ -1645,7 +1698,11 @@
             W.set('natColumn', 0.3, b.instant); pose('josephnt', 'kneel');
             if (!b.instant) { const G = stableGeom(); flash(b, { type: 'wave', x: G.mx, y: G.mg - 0.4 * G.p, dur: 5 }); }
           }],
+          [11, () => { pose('josephnt', 'pray'); }],
+          // 充充满满地有恩典有真理：她放下手，跪着看马槽里的孩子
+          [12.6, () => { pose('mary', 'kneel'); gest('mary', 'bowhead', { dur: 2.6 }); }],
           [14.5, b => { W.set('natColumn', 0, b.instant); }],
+          [15.6, () => { gest('josephnt', 'bowhead', { dur: 2 }); }],
         ]);
       },
     },
@@ -1655,7 +1712,7 @@
       kind: 'act', utter: '主的荣光四面照着他们', cmd: 'shine 主的荣光 --around 牧羊的人  # then: broadcast "大喜的信息"', ref: '路加福音 2:9',
       verse: [
         { text: '在伯利恒之野地里有牧羊的人，夜间按着更次看守羊群。<br>有主的使者站在他们旁边，主的荣光四面照着他们；牧羊的人就甚惧怕。', ref: '路加福音 2:8–9', hold: 8 },
-        { text: '那天使对他们说：「不要惧怕！我报给你们大喜的信息，是关乎万民的；<br>因今天在大卫的城里，为你们生了救主，就是主基督。……」', ref: '路加福音 2:10–11', hold: 8 },
+        { text: '那天使对他们说：「不要惧怕！我报给你们大喜的信息，是关乎万民的；<br>因今天在大卫的城里，为你们生了救主，就是主基督。……」', ref: '路加福音 2:10–11', hold: 8, talk: [['angel', 0.08, 1, 'proclaim']] },
       ],
       apply(c) {
         T(c, [
@@ -1675,12 +1732,26 @@
             if (!b.instant) { W.flash = Math.max(W.flash || 0, 0.25); ringAt(b, X.angel * W.w, baseY(2, X.angel, 0.12) - PH(2), [255, 244, 214], M() * 0.3, 2.4, 1.8); }
             sfx(b, 'angel');
           }],
-          // 牧羊的人就甚惧怕
-          [5.4, b => { pose('shep1', 'fall'); pose('shep2', 'fall'); pose('shep3', 'fall'); face('shep3', 1); cpose('flock', 'stand'); }],
-          // 不要惧怕！
-          [9.6, () => { pose('shep1', 'kneel'); pose('shep2', 'kneel'); pose('shep3', 'kneel'); face('shep1', 1); face('shep2', 1); face('shep3', 1); pose('angel', 'raise'); }],
-          // 为你们生了救主：使者指向大卫的城
+          // 夜间按着更次看守羊群：站着的那个四下张望，坐着的两个在火边低声说话
+          [1.6, () => { gest('shep3', 'lookaround'); }],
+          [2.2, () => { say('shep1', 1.4, { to: 'shep2' }); }],
+          [3.4, () => { gest('shep2', 'nod'); }],
+          [4.2, () => { stir(SHEP, 'startle', { spread: 0.5 }); heed(SHEP, 'angel', { spread: 0.4 }); }],
+          // 牧羊的人就甚惧怕：以臂遮眼，蹲伏，仆倒在地
+          [5.2, () => { face('shep3', 1); pose('shep3', 'shield'); cpose('flock', 'stand'); }],
+          [5.5, () => { pose('shep1', 'cower'); }],
+          [5.8, () => { pose('shep2', 'fall'); }],
+          [6.9, () => { pose('shep3', 'cower'); }],
+          [7.6, () => { stir(['shep1', 'shep3'], 'tremble', { spread: 0.6 }); }],
+          // 不要惧怕！天使举手安慰他们；他们抬起头来，跪着听
+          [9.5, () => { face('angel', -1); gest('angel', 'bless', { dur: 2.8 }); }],
+          [10.2, () => { pose('shep1', 'kneel'); face('shep1', 1); }],
+          [10.7, () => { pose('shep3', 'kneel'); face('shep3', 1); }],
+          [11.3, () => { pose('shep2', 'kneel'); face('shep2', 1); }],
+          // 为你们生了救主：使者指向大卫的城；他们顺着望去
           [13.6, b => { face('angel', 1); pose('angel', 'point'); W.set('natPoint', 1, b.instant); sfx(b, 'chime', { soft: true }); }],
+          [14.3, () => { heed(SHEP, X.manger, { spread: 0.9 }); }],
+          [16.6, () => { pose('angel', 'stand'); face('angel', -1); stir(SHEP, 'nod', { spread: 0.8, share: 0.7 }); }],
           [17.6, b => { W.set('natPoint', 0.35, b.instant); }],
         ]);
       },
@@ -1690,28 +1761,39 @@
     {
       kind: 'promise', utter: '你们要看见一个婴孩，包着布，卧在马槽里', cmd: 'sign = find("婴孩", in: "马槽")  # 那就是记号', ref: '路加福音 2:12',
       verse: [
-        { text: '「你们要看见一个婴孩，包着布，卧在马槽里，那就是记号了。」<br>忽然，有一大队天兵同那天使赞美神说：', ref: '路加福音 2:12–13', hold: 7 },
-        { text: '在至高之处荣耀归与神！<br>在地上平安归与他所喜悦的人！', ref: '路加福音 2:14', hold: 5.5 },
+        { text: '「你们要看见一个婴孩，包着布，卧在马槽里，那就是记号了。」<br>忽然，有一大队天兵同那天使赞美神说：', ref: '路加福音 2:12–13', hold: 7, talk: [['angel', 0, 0.56, 'proclaim']] },
+        { text: '在至高之处荣耀归与神！<br>在地上平安归与他所喜悦的人！', ref: '路加福音 2:14', hold: 5.5, who: 'angel', how: 'proclaim' },
         { text: '众天使离开他们，升天去了……<br>他们急忙去了，就寻见马利亚和约瑟，又有那婴孩卧在马槽里；', ref: '路加福音 2:15–16', hold: 7 },
         { text: '马利亚却把这一切的事存在心里，反复思想。', ref: '路加福音 2:19', hold: 5 },
       ],
       apply(c) {
         T(c, [
-          [0, b => { W.set('natPoint', 0, b.instant); pose('angel', 'raise'); beam(b, X.manger, { v: 0, dur: 4.5, w: 60, r: 0.14 }); }],
-          // 忽然，有一大队天兵
+          // 你们要看见一个婴孩：使者仍对着他们说，又转身指向马槽（那里落下一道光）
+          [0, b => { W.set('natPoint', 0, b.instant); pose('angel', 'stand'); face('angel', -1); beam(b, X.manger, { v: 0, dur: 4.5, w: 60, r: 0.14 }); }],
+          [1.5, () => { face('angel', 1); gest('angel', 'point'); heed(SHEP, X.manger, { spread: 0.6 }); }],
+          // 忽然，有一大队天兵：牧羊的人一惊；使者举手赞美神
           [3, b => { S.hostGo = 0; W.set('natHost', 1, b.instant); W.set('stars', 1, b.instant); sfx(b, 'angel'); sfx(b, 'sing'); }],
-          // 在至高之处荣耀归与神
+          [3.3, () => { stir(SHEP, 'startle', { spread: 0.6 }); }],
+          [3.8, () => { pose('angel', 'raise'); }],
+          // 在至高之处荣耀归与神：他们站起来仰望满天的天兵
           [8.6, b => {
-            pose('shep1', 'gaze'); pose('shep2', 'gaze'); pose('shep3', 'gaze');
+            pose('shep1', 'gaze');
             if (!b.instant) { const q = hostPt({ f: 0.5, r: 0.5 }); flash(b, { type: 'wave', x: q[0], y: q[1], dur: 4 }); }
             sfx(b, 'sing');
           }],
+          [9.1, () => { pose('shep3', 'gaze'); }],
+          [9.6, () => { pose('shep2', 'gaze'); }],
+          [11.6, () => { gest('shep3', 'reachup'); }],
+          [13, () => { gest('shep2', 'nod'); }],
           // 众天使离开他们，升天去了
           [15.2, b => {
             S.hostGo = 1; W.set('natHost', 0, b.instant); W.set('natGlory', 0, b.instant);
             fly('angel', X.angel, -0.15, { dur: 4, pose: 'raise' });
             sfx(b, 'wings', { soft: true });
           }],
+          // 牧羊的人彼此说：我们往伯利恒去（2:15）
+          [15.8, () => { pose('shep3', 'stand'); say('shep3', 1.5, { to: 'shep1' }); }],
+          [16.4, () => { gest('shep3', 'beckon', { dur: 1.4 }); gest('shep1', 'nod'); }],
           // 他们急忙去了
           [17.2, () => {
             sink('shep1', 0.32); sink('shep2', 0.32); sink('shep3', 0.32);
@@ -1720,9 +1802,13 @@
             walk('shep2', X.shK3, { speed: 0.05, pose: 'kneel' });
           }],
           [19.4, b => { rm('angel'); W.set('natFire', 0.35, b.instant); }],
-          [21.6, () => { for (const id of ['shep1', 'shep2', 'shep3']) face(id, 1); }],
-          // 马利亚却把这一切的事存在心里
-          [23.6, b => { glow('mary', 0.7); sparkleOn(b, 'mary', 18, [255, 236, 200], 0.55); }],
+          // 就寻见马利亚和约瑟，又有那婴孩卧在马槽里：约瑟向他们点头；他们跪着，年长的那个俯伏在地
+          [20.4, () => { gest('josephnt', 'nod'); }],
+          [21.6, () => { for (const id of SHEP) face(id, 1); }],
+          [22.2, () => { pose('shep2', 'worship'); stir(['shep1', 'shep3'], 'bowhead', { spread: 0.8 }); }],
+          // 马利亚却把这一切的事存在心里，反复思想
+          [23.6, b => { glow('mary', 0.7); sparkleOn(b, 'mary', 18, [255, 236, 200], 0.55); pose('mary', 'kneel'); }],
+          [24.6, () => { gest('mary', 'bowhead', { dur: 3.4 }); }],
           [27, b => { glow('mary', 0.5); }],
         ]);
       },
@@ -1732,7 +1818,7 @@
     {
       kind: 'promise', utter: '将来有一位君王要从你那里出来', cmd: 'follow(星) --from 东方 --until 停住', ref: '马太福音 2:6',
       verse: [
-        { text: '当希律王的时候，耶稣生在犹太的伯利恒。有几个博士从东方来到耶路撒冷，说：<br>「那生下来作犹太人之王的在哪里？我们在东方看见他的星，特来拜他。」', ref: '马太福音 2:1–2', hold: 8.5 },
+        { text: '当希律王的时候，耶稣生在犹太的伯利恒。有几个博士从东方来到耶路撒冷，说：<br>「那生下来作犹太人之王的在哪里？我们在东方看见他的星，特来拜他。」', ref: '马太福音 2:1–2', hold: 8.5, talk: [['magus1', 0.5, 0.76, 'calm', 'magus2'], ['magus2', 0.76, 1, 'calm', 'magus1']] },
         { text: '他们回答说：「在犹太的伯利恒。因为有先知记着，说：<br>犹大地的伯利恒啊，你在犹大诸城中并不是最小的；<br>因为将来有一位君王要从你那里出来，牧养我以色列民。」', ref: '马太福音 2:5–6', hold: 9 },
         { text: '在东方所看见的那星忽然在他们前头行，直行到小孩子的地方，就在上头停住了。', ref: '马太福音 2:9', hold: 6.5 },
       ],
@@ -1766,10 +1852,18 @@
             sfx(b, 'camel', { soft: true });
           }],
           [4, () => { face('mary', -1); face('josephnt', -1); }],
+          // 约瑟手搭凉棚，望见东边远远来了骆驼；马利亚低头看怀里的孩子
+          [10.6, () => { pose('josephnt', 'look'); }],
+          [12.2, () => { gest('mary', 'bowhead', { dur: 2.2 }); }],
           // 星在他们前头行，直行到小孩子的地方
           [13.4, b => { W.set('natStarGo', 1, b.instant); }],
+          [15.8, () => { pose('josephnt', 'stand'); }],
+          [18.4, () => { gest('magus3', 'nod'); }],
           // 就在上头停住了
           [22.6, b => { W.set('natStarBeam', 1, b.instant); sfx(b, 'chime'); if (!b.instant) { const s = starPt(); ringAt(b, s[0], s[1], [236, 240, 255], M() * 0.18, 2, 1.4); } }],
+          [23.2, () => { stir(MAGI, 'nod', { spread: 1.2 }); }],
+          [24, () => { pose('josephnt', 'gaze'); }],
+          [26.4, () => { pose('josephnt', 'stand'); }],
         ]);
       },
     },
@@ -1784,14 +1878,30 @@
       ],
       apply(c) {
         T(c, [
+          // 他们看见那星，就大大地欢喜：下了骆驼，张开两臂（一个接一个）
           [0, () => {
-            [['magus1', X.mK1], ['magus2', X.mK2], ['magus3', X.mK3]].forEach(([id, x]) => { ride(id, null); walk(id, x, { speed: 0.036 }); sink(id, 0.3); });
+            [['magus1', X.mK1], ['magus2', X.mK2], ['magus3', X.mK3]].forEach(([id, x]) => { ride(id, null); sink(id, 0.3); });
             for (const id of ['camel1', 'camel2', 'camel3']) pose(id, 'lie');
           }],
-          [5.6, () => { for (const id of ['magus1', 'magus2', 'magus3']) face(id, 1); }],
-          // 俯伏拜那小孩子
-          [6.4, b => { for (const id of ['magus1', 'magus2', 'magus3']) pose(id, 'worship'); sfx(b, 'harp', { soft: true }); }],
-          [7.6, b => { W.set('natGifts', 1, b.instant); sfx(b, 'chime'); }],
+          [0.4, () => { pose('magus1', 'rejoice'); }],
+          [0.8, () => { pose('magus2', 'rejoice'); }],
+          [1.2, () => { pose('magus3', 'rejoice'); }],
+          // 进了房子：一个跟着一个走到门前
+          [2, () => { walk('magus1', X.mK1, { speed: 0.04 }); }],
+          [2.3, () => { walk('magus2', X.mK2, { speed: 0.045 }); }],
+          [2.6, () => { walk('magus3', X.mK3, { speed: 0.05 }); pose('josephnt', 'listen'); }],
+          [5.6, () => { for (const id of MAGI) face(id, 1); }],
+          // 看见小孩子和他母亲马利亚，就俯伏拜那小孩子
+          [6.2, b => { pose('magus1', 'worship'); sfx(b, 'harp', { soft: true }); }],
+          [6.6, () => { pose('magus2', 'worship'); }],
+          [7, () => { pose('magus3', 'worship'); }],
+          // 揭开宝盒，拿黄金、乳香、没药为礼物献给他：直起身来，一个一个双手献上
+          [7.6, b => { W.set('natGifts', 1, b.instant); sfx(b, 'chime'); pose('magus1', 'kneel'); }],
+          [8.1, () => { gest('magus1', 'give'); }],
+          [8.6, () => { pose('magus2', 'kneel'); gest('mary', 'nod'); }],
+          [9.1, () => { gest('magus2', 'give'); }],
+          [9.6, () => { pose('magus3', 'kneel'); }],
+          [10.1, () => { gest('magus3', 'give'); }],
           // 那光是真光，照亮一切生在世上的人
           [10.2, b => {
             glow('mary', 0.6);
@@ -1799,11 +1909,17 @@
             if (!b.instant) { const h = headOf('mary', 0.5); flash(b, { type: 'wave', x: h[0], y: h[1], dur: 5.5 }); sparkleAt(b, h[0], h[1], 30, [255, 240, 206], 16); }
             sfx(b, 'harp');
           }],
-          // 从别的路回本地去了
-          [16.4, () => {
-            [['magus1', X.camel1], ['magus2', X.camel2], ['magus3', X.camel3]].forEach(([id, x]) => { pose(id, 'stand'); glow(id, 0.3); walk(id, x - 0.01, { speed: 0.05 }); sink(id, 0); });
+          [12.4, () => { pose('magus1', 'worship'); pose('magus3', 'worship'); }],
+          [12.9, () => { pose('magus2', 'worship'); }],
+          [14.4, () => { gest('josephnt', 'bowhead', { dur: 2 }); }],
+          // 从别的路回本地去了：起身，向孩子与他母亲低头辞别
+          [15.8, () => { for (const id of MAGI) pose(id, 'stand'); }],
+          [16.3, () => { stir(MAGI, 'bowhead', { spread: 0.5, dur: 1.4 }); gest('mary', 'nod'); pose('josephnt', 'stand'); }],
+          [16.8, () => {
+            [['magus1', X.camel1, 0.055], ['magus2', X.camel2, 0.06], ['magus3', X.camel3, 0.065]].forEach(([id, x, sp]) => { glow(id, 0.3); walk(id, x - 0.01, { speed: sp }); sink(id, 0); });
             for (const id of ['camel1', 'camel2', 'camel3']) pose(id, 'stand');
           }],
+          [18.4, () => { gest('josephnt', 'wave', { dur: 1.8 }); }],
           [19.8, b => {
             [['magus1', 'camel1'], ['magus2', 'camel2'], ['magus3', 'camel3']].forEach(([m, cid]) => ride(m, cid));
             W.set('natStarBeam', 0, b.instant); W.set('natStar', 0, b.instant);
@@ -1834,11 +1950,17 @@
           }],
           // 梦的光泡升在约瑟的左上方（马棚的石上），不压在门前的马利亚与孩子身上
           [2.6, b => { S.dreamX = X.josSleep2; S.dreamDir = -1; W.set('natDream', 1, b.instant); sfx(b, 'angel', { soft: true }); }],
-          // 约瑟就起来
-          [9, b => { W.set('natDream', 0, b.instant); pose('josephnt', 'stand'); hold('josephnt', 'torch'); glow('josephnt', 0.35); walk('donkey', X.houseDoor - 0.012, { speed: 0.04 }); }],
-          [10.2, b => { pose('mary', 'stand'); W.set('natGifts', 0, b.instant); }],
-          [12.2, () => { ride('mary', 'donkey'); face('donkey', 1); }],
-          [12.6, () => { sink('josephnt', 0.08); walk('josephnt', 1.1, { speed: 0.03 }); walk('donkey', 1.08, { speed: 0.027 }); }],
+          // 约瑟就起来：一惊坐起，起身点起火把，牵驴到门前，叫醒马利亚
+          [8.8, b => { W.set('natDream', 0, b.instant); pose('josephnt', 'sit'); }],
+          [9.2, () => { gest('josephnt', 'startle'); }],
+          [9.8, b => { pose('josephnt', 'stand'); hold('josephnt', 'torch'); glow('josephnt', 0.35); walk('donkey', X.houseDoor - 0.012, { speed: 0.04 }); }],
+          [10.4, b => { face('josephnt', 'mary'); say('josephnt', 1.6, { to: 'mary', how: 'plead' }); W.set('natGifts', 0, b.instant); }],
+          [11, () => { pose('mary', 'stand'); }],
+          [11.7, () => { gest('mary', 'nod'); }],
+          [12.4, () => { ride('mary', 'donkey'); face('donkey', 1); }],
+          [12.8, () => { sink('josephnt', 0.08); walk('josephnt', 1.1, { speed: 0.03 }); walk('donkey', 1.08, { speed: 0.027 }); }],
+          // 夜里赶路：马利亚低头护着怀里的孩子
+          [14.4, () => { gest('mary', 'bowhead', { dur: 2.4 }); }],
           // 伯利恒的灯一盏一盏熄灭
           [15, b => { W.set('natLampB', 0, b.instant); W.set('natStable', 0, b.instant); }],
           // 我从埃及召出我的儿子来
@@ -1877,12 +1999,20 @@
           }],
           // 到了一座城，名叫拿撒勒
           [9, b => { nameOver(b, PX(0.62), baseY(2, PX(0.62), 0) - 1.3 * PH(2), '拿撒勒', { hold: 3.2, rgb: [255, 236, 190] }); }],
+          // 回到家里：约瑟俯身在工作台上做工，孩子在旁边静静地看；马利亚坐在门前
           [14.2, b => { face('josephnt', 1); pose('josephnt', 'bow'); face('jesus', -1); pose('mary', 'sit'); sfx(b, 'hammer', { soft: true }); }],
+          [15, () => { pose('jesus', 'listen'); face('mary', 1); }],
           // 孩子渐渐长大……又有神的恩在他身上
           [16.4, b => { W.set('natGrace', 1, b.instant); glow('jesus', 0.5); sparkleOn(b, 'jesus', 20, [255, 240, 200], 0.5); sfx(b, 'harp', { soft: true }); }],
           [17.6, b => { S.grow = 0.93; add('jesus', { scale: FIGK() * S.grow }); sparkleOn(b, 'jesus', 12, [255, 240, 200], 0.6); }],
-          [19.4, b => { S.grow = 1; add('jesus', { scale: FIGK() * S.grow }); sparkleOn(b, 'jesus', 12, [255, 240, 200], 0.7); pose('josephnt', 'stand'); face('jesus', 1); }],
+          // 强健起来：他弯腰替约瑟拾起木料
+          [18, () => { gest('jesus', 'stoopdown', { dur: 2.2 }); }],
+          [19.4, b => { S.grow = 1; add('jesus', { scale: FIGK() * S.grow }); sparkleOn(b, 'jesus', 12, [255, 240, 200], 0.7); pose('josephnt', 'stand'); face('josephnt', 'jesus'); }],
+          // 充满智慧：约瑟转过来教他，他点头
+          [20.2, () => { pose('jesus', 'stand'); say('josephnt', 2, { to: 'jesus', how: 'teach' }); }],
+          [21.4, () => { gest('jesus', 'nod'); }],
           [21.6, b => { W.set('natGrace', 0.35, b.instant); }],
+          [22.6, () => { gest('mary', 'nod'); }],
         ]);
       },
     },
@@ -1892,8 +2022,8 @@
       kind: 'ask', utter: '岂不知我应当以我父的事为念吗？', cmd: 'cd 我父的殿  # 三天后才找到', ref: '路加福音 2:49',
       verse: [
         { text: '当他十二岁的时候，他们按着节期的规矩上去。……<br>过了三天，就遇见他在殿里，坐在教师中间，一面听，一面问。', ref: '路加福音 2:42–46', hold: 7 },
-        { text: '他母亲对他说：「我儿！为什么向我们这样行呢？<br>看哪，你父亲和我伤心来找你！」', ref: '路加福音 2:48', hold: 6 },
-        { text: '耶稣说：「为什么找我呢？岂不知我应当以我父的事为念吗？」', ref: '路加福音 2:49', hold: 5 },
+        { text: '他母亲对他说：「我儿！为什么向我们这样行呢？<br>看哪，你父亲和我伤心来找你！」', ref: '路加福音 2:48', hold: 6, talk: [['mary', 0.14, 1, 'plead', 'jesus']] },
+        { text: '耶稣说：「为什么找我呢？岂不知我应当以我父的事为念吗？」', ref: '路加福音 2:49', hold: 5, talk: [['jesus', 0.08, 1, 'calm', 'mary']] },
         { text: '他就同他们下去，回到拿撒勒，并且顺从他们。……<br>耶稣的智慧和身量，并神和人喜爱他的心，都一齐增长。', ref: '路加福音 2:51–52', hold: 7 },
       ],
       apply(c) {
@@ -1912,31 +2042,47 @@
             crowd('pilgrims', { n: PORT ? 3 : 5, x0: X.pil0, x1: X.pil1, layer: 2, label: '过节的人', prop: null }, dressAs(TRAV, 0.34, 0.5));
             sfx(b, 'crowd', { soft: true });
           }],
+          // 坐在教师中间，一面听，一面问：教师讲论，他听；他发问，教师们彼此相看、点头
+          [0.6, () => { say('teach2', 2.2, { to: 'jesus', how: 'teach' }); pose('jesus', 'sit'); }],
           [1.4, () => {
             add('mary', look('mary', { x: PX(0.53), facing: 1, pose: 'walk', v: 0.14, glow: 0.3, carry: null, prop: null }));
             add('josephnt', look('josephnt', { x: PX(0.51), facing: 1, pose: 'walk', v: 0.1, glow: 0.2, prop: null }));
-            walk('mary', PX(0.61), { speed: 0.03, pose: 'gaze' }); walk('josephnt', PX(0.592), { speed: 0.03, pose: 'gaze' });
+            walk('mary', PX(0.61), { speed: 0.03, pose: 'stand' }); walk('josephnt', PX(0.592), { speed: 0.03, pose: 'look' });
           }],
+          [3.2, () => { gest('jesus', 'nod'); }],
+          [3.8, () => { face('jesus', 1); say('jesus', 1.8, { to: 'teach3' }); }],
+          // 父母在殿里四下找他
+          [4.4, () => { gest('mary', 'lookaround'); }],
           [5.6, () => { walk('mary', X.seekM, { speed: 0.03 }); walk('josephnt', X.seekJ, { speed: 0.03 }); }],
-          // 他母亲对他说
-          [9.4, () => { face('mary', 1); face('josephnt', 1); pose('mary', 'raise'); face('jesus', -1); }],
-          [13, () => { pose('mary', 'stand'); }],
-          // 岂不知我应当以我父的事为念吗？
+          [5.8, () => { say('teach3', 1.8, { to: 'jesus', how: 'teach' }); }],
+          // 凡听见他的，都希奇他的聪明和他的应对
+          [7.4, () => { stir(['teach1', 'teach4'], 'startle', { spread: 0.6 }); gest('teach2', 'nod'); face('jesus', -1); }],
+          // 他母亲对他说：她找着了他，恳求着说；约瑟在旁边叹气
+          [8.6, () => { face('mary', 1); face('josephnt', 1); face('jesus', -1); heed(['teach1', 'teach2'], 'mary', { spread: 1 }); }],
+          [11.4, () => { gest('josephnt', 'sigh'); }],
+          // 岂不知我应当以我父的事为念吗？他站起来；殿上落下光来
+          [15.4, () => { pose('jesus', 'stand'); }],
           [15.8, b => {
-            pose('jesus', 'stand'); glow('jesus', 0.55);
+            glow('jesus', 0.55);
             W.set('natTempleLight', 1, b.instant);
             face('teach1', 1); face('teach2', 1); face('teach3', -1); face('teach4', -1);
+            heed('pilgrims', 'jesus', { spread: 1.4 });
             sfx(b, 'harp');
           }],
-          // 他就同他们下去
+          // 他所说的这话，他们不明白；他母亲把这一切的事都存在心里
+          [19.6, () => { gest('josephnt', 'lookaround'); }],
+          [20.4, () => { gest('mary', 'bowhead', { dur: 2.6 }); }],
+          // 他就同他们下去：教师中年长的举手祝福他
           [22, b => {
             walk('jesus', X.seekM + 0.018, { speed: 0.03 });
             W.goTo(0.745, 7, b.instant); W.set('natTempleLight', 0.45, b.instant);
           }],
+          [22.6, () => { gest('teach2', 'bless', { dur: 2.4 }); }],
           [24, () => {
             hands('jesus', 'mary', true);
             walk('mary', PX(0.6), { speed: 0.022 }); walk('jesus', PX(0.6) + 0.02, { speed: 0.022 }); walk('josephnt', PX(0.58), { speed: 0.022 });
           }],
+          [25.4, () => { stir(TEACH, 'nod', { spread: 1.2, share: 0.6 }); }],
         ]);
       },
     },

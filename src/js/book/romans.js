@@ -184,7 +184,17 @@
   function glow(id, v) { if (has(id)) C().glow(id, v); }
   function remove(id, fade) { if (has(id)) C().remove(id, { fade: !!fade && !W.replaying }); }
   function setProp(id, k) { if (has(id) && C().prop) C().prop(id, k); }
+  // 演技（新约）：说话、一次性的手势、众人先后转向 / 反应——重演时引擎自己略过（attend 立即到位）
+  function say(id, sec, o) { const c = C(); if (c && c.speak) c.speak(id, sec, o || {}); }
+  function gest(id, kind, o) { const c = C(); if (c && c.gesture) c.gesture(id, kind, o); }
+  function heed(ids, target, o) { const c = C(); if (c && c.attend) c.attend(ids, target, o); }
+  function stir(ids, kind, o) { const c = C(); if (c && c.react) c.react(ids, kind, o); }
   const each = fn => people().forEach((p, i) => fn(p.id, i, p));
+  const IDS = () => people().map(p => p.id);
+  const JEWS = () => people().filter(p => p.jew).map(p => p.id);
+  const GREEKS = () => people().filter(p => !p.jew).map(p => p.id);
+  // 众人各取一种身段（按序轮换），免得一齐举手像木偶
+  function mixPose(list) { each((id, i) => pose(id, list[i % list.length])); }
   function avoid(...rs) { W.beastAvoid = rs.map(r => [clamp(Math.min(r[0], r[1]), 0, 1), clamp(Math.max(r[0], r[1]), 0, 1)]); }
   // 人在近地纵深里前后挪动（v 缓动；重演时直接到位）
   const VT = new Map();
@@ -1680,11 +1690,14 @@
   //  情节助手
   // ════════════════════════════════════════════════════════════
   const LOOK = id => Object.assign({}, (GS.cast && GS.cast.LOOK && GS.cast.LOOK[id]) || { label: '保罗', sex: 'm', age: 'adult', robe: [128, 96, 72], beard: true, glow: 0.2 });
+  // 保罗口述一段，德提就坐在凳上俯身一笔一笔地写（口述完了，德提才停笔：rest）
   function write(b, k) {
     S.lines = k;
     lv('rmWrite', 1, b);
+    pose('tertius', 'write'); face('tertius', 1);
     sfx(b, 'write', { soft: true });
   }
+  function rest() { pose('tertius', 'seat'); }
   // 众人各就其位（瞬间）
   function placePeople() {
     each((id, i) => { const f = fig(id); if (f) { f.nx = homeX(i); f.tx = null; } });
@@ -1749,26 +1762,38 @@
     {
       kind: 'act', utter: '义人必因信得生', cmd: 'echo "义人必因信得生" | tee 犹太人 希腊人  # 本于信，以至于信', ref: '1:17',
       verse: [
-        { text: '我不以福音为耻；这福音本是神的大能，<br>要救一切相信的，<br>先是犹太人，后是希腊人。', ref: RM + '1:16', hold: 7 },
-        { text: '因为神的义正在这福音上显明出来；<br>这义是本于信，以至于信。<br>如经上所记：「义人必因信得生。」', ref: RM + '1:17', hold: 7.5 },
+        { text: '我不以福音为耻；这福音本是神的大能，<br>要救一切相信的，<br>先是犹太人，后是希腊人。', ref: RM + '1:16', hold: 7, who: 'paul', to: 'tertius', how: 'proclaim' },
+        { text: '因为神的义正在这福音上显明出来；<br>这义是本于信，以至于信。<br>如经上所记：「义人必因信得生。」', ref: RM + '1:17', hold: 7.5, who: 'paul', to: 'tertius', how: 'teach' },
       ],
       apply(c) {
         const P = people();
         const beats = [
-          [0, b => { write(b, 1); pose('paul', 'point'); face('paul', -1); W.goTo(0.3, 15, inst(b)); avoid([0.45, 1]); }],
+          // 保罗口述，德提代笔：保罗站在桌旁讲，德提俯身写
+          [0, b => { write(b, 1); pose('paul', 'teach'); face('paul', -1); W.goTo(0.3, 15, inst(b)); avoid([0.45, 1]); }],
           [0.4, b => nameOver(b, 'paul', '保罗')],
           [1.2, b => { lv('rmWake', 1.1, b); sfx(b, 'harp', { soft: true }); }],
+          // 「先是犹太人，后是希腊人」：他伸手指向树下的众人
+          [5.2, () => { pose('paul', 'point'); face('paul', -1); }],
+          [8.2, () => { pose('paul', 'teach'); face('paul', -1); }],
+          [11.2, () => gest('tertius', 'nod')],
           [8.3, b => {
             if (inst(b)) return;
             const [ix, iy] = X().idea, sp = scrollPt();
             U.safe('romans.name', () => fx().name('义', ix * W.w, iy * W.h, Math.max(M() * 0.1, 40), [255, 228, 170], () => [sp[0] + (Math.random() - 0.5) * 30, sp[1] + (Math.random() - 0.5) * 16], { hold: 5 }));
             sfx(b, 'bell', { soft: true });
           }],
+          // 「义人必因信得生」：他举起手来；众人先后点头
           [13.5, b => { pose('paul', 'raise'); ring(b, W.w * centerX(), W.h * 0.7, [255, 232, 180], M() * 0.5, 3, 1.4); }],
-          [16, b => { pose('paul', 'stand'); lv('rmWrite', 0.25, b); }],
+          [14.2, () => stir(IDS(), 'nod', { spread: 1.6, share: 0.7 })],
+          [16, b => { pose('paul', 'stand'); lv('rmWrite', 0.25, b); rest(); }],
         ];
-        // 福音的光到了谁心里，谁就站起来，转向信卷
-        P.forEach((p, i) => beats.push([1.2 + (wakeOrd(i) + 0.01) / 0.085, () => { pose(p.id, 'stand'); face(p.id, homeX(i) < X().tert ? 1 : -1); glow(p.id, 0.2); }]));
+        // 福音的光到了谁心里，谁就一惊，站起来，转向信卷，又点头
+        P.forEach((p, i) => {
+          const t = 1.2 + (wakeOrd(i) + 0.01) / 0.085;
+          beats.push([t - 0.2, () => gest(p.id, 'startle')]);
+          beats.push([t, () => { pose(p.id, 'stand'); face(p.id, homeX(i) < X().tert ? 1 : -1); glow(p.id, 0.2); }]);
+          beats.push([t + 1.6, () => gest(p.id, i % 2 ? 'nod' : 'bowhead')]);
+        });
         T(c, beats);
       },
     },
@@ -1777,10 +1802,10 @@
     {
       kind: 'judge', utter: '神不偏待人', cmd: 'grep -c 义人 世人  # 0 · 没有义人，连一个也没有', ref: '2:11',
       verse: [
-        { text: '自从造天地以来，<br>神的永能和神性是明明可知的，<br>虽是眼不能见，但藉着所造之物就可以晓得，<br>叫人无可推诿。', ref: RM + '1:20', hold: 7 },
-        { text: '因为，他们虽然知道神，却不当作神荣耀他，<br>也不感谢他。他们的思念变为虚妄，<br>无知的心就昏暗了。', ref: RM + '1:21', hold: 6.5 },
-        { text: '因为神不偏待人。', ref: RM + '2:11', hold: 4.5 },
-        { text: '因为世人都犯了罪，亏缺了神的荣耀。', ref: RM + '3:23', hold: 5.5 },
+        { text: '自从造天地以来，<br>神的永能和神性是明明可知的，<br>虽是眼不能见，但藉着所造之物就可以晓得，<br>叫人无可推诿。', ref: RM + '1:20', hold: 7, who: 'paul', to: 'tertius', how: 'teach' },
+        { text: '因为，他们虽然知道神，却不当作神荣耀他，<br>也不感谢他。他们的思念变为虚妄，<br>无知的心就昏暗了。', ref: RM + '1:21', hold: 6.5, who: 'paul', to: 'tertius', how: 'calm' },
+        { text: '因为神不偏待人。', ref: RM + '2:11', hold: 4.5, who: 'paul', to: 'tertius', how: 'proclaim' },
+        { text: '因为世人都犯了罪，亏缺了神的荣耀。', ref: RM + '3:23', hold: 5.5, who: 'paul', to: 'tertius', how: 'calm' },
       ],
       apply(c) {
         T(c, [
@@ -1794,8 +1819,12 @@
             }
             sfx(b, 'harp', { soft: true });
           }],
+          // 藉着所造之物就可以晓得：众人四下观看日头、树、远山；保罗伸手指着
           [2.5, () => { pose('paul', 'point'); face('paul', -1); }],
-          // 1:21 转脸不顾，心就昏暗了
+          [3.4, () => stir(IDS(), 'lookaround', { spread: 2, share: 0.6 })],
+          [5.6, () => { pose('paul', 'teach'); face('paul', -1); }],
+          // 1:21 不当作神荣耀他，也不感谢他：有人摆手，众人转脸不顾，心就昏暗了
+          [7.6, () => stir(IDS(), 'refuse', { spread: 1, share: 0.5 })],
           [8.3, b => {
             each((id, i) => { face(id, homeX(i) < X().tert ? -1 : 1); pose(id, 'bow'); });
             lv('rmDim', 1, b); lv('rmWrite', 0.25, b);
@@ -1803,13 +1832,18 @@
             sfx(b, 'wind', { soft: true, low: true });
           }],
           [11, () => { face('paul', -1); pose('paul', 'stand'); }],
-          // 2:11 高天上一道平平的荣光
+          [12.4, () => gest('paul', 'sigh')],
+          // 2:11 高天上一道平平的荣光：众人仰望
           [16.1, b => { lv('rmGlory', 1, b); sfx(b, 'bell'); flash(b, 0.08); }],
-          [17.5, () => everyone('gaze')],
+          [16.6, () => stir(IDS(), 'startle', { spread: 1, share: 0.6 })],
+          [17.5, () => { everyone('gaze'); pose('paul', 'teach'); }],
           [18.5, b => lv('rmReach', 1, b)],
-          // 3:23 都够不着
+          // 3:23 都够不着：有的跪下，有的哭，有的捶胸
           [23, () => { const ps = ['kneel', 'weep', 'kneel', 'bow', 'weep', 'kneel', 'sit']; each((id, i) => pose(id, ps[i] || 'kneel')); }],
+          [24.2, () => { gest('p0', 'beat'); gest('p3', 'sigh'); }],
+          [24.8, () => gest('p4', 'beat')],
           [25.5, () => pose('paul', 'pray')],
+          [27.6, () => rest()],
         ]);
       },
     },
@@ -1818,23 +1852,32 @@
     {
       kind: 'act', utter: '因基督耶稣的救赎，就白白地称义', cmd: 'grant 义 --to 一切相信的 --price 0  # 白白地，并没有分别', ref: '3:24',
       verse: [
-        { text: '就是神的义，<br>因信耶稣基督加给一切相信的人，<br>并没有分别。', ref: RM + '3:22', hold: 6 },
-        { text: '如今却蒙神的恩典，<br>因基督耶稣的救赎，就白白地称义。', ref: RM + '3:24', hold: 6 },
-        { text: '所以我们看定了：<br>人称义是因着信，不在乎遵行律法。', ref: RM + '3:28', hold: 5.5 },
+        { text: '就是神的义，<br>因信耶稣基督加给一切相信的人，<br>并没有分别。', ref: RM + '3:22', hold: 6, who: 'paul', to: 'tertius', how: 'teach' },
+        { text: '如今却蒙神的恩典，<br>因基督耶稣的救赎，就白白地称义。', ref: RM + '3:24', hold: 6, who: 'paul', to: 'tertius', how: 'proclaim' },
+        { text: '所以我们看定了：<br>人称义是因着信，不在乎遵行律法。', ref: RM + '3:28', hold: 5.5, who: 'paul', to: 'tertius', how: 'teach' },
       ],
       apply(c) {
         const P = people();
         const beats = [
           [0, b => { write(b, 3); lv('rmGlory', 1, b); snapLv('rmReach', 0); lv('rmGift', 1, b); sfx(b, 'harp'); }],
-          [0.3, () => everyone('gaze')],
+          [0.3, () => { everyone('gaze'); pose('paul', 'stand'); }],
           [4.6, b => { lv('rmDim', 0, b); W.set('gloom', 0, inst(b)); W.set('clouds', 0.35, inst(b)); sfx(b, 'angel', { soft: true }); }],
-          [7.3, b => { everyone('raise'); pose('paul', 'raise'); ring(b, W.w * centerX(), gloryY(), [255, 232, 180], M() * 0.6, 3.2, 1.6); }],
+          // 「白白地称义」：众人各样地欢喜——举手的、捧手向天的、张臂踏步的
+          [7.3, b => { mixPose(['lift', 'raise', 'rejoice']); pose('paul', 'raise'); ring(b, W.w * centerX(), gloryY(), [255, 232, 180], M() * 0.6, 3.2, 1.6); }],
+          [9.6, () => { pose('paul', 'stand'); }],
           [12, b => { everyone('stand'); lv('rmGlory', 0.35, b); }],
-          [14.6, () => pose('paul', 'stand')],
+          [12.8, () => { faceTo(X().tert); gest('paul', 'nod'); }],
+          // 「人称义是因着信」：众人转向信卷，先后点头
+          [16.4, () => { pose('paul', 'teach'); stir(IDS(), 'nod', { spread: 2, share: 0.7 }); }],
           [18.5, b => { lv('rmWrite', 0.25, b); hint(b, '按住言说时，灵停在天上何处，众星就从何处生出', 6); }],
+          [20.4, () => { rest(); pose('paul', 'stand'); }],
         ];
-        // 光落到了，各人就跪下领受
-        P.forEach((p, i) => beats.push([(GIFT[i] + LAND_AT + 0.01) / 0.1, () => { pose(p.id, 'kneel'); glow(p.id, 0.28); }]));
+        // 光落到了，各人就跪下领受，低下头来
+        P.forEach((p, i) => {
+          const t = (GIFT[i] + LAND_AT + 0.01) / 0.1;
+          beats.push([t, () => { pose(p.id, 'kneel'); glow(p.id, 0.28); }]);
+          beats.push([t + 1.2, () => gest(p.id, 'bowhead')]);
+        });
         T(c, beats);
       },
     },
@@ -1843,10 +1886,10 @@
     {
       kind: 'act', utter: '叫死人复活、使无变为有的神', cmd: 'touch 众星  # 使无变为有 · 你的后裔将要如此', ref: '4:17',
       verse: [
-        { text: '经上说什么呢？说：<br>「亚伯拉罕信神，这就算为他的义。」', ref: RM + '4:3', hold: 5.5 },
-        { text: '亚伯拉罕所信的，<br>是那叫死人复活、使无变为有的神。', ref: RM + '4:17', hold: 5.5 },
-        { text: '他在无可指望的时候，因信仍有指望，<br>就得以作多国的父，<br>正如先前所说：「你的后裔将要如此。」', ref: RM + '4:18', hold: 7 },
-        { text: '且满心相信神所应许的必能做成。', ref: RM + '4:21', hold: 4.5 },
+        { text: '经上说什么呢？说：<br>「亚伯拉罕信神，这就算为他的义。」', ref: RM + '4:3', hold: 5.5, who: 'paul', to: 'tertius', how: 'teach' },
+        { text: '亚伯拉罕所信的，<br>是那叫死人复活、使无变为有的神。', ref: RM + '4:17', hold: 5.5, who: 'paul', to: 'tertius', how: 'proclaim' },
+        { text: '他在无可指望的时候，因信仍有指望，<br>就得以作多国的父，<br>正如先前所说：「你的后裔将要如此。」', ref: RM + '4:18', hold: 7, who: 'paul', to: 'tertius', how: 'teach' },
+        { text: '且满心相信神所应许的必能做成。', ref: RM + '4:21', hold: 4.5, who: 'paul', to: 'tertius', how: 'calm' },
       ],
       apply(c) {
         const SC = c.choice && c.choice.star ? c.choice.star : [clamp(isFinite(c.x) ? c.x / W.w : 0.7, 0.08, 0.95), clamp(isFinite(c.y) ? c.y / W.h : 0.25, 0.06, 0.5)];
@@ -1857,12 +1900,24 @@
             add('abraham', { label: '亚伯拉罕', sex: 'm', age: 'elder', layer: 1, x: X().abr, v: 0.25, scale: 1.35, facing: -1, pose: 'stand', robe: [236, 228, 206], accent: [255, 238, 200], hair: 'cloth', beard: true, glow: 1, prop: 'staff', from: inst(b) ? 'none' : 'light' });
             sfx(b, 'angel', { soft: true });
           }],
+          // 众人与保罗都望向中丘上亚伯拉罕的光影
+          [2.6, () => stir(IDS(), 'startle', { spread: 1, share: 0.5 })],
           [3.5, () => { everyone('gaze'); pose('paul', 'gaze'); pose('abraham', 'gaze'); }],
           [4.2, b => nameOver(b, 'abraham', '亚伯拉罕', 1.3)],
+          // 使无变为有：众星从灵之处生出——亚伯拉罕手搭凉棚数那星（创 15:5）
           [6.8, b => { lv('rmStars', 1.1, b); ring(b, SC[0] * W.w, SC[1] * W.h, [220, 230, 255], M() * 0.3, 2.4, 1.2); sfx(b, 'stars'); }],
+          [8, () => { pose('abraham', 'look'); stir(IDS(), 'lookaround', { spread: 2.4, share: 0.5 }); }],
+          [9.6, () => { pose('paul', 'teach'); gest('p1', 'point'); }],
+          [11.2, () => gest('p5', 'point')],
           [13.6, b => { lv('rmSeed', 1.1, b); W.set('stars', 1, inst(b)); sfx(b, 'stars', { soft: true }); }],
+          // 「你的后裔将要如此」：他举起手来
           [15, () => pose('abraham', 'raise')],
+          [16.4, () => stir(IDS(), 'nod', { spread: 1.8, share: 0.5 })],
+          // 且满心相信：他低头领受，又仰望
+          [20.6, () => gest('abraham', 'nod')],
           [22, b => { pose('abraham', 'gaze'); lv('rmWrite', 0.25, b); }],
+          [23.4, () => { pose('paul', 'stand'); gest('paul', 'nod'); }],
+          [25.8, () => rest()],
         ]);
         return { star: SC };
       },
@@ -1872,10 +1927,10 @@
     {
       kind: 'act', utter: '神的爱就在此向我们显明了', cmd: 'show 神的爱 --while 我们还作罪人  # 浇灌在我们心里', ref: '5:8',
       verse: [
-        { text: '我们既因信称义，<br>就藉着我们的主耶稣基督得与神相和。', ref: RM + '5:1', hold: 5.5 },
-        { text: '惟有基督在我们还作罪人的时候为我们死，<br>神的爱就在此向我们显明了。', ref: RM + '5:8', hold: 6.5 },
-        { text: '盼望不至于羞耻，<br>因为所赐给我们的圣灵<br>将神的爱浇灌在我们心里。', ref: RM + '5:5', hold: 6.5 },
-        { text: '只是罪在哪里显多，恩典就更显多了。', ref: RM + '5:20', hold: 5 },
+        { text: '我们既因信称义，<br>就藉着我们的主耶稣基督得与神相和。', ref: RM + '5:1', hold: 5.5, who: 'paul', to: 'tertius', how: 'calm' },
+        { text: '惟有基督在我们还作罪人的时候为我们死，<br>神的爱就在此向我们显明了。', ref: RM + '5:8', hold: 6.5, who: 'paul', to: 'tertius', how: 'calm' },
+        { text: '盼望不至于羞耻，<br>因为所赐给我们的圣灵<br>将神的爱浇灌在我们心里。', ref: RM + '5:5', hold: 6.5, who: 'paul', to: 'tertius', how: 'teach' },
+        { text: '只是罪在哪里显多，恩典就更显多了。', ref: RM + '5:20', hold: 5, who: 'paul', to: 'tertius', how: 'proclaim' },
       ],
       apply(c) {
         // 灵之处：言说时灵所在（宽屏在陆地之上的天空里，手机在经文之下）
@@ -1891,14 +1946,21 @@
             const cr = G.cross; ring(b, cr.x, cr.y - cr.H * 0.7, [255, 222, 170], M() * 0.45, 3.4, 1.8);
             faceTo(X().cross); sfx(b, 'angel');
           }],
+          [7.2, () => stir(IDS(), 'startle', { spread: 0.8, share: 0.6 })],
+          // 「惟有基督……为我们死」：众人与保罗都跪下，低头
           [8, () => { everyone('kneel'); pose('paul', 'kneel'); }],
+          [9.6, () => stir(IDS(), 'bowhead', { spread: 2, share: 0.8 })],
+          [12.2, () => { gest('p2', 'beat'); gest('p3', 'sigh'); }],
           // 5:5 圣灵将神的爱浇灌在我们心里
           [14.6, b => { lv('rmPour', 1, b); sfx(b, 'harp'); }],
           [16.4, b => { const h = pourHub(); ring(b, h[0], h[1], [255, 240, 214], M() * 0.2, 2.2, 1.2); sfx(b, 'whisper', { soft: true }); }],
-          [20.4, b => lv('rmWarm', 1, b)],
+          [17.4, () => stir(IDS(), 'reachup', { spread: 2.2, share: 0.5 })],
+          // 心里的光变暖：各人一惊，低下头去
+          [20.4, b => { lv('rmWarm', 1, b); stir(IDS(), 'nod', { spread: 1.6, share: 0.6 }); }],
           // 5:20 恩典就更显多了：天亮了
-          [22.4, b => { everyone('raise'); W.goTo(0.29, 7, inst(b)); ring(b, W.w * centerX(), W.h * 0.75, [255, 222, 160], M() * 0.55, 3, 1.4); sfx(b, 'bell', { soft: true }); }],
+          [22.4, b => { mixPose(['raise', 'rejoice', 'lift']); pose('paul', 'raise'); W.goTo(0.29, 7, inst(b)); ring(b, W.w * centerX(), W.h * 0.75, [255, 222, 160], M() * 0.55, 3, 1.4); sfx(b, 'bell', { soft: true }); }],
           [24.5, b => { lv('rmWrite', 0.25, b); hint(b, '按住言说时，灵在地上何处，生命就从何处铺开', 6); }],
+          [26.6, () => { everyone('stand'); pose('paul', 'stand'); rest(); }],
         ]);
         return { pour: PC };
       },
@@ -1908,9 +1970,10 @@
     {
       kind: 'promise', utter: '神的恩赐，在我们的主基督耶稣里，乃是永生', cmd: 'renew 地面 --gift 永生  # 罪的工价乃是死', ref: '6:23',
       verse: [
-        { text: '我真是苦啊！<br>谁能救我脱离这取死的身体呢？<br>感谢神，靠着我们的主耶稣基督就能脱离了。', ref: RM + '7:24–25', hold: 7 },
-        { text: '因为罪的工价乃是死；<br>惟有神的恩赐，在我们的主基督耶稣里，<br>乃是永生。', ref: RM + '6:23', hold: 6.5 },
-        { text: '所以，我们藉着洗礼归入死，和他一同埋葬，<br>原是叫我们一举一动有新生的样式，<br>像基督藉着父的荣耀从死里复活一样。', ref: RM + '6:4', hold: 7.5 },
+        { text: '我真是苦啊！<br>谁能救我脱离这取死的身体呢？<br>感谢神，靠着我们的主耶稣基督就能脱离了。', ref: RM + '7:24–25', hold: 7,
+          talk: [['paul', 0, 0.56, 'plead', 'tertius'], ['paul', 0.6, 1, 'proclaim', 'tertius']] },
+        { text: '因为罪的工价乃是死；<br>惟有神的恩赐，在我们的主基督耶稣里，<br>乃是永生。', ref: RM + '6:23', hold: 6.5, who: 'paul', to: 'tertius', how: 'proclaim' },
+        { text: '所以，我们藉着洗礼归入死，和他一同埋葬，<br>原是叫我们一举一动有新生的样式，<br>像基督藉着父的荣耀从死里复活一样。', ref: RM + '6:4', hold: 7.5, who: 'paul', to: 'tertius', how: 'teach' },
       ],
       apply(c) {
         const LX = c.choice && c.choice.life != null ? c.choice.life : clamp(isFinite(c.x) ? c.x / W.w : 0.7, X().lifeMin, 0.98);
@@ -1923,9 +1986,12 @@
             everyone('sit'); pose('paul', 'stand');
             sfx(b, 'wind', { soft: true, low: true });
           }],
-          [1.5, () => { const ps = ['bow', 'sit', 'weep', 'sit', 'bow', 'weep']; each((id, i) => pose(id, ps[i] || 'sit')); pose('paul', 'bow'); }],
-          // 7:25「感谢神」：众人抬起头来（地还是灰的）
-          [4.4, () => { everyone('kneel'); pose('paul', 'raise'); }],
+          // 「我真是苦啊！」：保罗低头捶胸；众人垂头叹息
+          [1.5, () => { const ps = ['bow', 'sit', 'weep', 'sit', 'bow', 'weep']; each((id, i) => pose(id, ps[i] || 'sit')); pose('paul', 'beat'); }],
+          [2.8, () => stir(IDS(), 'sigh', { spread: 1.6, share: 0.6 })],
+          // 7:25「感谢神」：众人抬起头来（地还是灰的），保罗两手举向天
+          [4.4, () => { everyone('kneel'); pose('paul', 'lift'); }],
+          [5.4, () => stir(IDS(), 'reachup', { spread: 1.4, share: 0.4 })],
           [7, () => pose('paul', 'stand')],
           // 6:23「惟有神的恩赐……乃是永生」：生命的光环自灵之处铺开
           [10.3, b => {
@@ -1933,14 +1999,17 @@
             const x = LX * W.w; ring(b, x, gY(2, LX), [214, 255, 190], W.w, 5, 2); flash(b, 0.08);
             sfx(b, 'harp');
           }],
-          [12.4, b => { W.setPop('bird', 34, LX * W.w, W.h * 0.4, inst(b)); sfx(b, 'bird'); }],
+          [11, () => stir(IDS(), 'startle', { spread: 1.2, share: 0.7 })],
+          [12.4, b => { W.setPop('bird', 34, LX * W.w, W.h * 0.4, inst(b)); sfx(b, 'bird'); stir(IDS(), 'lookaround', { spread: 2, share: 0.5 }); }],
           // 光环铺过了大半个地：全地才返青、开花
           [13.6, b => { W.set('bare', 0, inst(b)); W.set('bloom', 1, inst(b)); }],
           [15, b => lv('rmDeath', 0, b)],
           // 6:4 新生的样式
           [16.1, b => { everyone('stand'); each(id => glow(id, 0.34)); sfx(b, 'harp', { soft: true }); }],
-          [18, () => { everyone('raise'); pose('paul', 'raise'); }],
+          [18, () => { mixPose(['raise', 'rejoice', 'lift', 'rejoice', 'raise', 'lift']); pose('paul', 'raise'); }],
+          [19.6, () => stir(IDS(), 'leap', { spread: 1.4, share: 0.3, n: 1 })],
           [21.5, b => { everyone('stand'); pose('paul', 'stand'); lv('rmWrite', 0.25, b); hint(b, '按住言说时，灵从何处来，风就从何处吹过', 6); }],
+          [23.6, () => { rest(); stir(IDS(), 'nod', { spread: 1.4, share: 0.5 }); }],
         ]);
         return { life: LX };
       },
@@ -1950,23 +2019,33 @@
     {
       kind: 'act', utter: '圣灵亲自用说不出来的叹息替我们祷告', cmd: 'pray --by 圣灵 --for 我们 --lang 说不出来的叹息', ref: '8:26',
       verse: [
-        { text: '如今，那些在基督耶稣里的就不定罪了。<br>因为赐生命圣灵的律，在基督耶稣里释放了我，<br>使我脱离罪和死的律了。', ref: RM + '8:1–2', hold: 7.5 },
-        { text: '况且，我们的软弱有圣灵帮助；<br>我们本不晓得当怎样祷告，<br>只是圣灵亲自用说不出来的叹息<br>替我们祷告。', ref: RM + '8:26', hold: 7.5 },
-        { text: '你们所受的，不是奴仆的心，仍旧害怕；<br>所受的，乃是儿子的心，<br>因此我们呼叫：「阿爸！父！」', ref: RM + '8:15', hold: 7 },
+        { text: '如今，那些在基督耶稣里的就不定罪了。<br>因为赐生命圣灵的律，在基督耶稣里释放了我，<br>使我脱离罪和死的律了。', ref: RM + '8:1–2', hold: 7.5, who: 'paul', to: 'tertius', how: 'proclaim' },
+        { text: '况且，我们的软弱有圣灵帮助；<br>我们本不晓得当怎样祷告，<br>只是圣灵亲自用说不出来的叹息<br>替我们祷告。', ref: RM + '8:26', hold: 7.5, who: 'paul', to: 'tertius', how: 'calm' },
+        { text: '你们所受的，不是奴仆的心，仍旧害怕；<br>所受的，乃是儿子的心，<br>因此我们呼叫：「阿爸！父！」', ref: RM + '8:15', hold: 7, who: 'paul', to: 'tertius', how: 'proclaim' },
       ],
       apply(c) {
         const WC = c.choice && c.choice.wind ? c.choice.wind : [clamp(isFinite(c.x) ? c.x / W.w : 0.3, -0.02, 1.02), clamp(isFinite(c.y) ? c.y / W.h : 0.4, 0.08, 0.8)];
         if (!c.choice && !port() && WC[0] < 0.52) WC[1] = Math.min(WC[1], 0.5);   // 宽屏：不从经文上头穿过
-        T(c, [
-          [0, b => { write(b, 7); S.windC = WC.slice(); W.goTo(0.46, 10, inst(b)); everyone('pray'); pose('paul', 'pray'); }],
+        const beats = [
+          // 「就不定罪了」：保罗站着宣告；众人一个一个跪下祷告
+          [0, b => { write(b, 7); S.windC = WC.slice(); W.goTo(0.46, 10, inst(b)); pose('paul', 'stand'); }],
           [2, b => { W.set('gale', 0.42, inst(b)); lv('rmWind', 1, b); sfx(b, 'wind'); }],
-          [8.8, b => { lv('rmBreath', 1, b); sfx(b, 'whisper'); }],
+          [4.6, () => stir(IDS(), 'bowhead', { spread: 2, share: 0.6 })],
+          // 8:26 我们本不晓得当怎样祷告：保罗也跪下；风中光的丝带经过，各人叹息
+          [8.8, b => { lv('rmBreath', 1, b); sfx(b, 'whisper'); pose('paul', 'pray'); }],
+          [10.4, () => stir(IDS(), 'sigh', { spread: 3, share: 0.8 })],
           [12, b => sfx(b, 'wind', { soft: true })],
-          // 8:15「阿爸！父！」
-          [17.6, b => { everyone('raise'); pose('paul', 'raise'); ring(b, W.w * centerX(), W.h * 0.72, [236, 244, 255], M() * 0.5, 3, 1.4); sfx(b, 'harp'); }],
+          [14.2, () => stir(IDS(), 'tremble', { spread: 2, share: 0.3 })],
+          // 8:15 不是奴仆的心，仍旧害怕；乃是儿子的心：众人站起来
+          [17.6, b => { everyone('stand'); pose('paul', 'stand'); ring(b, W.w * centerX(), W.h * 0.72, [236, 244, 255], M() * 0.5, 3, 1.4); sfx(b, 'harp'); }],
           [21, b => { W.set('gale', 0.06, inst(b)); lv('rmWind', 0, b); }],
-          [23, b => { everyone('stand'); pose('paul', 'stand'); lv('rmWrite', 0.25, b); }],
-        ]);
+          // 「阿爸！父！」：众人举手呼叫
+          [22.4, () => { mixPose(['raise', 'lift', 'raise', 'lift', 'raise', 'lift']); pose('paul', 'raise'); }],
+          [23, () => { say('p1', 1.6, { how: 'proclaim' }); say('p4', 1.6, { how: 'proclaim' }); say('p2', 1.4, { how: 'proclaim' }); }],
+          [25, b => { everyone('stand'); pose('paul', 'stand'); lv('rmWrite', 0.25, b); rest(); }],
+        ];
+        people().forEach((p, i) => beats.push([0.5 + i * 0.45, () => pose(p.id, 'pray')]));
+        T(c, beats);
         return { wind: WC };
       },
     },
@@ -1975,22 +2054,29 @@
     {
       kind: 'promise', utter: '万事都互相效力，叫爱神的人得益处', cmd: 'merge --all 万事 --into 益处  # 预定 > 召 > 称义 > 荣耀', ref: '8:28',
       verse: [
-        { text: '我们晓得万事都互相效力，<br>叫爱神的人得益处，<br>就是按他旨意被召的人。', ref: RM + '8:28', hold: 6.5 },
-        { text: '预先所定下的人又召他们来；<br>所召来的人又称他们为义；<br>所称为义的人又叫他们得荣耀。', ref: RM + '8:30', hold: 7 },
-        { text: '既是这样，还有什么说的呢？<br>神若帮助我们，谁能敌挡我们呢？', ref: RM + '8:31', hold: 5.5 },
+        { text: '我们晓得万事都互相效力，<br>叫爱神的人得益处，<br>就是按他旨意被召的人。', ref: RM + '8:28', hold: 6.5, who: 'paul', to: 'tertius', how: 'teach' },
+        { text: '预先所定下的人又召他们来；<br>所召来的人又称他们为义；<br>所称为义的人又叫他们得荣耀。', ref: RM + '8:30', hold: 7, who: 'paul', to: 'tertius', how: 'teach' },
+        { text: '既是这样，还有什么说的呢？<br>神若帮助我们，谁能敌挡我们呢？', ref: RM + '8:31', hold: 5.5, who: 'paul', to: 'tertius', how: 'proclaim' },
       ],
       apply(c) {
         T(c, [
           [0, b => { write(b, 8); snapLv('rmBreath', 0); snapLv('rmWind', 0); W.goTo(0.56, 12, inst(b)); lv('rmThread', 1.3, b); sfx(b, 'harp'); }],
+          // 万物各引出一根光的丝线：众人四下望，又一齐仰望
+          [1.2, () => stir(IDS(), 'lookaround', { spread: 1.4, share: 0.6 })],
           [2.5, () => { everyone('gaze'); pose('paul', 'gaze'); }],
+          [5.2, () => { pose('paul', 'teach'); }],
           [7.8, b => { lv('rmWeave', 1, b); sfx(b, 'lyre'); }],
           [8.6, b => lv('rmKnot', 4, b)],
-          [10.3, b => sfx(b, 'bell', { soft: true })],
-          [12, b => sfx(b, 'bell', { soft: true })],
-          [13.6, b => sfx(b, 'bell', { soft: true })],
-          [15.3, b => sfx(b, 'bell')],
+          // 拱上四颗光结依次亮起：预定、召、称义、荣耀——众人一个一个指着、点头
+          [10.3, b => { sfx(b, 'bell', { soft: true }); gest('p3', 'point'); }],
+          [12, b => { sfx(b, 'bell', { soft: true }); gest('p0', 'nod'); gest('p1', 'point'); }],
+          [13.6, b => { sfx(b, 'bell', { soft: true }); gest('p2', 'nod'); }],
+          [15.3, b => { sfx(b, 'bell'); stir(IDS(), 'startle', { spread: 0.8, share: 0.5 }); }],
+          // 「神若帮助我们，谁能敌挡我们呢？」
           [16.1, b => { everyone('stand'); pose('paul', 'raise'); const t = domeTop(); ring(b, t[0], t[1], [255, 232, 180], M() * 0.5, 3, 1.4); }],
-          [20, b => { pose('paul', 'stand'); lv('rmWrite', 0.25, b); }],
+          [18.6, () => { pose('paul', 'stand'); stir(IDS(), 'nod', { spread: 1.8, share: 0.7 }); }],
+          [20, b => { lv('rmWrite', 0.25, b); }],
+          [21.6, () => rest()],
         ]);
       },
     },
@@ -1999,9 +2085,9 @@
     {
       kind: 'promise', utter: '都不能叫我们与神的爱隔绝', cmd: 'ping -c 永远 神的爱  # 死、生、天使、掌权的……都不能隔绝', ref: '8:39',
       verse: [
-        { text: '谁能使我们与基督的爱隔绝呢？<br>难道是患难吗？是困苦吗？是逼迫吗？<br>是饥饿吗？是赤身露体吗？是危险吗？是刀剑吗？', ref: RM + '8:35', hold: 7.5 },
-        { text: '然而，靠着爱我们的主，<br>在这一切的事上已经得胜有余了。', ref: RM + '8:37', hold: 5.5 },
-        { text: '因为我深信无论是死，是生，……<br>是高处的，是低处的，是别的受造之物，<br>都不能叫我们与神的爱隔绝；<br>这爱是在我们的主基督耶稣里的。', ref: RM + '8:38–39', hold: 8.5 },
+        { text: '谁能使我们与基督的爱隔绝呢？<br>难道是患难吗？是困苦吗？是逼迫吗？<br>是饥饿吗？是赤身露体吗？是危险吗？是刀剑吗？', ref: RM + '8:35', hold: 7.5, who: 'paul', to: 'tertius', how: 'proclaim' },
+        { text: '然而，靠着爱我们的主，<br>在这一切的事上已经得胜有余了。', ref: RM + '8:37', hold: 5.5, who: 'paul', to: 'tertius', how: 'proclaim' },
+        { text: '因为我深信无论是死，是生，……<br>是高处的，是低处的，是别的受造之物，<br>都不能叫我们与神的爱隔绝；<br>这爱是在我们的主基督耶稣里的。', ref: RM + '8:38–39', hold: 8.5, who: 'paul', to: 'tertius', how: 'proclaim' },
       ],
       apply(c) {
         const P = people(), cx = centerX();
@@ -2015,17 +2101,23 @@
           // 众人靠拢在树下
           [1, () => { S.huddle = true; P.forEach((p, i) => { walk(p.id, lerp(homeX(i), cx, 0.35), { speed: 0.03 }); }); }],
           [2, b => { W.set('rain', 0.6, inst(b)); sfx(b, 'rain'); }],
+          // 四面的黑暗压过来：众人一惊，挤在一起，有的跪下，有的蹲伏护头
           [2.5, b => { lv('rmSmoke', 1, b); bolt(b, 0.24); }],
+          [2.9, () => stir(IDS(), 'startle', { spread: 0.8 })],
           [5.5, b => bolt(b, 0.9)],
-          [6, () => { everyone('kneel'); }],
+          [6, () => { mixPose(['kneel', 'cower', 'pray', 'kneel', 'cower', 'kneel']); }],
+          [7.2, () => stir(IDS(), 'tremble', { spread: 1, share: 0.6 })],
           // 8:37 撞在爱上就散了
           [8.8, b => {
             lv('rmBreak', 1, b); lv('rmDome', 1, b); flash(b, 0.18);
             if (!inst(b)) { const d = G.dome; for (let j = 0; j < 7; j++) { const th = Math.PI * (1.08 + 0.84 * j / 6); fx().ring(d.cx + Math.cos(th) * d.rx, d.cy + Math.sin(th) * d.ry, [255, 226, 176], M() * 0.09, 1.6, 1.4); } }
             sfx(b, 'thunder'); sfx(b, 'angel', { soft: true });
           }],
-          [10, () => everyone('stand')],
+          // 「得胜有余了」：众人站起来，保罗举手
+          [10, () => { everyone('stand'); pose('paul', 'raise'); }],
+          [11.2, () => stir(IDS(), 'leap', { spread: 1.2, share: 0.4, n: 1 })],
           [11.5, b => bolt(b, 0.14)],
+          [13, () => pose('paul', 'stand')],
           // 8:38–39 雨住云开，穹顶张开，罩住全地
           [15.6, b => {
             W.set('storm', 0, inst(b)); W.set('rain', 0, inst(b)); W.set('gloom', 0, inst(b)); W.set('gale', 0.1, inst(b)); W.set('clouds', 0.4, inst(b));
@@ -2033,8 +2125,10 @@
             const d = G.dome; ring(b, d.cx, d.cy - d.ry * 0.5, [255, 236, 200], Math.hypot(W.w, W.h) * 0.8, 5, 2);
             sfx(b, 'angel');
           }],
-          [17, () => { everyone('raise'); pose('paul', 'raise'); }],
+          [17, () => { mixPose(['raise', 'rejoice', 'lift', 'raise', 'rejoice', 'lift']); pose('paul', 'raise'); }],
+          [20.4, () => { pose('paul', 'teach'); }],
           [22.5, b => { everyone('stand'); pose('paul', 'stand'); lv('rmWrite', 0.25, b); }],
+          [23.4, () => { rest(); stir(IDS(), 'nod', { spread: 1.4, share: 0.6 }); }],
         ]);
       },
     },
@@ -2043,10 +2137,10 @@
     {
       kind: 'promise', utter: '凡求告主名的就必得救', cmd: 'broadcast 福音 --to 地极  # 报喜信的人，脚踪何等佳美', ref: '10:13',
       verse: [
-        { text: '据此看来，这不在乎那定意的，<br>也不在乎那奔跑的，只在乎发怜悯的神。', ref: RM + '9:16', hold: 5.5 },
-        { text: '犹太人和希腊人并没有分别，<br>因为众人同有一位主；<br>他也厚待一切求告他的人。<br>因为「凡求告主名的就必得救」。', ref: RM + '10:12–13', hold: 7.5 },
-        { text: '如经上所记：<br>「报福音、传喜信的人，他们的脚踪何等佳美！」', ref: RM + '10:15', hold: 6 },
-        { text: '他们的声音传遍天下；<br>他们的言语传到地极。', ref: RM + '10:18', hold: 5 },
+        { text: '据此看来，这不在乎那定意的，<br>也不在乎那奔跑的，只在乎发怜悯的神。', ref: RM + '9:16', hold: 5.5, who: 'paul', to: 'tertius', how: 'teach' },
+        { text: '犹太人和希腊人并没有分别，<br>因为众人同有一位主；<br>他也厚待一切求告他的人。<br>因为「凡求告主名的就必得救」。', ref: RM + '10:12–13', hold: 7.5, who: 'paul', to: 'tertius', how: 'proclaim' },
+        { text: '如经上所记：<br>「报福音、传喜信的人，他们的脚踪何等佳美！」', ref: RM + '10:15', hold: 6, who: 'paul', to: 'tertius', how: 'teach' },
+        { text: '他们的声音传遍天下；<br>他们的言语传到地极。', ref: RM + '10:18', hold: 5, who: 'paul', to: 'tertius', how: 'proclaim' },
       ],
       apply(c) {
         T(c, [
@@ -2055,17 +2149,29 @@
             snapLv('rmDome', 0); snapLv('rmOpen', 0); snapLv('rmSmoke', 0); snapLv('rmBreak', 0); snapLv('rmWeave', 0); snapLv('rmKnot', 0);
             S.huddle = false; homeAll(0.03);
           }],
-          [6.8, b => { everyone('raise'); pose('paul', 'raise'); sfx(b, 'crowd', { soft: true }); }],
+          // 「不在乎那定意的，也不在乎那奔跑的」：众人回到原处，转向信卷
+          [3.6, () => faceTo(X().tert)],
+          // 「凡求告主名的」：犹太人、希腊人都跪下，仰面摊手求告；保罗举手
+          [6.8, b => { mixPose(['beg', 'raise', 'beg', 'beg', 'raise', 'beg']); pose('paul', 'raise'); sfx(b, 'crowd', { soft: true }); }],
+          [7.6, () => { say('p0', 1.6, { how: 'plead' }); say('p3', 1.6, { how: 'plead' }); }],
+          [8.4, () => { say('p2', 1.2, { how: 'plead' }); say('p5', 1.2, { how: 'plead' }); }],
+          // 他也厚待一切求告他的人：各人手里有了一盏灯
           [9.5, b => { lv('rmHand', 1, b); everyone('carry'); pose('paul', 'stand'); sfx(b, 'fire', { soft: true }); }],
-          // 10:15 报信的人举着火把走到海边
+          [11, () => stir(IDS(), 'nod', { spread: 1.6, share: 0.6 })],
+          // 10:15 报信的人举着火把走到海边：众人回身目送，向他挥手
           [15.2, b => {
             S.msg = true; setProp('p0', 'torch'); pose('p0', 'stand');
             walk('p0', X().msg, { speed: 0.018, pose: 'point' }); face('p0', -1);
             sfx(b, 'wind', { soft: true });
           }],
+          [16.2, () => { heed(IDS().filter(id => id !== 'p0'), 'p0', { spread: 1.6 }); pose('paul', 'teach'); }],
           [18, b => { lv('rmLamps', 1, b); sfx(b, 'bell', { soft: true }); }],
+          [19.6, () => stir(IDS().filter(id => id !== 'p0'), 'lookaround', { spread: 1.6, share: 0.5 })],
+          // 10:18 他们的声音传遍天下：保罗指着远山上的灯
           [22.9, b => { pose('paul', 'point'); face('paul', -1); if (!inst(b)) for (const L of G.lamps) if (L.layer === 0 && hsh(L.x) < 0.4) fx().ring(L.x, L.y, [255, 214, 150], 24 * L.r, 1.8, 1); sfx(b, 'bell'); }],
+          [24.2, () => stir(IDS().filter(id => id !== 'p0'), 'nod', { spread: 1.4, share: 0.6 })],
           [26, b => lv('rmWrite', 0.25, b)],
+          [27.6, () => { rest(); pose('paul', 'stand'); }],
         ]);
       },
     },
@@ -2074,10 +2180,10 @@
     {
       kind: 'act', utter: '万有都是本于他，倚靠他，归于他', cmd: 'graft 野橄榄 --onto 橄榄根  # 不是你托着根，乃是根托着你', ref: '11:36',
       verse: [
-        { text: '若有几根枝子被折下来，<br>你这野橄榄得接在其中，一同得着橄榄根的肥汁……<br>不是你托着根，乃是根托着你。', ref: RM + '11:17–18', hold: 7.5 },
-        { text: '而且他们若不是长久不信，仍要被接上，<br>因为神能够把他们重新接上。', ref: RM + '11:23', hold: 5.5 },
-        { text: '深哉，神丰富的智慧和知识！<br>他的判断何其难测！他的踪迹何其难寻！', ref: RM + '11:33', hold: 5.5 },
-        { text: '因为万有都是本于他，倚靠他，归于他。<br>愿荣耀归给他，直到永远。阿们！', ref: RM + '11:36', hold: 6 },
+        { text: '若有几根枝子被折下来，<br>你这野橄榄得接在其中，一同得着橄榄根的肥汁……<br>不是你托着根，乃是根托着你。', ref: RM + '11:17–18', hold: 7.5, who: 'paul', to: 'tertius', how: 'teach' },
+        { text: '而且他们若不是长久不信，仍要被接上，<br>因为神能够把他们重新接上。', ref: RM + '11:23', hold: 5.5, who: 'paul', to: 'tertius', how: 'teach' },
+        { text: '深哉，神丰富的智慧和知识！<br>他的判断何其难测！他的踪迹何其难寻！', ref: RM + '11:33', hold: 5.5, who: 'paul', to: 'tertius', how: 'proclaim' },
+        { text: '因为万有都是本于他，倚靠他，归于他。<br>愿荣耀归给他，直到永远。阿们！', ref: RM + '11:36', hold: 6, who: 'paul', to: 'tertius', how: 'proclaim' },
       ],
       apply(c) {
         T(c, [
@@ -2085,19 +2191,31 @@
           [0, b => { write(b, 11); W.goTo(0.305, 4.5, inst(b)); lv('rmHand', 0, b); everyone('stand'); pose('paul', 'stand'); }],
           [0.6, () => { walk('p0', homeX(0), { speed: 0.03, pose: 'stand' }); pose('paul', 'stand'); }],
           [3.2, b => { setProp('p0', null); face('p0', 1); S.msg = false; faceTo(X().tree); }],
+          // 枝子被折下来：众人一惊
           [4.2, b => { lv('rmFall', 1, b); sfx(b, 'wind', { soft: true }); const t = G.tree; spark(b, t.x, t.y - t.H * 0.4, 16, [214, 200, 160], t.H * 0.4, 'top'); }],
+          [4.5, () => stir(IDS(), 'startle', { spread: 0.8, share: 0.6 })],
           [4.9, b => { lv('rmGraft', 1, b); sfx(b, 'harp', { soft: true }); }],
+          // 「你这野橄榄得接在其中……不是你托着根，乃是根托着你」：希腊人低下头来
+          [6.2, () => { gest('p1', 'point'); gest('paul', 'point'); }],
           [7, b => { lv('rmSap', 1, b); sfx(b, 'harp'); }],
-          // 11:23 重新接上
+          [8.2, () => stir(GREEKS(), 'bowhead', { spread: 1.2 })],
+          // 11:23 重新接上：犹太人仰起脸来
           [8.8, b => { lv('rmBack', 1, b); sfx(b, 'harp', { soft: true }); }],
+          [10.6, () => { stir(JEWS(), 'reachup', { spread: 1.4, share: 0.7 }); }],
+          [12.4, () => stir(IDS(), 'nod', { spread: 1.6, share: 0.5 })],
+          // 深哉，神丰富的智慧和知识：满树结出橄榄，众人仰望
           [15.6, b => { lv('rmOlive', 1, b); const t = G.tree; spark(b, t.x, t.y - t.H * 0.7, 40, [255, 236, 190], t.H * 0.5, 'top'); sfx(b, 'bell'); }],
+          [16.4, () => { everyone('gaze'); pose('paul', 'gaze'); }],
           [17, b => lv('rmLamps', 0, b)],
+          [19.4, () => { pose('paul', 'teach'); }],
+          // 「愿荣耀归给他，直到永远。阿们！」
           [22.4, b => {
-            everyone('raise'); pose('paul', 'raise');
+            mixPose(['raise', 'lift', 'raise', 'lift', 'rejoice', 'raise']); pose('paul', 'raise');
             const t = G.tree; ring(b, t.x, t.y - t.H * 0.5, [255, 232, 180], Math.hypot(W.w, W.h) * 0.7, 4.5, 2); flash(b, 0.1);
             sfx(b, 'angel');
           }],
           [26.5, b => { everyone('stand'); pose('paul', 'stand'); lv('rmWrite', 0.25, b); }],
+          [27.2, () => { rest(); stir(IDS(), 'nod', { spread: 1.2, share: 0.6 }); }],
         ]);
       },
     },
@@ -2106,10 +2224,10 @@
     {
       kind: 'judge', utter: '伸冤在我，我必报应', cmd: 'return 善 --for 恶  # 把炭火堆在他的头上', ref: '12:19',
       verse: [
-        { text: '亲爱的弟兄，不要自己伸冤，<br>宁可让步，听凭主怒；<br>因为经上记着：「主说：『伸冤在我，我必报应。』」', ref: RM + '12:19', hold: 7 },
-        { text: '「你的仇敌若饿了，就给他吃，<br>若渴了，就给他喝；<br>因为你这样行就是把炭火堆在他的头上。」', ref: RM + '12:20', hold: 7 },
-        { text: '你不可为恶所胜，反要以善胜恶。', ref: RM + '12:21', hold: 4.5 },
-        { text: '爱是不加害与人的，所以爱就完全了律法。', ref: RM + '13:10', hold: 5 },
+        { text: '亲爱的弟兄，不要自己伸冤，<br>宁可让步，听凭主怒；<br>因为经上记着：「主说：『伸冤在我，我必报应。』」', ref: RM + '12:19', hold: 7, who: 'paul', to: 'tertius', how: 'plead' },
+        { text: '「你的仇敌若饿了，就给他吃，<br>若渴了，就给他喝；<br>因为你这样行就是把炭火堆在他的头上。」', ref: RM + '12:20', hold: 7, who: 'paul', to: 'tertius', how: 'teach' },
+        { text: '你不可为恶所胜，反要以善胜恶。', ref: RM + '12:21', hold: 4.5, who: 'paul', to: 'tertius', how: 'proclaim' },
+        { text: '爱是不加害与人的，所以爱就完全了律法。', ref: RM + '13:10', hold: 5, who: 'paul', to: 'tertius', how: 'calm' },
       ],
       apply(c) {
         const Xs = X();
@@ -2123,10 +2241,14 @@
             avoid([0.3, 1]);
             sfx(b, 'wind', { soft: true, low: true });
           }],
+          // 仇敌走来：众人一惊，转向他；有人惊退，有人握拳又松开（宁可让步）
           [3, () => faceTo(Xs.enemy)],
+          [3.4, () => stir(IDS(), 'startle', { spread: 1, share: 0.7 })],
+          [4, () => { pose('p3', 'recoil'); }],
           [4.6, () => sink('enemy', Xs.enemyV)],
           // 站在他来路上的人往后让开
           [5, () => { const a = Xs.aside.p4; walk('p4', a[0], { speed: 0.02, pose: 'stand' }); sink('p4', a[1]); }],
+          [6.2, () => { pose('p3', 'stand'); gest('p3', 'sigh'); gest('p5', 'refuse'); }],
           // 12:20 一人拿饼，一人拿杯
           [8.3, () => {
             S.bread = 'p2'; S.cup = 'p1';
@@ -2139,20 +2261,27 @@
             walk('p2', Xs.enemy - Xs.giveIn, { speed: 0.02, pose: 'carry' });
             walk('p1', Xs.enemy + Xs.giveIn, { speed: 0.02, pose: 'carry' });
           }],
+          // 两手捧出：饼与杯递到他手里；他坐下吃喝，炭火（暖光）堆在他头上
+          [12, () => { face('p2', 1); face('p1', -1); pose('p2', 'offer'); pose('p1', 'offer'); }],
           [12.6, b => {
             face('p2', 1); face('p1', -1);
             S.bread = 'enemy'; S.cup = 'enemy'; pose('p2', 'stand'); pose('p1', 'stand');
             pose('enemy', 'sit'); lv('rmCoals', 1, b);
             sfx(b, 'fire', { soft: true });
           }],
+          [13.4, () => gest('enemy', 'bowhead')],
           [14.6, b => { lv('rmCold', 0, b); add('enemy', { robe: ROBE_EN2, accent: [214, 196, 160], glow: 0.3, label: '邻舍' }); sfx(b, 'harp', { soft: true }); }],
-          // 12:21 以善胜恶
+          [15.4, () => stir(IDS(), 'nod', { spread: 1.4, share: 0.5 })],
+          // 12:21 以善胜恶：他站起来，向二人点头；二人也向他欠身
           [16.6, b => { S.bread = null; S.cup = null; pose('enemy', 'stand'); lv('rmCoals', 0.25, b); }],
+          [17.4, () => gest('enemy', 'nod')],
           [18, () => { pose('p2', 'bow'); face('p2', 1); pose('p1', 'bow'); face('p1', -1); }],
           [20.5, () => { pose('p2', 'stand'); pose('p1', 'stand'); }],
-          // 13:10 爱就完全了律法
+          // 13:10 爱就完全了律法：一圈爱的光把众人都围在里面
           [22.4, b => { lv('rmLove', 1, b); faceTo(centerX()); face('enemy', 1); face('p2', 1); face('p1', -1); sfx(b, 'harp'); }],
+          [23.4, () => stir(IDS().concat(['enemy']), 'lookaround', { spread: 1.6, share: 0.4 })],
           [25, b => lv('rmWrite', 0.25, b)],
+          [26.8, () => { rest(); gest('enemy', 'bowhead'); }],
         ]);
       },
     },
@@ -2161,26 +2290,35 @@
     {
       kind: 'bless', utter: '因信将诸般的喜乐、平安充满你们的心', cmd: 'deliver 书信 --via 非比 --to 罗马  # 阿们', ref: '15:13',
       verse: [
-        { text: '我对你们举荐我们的姊妹非比；<br>她是坚革哩教会中的女执事。<br>请你们为主接待她……', ref: RM + '16:1–2', hold: 6.5 },
-        { text: '因为神的国不在乎吃喝，<br>只在乎公义、和平，并圣灵中的喜乐。', ref: RM + '14:17', hold: 5.5 },
-        { text: '但愿使人有盼望的神，<br>因信将诸般的喜乐、平安充满你们的心，<br>使你们藉着圣灵的能力大有盼望！', ref: RM + '15:13', hold: 7 },
-        { text: '愿荣耀，因耶稣基督，<br>归与独一全智的神，直到永远。阿们！', ref: RM + '16:27', hold: 6.5 },
+        { text: '我对你们举荐我们的姊妹非比；<br>她是坚革哩教会中的女执事。<br>请你们为主接待她……', ref: RM + '16:1–2', hold: 6.5, who: 'paul', to: 'tertius', how: 'calm' },
+        { text: '因为神的国不在乎吃喝，<br>只在乎公义、和平，并圣灵中的喜乐。', ref: RM + '14:17', hold: 5.5, who: 'paul', how: 'teach' },
+        { text: '但愿使人有盼望的神，<br>因信将诸般的喜乐、平安充满你们的心，<br>使你们藉着圣灵的能力大有盼望！', ref: RM + '15:13', hold: 7, who: 'phoebe', how: 'proclaim' },
+        { text: '愿荣耀，因耶稣基督，<br>归与独一全智的神，直到永远。阿们！', ref: RM + '16:27', hold: 6.5, who: 'paul', how: 'proclaim' },
       ],
       apply(c) {
         const Xs = X();
         T(c, [
+          // 信写完了：德提卷起信卷，起来
           [0, b => { write(b, 13); W.goTo(0.765, 22, inst(b)); lv('rmLove', 0.35, b); lv('rmCoals', 0, b); S.rolled = true; sfx(b, 'scroll'); }],
+          [1.2, () => { rest(); gest('tertius', 'nod'); }],
           [0.8, b => {
             S.phoebe = true;
             // 从该犹家的门口出来，站到保罗的右手边（手机上再往前一步，与保罗错开纵深）
             add('phoebe', { label: '非比', sex: 'f', age: 'adult', layer: 2, x: G.house.door / W.w, v: Xs.phInV, facing: -1, pose: 'stand', robe: ROBE_PH, accent: ACC_PH, hair: 'veil', glow: 0.3, prop: null });
             walk('phoebe', Math.min(G.paulX + Xs.phMeet, G.house.door / W.w - 0.005), { speed: 0.02, pose: 'stand' }); sink('phoebe', Xs.phMeetV);
           }],
+          // 保罗把信交在非比手里，嘱咐她
           [2, b => { S.scroll = 'paul'; pose('paul', 'carry'); face('paul', 1); pose('tertius', 'stand'); face('tertius', 1); nameOver(b, 'phoebe', '非比'); }],
+          [3.8, () => { pose('paul', 'offer'); face('paul', 1); }],
           [4.6, b => { S.scroll = 'phoebe'; pose('paul', 'stand'); pose('phoebe', 'carry'); face('phoebe', -1); sfx(b, 'scroll', { soft: true }); }],
+          [5.2, () => { gest('phoebe', 'nod'); gest('paul', 'bless'); }],
           [6, () => { walk('phoebe', Xs.phoebe, { speed: 0.03, pose: 'carry' }); face('paul', -1); }],
           [7.4, () => sink('phoebe', Xs.phoebeV)],
+          // 「请你们为主接待她」：罗马的圣徒转向她，招手迎接，点头
           [7.8, () => faceTo(Xs.phoebe)],
+          [8.4, () => { gest('p1', 'beckon'); gest('p2', 'wave'); }],
+          [10.2, () => stir(IDS(), 'nod', { spread: 1.6, share: 0.6 })],
+          // 非比在众人中间念这信（罗马的会众听见）
           [13.5, () => { face('phoebe', -1); pose('phoebe', 'carry'); }],
           // 15:13 喜乐、平安充满各人的心
           [14.6, b => {
@@ -2188,14 +2326,19 @@
             const d = G.dome; ring(b, d.cx, d.cy - d.ry * 0.3, [255, 226, 170], M() * 0.7, 4, 1.8);
             sfx(b, 'harp'); sfx(b, 'angel', { soft: true });
           }],
-          [17, () => { everyone('raise'); pose('enemy', 'raise'); }],
+          [15.4, () => stir(IDS().concat(['enemy']), 'startle', { spread: 1, share: 0.5 })],
+          [17, () => { mixPose(['raise', 'rejoice', 'lift', 'raise', 'rejoice', 'lift']); pose('enemy', 'raise'); }],
+          [19.6, () => { pose('phoebe', 'carry'); }],
           // 16:27 阿们
           [22.9, b => {
             lv('rmAmen', 1, b); lv('rmLamps', 1, b); pose('paul', 'raise'); pose('tertius', 'raise');
             ring(b, W.w * centerX(), W.h * 0.7, [255, 236, 200], Math.hypot(W.w, W.h) * 0.9, 6, 2);
             sfx(b, 'sing'); sfx(b, 'bell');
           }],
+          [24, () => { everyone('stand'); pose('enemy', 'stand'); }],
+          [26.6, () => { stir(IDS().concat(['enemy', 'phoebe']), 'nod', { spread: 1.4, share: 0.8 }); pose('tertius', 'stand'); }],
           [27, () => { everyone('stand'); pose('enemy', 'stand'); pose('phoebe', 'carry'); }],
+          [28.4, () => { pose('paul', 'stand'); }],
         ]);
       },
     },

@@ -220,7 +220,7 @@
   function setV(id, v) { const p = person(id); if (p) p.v = v; }
   function crowdOf(gid) { const c = C(); return c && c.crowds ? c.crowds.get(gid) : null; }
   function crowdFaceX(gid, xf) { const g = crowdOf(gid); if (g) g.members.forEach(m => { if (m.tx == null) { m.facing = xf >= m.nx ? 1 : -1; if (W.replaying) m.fd = m.facing; } }); }
-  function crowdPose(gid, p) { const c = C(); if (c && crowdOf(gid)) c.crowdPose(gid, p); }
+  function crowdPose(gid, p, o) { const c = C(); if (c && crowdOf(gid)) c.crowdPose(gid, p, o); }
   function crowdWalk(gid, x0, x1, o) { const c = C(); if (c && crowdOf(gid)) c.crowdWalk(gid, x0, x1, o || {}); }
   function crowdRm(gid, fade) { const c = C(); if (c) c.removeCrowd(gid, { fade: fade !== false }); }
   function crowdGlow(gid, v) { const g = crowdOf(gid); if (g) g.members.forEach(m => { m.glow = v; }); }
@@ -1979,6 +1979,12 @@
   const timLook = o => Object.assign({ label: '提摩太', robe: ROBE.timothy, accent: [200, 190, 160], beard: false, hair: 'short' }, o);
   const soldier = (id, x, o) => add(id, Object.assign({ label: '兵丁', sex: 'm', robe: ROBE.roman, accent: ROMAN_ACC, hair: 'short', beard: false, prop: 'spear', x, glow: 0.12 }, o));
   const mid2 = (a, b) => (X(a) + X(b)) / 2;
+  // 演技（新约）：说话、一次性的手势、众人先后转向 / 反应——重演时引擎自己略过（attend 立即到位）
+  function say(id, sec, o) { const c = C(); if (c && c.speak) c.speak(id, sec, o || {}); }
+  function hush(id) { const c = C(); if (c && c.hush) c.hush(id); }
+  function gest(id, kind, o) { const c = C(); if (c && c.gesture) c.gesture(id, kind, o); }
+  function heed(ids, target, o) { const c = C(); if (c && c.attend) c.attend(ids, target, o); }
+  function stir(ids, kind, o) { const c = C(); if (c && c.react) c.react(ids, kind, o); }
 
   // ════════════════════════════════════════════════════════════
   //  布置（从目录直接跳到这一幕也完整）
@@ -2066,36 +2072,53 @@
             pose('paul', 'kneel'); pose('barnabas', 'kneel');
             sfx(b, 'wind', { soft: true }); sfx(b, 'dove');
           }],
+          // 圣灵的光落下：会众先后一惊，都转向二人；二人跪着低下头来领受
+          [0.7, () => { stir(['churchA', 'churchB'], 'startle', { spread: 1.4, share: 0.7 }); heed(['churchA', 'churchB'], mid2('barn0', 'saul0'), { spread: 1.6 }); }],
           [1.6, b => { nameOver(b, 'barnabas', '巴拿巴', 2.7, [255, 240, 214]); nameOver(b, 'paul', '扫罗', 1.75, [255, 240, 214]); }],
+          [3.4, () => gest('barnabas', 'bowhead')],
+          [4.3, () => gest('paul', 'bowhead')],
+          [5.4, () => stir(['churchA', 'churchB'], 'nod', { spread: 1.8, share: 0.6 })],
+          // 13:3 禁食祷告，按手在他们头上：会众走近，伸手按在二人头上；二人合掌祷告
           [6.8, b => {
-            crowdWalk('churchA', X('laying')[0], X('laying')[1], { speed: 0.02, pose: 'point' });
-            crowdWalk('churchB', X('laying')[2], X('church2')[1] - 0.04, { speed: 0.02, pose: 'point' });
+            crowdWalk('churchA', X('laying')[0], X('laying')[1], { speed: 0.02, pose: 'reach' });
+            crowdWalk('churchB', X('laying')[2], X('church2')[1] - 0.04, { speed: 0.02, pose: 'reach' });
             lv('jySpirit', 0.45, b);
           }],
-          [11, b => { lv('jySpirit', 0, b); pose('paul', 'stand'); pose('barnabas', 'stand'); glowP('paul', 0.3); glowP('barnabas', 0.2); }],
-          [12, b => {
-            crowdPose('churchA', 'stand'); crowdPose('churchB', 'stand');
-            walk('barnabas', X('quay')[0] + 0.012, { speed: 0.04 }); walk('paul', X('quay')[0] + 0.03, { speed: 0.04 });
+          [8.4, () => { pose('barnabas', 'pray'); }],
+          [8.9, () => { pose('paul', 'pray'); }],
+          [11, b => { lv('jySpirit', 0, b); pose('paul', 'stand'); pose('barnabas', 'stand'); glowP('paul', 0.3); glowP('barnabas', 0.2); crowdPose('churchA', 'stand'); crowdPose('churchB', 'stand'); }],
+          // 就打发他们去了：二人向会众点头，往海边去；会众目送
+          [11.5, () => { gest('paul', 'nod'); gest('barnabas', 'nod'); }],
+          [12.1, b => {
+            walk('barnabas', X('quay')[0] + 0.012, { speed: 0.05 }); walk('paul', X('quay')[0] + 0.03, { speed: 0.05 });
+            heed(['churchA', 'churchB'], 'paul', { spread: 1.4 });
           }],
-          [14.2, b => {
-            board('barnabas', 'b'); board('paul', 'f'); face('paul', -1); face('barnabas', -1);
-            crowdWalk('churchA', X('quay')[0] + 0.035, X('quay')[1] + 0.02, { speed: 0.03, pose: 'raise' });
-            crowdPose('churchB', 'raise');
+          [14.6, b => {
+            board('barnabas', 'b'); board('paul', 'f'); face('paul', -1); face('barnabas', 1);
+            crowdWalk('churchA', X('quay')[0] + 0.035, X('quay')[1] + 0.02, { speed: 0.03, pose: 'stand' });
+            heed('churchB', 'paul', { spread: 0.8 });
             lv('jySail', 1, b); sfx(b, 'wave', { soft: true });
           }],
-          [15.2, b => { shipTo('off', b); }],
-          [18.6, b => { toPlace('cyprus', b); crowdRm('churchA'); crowdRm('churchB'); }],
+          // 船离岸：巴拿巴回身挥手，岸上的会众先后挥手相送
+          [15.2, b => { shipTo('off', b); gest('barnabas', 'wave'); stir('churchB', 'wave', { spread: 1.2, share: 0.8 }); }],
+          [16.4, () => { stir('churchA', 'wave', { spread: 1, share: 0.8 }); face('paul', 1); gest('paul', 'wave'); }],
+          [17.6, () => { stir(['churchA', 'churchB'], 'wave', { spread: 0.8, share: 0.5 }); face('barnabas', -1); }],
+          [18.6, b => { toPlace('cyprus', b); crowdRm('churchA'); crowdRm('churchB'); face('paul', -1); }],
           [19.2, b => { shipTo('moor', b); placeName(b, 'cyprus'); }],
           [22.6, b => { lv('jySail', 0, b); }],
           [23.2, b => { ashore(b, 'barnabas', X('ashore')[0], 0.062); ashore(b, 'paul', X('ashore')[1], 0.062); }],
-          // 扫罗上了岸、站定了，名才换作「保罗」（名字写在他站定之处）
+          [25.2, () => gest('barnabas', 'lookaround')],
+          // 扫罗上了岸、站定了，名才换作「保罗」（名字写在他站定之处）；被圣灵充满：仰起脸来
           [26.4, b => {
             face('paul', 1);
             const f = fpos('paul'); if (f) nameAt(b, '保罗', X('ashore')[1] * W.w, f.y - f.h * 1.9, [255, 236, 196]);
             add('paul', { label: '保罗' });
             glowP('paul', 0.6); flashAt(b, 'paul', [255, 240, 214], 24);
             sfx(b, 'chime'); lampOn(b, 1, 'paul');
+            pose('paul', 'gaze');
           }],
+          [27.4, () => { face('barnabas', 'paul'); gest('barnabas', 'nod'); }],
+          [28.6, () => pose('paul', 'stand')],
           [29, b => { glowP('paul', 0.24); }],
         ]);
       },
@@ -2105,7 +2128,8 @@
       kind: 'promise', utter: '我已经立你作外邦人的光', cmd: 'export LIGHT=外邦人 && ping 地极', ref: '13:47', tint: [255, 236, 196],
       verse: [
         { text: '到下安息日，合城的人几乎都来聚集，要听神的道。', ref: '使徒行传 13:44', hold: 5.5 },
-        { text: '保罗和巴拿巴放胆说：「……我们就转向外邦人去。因为主曾这样吩咐我们说：我已经立你作外邦人的光，叫你施行救恩，直到地极。」', ref: '使徒行传 13:46–47', hold: 8.5 },
+        { text: '保罗和巴拿巴放胆说：「……我们就转向外邦人去。因为主曾这样吩咐我们说：我已经立你作外邦人的光，叫你施行救恩，直到地极。」', ref: '使徒行传 13:46–47', hold: 8.5,
+          talk: [['paul', 0.02, 0.34, 'proclaim', 'city2L'], ['barnabas', 0.14, 0.34, 'calm', 'city2L'], ['paul', 0.37, 1, 'proclaim', 'city2R']] },
         { text: '外邦人听见这话，就欢喜了，赞美神的道……于是主的道传遍了那一带地方。', ref: '使徒行传 13:48–49', hold: 7 },
       ],
       apply(c) {
@@ -2123,20 +2147,31 @@
             crowdWalk('city2R', X('city2R')[0], X('city2R')[1], { speed: 0.04 });
             sfx(b, 'crowd', { soft: true });
           }],
-          [7.4, b => { crowdFaceX('city2L', X('paul2')); crowdFaceX('city2R', X('paul2')); pose('paul', 'raise'); face('paul', 1); }],
+          // 合城的人聚集来听：众人走到了，先后转向保罗；保罗面向会堂前的众人，讲论起来
+          [5.2, () => { heed(['city2L', 'city2R'], 'paul', { spread: 1.6 }); }],
+          [6, () => { face('paul', -1); face('barnabas', -1); pose('paul', 'teach'); }],
+          [7.4, b => { crowdFaceX('city2L', X('paul2')); crowdFaceX('city2R', X('paul2')); pose('paul', 'stand'); }],
+          // 「我们就转向外邦人去」：犹太人中有人摆手硬驳；保罗转身向右边的外邦人
+          [9.6, () => stir('city2L', 'refuse', { spread: 1.4, share: 0.5 })],
           [10.4, b => {
+            face('paul', 1); face('barnabas', 1);
             flashAt(b, 'paul', [255, 240, 200], 30); glowP('paul', 0.6);
             lv('jyGentile', 1, b); sfx(b, 'harp');
             lampOn(b, 2, 'paul');
           }],
-          [11.2, b => { time(0.765, 9, b); pose('paul', 'point'); }],
-          [15.8, b => { crowdPose('city2R', 'raise'); crowdFaceX('city2R', X('paul2')); sfx(b, 'sing', { soft: true }); }],
-          [17.2, b => { crowdPose('city2L', 'raise'); crowdFaceX('city2L', X('paul2')); pose('barnabas', 'raise'); }],
+          [11.2, b => { time(0.765, 9, b); stir('city2R', 'startle', { spread: 1.2, share: 0.6 }); }],
+          // 「直到地极」：他伸手指向光所去的远方
+          [13.6, () => { pose('paul', 'point'); face('paul', 1); }],
+          // 外邦人听见这话，就欢喜了，赞美神的道
+          [17.4, b => { crowdPose('city2R', 'rejoice'); crowdFaceX('city2R', X('paul2')); sfx(b, 'sing', { soft: true }); }],
+          [18.2, () => { pose('barnabas', 'lift'); stir('city2L', 'nod', { spread: 1.6, share: 0.5 }); }],
+          [19.4, () => { stir('city2R', 'leap', { spread: 1.4, share: 0.35 }); }],
           [21.4, b => {
             pose('paul', 'stand'); pose('barnabas', 'stand'); glowP('paul', 0.3);
             crowdPose('city2R', 'stand'); crowdPose('city2L', 'stand');
             crowdFaceX('city2R', X('paul2')); crowdFaceX('city2L', X('paul2'));
           }],
+          [23, () => { face('paul', -1); gest('paul', 'bless'); }],
         ]);
       },
     },
@@ -2144,7 +2179,8 @@
     {
       kind: 'act', utter: '神怎样为外邦人开了信道的门', cmd: 'open 信道的门 --for 外邦人', ref: '14:27', tint: [255, 240, 206],
       verse: [
-        { text: '路司得城里坐着一个两脚无力的人，生来是瘸腿的，从来没有走过……保罗定睛看他……就大声说：「你起来，两脚站直！」那人就跳起来，而且行走。', ref: '使徒行传 14:8–10', hold: 8 },
+        { text: '路司得城里坐着一个两脚无力的人，生来是瘸腿的，从来没有走过……保罗定睛看他……就大声说：「你起来，两脚站直！」那人就跳起来，而且行走。', ref: '使徒行传 14:8–10', hold: 8,
+          talk: [['paul', 0.5, 0.7, 'proclaim', 'lame']] },
         { text: '到了那里，聚集了会众，就述说神藉他们所行的一切事，并神怎样为外邦人开了信道的门。', ref: '使徒行传 14:27', hold: 7 },
         { text: '他们既奉了差遣，就下安提阿去，聚集众人，交付书信。众人念了，因为信上安慰的话就欢喜了。', ref: '使徒行传 15:30–31', hold: 7 },
       ],
@@ -2160,36 +2196,52 @@
             crowd('lys2', { n: 4, x0: X('lys2')[0], x1: X('lys2')[1], label: '路司得人' });
             crowdFaceX('lys', X('paul3')); crowdFaceX('lys2', X('paul3'));
           }],
+          // 保罗在城门口讲道，瘸腿的人坐着听；路司得人围着
           [2.4, b => {
-            reAdd('paul', 'paul', paulLook({ x: X('paul3'), facing: 1, pose: 'raise' }));
+            reAdd('paul', 'paul', paulLook({ x: X('paul3'), facing: 1, pose: 'teach' }));
             reAdd('barnabas', 'disciple', barnLook({ x: X('barn3'), facing: 1 }));
           }],
-          [4.2, b => { pose('paul', 'point'); face('paul', 1); }],
-          [5.4, b => { flashAt(b, 'lame', [255, 244, 220], 28); pose('lame', 'stand'); glowP('lame', 0.45); sfx(b, 'harp'); }],
-          [6.3, b => { const f = fpos('lame'); if (f) flyTo('lame', [f.x, f.y - f.h * 0.42], 0.4, 'raise'); }],
-          [6.8, b => { const cc = C(); if (cc && cc.get('lame')) cc.fly('lame', X('lame'), null, { dur: 0.4, pose: 'raise' }); dust(b, X('lame') * W.w, gY(X('lame') * W.w), 14); }],
-          [7.6, b => {
-            landP('lame'); walk('lame', X('lame') + 0.05, { speed: 0.05, pose: 'raise' });
+          [3, () => { say('paul', 1.6, { how: 'teach', to: 'lame' }); heed(['lys', 'lys2'], 'paul', { spread: 1.2 }); }],
+          [3.8, () => gest('lame', 'nod')],
+          // 保罗定睛看他：上前一步，伸手指着他，大声说「你起来，两脚站直！」
+          [4.4, b => { pose('paul', 'stand'); walk('paul', X('paul3') + 0.012, { speed: 0.02, pose: 'point' }); }],
+          [6.3, b => { flashAt(b, 'lame', [255, 244, 220], 28); pose('lame', 'stand'); glowP('lame', 0.45); sfx(b, 'harp'); }],
+          // 那人就跳起来，而且行走
+          [7, b => { const f = fpos('lame'); if (f) flyTo('lame', [f.x, f.y - f.h * 0.42], 0.4, 'raise'); stir(['lys', 'lys2'], 'startle', { spread: 0.8, share: 0.8 }); }],
+          [7.5, b => { const cc = C(); if (cc && cc.get('lame')) cc.fly('lame', X('lame'), null, { dur: 0.4, pose: 'raise' }); dust(b, X('lame') * W.w, gY(X('lame') * W.w), 14); }],
+          [8.1, b => {
+            landP('lame'); walk('lame', X('lame') + 0.045, { speed: 0.05, pose: 'rejoice' });
             crowdPose('lys', 'raise'); crowdPose('lys2', 'raise'); sfx(b, 'crowd');
+            say('lys', 1.6, { how: 'proclaim' });
             pose('paul', 'stand'); lampOn(b, 3, 'paul');
           }],
-          [9.4, b => { rm('lame'); crowdRm('lys'); crowdRm('lys2'); rm('paul'); rm('barnabas'); }],
-          [10.2, b => { toPlace('antioch', b); time(0.5, 6, b); }],
-          [10.8, b => {
-            reAdd('paul', 'paul', paulLook({ x: X('paul3b'), facing: 1 }));
-            reAdd('barnabas', 'disciple', barnLook({ x: X('barn3b'), facing: 1 }));
+          [8.7, () => gest('barnabas', 'startle')],
+          [9.8, b => { rm('lame'); crowdRm('lys'); crowdRm('lys2'); rm('paul'); rm('barnabas'); }],
+          [10.4, b => { toPlace('antioch', b); time(0.5, 6, b); }],
+          // 回到安提阿，聚集了会众，述说神藉他们所行的一切事
+          [11, b => {
+            reAdd('paul', 'paul', paulLook({ x: X('paul3b'), facing: -1, pose: 'teach' }));
+            reAdd('barnabas', 'disciple', barnLook({ x: X('barn3b'), facing: -1 }));
             crowd('churchC', { n: 5, x0: X('church3')[0], x1: X('church3')[1], label: '安提阿的教会' });
             crowdFaceX('churchC', X('paul3b'));
           }],
-          [12, b => { S.doorX = X('door'); lv('jyDoor', 1, b); sfx(b, 'gate'); sfx(b, 'harp', { soft: true }); pose('paul', 'point'); }],
+          [11.4, () => say('paul', 2.2, { how: 'teach', to: 'churchC' })],
+          // 神怎样为外邦人开了信道的门：保罗转身指着那门
+          [12.4, b => { S.doorX = X('door'); lv('jyDoor', 1, b); sfx(b, 'gate'); sfx(b, 'harp', { soft: true }); face('paul', 1); pose('paul', 'point'); stir('churchC', 'startle', { spread: 1, share: 0.6 }); }],
           [13.4, b => {
             // 外邦人从光的门里出来，向左走进会众那里（面向教会）
             crowd('gent', { n: 6, x0: X('door') - 0.004, x1: X('door') + 0.004, label: '外邦人', from: 'light', glow: 0.3 });
             crowdWalk('gent', X('gentiles')[0], X('gentiles')[1], { speed: 0.022 });
+            heed('churchC', X('door'), { spread: 1.4 });
           }],
-          [16.4, b => { pose('paul', 'stand'); reAdd('silas', 'disciple', silasLook({ x: 1.04, facing: -1 })); walk('silas', X('silas3'), { speed: 0.06 }); }],
-          [21.8, b => { crowdFaceX('gent', X('silas3')); crowdFaceX('churchC', X('silas3')); face('paul', 1); S.scrollId = 'silas'; pose('silas', 'carry'); lv('jyScroll', 1, b); sfx(b, 'scroll'); }],
-          [23, b => { crowdPose('churchC', 'raise'); crowdPose('gent', 'raise'); pose('barnabas', 'raise'); sfx(b, 'sing', { soft: true }); }],
+          [15.4, () => { pose('paul', 'stand'); gest('barnabas', 'beckon'); }],
+          [16.4, b => { reAdd('silas', 'disciple', silasLook({ x: 1.04, facing: -1 })); walk('silas', X('silas3'), { speed: 0.06 }); stir('churchC', 'nod', { spread: 1.6, share: 0.6 }); }],
+          [17.6, () => { stir('gent', 'nod', { spread: 1.4, share: 0.6 }); face('paul', -1); }],
+          // 15:30–31 交付书信：西拉展开书信念给众人听；众人因信上安慰的话就欢喜了
+          [21.8, b => { crowdFaceX('gent', X('silas3')); crowdFaceX('churchC', X('silas3')); face('paul', 1); S.scrollId = 'silas'; pose('silas', 'read'); lv('jyScroll', 1, b); sfx(b, 'scroll'); }],
+          [22.2, () => say('silas', 1.6, { how: 'proclaim' })],
+          [23.6, b => { crowdPose('churchC', 'rejoice'); crowdPose('gent', 'raise'); pose('barnabas', 'lift'); sfx(b, 'sing', { soft: true }); }],
+          [24.4, () => { gest('paul', 'nod'); pose('silas', 'carry'); }],
           [26, b => { crowdPose('churchC', 'stand'); crowdPose('gent', 'stand'); pose('barnabas', 'stand'); }],
         ]);
       },
@@ -2205,38 +2257,54 @@
       apply(c) {
         ring(c, [214, 226, 255]);
         TL(c, [
+          // 15:39–40 巴拿巴往别处去了；保罗回身招呼西拉，拣选了他同去
           [0, b => {
             time(0.7, 7, b); lv('jyScroll', 0, b); lv('jyDoor', 0, b); crowdRm('gent');
             walk('barnabas', 1.08, { speed: 0.045 });
-            walk('silas', X('part') + 0.028, { speed: 0.03 }); walk('paul', X('part'), { speed: 0.03 });
+            face('paul', 'silas'); gest('paul', 'beckon');
           }],
-          [2.4, b => { pose('paul', 'kneel'); pose('silas', 'kneel'); crowdFaceX('churchC', X('part')); crowdPose('churchC', 'point'); crowdFaceX('churchC', X('part')); }],
-          [3.8, b => { rm('barnabas'); }],
-          [5.4, b => { pose('paul', 'stand'); pose('silas', 'stand'); walk('paul', 1.04, { speed: 0.04 }); walk('silas', 1.08, { speed: 0.04 }); crowdPose('churchC', 'raise'); }],
+          [0.9, () => { gest('silas', 'nod'); walk('silas', X('part') + 0.028, { speed: 0.034 }); walk('paul', X('part'), { speed: 0.034 }); }],
+          // 蒙弟兄们把他交于主的恩中：二人跪下，会众向他们举手祝福
+          [2.6, b => { pose('paul', 'kneel'); pose('silas', 'kneel'); crowdFaceX('churchC', X('part')); crowdPose('churchC', 'bless'); crowdFaceX('churchC', X('part')); }],
+          [3.8, b => { rm('barnabas'); gest('paul', 'bowhead'); }],
+          [5.4, b => { pose('paul', 'stand'); pose('silas', 'stand'); walk('paul', 1.04, { speed: 0.04 }); walk('silas', 1.08, { speed: 0.04 }); crowdPose('churchC', 'stand'); }],
+          [5.8, () => stir('churchC', 'wave', { spread: 1, share: 0.8 })],
           [7, b => { rm('paul'); rm('silas'); crowdRm('churchC'); }],
           [7.8, b => { toPlace('troas', b); time(0.99, 5, b); shipShow(b, 'moor', -1); }],
           [8.6, b => { placeName(b, 'troas'); }],
+          // 特罗亚的夜：保罗睡在灯旁，西拉、提摩太坐着睡着了
           [9.6, b => {
             reAdd('paul', 'paul', paulLook({ x: X('sleep'), facing: -1, pose: 'lie', glow: 0.34 }));
-            reAdd('silas', 'disciple', silasLook({ x: X('silas4'), facing: -1, pose: 'sit', glow: 0.26 }));
-            reAdd('timothy', 'disciple', timLook({ x: X('tim4'), facing: -1, pose: 'sit', glow: 0.26 }));
+            reAdd('silas', 'disciple', silasLook({ x: X('silas4'), facing: -1, pose: 'sleep', glow: 0.26 }));
+            reAdd('timothy', 'disciple', timLook({ x: X('tim4'), facing: -1, pose: 'sleep', glow: 0.26 }));
             S.lampX = X('sleep') - 0.028; lv('jyLamp', 1, b);
           }],
-          [11.8, b => {
-            add('mac', { label: '马其顿人', sex: 'm', layer: 1, x: X('mac'), robe: [226, 220, 204], accent: [190, 176, 150], hair: 'short', beard: true, glow: 0.5, scale: 1.45, from: 'light', pose: 'raise', facing: X('mac') < X('sleep') ? 1 : -1 });
+          // 一个马其顿人站着求他：两手伸向他恳求，又招手
+          [11.2, b => {
+            add('mac', { label: '马其顿人', sex: 'm', layer: 1, x: X('mac'), robe: [226, 220, 204], accent: [190, 176, 150], hair: 'short', beard: true, glow: 0.5, scale: 1.45, from: 'light', pose: 'stand', facing: X('mac') < X('sleep') ? 1 : -1 });
             lv('jyVision', 1, b); sfx(b, 'whisper'); sfx(b, 'angel', { soft: true });
           }],
-          [15.4, b => { pose('paul', 'stand'); face('paul', X('mac') < X('sleep') ? -1 : 1); glowP('paul', 0.5); }],
-          [17.6, b => { lv('jyVision', 0, b); rm('mac'); time(0.28, 6, b); pose('silas', 'stand'); pose('timothy', 'stand'); }],
+          [12.2, () => say('mac', 2.6, { to: 'paul', how: 'plead', turn: false })],
+          [15, () => gest('mac', 'beckon')],
+          // 保罗醒来，起身远望海那边
+          [15.4, b => { pose('paul', 'look'); face('paul', X('mac') < X('sleep') ? -1 : 1); glowP('paul', 0.5); }],
+          [16.4, () => say('mac', 1.2, { to: 'paul', how: 'plead', turn: false })],
+          [17.6, b => { lv('jyVision', 0, b); rm('mac'); time(0.28, 6, b); pose('paul', 'stand'); pose('silas', 'sit'); pose('timothy', 'sit'); }],
+          // 「我们随即想要往马其顿去」：保罗转身告诉二人；他们起来、点头
+          [18, () => { face('paul', -1); say('paul', 1.6, { to: 'silas', how: 'calm' }); }],
+          [18.4, () => { pose('silas', 'stand'); pose('timothy', 'stand'); }],
           [19.2, b => {
             lv('jyLamp', 0, b); glowP('paul', 0.24);
             walk('paul', X('quay')[0] + 0.012, { speed: 0.045 }); walk('silas', X('quay')[0] + 0.03, { speed: 0.045 }); walk('timothy', X('quay')[0] + 0.048, { speed: 0.045 });
+            gest('silas', 'nod'); gest('timothy', 'nod');
           }],
           [22, b => {
             board('paul', 'c'); board('silas', 'b'); board('timothy', 'a');
             ['paul', 'silas', 'timothy'].forEach(id => face(id, -1));
             lv('jySail', 1, b); sfx(b, 'wave', { soft: true });
           }],
+          [24.4, () => { pose('paul', 'look'); }],
+          [26.6, () => { pose('paul', 'stand'); }],
           [23, b => { shipTo('off', b); }],
           [27.1, b => { lv('jySail', 1, b); }],
         ]);
@@ -2248,7 +2316,8 @@
       verse: [
         { text: '当安息日，我们出城门，到了河边，知道那里有一个祷告的地方，我们就坐下对那聚会的妇女讲道。', ref: '使徒行传 16:13', hold: 7 },
         { text: '有一个卖紫色布疋的妇人，名叫吕底亚……素来敬拜神。她听见了，主就开导她的心，叫她留心听保罗所讲的话。', ref: '使徒行传 16:14', hold: 8 },
-        { text: '她和她一家既领了洗，便求我们说：「你们若以为我是真信主的，请到我家里来住」；于是强留我们。', ref: '使徒行传 16:15', hold: 7.5 },
+        { text: '她和她一家既领了洗，便求我们说：「你们若以为我是真信主的，请到我家里来住」；于是强留我们。', ref: '使徒行传 16:15', hold: 7.5,
+          talk: [['lydia', 0.52, 0.88, 'plead', 'paul']] },
       ],
       apply(c) {
         ring(c, [236, 206, 240]);
@@ -2265,25 +2334,37 @@
             addLook('paul', 'paul', paulLook({ x: 1.04, facing: -1 })); addLook('silas', 'disciple', silasLook({ x: 1.08, facing: -1 })); addLook('timothy', 'disciple', timLook({ x: 1.11, facing: -1 }));
             walk('paul', X('paul5'), { speed: 0.05 }); walk('silas', X('silas5'), { speed: 0.05 }); walk('timothy', X('tim5'), { speed: 0.05 });
           }],
+          // 我们就坐下对那聚会的妇女讲道：保罗坐着讲论，妇女们转向他静听
           [7.8, b => { pose('paul', 'sit'); pose('silas', 'sit'); pose('timothy', 'sit'); face('paul', -1); face('silas', -1); face('timothy', -1); }],
+          [8.6, () => { say('paul', 6, { how: 'teach', to: 'w3' }); heed(['w1', 'w2', 'w3', 'lydia'], 'paul', { spread: 1.4 }); }],
+          [10.6, () => stir(['w1', 'w2', 'w3'], 'nod', { spread: 1.6, share: 0.6 })],
+          // 主就开导她的心，叫她留心听：吕底亚胸中亮起一盏光，她低头又点头
           [11.8, b => { S.heartId = 'lydia'; lv('jyHeart', 1, b); glowP('lydia', 0.55); flashAt(b, 'lydia', [255, 226, 180], 20); sfx(b, 'harp'); }],
-          [15, b => { pose('lydia', 'stand'); pose('paul', 'stand'); }],
-          [16.2, b => {
+          [12.4, () => gest('lydia', 'bowhead')],
+          [14.6, () => { say('paul', 1.6, { how: 'teach', to: 'lydia' }); gest('lydia', 'nod'); }],
+          [16.4, b => { pose('lydia', 'stand'); pose('paul', 'stand'); }],
+          // 她和她一家领洗：家人从家里来，一同走进河里
+          [17, b => {
             add('lh1', { label: '吕底亚的家人', sex: 'm', robe: [140, 110, 96], beard: true, x: X('lhouse') - 0.01, facing: -1, glow: 0.12 });
             add('lh2', { label: '吕底亚的家人', sex: 'f', age: 'child', robe: [180, 150, 170], x: X('lhouse') + 0.012, facing: -1, glow: 0.12 });
-            walk('lh1', X('bapt') + 0.028, { speed: 0.05 }); walk('lh2', X('bapt') + 0.05, { speed: 0.05 });
+            walk('lh1', X('bapt') + 0.028, { speed: 0.06 }); walk('lh2', X('bapt') + 0.05, { speed: 0.06 });
             walk('lydia', X('bapt'), { speed: 0.03 }); walk('paul', X('bapt') + 0.078, { speed: 0.04 });
+            gest('lydia', 'beckon');
           }],
           [19.6, b => {
             for (const id of ['lydia', 'lh1', 'lh2']) { const p = person(id); if (p) p.v = riverYAt(p.tx != null ? p.tx : p.nx) - 0.03; }
-            lv('jyBapt', 1, b); sfx(b, 'splash'); sfx(b, 'harp', { soft: true }); pose('paul', 'raise');
+            lv('jyBapt', 1, b); sfx(b, 'splash'); sfx(b, 'harp', { soft: true }); pose('paul', 'bless'); face('paul', 'lydia');
           }],
-          [22.6, b => { lv('jyBapt', 0, b); for (const id of ['lydia', 'lh1', 'lh2']) setV(id, 0.08); lv('jyHeart', 0.4, b); pose('paul', 'stand'); }],
+          [20, () => { gest('lydia', 'bowhead'); gest('lh1', 'bowhead'); }],
+          [20.6, () => gest('lh2', 'bowhead')],
+          // 便求我们说：「请到我家里来住」——她回身向保罗恳求，又招手引路
+          [22.6, b => { lv('jyBapt', 0, b); for (const id of ['lydia', 'lh1', 'lh2']) setV(id, 0.08); lv('jyHeart', 0.4, b); pose('paul', 'stand'); face('lydia', 'paul'); }],
           [23.2, b => {
-            walk('lydia', X('lhouse') - 0.05, { speed: 0.035, pose: 'point' }); walk('lh1', X('lhouse') - 0.022, { speed: 0.035 }); walk('lh2', X('lhouse'), { speed: 0.035 });
+            walk('lh1', X('lhouse') - 0.022, { speed: 0.035 }); walk('lh2', X('lhouse'), { speed: 0.035 });
             lampOn(b, 4, 'lydia');
           }],
-          [24.6, b => { walk('paul', X('lhouse') - 0.085, { speed: 0.03 }); walk('silas', X('lhouse') - 0.11, { speed: 0.03 }); walk('timothy', X('lhouse') - 0.13, { speed: 0.03 }); }],
+          [25, b => { walk('lydia', X('lhouse') - 0.05, { speed: 0.035, pose: 'stand' }); face('lydia', -1); gest('lydia', 'beckon'); }],
+          [25.6, b => { walk('paul', X('lhouse') - 0.085, { speed: 0.03 }); walk('silas', X('lhouse') - 0.11, { speed: 0.03 }); walk('timothy', X('lhouse') - 0.13, { speed: 0.03 }); gest('silas', 'nod'); }],
         ]);
       },
     },
@@ -2294,7 +2375,8 @@
         { text: '禁卒领了这样的命，就把他们下在内监里，两脚上了木狗。', ref: '使徒行传 16:24', hold: 5.5 },
         { text: '约在半夜，保罗和西拉祷告，唱诗赞美神，众囚犯也侧耳而听。', ref: '使徒行传 16:25', hold: 6 },
         { text: '忽然，地大震动，甚至监牢的地基都摇动了，监门立刻全开，众囚犯的锁链也都松开了。', ref: '使徒行传 16:26', hold: 7 },
-        { text: '禁卒……战战兢兢地俯伏在保罗、西拉面前；又领他们出来，说：「二位先生，我当怎样行才可以得救？」他们说：「当信主耶稣，你和你一家都必得救。」', ref: '使徒行传 16:29–31', hold: 8 },
+        { text: '禁卒……战战兢兢地俯伏在保罗、西拉面前；又领他们出来，说：「二位先生，我当怎样行才可以得救？」他们说：「当信主耶稣，你和你一家都必得救。」', ref: '使徒行传 16:29–31', hold: 8,
+          talk: [['jailer', 0.36, 0.62, 'plead', 'paul'], ['paul', 0.64, 1, 'proclaim', 'jailer'], ['silas', 0.78, 1, 'calm', 'jailer']] },
       ],
       apply(c) {
         ring(c, [255, 226, 180]);
@@ -2311,9 +2393,18 @@
             chain('pr1'); chain('pr2');
             add('jailer', { label: '禁卒', sex: 'm', robe: ROBE.jailer, accent: [170, 150, 120], hair: 'short', beard: true, x: X('jailer'), facing: -1, prop: 'torch', glow: 0.24 });
           }],
-          [5.4, b => { pose('jailer', 'sit'); }],
-          [7, b => { lv('jySing', 1, b); sfx(b, 'sing'); glowP('paul', 0.5); glowP('silas', 0.46); }],
+          // 禁卒锁好了门，四下看看，坐在外头睡着了（16:27「禁卒一醒」）
+          [3.6, () => gest('jailer', 'lookaround')],
+          [5.4, b => { pose('jailer', 'sleep'); }],
+          // 约在半夜，保罗和西拉祷告，唱诗赞美神：二人相对而唱，头随诗句起伏
+          [7, b => {
+            lv('jySing', 1, b); sfx(b, 'sing'); glowP('paul', 0.5); glowP('silas', 0.46);
+            say('paul', 6.2, { how: 'proclaim', to: 'silas' }); say('silas', 6.2, { how: 'proclaim', to: 'paul' });
+          }],
+          // 众囚犯也侧耳而听
           [9.6, b => { face('pr1', 1); face('pr2', 1); glowP('pr1', 0.22); glowP('pr2', 0.22); }],
+          [11, () => gest('pr2', 'nod')],
+          [12, () => gest('pr1', 'bowhead')],
           [14.4, b => {
             if (!inst(b)) { W.shake = 1; W.flash = 0.25; }
             sfx(b, 'quake'); sfx(b, 'collapse', { soft: true });
@@ -2321,26 +2412,41 @@
             ['paul', 'silas', 'pr1', 'pr2'].forEach(id => unchain(id, b));
             if (!inst(b)) { const G = prisonG(); dust(b, (G.x0 + G.x1) / 2, G.ceil + 4, 30, [150, 140, 126], (G.x1 - G.x0) * 0.4); }
             sfx(b, 'chains', { soft: true });
+            hush('paul'); hush('silas');
           }],
+          // 地大震动：众人一惊；禁卒从梦中惊醒
+          [14.6, () => { stir(['pr1', 'pr2', 'paul', 'silas'], 'startle', { spread: 0.6 }); gest('jailer', 'startle'); }],
           [15.6, b => { pose('pr1', 'stand'); pose('pr2', 'stand'); lv('jySing', 0.5, b); }],
           [16.6, b => { pose('jailer', 'stand'); face('jailer', -1); }],
-          [18, b => { pose('paul', 'raise'); pose('silas', 'stand'); }],
+          [17.2, () => { gest('pr1', 'lookaround'); gest('jailer', 'tremble'); }],
+          // 保罗大声呼叫：「我们都在这里」（16:28）
+          [18, b => { pose('paul', 'raise'); pose('silas', 'stand'); say('paul', 1.4, { how: 'proclaim', to: 'jailer' }); }],
           // 禁卒跳进内监，俯伏在保罗、西拉面前（在二人的前面，面向他们）
           [19.2, b => { run('jailer', X('silas6') + (tall() ? 0.06 : 0.036), { speed: tall() ? 0.1 : 0.085 }); }],
-          [22.6, b => { pose('jailer', 'fall'); face('jailer', -1); pose('paul', 'stand'); }],
-          [25.2, b => { pose('jailer', 'kneel'); face('jailer', -1); }],
-          // 又领他们出来：到外监的灯下；他的家人拿着光从外门进来
-          [26.2, b => {
+          [21.2, () => pose('paul', 'stand')],
+          [22.6, b => { pose('jailer', 'fall'); face('jailer', -1); }],
+          [23.2, () => gest('jailer', 'tremble', { dur: 2.6 })],
+          // 又领他们出来：他起来，在前头引路，到外监的灯下；他的家人拿着光从外门进来
+          [24.4, b => { pose('jailer', 'stand'); face('jailer', -1); gest('paul', 'touch'); }],
+          [25, b => {
             const m = X('meet6'), sp = tall() ? 0.065 : 0.045;
             walk('silas', m[0], { speed: sp }); walk('paul', m[1], { speed: sp }); walk('jailer', m[2], { speed: sp });
+            face('jailer', -1);
             lv('jySing', 0, b); glowP('jailer', 0.34);
+          }],
+          // 「二位先生，我当怎样行才可以得救？」——他跪下求问
+          [27, () => { pose('jailer', 'beg'); face('jailer', -1); }],
+          [28, b => {
             crowd('jfam', { n: 3, x0: X('jfam0')[0], x1: X('jfam0')[1], label: '禁卒的家人', glow: 0.4, mill: false });
             crowdWalk('jfam', X('jfam')[0], X('jfam')[1], { speed: 0.04 });
           }],
-          [29.6, b => {
-            crowdPose('jfam', 'raise'); face('paul', 1); face('silas', 1); face('jailer', -1); crowdFaceX('jfam', X('meet6')[1]);
-            pose('paul', 'raise'); glowP('jailer', 0.42); flashAt(b, 'jailer', [255, 230, 190], 20); sfx(b, 'harp', { soft: true });
+          // 「当信主耶稣，你和你一家都必得救」：保罗向他和他的家人举手
+          [29.8, b => {
+            face('paul', 1); face('silas', 1); face('jailer', -1); crowdFaceX('jfam', X('meet6')[1]);
+            pose('paul', 'bless'); glowP('jailer', 0.42); flashAt(b, 'jailer', [255, 230, 190], 20); sfx(b, 'harp', { soft: true });
           }],
+          [30.4, () => { crowdPose('jfam', 'raise'); }],
+          [31.2, b => { pose('jailer', 'kneel'); gest('silas', 'bless'); }],
         ]);
       },
     },
@@ -2349,8 +2455,9 @@
       kind: 'act', utter: '我们生活、动作、存留，都在乎他', cmd: 'grep -r 未识之神 /雅典  # 其实他离我们各人不远', ref: '17:28', tint: [255, 232, 186],
       verse: [
         { text: '保罗在雅典等候他们的时候，看见满城都是偶像，就心里着急', ref: '使徒行传 17:16', hold: 5.5 },
-        { text: '保罗站在亚略‧巴古当中，说：「……我游行的时候，观看你们所敬拜的，遇见一座坛，上面写着『未识之神』。你们所不认识而敬拜的，我现在告诉你们。」', ref: '使徒行传 17:22–23', hold: 8.5 },
-        { text: '「要叫他们寻求神，或者可以揣摩而得，其实他离我们各人不远；我们生活、动作、存留，都在乎他。」', ref: '使徒行传 17:27–28', hold: 7.5 },
+        { text: '保罗站在亚略‧巴古当中，说：「……我游行的时候，观看你们所敬拜的，遇见一座坛，上面写着『未识之神』。你们所不认识而敬拜的，我现在告诉你们。」', ref: '使徒行传 17:22–23', hold: 8.5,
+          talk: [['paul', 0.3, 1, 'proclaim', 'ath']] },
+        { text: '「要叫他们寻求神，或者可以揣摩而得，其实他离我们各人不远；我们生活、动作、存留，都在乎他。」', ref: '使徒行传 17:27–28', hold: 7.5, who: 'paul', to: 'ath', how: 'proclaim' },
         { text: '但有几个人贴近他，信了主……', ref: '使徒行传 17:34', hold: 4.5 },
       ],
       apply(c) {
@@ -2366,28 +2473,46 @@
             walk('paul', X('athens')[1], { speed: 0.022, pose: 'gaze' });
             crowd('ath', { n: 6, x0: X('stoa')[0] - 0.02, x1: X('stoa')[1], label: '雅典人' });
           }],
+          // 满城都是偶像，就心里着急：他一面走，一面叹息
+          [4.6, () => gest('paul', 'sigh')],
+          [7.4, () => gest('paul', 'sigh')],
           [8.8, b => {
             flyTo('paul', rockTop(), 1.4, 'stand');
             crowdWalk('ath', X('near7')[0], X('near7')[1], { speed: 0.03 });
             crowd('ath2', { n: 4, x0: 1.0, x1: 1.08, label: '雅典人' });
             crowdWalk('ath2', X('near7')[2], X('near7')[3], { speed: 0.035 });
           }],
-          [11.2, b => { pose('paul', 'raise'); face('paul', -1); }],
-          [12, b => { lv('jyAltar', 1, b); const G = altarG(); nameAt(b, '未识之神', G.x, G.g - G.h - 1.35 * G.B, [236, 214, 170], 4); sfx(b, 'write', { soft: true }); }],
-          [15.4, b => { crowdFaceX('ath', X('rock')); crowdFaceX('ath2', X('rock')); }],
+          // 保罗站在亚略‧巴古当中，向众人讲论
+          [10.4, b => { face('paul', -1); }],
+          [11.4, () => heed(['ath', 'ath2'], 'paul', { spread: 1.4 })],
+          // 「遇见一座坛，上面写着『未识之神』」：他伸手指着那坛
+          [12, b => { lv('jyAltar', 1, b); const G = altarG(); nameAt(b, '未识之神', G.x, G.g - G.h - 1.35 * G.B, [236, 214, 170], 4); sfx(b, 'write', { soft: true }); gest('paul', 'point', { dur: 2.6 }); }],
+          [12.6, () => heed('ath', X('altar'), { spread: 1 })],
+          [14.8, () => heed('ath', 'paul', { spread: 1 })],
+          [15.4, b => { crowdFaceX('ath', X('rock')); crowdFaceX('ath2', X('rock')); stir(['ath', 'ath2'], 'nod', { spread: 1.6, share: 0.4 }); }],
+          // 「我们生活、动作、存留，都在乎他」：他两手向天，金色的气息吹过全地
           [19, b => {
             lv('jyKnown', 1, b); lv('bloom', 0.9, b); lv('grass', 0.75, b); lv('bare', 0.15, b); lv('jyAltar', 0, b);
             flashAt(b, 'paul', [255, 236, 190], 40);
             if (!inst(b)) { const f = fpos('paul'); if (f) safe('jy.known', () => fx().ring(f.x, f.y - f.h, [255, 226, 170], M() * 0.8, 3.2, 2)); }
             W.setPop('bird', 34, X('rock') * W.w, W.h * 0.4, inst(b));
             sfx(b, 'harp'); sfx(b, 'bird', { soft: true });
+            gest('paul', 'reachup');
           }],
+          [19.6, () => stir(['ath', 'ath2'], 'startle', { spread: 1.2, share: 0.6 })],
+          // 有讥诮他的，转身走了（17:32）
+          [22.4, () => stir('ath2', 'refuse', { spread: 0.8, share: 0.75 })],
           [23.4, b => { lv('jyKnown', 0.3, b); pose('paul', 'stand'); crowdWalk('ath2', 1.03, 1.1, { speed: 0.03 }); }],
-          [24.8, b => {
-            add('dionysius', { label: '丢尼修', sex: 'm', age: 'elder', robe: ROBE.dionysius, accent: [150, 60, 60], x: X('rock') - (tall() ? 0.1 : 0.058), facing: 1, glow: 0.2 });
-            add('damaris', { label: '大马哩', sex: 'f', robe: ROBE.damaris, hair: 'veil', x: X('rock') + (tall() ? 0.1 : 0.062), facing: -1, glow: 0.2 });
+          // 但有几个人贴近他，信了主：丢尼修、大马哩自人群里走近，跪下
+          [25.6, b => {
+            add('dionysius', { label: '丢尼修', sex: 'm', age: 'elder', robe: ROBE.dionysius, accent: [150, 60, 60], x: X('rock') - (tall() ? 0.13 : 0.085), facing: 1, glow: 0.2 });
+            add('damaris', { label: '大马哩', sex: 'f', robe: ROBE.damaris, hair: 'veil', x: X('rock') + (tall() ? 0.13 : 0.09), facing: -1, glow: 0.2 });
+            walk('dionysius', X('rock') - (tall() ? 0.1 : 0.058), { speed: 0.02 }); walk('damaris', X('rock') + (tall() ? 0.1 : 0.062), { speed: 0.02 });
           }],
-          [26.8, b => { glowP('dionysius', 0.42); glowP('damaris', 0.42); pose('dionysius', 'kneel'); pose('damaris', 'kneel'); lampOn(b, 6, 'paul'); crowdRm('ath2'); }],
+          [27.6, b => { face('dionysius', 1); face('damaris', -1); face('paul', 1); crowdRm('ath2'); }],
+          [28.4, b => { glowP('dionysius', 0.42); glowP('damaris', 0.42); pose('dionysius', 'kneel'); pose('damaris', 'kneel'); lampOn(b, 6, 'paul'); }],
+          [29.2, () => { pose('paul', 'bless'); }],
+          [30.6, () => { pose('paul', 'stand'); gest('damaris', 'bowhead'); }],
         ]);
       },
     },
@@ -2409,22 +2534,40 @@
             add('aquila', { label: '亚居拉', sex: 'm', robe: ROBE.aquila, accent: [196, 176, 146], beard: true, x: X('aquila'), facing: 1, pose: 'sit', glow: 0.18 });
             add('prisca', { label: '百基拉', sex: 'f', robe: ROBE.prisca, accent: [214, 196, 176], hair: 'veil', x: X('prisca'), facing: -1, pose: 'sit', glow: 0.18 });
           }],
+          // 亚居拉、百基拉坐在帐棚边缝帐棚；保罗走来，亚居拉抬头点头接他
           [2.2, b => { reAdd('paul', 'paul', paulLook({ x: X('tents')[0] - 0.1, facing: 1 })); walk('paul', X('paul8'), { speed: 0.035 }); }],
-          [6.4, b => { pose('paul', 'sit'); face('paul', 1); }],
+          [2.6, () => { gest('aquila', 'scribble'); gest('prisca', 'scribble'); }],
+          [4.6, () => { face('aquila', 'paul'); gest('aquila', 'beckon'); }],
+          [5.6, () => gest('prisca', 'nod')],
+          // 同住做工：三人坐着，一针一针地缝
+          [6.4, b => { pose('paul', 'sit'); face('paul', 1); face('aquila', 1); }],
           [7, b => { time(0.97, 5, b); }],
+          [7.4, () => { gest('paul', 'scribble'); gest('aquila', 'scribble'); }],
+          [7.9, () => gest('prisca', 'scribble')],
           [8.8, b => { walk('aquila', X('corHouses')[0], { speed: 0.035 }); walk('prisca', X('corHouses')[0] + 0.02, { speed: 0.035 }); S.lampX = X('paul8') + 0.024; lv('jyLamp', 1, b); }],
           [10.6, b => { rm('aquila'); rm('prisca'); pose('paul', 'kneel'); }],
+          // 夜间，主在异象中站在他旁边：他先是一惊，发抖，又仰起脸来
           [11.2, b => { S.lordX = X('paul8') + (tall() ? 0.075 : 0.042); S.lordY = 0; lv('jyLord', 1, b); sfx(b, 'angel'); face('paul', 1); glowP('paul', 0.5); }],
+          [11.6, () => gest('paul', 'startle')],
+          [12.4, () => gest('paul', 'tremble')],
           [13.4, b => { pose('paul', 'gaze'); }],
           [15.6, b => { lv('jyCityL', 1, b); sfx(b, 'stars'); sfx(b, 'chime', { soft: true }); }],
+          // 「在这城里我有许多的百姓」：他手搭凉棚，望那一扇一扇亮起的窗
+          [16.4, () => { face('paul', 1); pose('paul', 'look'); }],
+          [18.4, () => { pose('paul', 'stand'); gest('paul', 'nod'); }],
           [19.4, b => { lv('jyLord', 0, b); time(0.4, 6, b); }],
+          // 一年零六个月，将神的道教训他们：左右两边坐着听的人
           [21.2, b => {
             lv('jyLamp', 0, b);
             crowd('cor', { n: 5, x0: X('cor')[0], x1: X('cor')[1], label: '哥林多人', pose: 'sit' });
             crowd('cor2', { n: 5, x0: X('cor')[2], x1: X('cor')[3], label: '哥林多人', pose: 'sit' });
             crowdFaceX('cor', X('paul8')); crowdFaceX('cor2', X('paul8'));
-            pose('paul', 'raise'); glowP('paul', 0.3); lampOn(b, 7, 'paul');
+            pose('paul', 'teach'); glowP('paul', 0.3); lampOn(b, 7, 'paul');
           }],
+          [21.8, () => say('paul', 2.6, { how: 'teach', to: 'cor' })],
+          [23.2, () => stir('cor', 'nod', { spread: 1.4, share: 0.6 })],
+          [24.6, () => say('paul', 2.4, { how: 'teach', to: 'cor2' })],
+          [25.8, () => stir('cor2', 'nod', { spread: 1.2, share: 0.6 })],
         ]);
       },
     },
@@ -2434,7 +2577,7 @@
       verse: [
         { text: '这样有两年之久，叫一切住在亚细亚的，无论是犹太人，是希腊人，都听见主的道。', ref: '使徒行传 19:10', hold: 6.5 },
         { text: '保罗从米利都打发人往以弗所去，请教会的长老来。', ref: '使徒行传 20:17', hold: 5 },
-        { text: '「我凡事给你们作榜样，叫你们知道应当这样劳苦，扶助软弱的人，又当记念主耶稣的话，说：『施比受更为有福。』」', ref: '使徒行传 20:35', hold: 7.5 },
+        { text: '「我凡事给你们作榜样，叫你们知道应当这样劳苦，扶助软弱的人，又当记念主耶稣的话，说：『施比受更为有福。』」', ref: '使徒行传 20:35', hold: 7.5, who: 'paul', to: 'el2', how: 'plead' },
         { text: '保罗说完了这话，就跪下同众人祷告。众人痛哭，抱着保罗的颈项……于是送他上船去了。', ref: '使徒行传 20:36–38', hold: 7 },
       ],
       apply(c) {
@@ -2447,37 +2590,51 @@
             reAdd('paul', 'paul', paulLook({ x: X('paul9'), facing: 1 }));
             reAdd('timothy', 'disciple', timLook({ x: X('tim9'), facing: 1 }));
           }],
-          [5.2, b => {
+          // 亚细亚全地都听见了主的道：保罗望着远山上一盏一盏的灯
+          [3, () => { pose('paul', 'look'); }],
+          [5.6, () => { pose('paul', 'stand'); face('paul', -1); say('paul', 1.6, { to: 'timothy' }); }],
+          // 打发人往以弗所去：提摩太点头，向东边招手；长老们从右边来
+          [7.2, () => { gest('timothy', 'nod'); }],
+          [8.6, b => {
             X('elders').forEach((x, i) => {
               add('el' + i, { label: '以弗所的长老', sex: 'm', age: i % 2 ? 'elder' : 'adult', robe: mix(ROBE.elder, DR(i + 3), 0.5), beard: true, x: 1.03 + i * 0.02, facing: -1, glow: 0.14 });
               walk('el' + i, x, { speed: 0.06 });
             });
           }],
-          [12.4, b => { X('elders').forEach((x, i) => face('el' + i, -1)); pose('paul', 'raise'); face('paul', 1); }],
-          [18, b => {
-            pose('paul', 'point'); glowP('paul', 0.5);
+          [9.6, () => { face('paul', 1); face('timothy', 1); gest('timothy', 'wave'); }],
+          [11, () => { gest('paul', 'beckon'); }],
+          [12.8, b => { X('elders').forEach((x, i) => face('el' + i, -1)); pose('paul', 'stand'); face('paul', 1); gest('el0', 'nod'); }],
+          [13.6, () => stir(X('elders').map((x, i) => 'el' + i), 'bowhead', { spread: 1.6, share: 0.5 })],
+          // 「施比受更为有福」：恳切地劝勉；说到末了，两手向他们递出去
+          [17.4, () => stir(X('elders').map((x, i) => 'el' + i), 'nod', { spread: 1.6, share: 0.5 })],
+          [20.8, b => {
+            gest('paul', 'give', { dur: 2.6 }); glowP('paul', 0.5);
             flashAt(b, 'paul', [255, 232, 190], 30);
             if (!inst(b)) X('elders').forEach((x, i) => { const f = fpos('el' + i); if (f) FXL.push({ type: 'ring', t: 0, dur: 2.2, x: f.x, y: f.y - f.h * 0.5, r: f.h * 1.2, c: [255, 226, 170], w: 1.5, flat: 0.8 }); });
             sfx(b, 'harp');
           }],
-          [21, b => { pose('paul', 'pray'); pose('timothy', 'kneel'); X('elders').forEach((x, i) => pose('el' + i, i % 2 ? 'pray' : 'kneel')); glowP('paul', 0.3); sfx(b, 'weep', { soft: true }); }],
-          [23.2, b => {
+          // 保罗说完了这话，就跪下同众人祷告
+          [23.8, b => { pose('paul', 'pray'); pose('timothy', 'kneel'); glowP('paul', 0.3); }],
+          [24.4, b => { X('elders').forEach((x, i) => pose('el' + i, i % 2 ? 'pray' : 'kneel')); sfx(b, 'weep', { soft: true }); }],
+          // 众人痛哭，抱着保罗的颈项
+          [26.4, b => {
             X('elders').forEach((x, i) => { if (i) pose('el' + i, 'weep'); });
             pose('timothy', 'stand');
             const cc = C(); if (cc && cc.embrace) cc.embrace('paul', 'el0', { weep: true });
           }],
-          [25.2, b => {
+          [28.2, b => {
             const pp = person('paul'), e0 = person('el0'); if (pp) { pp.embrace = null; pp.sobbing = false; } if (e0) { e0.embrace = null; }
             pose('el0', 'weep');
-            walk('paul', X('quay')[0] + 0.012, { speed: 0.045 }); walk('timothy', X('quay')[0] + 0.032, { speed: 0.045 });
+            walk('paul', X('quay')[0] + 0.012, { speed: 0.055 }); walk('timothy', X('quay')[0] + 0.032, { speed: 0.055 });
           }],
-          [26.6, b => {
+          // 于是送他上船：船开了，长老们举手相送
+          [29.8, b => {
             board('paul', 'c'); board('timothy', 'b'); face('paul', 1); face('timothy', 1);
             lv('jySail', 1, b);
             X('elders').forEach((x, i) => pose('el' + i, 'raise'));
           }],
-          [27.2, b => { shipTo('off', b); }],
-          [31.3, b => { lv('jySail', 1, b); }],
+          [30.3, b => { shipTo('off', b); gest('paul', 'wave'); }],
+          [31.3, b => { lv('jySail', 1, b); gest('timothy', 'wave'); }],
         ]);
       },
     },
@@ -2486,7 +2643,8 @@
       kind: 'promise', utter: '放心吧！', cmd: 'route 保罗 --via 耶路撒冷 --to 罗马', ref: '23:11', tint: [236, 232, 255], hold: 2.8,
       verse: [
         { text: '合城都震动，百姓一齐跑来，拿住保罗，拉他出殿……千夫长上前拿住他，吩咐用两条铁链捆锁', ref: '使徒行传 21:30–33', hold: 7 },
-        { text: '保罗就站在台阶上，向百姓摆手，他们都静默无声……「主向我说：『你去吧！我要差你远远地往外邦人那里去。』」', ref: '使徒行传 21:40—22:21', hold: 8 },
+        { text: '保罗就站在台阶上，向百姓摆手，他们都静默无声……「主向我说：『你去吧！我要差你远远地往外邦人那里去。』」', ref: '使徒行传 21:40—22:21', hold: 8,
+          talk: [['paul', 0.56, 1, 'proclaim', 'jer']] },
         { text: '当夜，主站在保罗旁边，说：「放心吧！你怎样在耶路撒冷为我作见证，也必怎样在罗马为我作见证。」', ref: '使徒行传 23:11', hold: 8 },
       ],
       apply(c) {
@@ -2505,18 +2663,27 @@
             crowd('jer', { n: 10, x0: X('jer')[0], x1: X('jer')[1], label: '百姓' });
             crowdFaceX('jer', X('paul10'));
           }],
-          [3, b => { crowdWalk('jer', X('paul10') - 0.08, X('paul10') + 0.075, { speed: 0.04, pose: 'raise' }); sfx(b, 'crowd'); sfx(b, 'shout', { soft: true }); }],
+          // 合城都震动，百姓一齐跑来，喊叫着拿住保罗
+          [3, b => { crowdWalk('jer', X('paul10') - 0.08, X('paul10') + 0.075, { speed: 0.04, pose: 'raise' }); sfx(b, 'crowd'); sfx(b, 'shout', { soft: true }); say('jer', 4, { how: 'proclaim' }); }],
+          [3.8, () => gest('paul', 'startle')],
           [4.2, b => {
             soldier('s1', X('stair')[0] + 0.02); soldier('s2', X('stair')[0] + 0.05);
             add('tribune', { label: '千夫长', sex: 'm', robe: ROBE.tribune, accent: [224, 192, 120], hair: 'short', x: X('stair')[0] + 0.035, facing: -1, glow: 0.16, prop: 'blade' });
             run('s1', X('paul10') + 0.028, { speed: 0.08 }); run('s2', X('paul10') + 0.06, { speed: 0.08 }); walk('tribune', X('paul10') + 0.09, { speed: 0.06 });
           }],
+          // 千夫长上前拿住他，吩咐用两条铁链捆锁
+          [6.4, () => { gest('tribune', 'point'); say('tribune', 1.4, { how: 'proclaim', to: 's1' }); }],
           [7, b => { chain('paul', 's1'); sfx(b, 'chains'); face('s1', -1); crowdWalk('jer', X('jer')[0] - 0.02, X('paul10') - 0.035, { speed: 0.03, pose: 'raise' }); }],
-          [8.6, b => { walk('paul', X('stair')[0], { speed: 0.045 }); walk('s1', X('stair')[0] + 0.02, { speed: 0.045 }); walk('s2', X('stair')[0] - 0.025, { speed: 0.045 }); walk('tribune', X('stair')[0] + 0.045, { speed: 0.045 }); }],
+          [8.6, b => { walk('paul', X('stair')[0], { speed: 0.045 }); walk('s1', X('stair')[0] + 0.02, { speed: 0.045 }); walk('s2', X('stair')[0] - 0.025, { speed: 0.045 }); walk('tribune', X('stair')[0] + 0.045, { speed: 0.045 }); say('jer', 2.4, { how: 'proclaim' }); }],
           [11.6, b => { flyTo('paul', stairTop(), 1.2, 'stand'); const q = stairTop(); flyTo('s1', [q[0] + 0.55 * BU(), q[1]], 1.3, 'stand'); }],
-          [13.2, b => { face('paul', -1); pose('paul', 'raise'); crowdPose('jer', 'stand'); crowdFaceX('jer', X('stair')[1]); }],
-          [16.6, b => { crowdPose('jer', 'raise'); crowdFaceX('jer', X('stair')[1]); sfx(b, 'shout'); }],
+          // 保罗就站在台阶上，向百姓摆手，他们都静默无声
+          [13.2, b => { face('paul', -1); pose('paul', 'stand'); gest('paul', 'wave'); crowdPose('jer', 'stand'); crowdFaceX('jer', X('stair')[1]); hush('jer'); }],
+          [14.2, () => heed('jer', 'paul', { spread: 1 })],
+          [15.6, () => gest('paul', 'point', { dur: 1.8 })],
+          // 听到「往外邦人那里去」，百姓又喧嚷起来（22:22）
+          [16.6, b => { crowdPose('jer', 'raise'); crowdFaceX('jer', X('stair')[1]); sfx(b, 'shout'); say('jer', 1.4, { how: 'proclaim' }); }],
           [18, b => { time(0.01, 5, b); crowdRm('jer'); rm('s2'); rm('tribune'); pose('paul', 'sit'); face('s1', -1); }],
+          [19, () => gest('paul', 'sigh')],
           [20.2, b => {
             // 主的光站在台阶上、保罗的旁边：脚落在那一级台阶的面上
             const q = stairTop(), G = fortG(), lx = q[0] - (tall() ? 0.06 : 0.028) * W.w;
@@ -2524,7 +2691,12 @@
             S.lordX = lx / W.w; S.lordY = lerp(G.g + 0.1 * G.B, G.land, t) / W.h;
             lv('jyLord', 1, b); sfx(b, 'angel'); face('paul', -1); glowP('paul', 0.45);
           }],
+          [20.6, () => gest('paul', 'startle')],
+          [21.6, () => gest('s1', 'startle')],
+          // 「放心吧！……也必怎样在罗马为我作见证」：他站起来，向西（右边的罗马）远望
           [23.2, b => { pose('paul', 'stand'); lv('jyWest', 1, b); sfx(b, 'harp', { soft: true }); }],
+          [24.4, () => { face('paul', 1); pose('paul', 'look'); }],
+          [26.4, () => { pose('paul', 'stand'); gest('paul', 'nod'); }],
         ]);
       },
     },
@@ -2532,10 +2704,12 @@
     {
       kind: 'call', utter: '从黑暗中归向光明', cmd: 'mv 黑暗 光明  # 比日头还亮', ref: '26:18', tint: [255, 244, 214],
       verse: [
-        { text: '保罗讲论公义、节制，和将来的审判。腓力斯甚觉恐惧，说：「你暂且去吧，等我得便再叫你来。」', ref: '使徒行传 24:25', hold: 6.8 },
-        { text: '保罗说：「……我要上告于凯撒。」非斯都和议会商量了，就说：「你既上告于凯撒，可以往凯撒那里去。」', ref: '使徒行传 25:10–12', hold: 6.3 },
-        { text: '「王啊，我在路上，晌午的时候，看见从天发光，比日头还亮，四面照着我并与我同行的人。」', ref: '使徒行传 26:13', hold: 6.3 },
-        { text: '主说：『……我差你到他们那里去，要叫他们的眼睛得开，从黑暗中归向光明，从撒但权下归向神……』', ref: '使徒行传 26:15–18', hold: 7 },
+        { text: '保罗讲论公义、节制，和将来的审判。腓力斯甚觉恐惧，说：「你暂且去吧，等我得便再叫你来。」', ref: '使徒行传 24:25', hold: 6.8,
+          talk: [['paul', 0.12, 0.45, 'teach', 'felix'], ['felix', 0.58, 1, 'calm', 'paul']] },
+        { text: '保罗说：「……我要上告于凯撒。」非斯都和议会商量了，就说：「你既上告于凯撒，可以往凯撒那里去。」', ref: '使徒行传 25:10–12', hold: 6.3,
+          talk: [['paul', 0.04, 0.32, 'proclaim', 'festus'], ['festus', 0.6, 1, 'proclaim', 'paul']] },
+        { text: '「王啊，我在路上，晌午的时候，看见从天发光，比日头还亮，四面照着我并与我同行的人。」', ref: '使徒行传 26:13', hold: 6.3, who: 'paul', to: 'agrippa', how: 'proclaim' },
+        { text: '主说：『……我差你到他们那里去，要叫他们的眼睛得开，从黑暗中归向光明，从撒但权下归向神……』', ref: '使徒行传 26:15–18', hold: 7, who: 'paul', to: 'agrippa', how: 'proclaim' },
       ],
       apply(c) {
         ring(c, [255, 244, 214]);
@@ -2551,14 +2725,19 @@
             add('felix', { label: '腓力斯', sex: 'm', robe: ROBE.felix, accent: [150, 60, 80], hair: 'short', x: seatPt(1)[0] / W.w, facing: -1, pose: 'seat', glow: 0.12 });
             attachSeat('felix', 1);
           }],
-          [3, b => { pose('paul', 'raise'); face('paul', 1); }],
-          [5.8, b => { pose('felix', 'point'); }],
+          // 保罗讲论公义、节制和将来的审判；腓力斯坐在座上发抖，摆手叫他暂且去
+          [2.6, b => { pose('paul', 'teach'); face('paul', 1); }],
+          [4.4, () => gest('felix', 'tremble')],
+          [5.6, () => gest('felix', 'refuse')],
           [7.4, b => { time(0.39, 6, b); pose('paul', 'stand'); }],
           [8.2, b => { rm('felix'); }],
-          [10, b => {
+          // 「我要上告于凯撒」：保罗举手上告；非斯都转头与议会商量，然后指着他宣判
+          [9.2, b => {
             add('festus', { label: '非斯都', sex: 'm', robe: ROBE.festus, accent: [120, 60, 60], hair: 'short', x: seatPt(2)[0] / W.w, facing: -1, pose: 'seat', glow: 0.12 });
-            attachSeat('festus', 2); pose('paul', 'raise');
+            attachSeat('festus', 2);
           }],
+          [9.8, () => pose('paul', 'raise')],
+          [11.2, () => { pose('paul', 'stand'); gest('festus', 'lookaround'); }],
           [12.6, b => { pose('festus', 'point'); sfx(b, 'seal', { soft: true }); }],
           [14.6, b => {
             pose('festus', 'seat'); pose('paul', 'stand');
@@ -2569,15 +2748,22 @@
             crowd('pomp', { n: 4, x0: X('hall')[1] - 0.04, x1: X('hall')[1] + 0.02, label: '尊贵人', robe: [150, 64, 60] });
             sfx(b, 'trumpet', { soft: true });
           }],
-          [16.8, b => { pose('paul', 'point'); face('paul', 1); }],
-          [18.2, b => { lv('jyNoon', 1, b); if (!inst(b)) W.flash = 0.45; sfx(b, 'harp'); sfx(b, 'thunder', { soft: true }); }],
-          [21.8, b => { lv('jyNoon', 0.25, b); pose('paul', 'raise'); }],
+          [15.8, () => heed('pomp', 'paul', { spread: 1.2 })],
+          // 「王啊……看见从天发光，比日头还亮」：说到那光，他以臂遮眼，好像又在那正午的路上
+          [16.8, b => { pose('paul', 'stand'); face('paul', 1); }],
+          [18.2, b => { lv('jyNoon', 1, b); if (!inst(b)) W.flash = 0.45; sfx(b, 'harp'); sfx(b, 'thunder', { soft: true }); pose('paul', 'shield'); }],
+          [18.6, () => stir(['agrippa', 'bernice', 'festus', 'pomp'], 'startle', { spread: 1, share: 0.8 })],
+          [20.6, () => pose('paul', 'stand')],
+          [21.8, b => { lv('jyNoon', 0.25, b); gest('bernice', 'bowhead'); }],
+          // 「从黑暗中归向光明」：他举手，昏暗的公厅满了光
           [25.6, b => {
             lv('jyDark', 0, b); lv('jyNoon', 0, b); lv('jyHallLit', 1, b);
-            flashAt(b, 'paul', [255, 244, 220], 36); sfx(b, 'chime');
+            flashAt(b, 'paul', [255, 244, 220], 36); sfx(b, 'chime'); pose('paul', 'raise');
             if (!inst(b)) { const G = hallG(); safe('jy.hallRing', () => fx().ring((G.x0 + G.x1) / 2, G.g - G.H * 0.5, [255, 240, 210], (G.x1 - G.x0), 2.4, 1.6)); }
           }],
-          [28, b => { pose('paul', 'stand'); }],
+          [26.2, () => stir(['agrippa', 'bernice', 'festus'], 'lookaround', { spread: 1.4, share: 0.7 })],
+          [28.4, () => { pose('paul', 'stand'); stir('pomp', 'nod', { spread: 1.2, share: 0.5 }); }],
+          [29.6, () => gest('agrippa', 'sigh')],
         ]);
       },
     },
@@ -2588,7 +2774,8 @@
         { text: '……叫我们坐船往意大利去，便将保罗和别的囚犯交给御营里的一个百夫长，名叫犹流。', ref: '使徒行传 27:1', hold: 6 },
         { text: '不多几时，狂风从岛上扑下来；那风名叫「友拉革罗」。船被风抓住，敌不住风，我们就任风刮去。', ref: '使徒行传 27:14–15', hold: 7 },
         { text: '太阳和星辰多日不显露，又有狂风大浪催逼，我们得救的指望就都绝了。', ref: '使徒行传 27:20', hold: 5.5 },
-        { text: '「因我所属所事奉的神，他的使者昨夜站在我旁边，说：『保罗，不要害怕，你必定站在凯撒面前，并且与你同船的人，神都赐给你了。』」', ref: '使徒行传 27:23–24', hold: 8.5 },
+        { text: '「因我所属所事奉的神，他的使者昨夜站在我旁边，说：『保罗，不要害怕，你必定站在凯撒面前，并且与你同船的人，神都赐给你了。』」', ref: '使徒行传 27:23–24', hold: 8.5,
+          talk: [['paul', 0.2, 1, 'proclaim', 'julius']] },
       ],
       apply(c) {
         ring(c, [214, 226, 255]);
@@ -2602,6 +2789,8 @@
             walk('paul', q[0] + 0.02, { speed: 0.04 }); walk('s1', q[0] + 0.035, { speed: 0.04 });
             walk('julius', q[0] + 0.01, { speed: 0.045 }); walk('aristarchus', q[0] + 0.045, { speed: 0.045 }); walk('pr3', q[0] + 0.06, { speed: 0.045 });
           }],
+          // 交给百夫长犹流：犹流指着船，吩咐上船
+          [1.6, () => { gest('julius', 'point'); say('julius', 1.4, { how: 'proclaim', to: 's1' }); }],
           [3.6, b => {
             board('julius', 'a'); board('aristarchus', 'b'); board('s1', 'f'); board('paul', 'c'); board('pr3', 'e');
             ['julius', 'aristarchus', 's1', 'paul', 'pr3'].forEach(id => face(id, 1));
@@ -2609,27 +2798,41 @@
           }],
           [5, b => { lv('jySail', 1, b); lv('gale', 0.25, b); lv('clouds', 0.55, b); sfx(b, 'wave', { soft: true }); }],
           [6.6, b => { toPlace('crete', b); shipTo('sea', b); }],
+          // 友拉革罗：船被风抓住；众人惊惧，伏在甲板上
           [8.6, b => {
             lv('gale', 1, b); lv('storm', 0.9, b); lv('rain', 0.55, b); lv('clouds', 1, b); lv('jyStorm', 1, b);
             time(0.86, 6, b); sfx(b, 'wind'); sfx(b, 'thunder'); sfx(b, 'wave');
           }],
-          [9.6, b => { bolt(b, 0.78); }],
-          [10.8, b => { ['aristarchus', 'pr3', 'julius', 'paul'].forEach(id => pose(id, 'kneel')); }],
+          [9.6, b => { bolt(b, 0.78); stir(['aristarchus', 'pr3', 'julius', 's1', 'sailor1'], 'startle', { spread: 0.6 }); }],
+          [10.8, b => { pose('aristarchus', 'kneel'); pose('pr3', 'cower'); pose('julius', 'kneel'); pose('paul', 'kneel'); }],
           [13.4, b => { bolt(b, 0.62, true); }],
           [17.4, b => { bolt(b, 0.9); }],
           [20.2, b => { bolt(b, 0.7, true); sfx(b, 'thunder'); }],
-          [11.6, b => { lv('jySail', 0, b); pose('sailor2', 'carry'); }],
+          // 落篷，抛货：水手弯腰搬起货物，一件一件抛进海里
+          [11.4, b => { lv('jySail', 0, b); pose('sailor2', 'stoop'); gest('sailor1', 'point'); }],
+          [12.3, () => { pose('sailor2', 'stand'); gest('sailor2', 'cast'); }],
           [12.8, b => { crates(b); sfx(b, 'splash'); }],
-          [14.4, b => { crates(b); sfx(b, 'splash'); pose('sailor2', 'stand'); }],
+          [13.4, () => pose('sailor2', 'stoop')],
+          [14, () => { pose('sailor2', 'stand'); gest('sailor2', 'cast'); }],
+          [14.4, b => { crates(b); sfx(b, 'splash'); }],
+          // 太阳和星辰多日不显露，得救的指望就都绝了
           [15.6, b => { time(0.96, 5, b); lv('gloom', 0.3, b); ['aristarchus', 'pr3'].forEach(id => pose(id, 'weep')); ['julius', 'aristarchus', 'pr3', 's1', 'sailor1', 'sailor2'].forEach(id => glowP(id, 0.3)); glowP('paul', 0.4); sfx(b, 'thunder'); }],
+          [17.6, () => { gest('sailor1', 'lookaround'); gest('julius', 'sigh'); }],
+          [19, () => { pose('paul', 'pray'); gest('s1', 'sigh'); }],
+          [20.4, () => gest('sailor2', 'bowhead')],
+          // 他的使者昨夜站在我旁边：使者向他说话；保罗起来，转身把这话告诉同船的人
           [22.4, b => {
             add('angel', { label: '神的使者', sex: 'm', angel: true, glow: 1, x: deckPt('d')[0] / W.w, from: 'light', facing: -1 });
             board('angel', 'd'); face('angel', -1);
             lv('jyAngel', 1, b); sfx(b, 'angel');
             pose('paul', 'stand'); face('paul', 1); glowP('paul', 0.5);
           }],
-          [26.6, b => { pose('paul', 'raise'); face('paul', -1); ['aristarchus', 'pr3', 'julius'].forEach(id => pose(id, 'stand')); }],
+          [23, () => say('angel', 1.8, { to: 'paul', how: 'calm' })],
+          [24.8, () => { face('paul', -1); }],
+          [26.6, b => { ['aristarchus', 'pr3', 'julius'].forEach(id => pose(id, 'stand')); heed(['aristarchus', 'pr3', 'julius', 's1', 'sailor1', 'sailor2'], 'paul', { spread: 1.2 }); }],
+          [28.6, () => { stir(['aristarchus', 'julius', 'sailor1'], 'nod', { spread: 1.4, share: 0.7 }); }],
           [29.8, b => { rm('angel'); delete S.aboard.angel; lv('jyAngel', 0.45, b); glowP('paul', 0.34); }],
+          [31.4, () => { pose('paul', 'raise'); }],
         ]);
       },
     },
@@ -2649,18 +2852,30 @@
             time(0.16, 6, b); lv('storm', 0.45, b); lv('rain', 0.2, b); lv('gale', 0.5, b); lv('gloom', 0.25, b); lv('jyStorm', 0.5, b); lv('jyAngel', 0, b);
             S.breadId = 'paul';
           }],
+          // 在众人面前拿着饼，举起来祝谢了神
           [0.8, b => { pose('paul', 'raise'); lv('jyBread', 1, b); sfx(b, 'chime', { soft: true }); glowP('paul', 0.45); }],
+          [1.2, () => heed(['aristarchus', 'pr3', 'julius', 's1', 'sailor1', 'sailor2'], 'paul', { spread: 1.2 })],
+          // 擘开吃：众人也都放下心来（27:36）
           [3.2, b => { pose('paul', 'stand'); ['aristarchus', 'pr3', 'julius', 's1'].forEach(id => pose(id, 'stand')); sfx(b, 'harp', { soft: true }); }],
+          [3.6, () => gest('paul', 'break')],
+          [4.8, () => stir(['aristarchus', 'pr3', 'julius', 's1', 'sailor1', 'sailor2'], 'nod', { spread: 1.4, share: 0.7 })],
           [5.8, b => { lv('jyBread', 0, b); glowP('paul', 0.3); }],
           [6.8, b => { time(0.29, 8, b); lv('storm', 0.05, b); lv('rain', 0, b); lv('gloom', 0, b); lv('gale', 0.35, b); lv('clouds', 0.5, b); lv('jyStorm', 0.22, b); }],
+          // 天亮了：但见一个海湾，有岸可登——水手指着岸，众人远望，商议
           [8, b => { toPlace('malta', b); }],
-          [11.4, b => { lv('jySail', 0.45, b); shipTo('reef', b); sfx(b, 'wave', { soft: true }); }],
+          [8.8, () => { gest('sailor1', 'point'); heed(['julius', 'aristarchus', 'pr3', 'paul'], 0.95, { spread: 1 }); }],
+          [9.6, () => { pose('julius', 'look'); }],
+          [10.6, () => { say('sailor1', 1.8, { to: 'sailor2' }); }],
+          [11.4, b => { lv('jySail', 0.45, b); shipTo('reef', b); sfx(b, 'wave', { soft: true }); say('sailor2', 1.4, { to: 'sailor1' }); }],
+          [12.8, () => { pose('julius', 'stand'); gest('julius', 'nod'); }],
+          // 船搁了浅，船尾被浪冲坏：众人一惊，伏下
           [15.4, b => {
             lv('jyWreck', 1, b); lv('jySail', 0, b); lv('jyStorm', 0, b);
             if (!inst(b)) { W.shake = 0.7; planks(); }
             sfx(b, 'collapse'); sfx(b, 'shatter', { soft: true }); sfx(b, 'wave');
-            ['aristarchus', 'pr3', 'julius', 's1', 'paul', 'sailor1', 'sailor2'].forEach(id => pose(id, 'kneel'));
+            stir(['aristarchus', 'pr3', 'julius', 's1', 'paul', 'sailor1', 'sailor2'], 'startle', { spread: 0.4 });
           }],
+          [15.8, () => { ['aristarchus', 'julius', 's1', 'paul', 'sailor1', 'sailor2'].forEach(id => pose(id, 'kneel')); pose('pr3', 'cower'); }],
           [17.6, b => {
             unchain('paul', b);
             const A = X('shore13');
@@ -2670,13 +2885,19 @@
           }],
           [19, b => { const A = X('shore13'); ashore(b, 's1', A.s1); ashore(b, 'aristarchus', A.aristarchus); ashore(b, 'pr3', A.pr3); sfx(b, 'splash'); }],
           [20.4, b => { ashore(b, 'paul', X('shore13').paul); sfx(b, 'splash', { soft: true }); }],
+          [21, () => { gest('julius', 'beckon'); gest('sailor1', 'lookaround'); }],
+          // 众人都上了岸：同船的人也从水里上来；一个个松了一口气，四下张望
           [21.8, b => { crowd('saved', { n: 12, x0: X('saved')[0], x1: X('saved')[1], label: '同船的人' }); }],
+          [22.6, () => { stir(['aristarchus', 'pr3', 's1', 'sailor2'], 'sigh', { spread: 1.4 }); stir('saved', 'lookaround', { spread: 1.6, share: 0.5 }); }],
+          // 这样，众人都得了救：保罗跪下感谢，众人也都跪下
           [24.2, b => {
             flashAt(b, 'paul', [255, 240, 210], 30);
             if (!inst(b)) { const r = X('saved'), mx = (r[0] + r[1]) / 2; safe('jy.savedRing', () => fx().ring(mx * W.w, gY(mx * W.w) - H2() * 0.5, [255, 236, 200], (r[1] - r[0] + 0.2) * W.w, 2.6, 1.6)); }
             pose('paul', 'pray'); crowdPose('saved', 'kneel'); sfx(b, 'harp');
           }],
-          [27.2, b => { pose('paul', 'stand'); crowdPose('saved', 'stand'); }],
+          [24.8, () => { pose('aristarchus', 'pray'); pose('pr3', 'kneel'); pose('julius', 'kneel'); }],
+          [27.2, b => { pose('paul', 'stand'); crowdPose('saved', 'stand'); ['aristarchus', 'pr3', 'julius'].forEach(id => pose(id, 'stand')); }],
+          [28.4, () => stir('saved', 'nod', { spread: 1.6, share: 0.5 })],
         ]);
       },
     },
@@ -2704,26 +2925,39 @@
             walk('paul', X('fire') - 0.045, { speed: 0.03 }); walk('julius', X('fire') + 0.05, { speed: 0.03 });
             walk('s1', X('fire') - 0.075, { speed: 0.03 }); walk('aristarchus', X('fire') - 0.1, { speed: 0.03 });
           }],
+          // 下雨，天又冷：土人招手请他们到火边来；落难的人冷得发抖
           [3.8, b => { lv('jyFire', 1, b); sfx(b, 'fire'); }],
-          [6.4, b => { crowdFaceX('isl', X('fire')); crowdFaceX('saved', X('fire')); face('paul', 1); }],
-          [8.8, b => { propP('paul', 'wood'); walk('paul', X('fire') - 0.022, { speed: 0.018, pose: 'carry' }); }],
-          [10.8, b => {
+          [4.6, () => { stir('isl', 'beckon', { spread: 1.4, share: 0.6 }); gest('s1', 'tremble'); }],
+          [5.4, () => { gest('aristarchus', 'tremble'); heed('saved', 'isl', { spread: 1.2 }); }],
+          [6.4, b => { crowdFaceX('isl', X('fire')); crowdFaceX('saved', X('fire')); face('paul', 1); stir('saved', 'nod', { spread: 1.6, share: 0.5 }); }],
+          // 保罗拾起一捆柴，放在火上
+          [8.2, () => { pose('paul', 'stoop'); }],
+          [9.4, b => { propP('paul', 'wood'); walk('paul', X('fire') - 0.022, { speed: 0.018, pose: 'carry' }); }],
+          [10.9, b => {
             propP('paul', null); pose('paul', 'stand'); face('paul', 1);
             if (!inst(b)) { const G = fireG(); safe('jy.sparks', () => fx().sparkle(G.x, G.y - 0.4 * G.B, 30, [255, 190, 100], G.B * 0.4, 'air')); }
-            sfx(b, 'fire');
+            sfx(b, 'fire'); gest('paul', 'give', { dur: 1.2 });
           }],
+          // 一条毒蛇因为热了出来，咬住他的手：土人一惊，指着他彼此议论
           [12, b => {
             S.viperId = 'paul'; pose('paul', 'point'); face('paul', 1);
             W.set('jyThrow', 0, true); lv('jyViper', 1, b); sfx(b, 'whisper', { soft: true });
             crowdWalk('isl', X('isl')[0] + 0.02, X('isl')[1] + 0.02, { speed: 0.02, pose: 'point' });
+            stir(['isl', 'saved'], 'startle', { spread: 0.8, share: 0.7 });
           }],
-          [16.8, b => { lv('jyThrow', 1, b); }],
-          [17.7, b => {
+          [13.4, () => { say('isl', 3, { how: 'calm' }); gest('aristarchus', 'startle'); }],
+          [15, () => stir('saved', 'tremble', { spread: 1, share: 0.4 })],
+          // 保罗竟把那毒蛇甩在火里，并没有受伤
+          [17.4, b => { lv('jyThrow', 1, b); }],
+          [18.3, b => {
             lv('jyViper', 0, b); pose('paul', 'stand');
             if (!inst(b)) { const G = fireG(); safe('jy.sparks2', () => fx().sparkle(G.x, G.y - 0.3 * G.B, 40, [255, 170, 80], G.B * 0.5, 'air')); }
             sfx(b, 'fire'); flashAt(b, 'paul', [255, 236, 200], 16);
           }],
-          [20.4, b => { crowdPose('isl', 'raise'); crowdFaceX('isl', X('fire') - 0.02); }],
+          [19.2, () => { hush('isl'); stir('isl', 'startle', { spread: 1, share: 0.8 }); }],
+          // 土人看他并没有受伤，就转念（28:6）：举起手来，又纷纷议论
+          [20.4, b => { crowdPose('isl', 'raise'); crowdFaceX('isl', X('fire') - 0.02); say('isl', 1.6, { how: 'proclaim' }); }],
+          [21.2, () => { gest('julius', 'nod'); }],
           // 部百流的父亲躺在地当中（房子只作背景）；土人退到火边，面向那里
           [22.4, b => {
             lv('rain', 0, b); lv('clouds', 0.35, b); lv('storm', 0, b); lv('gale', 0, b); time(0.48, 6, b);
@@ -2736,11 +2970,15 @@
             walk('julius', H.julius, { speed: 0.045 });
             walk('paul', H.paul, { speed: 0.03 });
           }],
-          // 「手按病人，病人就必好了」：保罗跪下按手，那父亲起来
-          [26, b => { pose('paul', 'kneel'); face('paul', 1); crowdFaceX('isl', X('heal14').father); }],
+          // 「手按病人，病人就必好了」：保罗为他祷告，跪着俯身按手，那父亲起来
+          [24.8, () => { gest('publius', 'beckon'); }],
+          [26, b => { pose('paul', 'pray'); face('paul', 1); crowdFaceX('isl', X('heal14').father); }],
+          [27.2, b => { pose('paul', 'wash'); }],
           [27.6, b => { lv('jyHeal', 1, b); flashAt(b, 'father', [255, 244, 220], 26); sfx(b, 'harp'); }],
           [29, b => { pose('father', 'stand'); pose('paul', 'stand'); glowP('father', 0.36); lampOn(b, 9, 'paul'); }],
-          [30, b => { pose('publius', 'raise'); crowdPose('isl', 'raise'); crowdFaceX('isl', X('heal14').father); }],
+          [29.6, () => { stir('isl', 'startle', { spread: 0.8, share: 0.7 }); }],
+          [30, b => { pose('publius', 'rejoice'); crowdPose('isl', 'raise'); crowdFaceX('isl', X('heal14').father); }],
+          [30.8, () => { face('father', 'paul'); gest('father', 'bowhead'); gest('paul', 'bless'); }],
         ]);
       },
     },
@@ -2749,7 +2987,8 @@
       kind: 'act', utter: '神这救恩，如今传给外邦人', cmd: 'broadcast 救恩 --to 地极  # 并没有人禁止', ref: '28:28', tint: [255, 240, 206],
       verse: [
         { text: '……这样，我们来到罗马。那里的弟兄们一听见我们的信息就出来……迎接我们。保罗见了他们，就感谢神，放心壮胆。', ref: '使徒行传 28:14–15', hold: 7.5 },
-        { text: '「所以你们当知道，神这救恩，如今传给外邦人，他们也必听受。」', ref: '使徒行传 28:28', hold: 6 },
+        { text: '「所以你们当知道，神这救恩，如今传给外邦人，他们也必听受。」', ref: '使徒行传 28:28', hold: 6,
+          talk: [['paul', 0.42, 1, 'proclaim', 'rome']] },
         { text: '保罗在自己所租的房子里住了足足两年。凡来见他的人，他全都接待，', ref: '使徒行传 28:30', hold: 6 },
         { text: '放胆传讲神国的道，将主耶稣基督的事教导人，并没有人禁止。', ref: '使徒行传 28:31', hold: 6.5 },
       ],
@@ -2776,36 +3015,53 @@
               walk(id, X('bro')[i], { speed: 0.06 });
             });
           }],
+          // 弟兄们出来迎接：远远地挥手；保罗下船，与他们相抱，感谢神
+          [6.6, () => { gest('bro1', 'wave'); gest('bro3', 'wave'); }],
           [5.8, b => { lv('jySail', 0, b); ashore(b, 'paul', X('bro')[0] - 0.04); ashore(b, 'julius', X('quay')[0] + 0.01); ashore(b, 'aristarchus', X('quay')[0] + 0.03); }],
-          [8.2, b => { const cc = C(); if (cc && cc.embrace) cc.embrace('paul', 'bro1', {}); }],
+          [8.2, b => { const cc = C(); if (cc && cc.embrace) cc.embrace('paul', 'bro1', {}); stir(['bro2', 'bro3'], 'clap', { spread: 0.8 }); }],
           [9.6, b => {
             const pp = person('paul'), e1 = person('bro1'); if (pp) pp.embrace = null; if (e1) e1.embrace = null;
-            pose('bro1', 'stand'); pose('paul', 'raise'); glowP('paul', 0.5);
+            pose('bro1', 'stand'); pose('paul', 'lift'); glowP('paul', 0.5);
           }],
+          [10.2, () => { gest('aristarchus', 'nod'); gest('bro2', 'bowhead'); }],
+          // 他所租的房子、看守他的兵；犹太人的首领来听
           [10.8, b => {
             pose('paul', 'stand'); walk('paul', X('paul15'), { speed: 0.04 }); rm('julius');
             soldier('guard', X('guard15') + 0.03, { label: '看守他的兵', facing: -1 }); walk('guard', X('guard15'), { speed: 0.03 });
             crowd('rome', { n: 6, x0: X('rome15')[0], x1: X('rome15')[1], label: '犹太人的首领' });
             crowdFaceX('rome', X('paul15'));
           }],
+          [12, () => heed('rome', 'paul', { spread: 1.4 })],
+          // 「神这救恩，如今传给外邦人」：众教会的灯一齐明亮
+          [13.2, b => { chain('paul', 'guard'); face('paul', -1); pose('paul', 'stand'); }],
           [13.6, b => {
-            chain('paul', 'guard'); face('paul', -1); pose('paul', 'raise');
             lv('jyAll', 1, b); flashAt(b, 'paul', [255, 240, 210], 36);
             sfx(b, 'harp'); sfx(b, 'sing', { soft: true });
             lampOn(b, 10, 'paul');
           }],
+          [14.2, () => gest('paul', 'reachup')],
+          // 首领中有信的，有不信的（28:24–25）
+          [15.6, () => { stir('rome', 'refuse', { spread: 1.2, share: 0.4 }); }],
+          [16.2, () => { stir('rome', 'nod', { spread: 1.4, share: 0.4 }); }],
+          // 凡来见他的人，他全都接待：转身招呼右边来的人
           [16.6, b => {
             time(0.74, 12, b); lv('jyOpen', 1, b);
             crowd('rome2', { n: 5, x0: 1.02, x1: 1.1, label: '凡来见他的人' });
             crowdWalk('rome2', X('rome15b')[0], X('rome15b')[1], { speed: 0.03 });
             pose('paul', 'stand');
           }],
+          [19.6, () => { face('paul', 1); gest('paul', 'beckon'); }],
+          [21, () => { stir('rome2', 'nod', { spread: 1.2, share: 0.6 }); gest('guard', 'lookaround'); }],
+          // 放胆传讲神国的道，将主耶稣基督的事教导人，并没有人禁止：看守的兵也站着听
           [23, b => {
             crowdPose('rome', 'sit'); crowdPose('rome2', 'sit'); crowdFaceX('rome', X('paul15')); crowdFaceX('rome2', X('paul15'));
-            pose('paul', 'raise'); glowP('paul', 0.45);
+            pose('paul', 'teach'); glowP('paul', 0.45); face('paul', -1);
             ['bro1', 'bro2', 'bro3', 'aristarchus'].forEach(id => pose(id, 'sit'));
           }],
-          [27, b => { pose('paul', 'point'); }],
+          [24.4, () => say('paul', 3.4, { how: 'teach', to: 'rome' })],
+          [26.4, () => { pose('guard', 'listen'); stir('rome', 'nod', { spread: 1.4, share: 0.5 }); }],
+          [28.2, () => say('paul', 3.4, { how: 'teach', to: 'rome2' })],
+          [30, () => stir('rome2', 'nod', { spread: 1.2, share: 0.5 })],
         ]);
       },
     },

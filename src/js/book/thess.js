@@ -136,6 +136,16 @@
   function shake(b, k) { if (!b.instant) W.shake = Math.max(W.shake || 0, k); }
   function flashW(b, k) { if (!b.instant) W.flash = Math.max(W.flash || 0, k); }
   function avoid(...rs) { W.beastAvoid = rs.map(r => [clamp(Math.min(r[0], r[1]), 0, 1), clamp(Math.max(r[0], r[1]), 0, 1)]); }
+  // 演技：说话、一次性的手势、众人先后转向 / 先后反应（重演时引擎自己什么也不做；attend 立即到位）
+  function say(id, sec, o) { const c = C(); if (c.speak && has(id)) c.speak(id, sec, o); }
+  function gest(id, kind, o) { const c = C(); if (c.gesture && (has(id) || hasCrowd(id))) c.gesture(id, kind, o); }
+  function heed(ids, target, o) { const c = C(); if (c.attend) c.attend(ids, target, o); }
+  function stir(ids, kind, o) { const c = C(); if (c.react) c.react(ids, kind, o); }
+  // 几个人先后换成同一个姿势（各差 gap 秒）：返回情节的拍子（重演时按先后一一到位）
+  const stagger = (ids, ps, t0, gap) => ids.map((id, i) => [t0 + i * (gap == null ? 0.3 : gap), () => pose(id, ps)]);
+  // 耶孙念信：两手在胸前展开书信，低头念（信由本幕画在他手中）
+  const READ = 'read';
+  const others = () => present().filter(id => id !== 'jason');
 
   // 院中的人（有名字的）
   // 拜偶像的人（i1–i3）归向神之后（S.turned）也是信的人：一同被提、戴上光的护心镜与头盔、一同得荣耀
@@ -1216,8 +1226,8 @@
     {
       kind: 'act', utter: '不独在乎言语，也在乎权能和圣灵', cmd: 'light 信 爱 望 --power --holy-spirit', ref: '1:5',
       verse: [
-        { text: '在神我们的父面前，不住地记念你们<br>因信心所做的工夫，因爱心所受的劳苦，因盼望我们主耶稣基督所存的忍耐。', ref: '帖撒罗尼迦前书 1:3', hold: 8 },
-        { text: '因为我们的福音传到你们那里，不独在乎言语，<br>也在乎权能和圣灵，并充足的信心。', ref: '帖撒罗尼迦前书 1:5', hold: 6.5 },
+        { text: '在神我们的父面前，不住地记念你们<br>因信心所做的工夫，因爱心所受的劳苦，因盼望我们主耶稣基督所存的忍耐。', ref: '帖撒罗尼迦前书 1:3', hold: 8, who: 'jason', how: 'calm' },
+        { text: '因为我们的福音传到你们那里，不独在乎言语，<br>也在乎权能和圣灵，并充足的信心。', ref: '帖撒罗尼迦前书 1:5', hold: 6.5, who: 'jason', how: 'proclaim' },
       ],
       apply(c) {
         T(c, [
@@ -1228,19 +1238,33 @@
             faceLamps();
             W.goTo(0.015, 12, b.instant);
           }],
+          // 1:3 耶孙展开书信，低头念；院中的人先后静听
+          [0.3, () => pose('jason', READ)],
+          ...stagger(['aris', 'mourn', 'mother', 'child', 'sec'], 'listen', 0.8, 0.35),
           [1.6, b => { W.set('thL1', 1, b.instant); const p = lampPts()[0]; nameAt(b, '信', X.lamps - (PORT ? 0.12 : 0.05), PORT ? 0.52 : 0.52, { src: () => [p[0], p[1] - 4] }); sfx(b, 'chime'); }],
+          [2.4, () => gest('aris', 'nod')],
           [3.6, b => { W.set('thL2', 1, b.instant); const p = lampPts()[1]; nameAt(b, '爱', X.lamps, PORT ? 0.49 : 0.48, { src: () => [p[0], p[1] - 4] }); sfx(b, 'chime'); }],
+          [4.4, () => gest('mother', 'nod')],
           [5.6, b => { W.set('thL3', 1, b.instant); const p = lampPts()[2]; nameAt(b, '望', X.lamps + (PORT ? 0.12 : 0.05), PORT ? 0.52 : 0.52, { src: () => [p[0], p[1] - 4] }); sfx(b, 'chime'); }],
-          // 也在乎权能和圣灵：灯火一涨，光照在每一个人身上
+          [6.4, () => gest('mourn', 'sigh')],
+          // 城东头庙前拜偶像的人，隐约听见什么，回头张望
+          [7, () => gest('i1', 'lookaround')],
+          // 也在乎权能和圣灵：灯火一涨，光照在每一个人身上——众人一惊，一个接一个跪下、合掌、举手
           [9.8, b => {
             const p = lampPts()[1];
             ringAt(b, p[0], p[1], 0.3, [255, 236, 190], 2.6, 2);
             sparkleAt(b, p[0], p[1] - 10, 30, [255, 240, 210], 20);
             all(id => glow(id, 0.4));
-            pose('mourn', 'kneel'); pose('mother', 'kneel'); pose('child', 'kneel');
-            pose('aris', 'pray'); pose('sec', 'raise'); pose('jason', 'carry');
+            pose('jason', READ);
             sfx(b, 'bell', { soft: true });
           }],
+          [9.9, () => stir(['aris', 'mourn', 'mother', 'child', 'sec'], 'startle', { share: 0.5, spread: 0.6 })],
+          [10.4, () => pose('mourn', 'kneel')],
+          [10.8, () => pose('mother', 'kneel')],
+          [11.1, () => pose('child', 'kneel')],
+          [11.5, () => pose('aris', 'pray')],
+          [11.9, () => pose('sec', 'raise')],
+          [13, () => stir(['i1', 'i2', 'i3'], 'lookaround', { share: 0.7, spread: 1.2 })],
         ]);
       },
     },
@@ -1249,8 +1273,8 @@
     {
       kind: 'act', utter: '要服事那又真又活的神', cmd: 'rm -rf 偶像/ && serve --god 又真又活', ref: '1:9',
       verse: [
-        { text: '因为主的道从你们那里已经传扬出来。你们向神的信心不但在马其顿和亚该亚，<br>就是在各处也都传开了……', ref: '帖撒罗尼迦前书 1:8', hold: 7.5 },
-        { text: '……你们是怎样离弃偶像，归向神，要服事那又真又活的神，<br>等候他儿子从天降临……', ref: '帖撒罗尼迦前书 1:9–10', hold: 7.5 },
+        { text: '因为主的道从你们那里已经传扬出来。你们向神的信心不但在马其顿和亚该亚，<br>就是在各处也都传开了……', ref: '帖撒罗尼迦前书 1:8', hold: 7.5, who: 'jason', how: 'proclaim' },
+        { text: '……你们是怎样离弃偶像，归向神，要服事那又真又活的神，<br>等候他儿子从天降临……', ref: '帖撒罗尼迦前书 1:9–10', hold: 7.5, who: 'jason', how: 'calm' },
       ],
       apply(c) {
         T(c, [
@@ -1260,17 +1284,26 @@
             W.set('thWord', 1, b.instant);
             W.goTo(0.04, 16, b.instant);
             all(id => pose(id, 'stand'));
-            pose('jason', 'carry');
+            pose('jason', READ);
             sfx(b, 'bell', { soft: true });
           }],
+          // 主的道传扬出去：远处一处一处亮起灯来——西公都转身指着马其顿，亚里达古指着亚该亚；众人点头
           [2.2, b => nameAt(b, '马其顿', PORT ? 0.72 : 0.84, PORT ? 0.53 : 0.47, { hold: 3.4 })],
+          [2.5, () => { face('sec', 1); gest('sec', 'point'); }],
+          [3.6, () => stir(['mourn', 'mother', 'child'], 'nod', { share: 0.7, spread: 1 })],
+          [4.8, () => face('sec', -1)],
           [5.2, b => nameAt(b, '亚该亚', PORT ? 0.3 : 0.3, PORT ? 0.56 : 0.5, { hold: 3.4 })],
-          // 离弃偶像：拜偶像的人站起来，转身；祭坛的火熄了
+          [5.5, () => { face('aris', -1); gest('aris', 'point'); }],
+          [7.6, () => { face('aris', X.lamps); gest('child', 'leap'); }],
+          // 离弃偶像：拜偶像的人站起来，向偶像摆手不认，转身；祭坛的火熄了
           [9.2, b => {
-            ['i1', 'i2', 'i3'].forEach(id => { pose(id, 'stand'); face(id, -1); });
+            ['i1', 'i2', 'i3'].forEach(id => { pose(id, 'stand'); });
             W.set('thAltar', 0, b.instant);
             sfx(b, 'whisper', { soft: true });
           }],
+          [9.6, () => { gest('i1', 'refuse'); gest('i3', 'refuse'); }],
+          [10, () => ['i1', 'i2', 'i3'].forEach(id => face(id, -1))],
+          [10.6, () => stir(['i1', 'i2', 'i3', 'aris', 'sec'], 'startle', { share: 0.6, spread: 0.6 })],
           [10.4, b => {
             W.set('thIdol', 0, b.instant);
             S.turned = 1;
@@ -1290,11 +1323,17 @@
             walk('i2', X.t2, { speed: 0.045, pose: 'stand' });
             walk('i3', X.t3, { speed: 0.04, pose: 'stand' });
           }],
-          // 等候他儿子从天降临：众人抬头
+          // 归向神：院中的人转过来看他们走进灯光里；西公都招手迎他们
+          [11.6, () => heed(['aris', 'mourn', 'mother', 'child', 'sec'], 'i2', { spread: 1.2 })],
+          [12.2, () => gest('sec', 'beckon')],
+          [13.2, () => stir(['mourn', 'mother'], 'nod', { spread: 0.8 })],
+          // 等候他儿子从天降临：众人先后抬头望天；西公都手搭凉棚
           [14.2, b => {
-            for (const id of ['aris', 'mourn', 'mother', 'child', 'jason', 'sec']) { face(id, -1); pose(id, 'gaze'); }
-            for (const id of ['i1', 'i2', 'i3']) { face(id, -1); pose(id, 'gaze'); }
+            for (const id of ['aris', 'mourn', 'mother', 'child', 'jason', 'sec']) face(id, -1);
+            for (const id of ['i1', 'i2', 'i3']) face(id, -1);
           }],
+          ...stagger(['aris', 'mourn', 'mother', 'child', 'jason', 'i1', 'i2', 'i3'], 'gaze', 14.2, 0.2),
+          [14.6, () => pose('sec', 'look')],
         ]);
       },
     },
@@ -1303,14 +1342,14 @@
     {
       kind: 'act', utter: '这道实在是神的', cmd: 'cat 书信 | run --in 信主的人心中', ref: '2:13',
       verse: [
-        { text: '只在你们中间存心温柔，如同母亲乳养自己的孩子。<br>我们既是这样爱你们……', ref: '帖撒罗尼迦前书 2:7–8', hold: 6.5 },
-        { text: '……你们听见我们所传神的道就领受了；不以为是人的道，乃以为是神的道。<br>这道实在是神的，并且运行在你们信主的人心中。', ref: '帖撒罗尼迦前书 2:13', hold: 8.5 },
+        { text: '只在你们中间存心温柔，如同母亲乳养自己的孩子。<br>我们既是这样爱你们……', ref: '帖撒罗尼迦前书 2:7–8', hold: 6.5, who: 'jason', how: 'calm' },
+        { text: '……你们听见我们所传神的道就领受了；不以为是人的道，乃以为是神的道。<br>这道实在是神的，并且运行在你们信主的人心中。', ref: '帖撒罗尼迦前书 2:13', hold: 8.5, who: 'jason', how: 'proclaim' },
       ],
       apply(c) {
         T(c, [
           [0, b => {
             W.set('thScroll', 1, b.instant);
-            pose('jason', 'carry'); face('jason', -1);
+            pose('jason', READ); face('jason', -1);
             for (const id of ['aris', 'mourn', 'mother', 'child', 'sec', 'i1', 'i2', 'i3']) { pose(id, 'stand'); }
             faceLamps(['aris', 'mourn', 'mother', 'child', 'i1']);
             face('sec', -1); face('i2', -1); face('i3', -1);
@@ -1319,6 +1358,14 @@
           }],
           // 如同母亲乳养自己的孩子
           [1.6, b => { glow('mother', 0.5); ringOn(b, 'mother', 0.1, [255, 222, 190], 0.55); pose('mother', 'sit'); face('mother', 1); }],
+          // 她低头看怀里的婴孩；孩子挨着她坐下，伸手摸一摸小弟弟
+          [2.8, () => gest('mother', 'bowhead', { dur: 2.6 })],
+          [3.2, () => { pose('child', 'sit'); face('child', 'mother'); }],
+          [4.8, () => gest('child', 'touch')],
+          [5.8, () => gest('mother', 'nod')],
+          [6.4, () => stir(['aris', 'mourn', 'sec'], 'nod', { share: 0.6, spread: 1 })],
+          // 2:13 领受了：众人先后静听
+          ...stagger(['aris', 'mourn', 'sec', 'i1', 'i2', 'i3'], 'listen', 8, 0.3),
           // 这道实在是神的：道自信上发光，一缕缕进到人心里
           [9.4, b => {
             const p = figPt('jason', 0.62) || [X.jason * W.w, W.h * 0.8];
@@ -1330,11 +1377,18 @@
             ['aris', 'mourn', 'mother', 'child', 'sec', 'i1', 'i2', 'i3'].forEach((id, i) => { if (has(id)) trans(b, { type: 'stream', from, to: id, t: -i * 0.22, dur: 2.6, seed: i }); });
             sfx(b, 'harp');
           }],
+          // 光一缕一缕进到听的人心里：他们一惊，又一个一个低头、合掌、跪下
+          [13.6, () => stir(['aris', 'mourn', 'sec', 'i1', 'i2', 'i3'], 'startle', { share: 0.4, spread: 0.8 })],
           [14.2, b => {
             for (const id of ['aris', 'mourn', 'child', 'sec', 'i1', 'i2', 'i3']) glow(id, 0.44);
             glow('mother', 0.46);
-            pose('aris', 'bow'); pose('i1', 'pray'); pose('i2', 'bow'); pose('mourn', 'pray'); pose('child', 'kneel');
           }],
+          [14.3, () => pose('aris', 'bow')],
+          [14.6, () => pose('i1', 'pray')],
+          [14.9, () => pose('i2', 'bow')],
+          [15.2, () => pose('mourn', 'pray')],
+          [15.5, () => pose('child', 'kneel')],
+          [15.8, () => { pose('sec', 'stand'); pose('i3', 'stand'); gest('sec', 'nod'); }],
         ]);
       },
     },
@@ -1343,9 +1397,9 @@
     {
       kind: 'act', utter: '你们自己蒙了神的教训，叫你们彼此相爱', cmd: 'while (患难) { stand --firm; love++; }', ref: '4:9',
       verse: [
-        { text: '……免得有人被诸般患难摇动。<br>因为你们自己知道，我们受患难原是命定的。', ref: '帖撒罗尼迦前书 3:3', hold: 6 },
-        { text: '你们若靠主站立得稳，我们就活了。', ref: '帖撒罗尼迦前书 3:8', hold: 4.5 },
-        { text: '论到弟兄们相爱，不用人写信给你们；<br>因为你们自己蒙了神的教训，叫你们彼此相爱。', ref: '帖撒罗尼迦前书 4:9', hold: 6.5 },
+        { text: '……免得有人被诸般患难摇动。<br>因为你们自己知道，我们受患难原是命定的。', ref: '帖撒罗尼迦前书 3:3', hold: 6, who: 'jason', how: 'calm' },
+        { text: '你们若靠主站立得稳，我们就活了。', ref: '帖撒罗尼迦前书 3:8', hold: 4.5, who: 'jason', how: 'proclaim' },
+        { text: '论到弟兄们相爱，不用人写信给你们；<br>因为你们自己蒙了神的教训，叫你们彼此相爱。', ref: '帖撒罗尼迦前书 4:9', hold: 6.5, who: 'jason', how: 'calm' },
       ],
       apply(c) {
         T(c, [
@@ -1354,20 +1408,29 @@
             W.set('gale', 0.85, b.instant); W.set('clouds', 0.72, b.instant);
             W.goTo(0.075, 18, b.instant);
             W.set('thScroll', 0.35, b.instant);
-            for (const id of ['aris', 'mourn', 'child', 'sec', 'i1', 'i2', 'i3']) { pose(id, 'bow'); glow(id, 0.3); }
+            for (const id of ['aris', 'mourn', 'sec', 'i1', 'i2', 'i3']) glow(id, 0.3);
+            glow('child', 0.3);
             pose('mother', 'kneel'); face('mother', 1);
             sfx(b, 'wind');
           }],
-          // 站立得稳
+          // 患难如大风：众人先后弯下腰顶着风，孩子蹲下护着头，有人发抖；耶孙仍念着
+          ...stagger(['aris', 'mourn', 'sec', 'i1', 'i2', 'i3'], 'bow', 0.3, 0.3),
+          [0.5, () => pose('child', 'cower')],
+          [2, () => stir(['aris', 'mourn', 'child', 'i1', 'i2', 'i3'], 'tremble', { share: 0.5, spread: 1.2 })],
+          [3.6, () => { face('mother', 'child'); gest('mother', 'touch'); }],
+          [5, () => gest('jason', 'nod')],
+          // 站立得稳：风小了，众人直起腰来；孩子站起，母亲也起来
           [7.4, b => {
             W.set('gale', 0.3, b.instant);
-            for (const id of ['aris', 'mourn', 'mother', 'child', 'sec', 'i1', 'i2', 'i3']) { pose(id, 'stand'); glow(id, 0.4); }
+            for (const id of ['aris', 'mourn', 'mother', 'child', 'sec', 'i1', 'i2', 'i3']) glow(id, 0.4);
             faceLamps();
             face('jason', -1);
             const p = lampPts()[1];
             ringAt(b, p[0], p[1], 0.22, [255, 236, 190], 2.2, 2);
             sfx(b, 'bell', { soft: true });
           }],
+          ...stagger(['aris', 'sec', 'mourn', 'i1', 'i2', 'i3', 'child', 'mother'], 'stand', 7.4, 0.2),
+          [8.8, () => stir(['aris', 'mourn', 'sec', 'i1', 'i2', 'i3'], 'nod', { share: 0.6, spread: 1 })],
           [9.4, b => { hold('aris', 'torch'); hold('sec', 'torch'); }],
           // 彼此相爱：手牵手；火把举起，城中一扇扇窗亮起来
           [13.2, b => {
@@ -1377,7 +1440,10 @@
             W.set('thCity', 0.92, b.instant);
             sfx(b, 'harp');
           }],
+          [14, () => stir(['mourn', 'mother', 'i1', 'i2', 'i3'], 'nod', { share: 0.7, spread: 1.2 })],
           [15, b => { ringOn(b, 'aris', 0.14, [255, 214, 150], 1.1); ringOn(b, 'sec', 0.14, [255, 214, 150], 1.1); }],
+          [16, () => gest('child', 'clap')],
+          [17.2, () => gest('i2', 'nod')],
           [18.6, b => { pose('aris', 'stand'); pose('sec', 'stand'); }],
         ]);
       },
@@ -1387,8 +1453,8 @@
     {
       kind: 'promise', utter: '神也必将他们与耶稣一同带来', cmd: 'sleep(睡了的人) && await 一同带来', ref: '4:14',
       verse: [
-        { text: '论到睡了的人，我们不愿意弟兄们不知道，<br>恐怕你们忧伤，像那些没有指望的人一样。', ref: '帖撒罗尼迦前书 4:13', hold: 6.5 },
-        { text: '我们若信耶稣死而复活了，那已经在耶稣里睡了的人，<br>神也必将他们与耶稣一同带来。', ref: '帖撒罗尼迦前书 4:14', hold: 7 },
+        { text: '论到睡了的人，我们不愿意弟兄们不知道，<br>恐怕你们忧伤，像那些没有指望的人一样。', ref: '帖撒罗尼迦前书 4:13', hold: 6.5, who: 'jason', how: 'calm' },
+        { text: '我们若信耶稣死而复活了，那已经在耶稣里睡了的人，<br>神也必将他们与耶稣一同带来。', ref: '帖撒罗尼迦前书 4:14', hold: 7, who: 'jason', how: 'proclaim' },
       ],
       apply(c) {
         T(c, [
@@ -1403,14 +1469,23 @@
           }],
           [2.4, b => sfx(b, 'weep', { soft: true })],
           [4, b => { pose('mourn', 'kneel', { weep: true }); face('mourn', -1); face('aris', -1); face('i1', -1); }],
+          // 亚里达古站在她身后，伸手扶着她的肩；院中的人远远望着，叹息
+          [5, () => gest('aris', 'touch', { dur: 3 })],
+          [5.6, () => heed(['mother', 'child', 'sec'], 'mourn', { spread: 1.2 })],
+          [6.4, () => stir(['i1', 'mother', 'sec'], 'sigh', { share: 0.7, spread: 1.2 })],
           // 坟上一处一处点起光
           [8.2, b => {
             W.set('thHope', 1, b.instant);
             sfx(b, 'stars', { soft: true });
             if (!b.instant) gravePts().forEach((p, i) => sparkleAt(b, p[0], p[1] - 6, 14, [255, 240, 210], 10));
           }],
+          [8.8, () => { gest('mourn', 'startle'); gest('i1', 'point'); }],
           [10.4, b => { pose('mourn', 'kneel', { weep: false }); glow('mourn', 0.48); ringOn(b, 'mourn', 0.1, [255, 236, 200], 0.5); }],
+          // 神也必将他们一同带来：她跪着向天伸手，又站起来仰望
+          [11.2, () => gest('mourn', 'reachup')],
+          [12.2, () => stir(['mother', 'sec', 'jason'], 'nod', { share: 0.7, spread: 1 })],
           [13, b => { pose('mourn', 'gaze'); pose('aris', 'gaze'); }],
+          [13.8, () => pose('i1', 'gaze')],
         ]);
       },
     },
@@ -1428,11 +1503,16 @@
             W.goTo(0.115, 14, b.instant);
             flashW(b, 0.25);
             const [vx] = VPT();
-            all(id => { face(id, vx); glow(id, 0.42); });
-            for (const id of ['jason', 'sec', 'mother', 'child', 'i1', 'i2', 'i3', 'aris']) pose(id, 'gaze');
+            all(id => glow(id, 0.42));
+            heed(present(), vx, { spread: 0.9 });
             sfx(b, 'angel');
           }],
+          // 天开了：众人一惊，先后仰起脸来；西公都以臂遮眼
+          [0.3, () => stir(present(), 'startle', { share: 0.5, spread: 0.6 })],
+          ...stagger(['jason', 'mother', 'child', 'i1', 'i2', 'i3', 'aris'], 'gaze', 0.5, 0.18),
+          [0.7, () => pose('sec', 'shield')],
           [1.2, b => { W.set('thLord', 1, b.instant); sfx(b, 'harp'); }],
+          [2.8, () => pose('sec', 'gaze')],
           // 呼叫的声音
           [4.2, b => { const p = lordPt(); ringAt(b, p[0], p[1] - PH() * 0.6, 0.6, [255, 248, 230], 3, 2.4); sfx(b, 'choir'); }],
           // 天使长
@@ -1442,16 +1522,25 @@
             const e = hornEnd();
             [0, 0.5, 1].forEach((d, i) => { if (!b.instant) GS.book.after(d, () => { if (isCur() && fx()) fx().ring(e[0], e[1], [255, 232, 170], M() * (0.35 + i * 0.2), 2.6, 1.8); }); });
             sfx(b, 'trumpet'); shake(b, 0.3);
-            pose('mother', 'kneel'); pose('child', 'kneel'); pose('i3', 'kneel');
           }],
+          // 神的号吹响：众人一震，有的跪下
+          [6.1, () => stir(['jason', 'sec', 'i1', 'i2', 'aris'], 'startle', { share: 0.6, spread: 0.5 })],
+          [6.2, () => pose('mother', 'kneel')],
+          [6.5, () => pose('child', 'kneel')],
+          [6.8, () => pose('i3', 'kneel')],
           // 在基督里死了的人必先复活
           [7.4, b => {
             W.set('thRise', 1, b.instant);
             if (!b.instant) gravePts().forEach(p => sparkleAt(b, p[0], p[1], 24, [255, 250, 236], 12));
             sfx(b, 'stars');
           }],
-          [8.6, b => { pose('mourn', 'raise'); pose('aris', 'raise'); glow('mourn', 0.55); }],
-          [13.2, b => { const [vx, vy] = VPT(); ringAt(b, vx * W.w, vy * W.h, 0.25, [255, 250, 236], 2.4, 1.6); }],
+          // 在基督里死了的人先复活：坟前的她一惊，随即与亚里达古举起手来；孩子跪着向天伸手，众人也伸手
+          [7.7, () => gest('mourn', 'startle')],
+          [8.6, b => { pose('mourn', 'raise'); glow('mourn', 0.55); }],
+          [8.9, () => pose('aris', 'raise')],
+          [9.2, () => gest('child', 'reachup')],
+          [9.8, () => stir(['jason', 'sec', 'i1', 'i2'], 'reachup', { share: 0.6, spread: 1 })],
+          [10.6, b => { const [vx, vy] = VPT(); ringAt(b, vx * W.w, vy * W.h, 0.25, [255, 250, 236], 2.4, 1.6); }],
         ]);
       },
     },
@@ -1461,7 +1550,8 @@
       kind: 'promise', utter: '这样，我们就要和主永远同在', cmd: 'join --clouds --with 主 --forever', ref: '4:17',
       verse: [
         { text: '以后我们这活着还存留的人必和他们一同被提到云里，<br>在空中与主相遇。这样，我们就要和主永远同在。', ref: '帖撒罗尼迦前书 4:17', hold: 8.5 },
-        { text: '所以，你们当用这些话彼此劝慰。', ref: '帖撒罗尼迦前书 4:18', hold: 4.5 },
+        { text: '所以，你们当用这些话彼此劝慰。', ref: '帖撒罗尼迦前书 4:18', hold: 4.5,
+          talk: [['jason', 0, 0.4, 'calm'], ['i1', 0.15, 0.55, 'calm'], ['mourn', 0.5, 0.95, 'calm'], ['i2', 0.25, 0.65, 'calm'], ['mother', 0.6, 1, 'calm']] },
       ],
       apply(c) {
         T(c, [
@@ -1469,8 +1559,7 @@
             W.set('thVision', 1, b.instant); W.set('thOpen', 1, b.instant); W.set('thLord', 1, b.instant); W.set('thArch', 1, b.instant); W.set('thRise', 1, b.instant);
             W.set('thCaught', 1, b.instant);
             // 一同被提：各人自己在光里改变（全身发光），光柱罩住他，他化作光往云里去
-            all(id => { pose(id, 'raise'); glow(id, 1); });
-            pose('child', 'gaze');
+            all(id => glow(id, 1));
             sfx(b, 'angel');
             W.goTo(0.14, 16, b.instant);
             if (!b.instant) {
@@ -1478,8 +1567,15 @@
               ids.forEach((id, j) => GS.book.after(j * 0.05 / 0.17, () => { if (isCur()) { sparkleOn(b, id, 14, [255, 248, 230], 0.5); ringOn(b, id, 0.05, [255, 246, 226], 0.5); } }));
             }
           }],
-          // 在空中与主相遇
+          // 众人一个接一个举起手来（孩子仰着脸）
+          ...stagger(RISE.filter(id => id !== 'child'), 'raise', 0.1, 0.16),
+          [0.2, () => pose('child', 'gaze')],
+          [3.2, () => gest('child', 'reachup')],
+          [4.4, () => stir(['mother', 'jason', 'sec', 'aris'], 'nod', { share: 0.6, spread: 1 })],
+          // 在空中与主相遇：孩子跳起来
           [5.8, b => { const [vx, vy] = VPT(); ringAt(b, vx * W.w, vy * W.h, 0.55, [255, 248, 230], 3.2, 2.4); flashW(b, 0.2); sfx(b, 'bell'); }],
+          [6.2, () => gest('child', 'leap', { n: 2 })],
+          [7, () => stir(['mother', 'sec', 'jason'], 'nod', { share: 0.6, spread: 0.8 })],
           // 永远同在：异象渐渐隐去，升到高处
           [8, b => { W.set('thVision', 0, b.instant); W.set('thOpen', 0, b.instant); }],
           // 彼此劝慰
@@ -1491,7 +1587,9 @@
             embrace('mother', 'i2', { at: (X.mother + X.lamps) / 2 + 0.004 });
             sfx(b, 'harp', { soft: true });
           }],
+          [11.6, () => { face('aris', 'mourn'); gest('aris', 'touch'); }],
           [13.2, b => { for (const id of ['jason', 'sec', 'i3', 'child']) face(id, X.embA); }],
+          [13.6, () => stir(['jason', 'sec', 'i3', 'child'], 'nod', { share: 0.7, spread: 1 })],
         ]);
       },
     },
@@ -1500,9 +1598,9 @@
     {
       kind: 'act', utter: '主的日子来到，好像夜间的贼一样', cmd: 'watch --awake --armor 信,爱,盼望', ref: '5:2',
       verse: [
-        { text: '因为你们自己明明晓得，主的日子来到，好像夜间的贼一样。<br>人正说「平安稳妥」的时候，灾祸忽然临到他们……', ref: '帖撒罗尼迦前书 5:2–3', hold: 7.5 },
-        { text: '弟兄们，你们却不在黑暗里，叫那日子临到你们像贼一样。<br>你们都是光明之子，都是白昼之子……', ref: '帖撒罗尼迦前书 5:4–5', hold: 7 },
-        { text: '但我们既然属乎白昼，就应当谨守，<br>把信和爱当作护心镜遮胸，把得救的盼望当作头盔戴上。', ref: '帖撒罗尼迦前书 5:8', hold: 7 },
+        { text: '因为你们自己明明晓得，主的日子来到，好像夜间的贼一样。<br>人正说「平安稳妥」的时候，灾祸忽然临到他们……', ref: '帖撒罗尼迦前书 5:2–3', hold: 7.5, who: 'jason', how: 'calm' },
+        { text: '弟兄们，你们却不在黑暗里，叫那日子临到你们像贼一样。<br>你们都是光明之子，都是白昼之子……', ref: '帖撒罗尼迦前书 5:4–5', hold: 7, who: 'jason', how: 'proclaim' },
+        { text: '但我们既然属乎白昼，就应当谨守，<br>把信和爱当作护心镜遮胸，把得救的盼望当作头盔戴上。', ref: '帖撒罗尼迦前书 5:8', hold: 7, who: 'jason', how: 'teach' },
       ],
       apply(c) {
         T(c, [
@@ -1516,7 +1614,13 @@
             W.goTo(0.16, 22, b.instant);
             sfx(b, 'whisper', { soft: true });
           }],
-          // 光明之子
+          // 城睡了：耶孙展信再念；院中的人静听；西公都手搭凉棚望着黑下去的城，众人回头张望
+          [0.4, () => pose('jason', READ)],
+          ...stagger(['aris', 'mother', 'i1', 'i2', 'i3', 'mourn'], 'listen', 0.9, 0.3),
+          [3.4, () => pose('sec', 'look')],
+          [4.4, () => stir(['aris', 'mourn', 'i1', 'i2', 'i3'], 'lookaround', { share: 0.4, spread: 1.4 })],
+          [6.6, () => { pose('sec', 'stand'); gest('child', 'tremble'); }],
+          // 光明之子：院中一片光，众人一惊，孩子张开两臂欢喜，众人点头
           [9.2, b => {
             W.set('thDay', 1, b.instant);
             all(id => glow(id, 0.5));
@@ -1524,13 +1628,23 @@
             ringAt(b, p[0], p[1], 0.35, [255, 236, 190], 2.8, 2.2);
             sfx(b, 'bell');
           }],
-          // 护心镜与头盔
+          [9.5, () => stir(others(), 'startle', { share: 0.4, spread: 0.6 })],
+          [10.4, () => pose('child', 'rejoice')],
+          [11.6, () => stir(others(), 'nod', { share: 0.6, spread: 1.4 })],
+          [13.4, () => pose('child', 'stand')],
+          [15, () => gest('mother', 'nod')],
+          [16.2, () => gest('i2', 'lookaround')],
+          // 护心镜与头盔：众人站直，低头看胸前的光，又点头；亚里达古、西公都四下张望——谨守
           [17.6, b => {
             W.set('thArmour', 1, b.instant);
             all(id => { pose(id, 'stand'); face(id, -1); });
             if (!b.instant) present().forEach(id => sparkleOn(b, id, 10, [255, 236, 190], 0.62));
             sfx(b, 'chime');
           }],
+          [18.3, () => stir(others(), 'bowhead', { share: 0.5, spread: 1 })],
+          [19.8, () => stir(others(), 'nod', { share: 0.5, spread: 1.2 })],
+          [21, () => gest('aris', 'lookaround')],
+          [22.4, () => gest('sec', 'lookaround')],
         ]);
       },
     },
@@ -1539,8 +1653,8 @@
     {
       kind: 'cmd', utter: '要常常喜乐，不住地祷告，凡事谢恩', cmd: 'loop { 喜乐; 祷告; 谢恩; }', ref: '5:16–18',
       verse: [
-        { text: '要常常喜乐，不住地祷告，凡事谢恩；<br>因为这是神在基督耶稣里向你们所定的旨意。', ref: '帖撒罗尼迦前书 5:16–18', hold: 7 },
-        { text: '不要消灭圣灵的感动；不要藐视先知的讲论。<br>但要凡事察验；善美的要持守……', ref: '帖撒罗尼迦前书 5:19–21', hold: 6.5 },
+        { text: '要常常喜乐，不住地祷告，凡事谢恩；<br>因为这是神在基督耶稣里向你们所定的旨意。', ref: '帖撒罗尼迦前书 5:16–18', hold: 7, who: 'jason', how: 'proclaim' },
+        { text: '不要消灭圣灵的感动；不要藐视先知的讲论。<br>但要凡事察验；善美的要持守……', ref: '帖撒罗尼迦前书 5:19–21', hold: 6.5, talk: [['jason', 0, 0.3, 'calm']] },
       ],
       apply(c) {
         const R = PORT ? ['jason', 'sec', 'i2', 'i3'] : ['jason', 'sec', 'i2', 'i3'], Lf = ['aris', 'mourn', 'i1'], Md = ['mother', 'child'];
@@ -1553,21 +1667,24 @@
             trans(b, { type: 'birds', n: 7, seed: 1, dur: 8 });
             sfx(b, 'bird', { soft: true });
           }],
-          // 喜乐（右边的人举手）
+          // 喜乐（右边的人先后举手，有的张开两臂欢喜）
           [0.9, b => {
-            R.forEach(id => { pose(id, 'raise'); face(id, -1); });
+            R.forEach(id => face(id, -1));
             nameAt(b, '喜乐', PORT ? 0.78 : 0.79, PORT ? 0.5 : 0.53, { hold: 3 });
           }],
-          // 祷告（左边的人跪下）
+          ...R.map((id, i) => [0.9 + i * 0.3, () => pose(id, i % 2 ? 'rejoice' : 'raise')]),
+          // 祷告（左边的人先后跪下合掌）
           [2.8, b => {
-            Lf.forEach(id => { pose(id, 'pray'); face(id, 1); });
+            Lf.forEach(id => face(id, 1));
             nameAt(b, '祷告', PORT ? 0.45 : 0.6, PORT ? 0.56 : 0.47, { hold: 3 });
           }],
-          // 谢恩（当中的人俯首）
+          ...stagger(Lf, 'pray', 2.8, 0.35),
+          // 谢恩（当中的人先后俯首）
           [4.7, b => {
-            Md.forEach(id => { pose(id, 'bow'); face(id, 1); });
+            Md.forEach(id => face(id, 1));
             nameAt(b, '谢恩', PORT ? 0.62 : 0.69, PORT ? 0.62 : 0.6, { hold: 3 });
           }],
+          ...stagger(Md, 'bow', 4.7, 0.4),
           [5.2, b => { trans(b, { type: 'birds', n: 5, seed: 9, dur: 7.5 }); sfx(b, 'bird', { soft: true }); }],
           // 不要消灭圣灵的感动：灯火更高
           [8.8, b => {
@@ -1577,6 +1694,13 @@
             sparkleAt(b, p[0], p[1] - 16, 26, [255, 236, 190], 14);
             sfx(b, 'harp');
           }],
+          // 不要藐视先知的讲论：西公都放下手来讲论，众人转向他静听；凡事察验——听的人点头
+          ...stagger(R, 'stand', 9.3, 0.2),
+          [10.2, () => { pose('sec', 'teach'); say('sec', 2.8, { how: 'proclaim' }); }],
+          [10.6, () => heed(R.filter(id => id !== 'sec'), 'sec', { spread: 0.8 })],
+          [12.6, () => stir(R.filter(id => id !== 'sec').concat(Md), 'nod', { share: 0.7, spread: 1 })],
+          [13.4, () => pose('sec', 'stand')],
+          [14, () => gest('jason', 'nod')],
         ]);
       },
     },
@@ -1585,9 +1709,9 @@
     {
       kind: 'promise', utter: '那召你们的本是信实的，他必成就这事', cmd: 'assert(信实) && complete()', ref: '5:24',
       verse: [
-        { text: '愿赐平安的神亲自使你们全然成圣！又愿你们的灵与魂与身子得蒙保守，<br>在我们主耶稣基督降临的时候，完全无可指摘！', ref: '帖撒罗尼迦前书 5:23', hold: 8 },
-        { text: '那召你们的本是信实的，他必成就这事。', ref: '帖撒罗尼迦前书 5:24', hold: 5 },
-        { text: '愿我主耶稣基督的恩常与你们同在！', ref: '帖撒罗尼迦前书 5:28', hold: 4.5 },
+        { text: '愿赐平安的神亲自使你们全然成圣！又愿你们的灵与魂与身子得蒙保守，<br>在我们主耶稣基督降临的时候，完全无可指摘！', ref: '帖撒罗尼迦前书 5:23', hold: 8, who: 'jason', how: 'calm' },
+        { text: '那召你们的本是信实的，他必成就这事。', ref: '帖撒罗尼迦前书 5:24', hold: 5, who: 'jason', how: 'proclaim' },
+        { text: '愿我主耶稣基督的恩常与你们同在！', ref: '帖撒罗尼迦前书 5:28', hold: 4.5, who: 'jason', how: 'calm' },
       ],
       apply(c) {
         T(c, [
@@ -1597,12 +1721,22 @@
             all(id => { pose(id, 'stand'); face(id, -1); });
             sfx(b, 'harp', { soft: true });
           }],
-          // 灵与魂与身子得蒙保守：一层光罩住这家与坟地
+          [0.4, () => pose('jason', READ)],
+          // 灵与魂与身子得蒙保守：一层光罩住这家与坟地；有人仰望那光，有人低头
           [2.2, b => { W.set('thKeep', 1, b.instant); if (!b.instant) gravePts().forEach(p => sparkleAt(b, p[0], p[1] - 8, 8, [255, 240, 210], 8)); }],
-          // 他必成就这事：晨星一亮
+          ...stagger(['mother', 'mourn', 'i1'], 'gaze', 2.6, 0.4),
+          [4.2, () => stir(['aris', 'sec', 'i2', 'i3'], 'bowhead', { share: 0.6, spread: 1.2 })],
+          ...stagger(['mother', 'mourn', 'i1'], 'stand', 6.4, 0.3),
+          // 他必成就这事：晨星一亮——亚里达古手搭凉棚望着东方，孩子指着它；众人点头
           [9.6, b => { const p = starPt(); ringAt(b, p[0], p[1], 0.28, [236, 242, 255], 2.8, 1.6); sparkleAt(b, p[0], p[1], 20, [236, 242, 255], 16); sfx(b, 'bell'); }],
-          // 恩
-          [15.8, b => { all(id => pose(id, 'bow')); pose('child', 'stand'); }],
+          [9.9, () => pose('aris', 'look')],
+          [10.4, () => gest('child', 'point')],
+          [11.6, () => stir(others(), 'nod', { share: 0.6, spread: 1.4 })],
+          [12.8, () => pose('aris', 'stand')],
+          // 恩：众人先后俯首（孩子站着）
+          ...['jason', 'sec', 'aris', 'mourn', 'mother', 'i1', 'i2', 'i3'].map((id, i) => [15.8 + i * 0.18, () => { if (present().includes(id)) pose(id, 'bow'); }]),
+          [15.8, () => pose('child', 'stand')],
+          [17.6, () => gest('child', 'bowhead')],
         ]);
       },
     },
@@ -1611,8 +1745,8 @@
     {
       kind: 'act', utter: '要在他圣徒的身上得荣耀', cmd: 'glorify --in 圣徒 --at sunrise', ref: '帖撒罗尼迦后书 1:10',
       verse: [
-        { text: '弟兄们，我们该为你们常常感谢神，这本是合宜的；<br>因你们的信心格外增长，并且你们众人彼此相爱的心也都充足。', ref: '帖撒罗尼迦后书 1:3', hold: 7 },
-        { text: '这正是主降临、要在他圣徒的身上得荣耀、<br>又在一切信的人身上显为希奇的那日子。', ref: '帖撒罗尼迦后书 1:10', hold: 6.5 },
+        { text: '弟兄们，我们该为你们常常感谢神，这本是合宜的；<br>因你们的信心格外增长，并且你们众人彼此相爱的心也都充足。', ref: '帖撒罗尼迦后书 1:3', hold: 7, who: 'jason', how: 'calm' },
+        { text: '这正是主降临、要在他圣徒的身上得荣耀、<br>又在一切信的人身上显为希奇的那日子。', ref: '帖撒罗尼迦后书 1:10', hold: 6.5, who: 'jason', how: 'proclaim' },
       ],
       apply(c) {
         T(c, [
@@ -1624,6 +1758,8 @@
             all(id => { pose(id, 'stand'); face(id, -1); });
             sfx(b, 'bird', { soft: true });
           }],
+          // 帖撒罗尼迦后书：耶孙展开第二封信来念
+          [0.4, () => pose('jason', READ)],
           // 信心格外增长：又有信的人从城里来
           [2.4, b => {
             hold('aris', null); hold('sec', null);
@@ -1640,15 +1776,25 @@
             S.newc = 1;
             sfx(b, 'crowd', { soft: true });
           }],
+          // 院中的人转过来看他们；西公都招手，三个归向神的人挥手相迎；新来的人点头
+          [3.6, () => heed(['sec', 'i1', 'i2', 'i3', 'mother', 'aris'], 'newc', { spread: 1.4 })],
+          [4.6, () => gest('sec', 'beckon')],
+          [5.2, () => stir(['i1', 'i2', 'i3'], 'wave', { share: 0.7, spread: 0.8 })],
           [6.4, b => { W.set('thStar', 0, b.instant); W.set('thL1', 0.45, b.instant); W.set('thL2', 0.45, b.instant); W.set('thL3', 0.45, b.instant); W.set('thSpirit', 0.3, b.instant); }],
+          [6.8, () => stir('newc', 'nod', { spread: 0.8 })],
           // 在他圣徒的身上得荣耀：晨光落在每一个人身上
           [8.8, b => {
             W.set('thGlory', 1, b.instant);
-            all(id => { pose(id, 'gaze'); glow(id, 0.55); });
+            all(id => glow(id, 0.55));
             { const c2 = C(), g = hasCrowd('newc') && c2.crowds.get('newc'); if (g) g.members.forEach(m => { m.glow = 0.55; }); }
             if (!b.instant) present().forEach(id => sparkleOn(b, id, 12, [255, 226, 160], 0.55));
             sfx(b, 'harp');
           }],
+          // 在圣徒身上得荣耀：晨光落下，众人先后仰起脸来；显为希奇——新来的人一惊，有人向天伸手，孩子跳起来
+          ...['aris', 'mourn', 'mother', 'child', 'jason', 'sec', 'i1', 'i2', 'i3'].map((id, i) => [8.8 + i * 0.16, () => { if (present().includes(id)) pose(id, 'gaze'); }]),
+          [9.4, () => stir('newc', 'startle', { share: 0.7, spread: 0.6 })],
+          [10.4, () => stir(['aris', 'mourn', 'sec', 'i1', 'i2', 'i3'], 'reachup', { share: 0.5, spread: 1.2 })],
+          [12, () => gest('child', 'leap', { n: 2 })],
           [13.4, b => { const c2 = C(); if (hasCrowd('newc')) c2.crowdPose('newc', 'bow'); }],
         ]);
       },
@@ -1658,9 +1804,9 @@
     {
       kind: 'judge', utter: '用降临的荣光废掉他', cmd: 'dispel 黑烟 --with 降临的荣光', ref: '帖撒罗尼迦后书 2:8',
       verse: [
-        { text: '弟兄们，论到我们主耶稣基督降临和我们到他那里聚集，我劝你们：<br>……不要轻易动心，也不要惊慌。', ref: '帖撒罗尼迦后书 2:1–2', hold: 7 },
-        { text: '那时这不法的人必显露出来。<br>主耶稣要用口中的气灭绝他，用降临的荣光废掉他。', ref: '帖撒罗尼迦后书 2:8', hold: 7 },
-        { text: '所以，弟兄们，你们要站立得稳，凡所领受的教训……都要坚守。', ref: '帖撒罗尼迦后书 2:15', hold: 5.5 },
+        { text: '弟兄们，论到我们主耶稣基督降临和我们到他那里聚集，我劝你们：<br>……不要轻易动心，也不要惊慌。', ref: '帖撒罗尼迦后书 2:1–2', hold: 7, who: 'jason', how: 'plead' },
+        { text: '那时这不法的人必显露出来。<br>主耶稣要用口中的气灭绝他，用降临的荣光废掉他。', ref: '帖撒罗尼迦后书 2:8', hold: 7, who: 'jason', how: 'proclaim' },
+        { text: '所以，弟兄们，你们要站立得稳，凡所领受的教训……都要坚守。', ref: '帖撒罗尼迦后书 2:15', hold: 5.5, who: 'jason', how: 'teach' },
       ],
       apply(c) {
         T(c, [
@@ -1673,22 +1819,40 @@
             const c2 = C(); if (hasCrowd('newc')) c2.crowdPose('newc', 'stand');
             sfx(b, 'whisper', { low: true });
           }],
+          // 冷暗的烟升起：众人一惊；孩子蹲下护着头，母亲伸手护她；有人发抖。耶孙念：不要惊慌
+          [0.6, () => pose('jason', READ)],
+          [1.2, () => { stir(others(), 'startle', { share: 0.6, spread: 0.6 }); stir('newc', 'startle', { share: 0.6, spread: 0.8 }); }],
+          [2, () => pose('child', 'cower')],
+          [2.8, () => stir(['mourn', 'i1', 'i2', 'i3'], 'tremble', { share: 0.5, spread: 1.2 })],
+          [3.6, () => { face('mother', 'child'); gest('mother', 'touch'); }],
+          [5.8, () => { pose('child', 'stand'); face('mother', 1); }],
+          // 不法的人显露：西公都惊退一步
+          [8.6, () => pose('sec', 'recoil')],
           // 口中的气：光的风自东方来
           [10.6, b => { W.set('gale', 0.5, b.instant); W.set('thDispel', 1, b.instant); sfx(b, 'wind'); }],
-          // 降临的荣光
+          [11, () => pose('sec', 'stand')],
+          // 降临的荣光：亚里达古和一个归向神的人以臂遮眼
           [12.6, b => {
             flashW(b, 0.35);
             ringAt(b, W.sun.x, W.sun.y, 0.9, [255, 244, 214], 3.4, 2);
             sfx(b, 'harp');
           }],
+          [12.7, () => pose('aris', 'shield')],
+          [12.9, () => pose('i2', 'shield')],
           [14.4, b => { W.set('thShadow', 0, b.instant); W.set('gale', 0, b.instant); }],
+          [14.6, () => { pose('aris', 'stand'); pose('i2', 'stand'); }],
+          [15.2, () => stir(others(), 'nod', { share: 0.6, spread: 1.2 })],
           // 站立得稳
           [16.8, b => {
             W.set('thScroll', 1, b.instant);
             all(id => { pose(id, 'stand'); face(id, -1); glow(id, 0.5); });
-            pose('jason', 'carry');
+            pose('jason', READ);
             ringOn(b, 'jason', 0.12, [255, 236, 190], 0.6);
           }],
+          // 凡所领受的教训都要坚守：众人点头；新来的人也点头
+          [18, () => stir(others(), 'nod', { share: 0.6, spread: 1.2 })],
+          [19.2, () => stir('newc', 'nod', { share: 0.7, spread: 1 })],
+          [20.4, () => gest('mother', 'nod')],
         ]);
       },
     },
@@ -1697,10 +1861,11 @@
     {
       kind: 'bless', utter: '愿赐平安的主随时随事亲自给你们平安！', cmd: 'peace --always --every-way', ref: '帖撒罗尼迦后书 3:16',
       verse: [
-        { text: '但主是信实的，要坚固你们，保护你们脱离那恶者。', ref: '帖撒罗尼迦后书 3:3', hold: 5 },
-        { text: '弟兄们，你们行善不可丧志。', ref: '帖撒罗尼迦后书 3:13', hold: 4 },
-        { text: '愿赐平安的主随时随事亲自给你们平安！愿主常与你们众人同在！', ref: '帖撒罗尼迦后书 3:16', hold: 6 },
-        { text: '愿我们主耶稣基督的恩常与你们众人同在！', ref: '帖撒罗尼迦后书 3:18', hold: 5 },
+        { text: '但主是信实的，要坚固你们，保护你们脱离那恶者。', ref: '帖撒罗尼迦后书 3:3', hold: 5, who: 'jason', how: 'calm' },
+        { text: '弟兄们，你们行善不可丧志。', ref: '帖撒罗尼迦后书 3:13', hold: 4, who: 'jason', how: 'calm' },
+        { text: '愿赐平安的主随时随事亲自给你们平安！愿主常与你们众人同在！', ref: '帖撒罗尼迦后书 3:16', hold: 6, who: 'jason', how: 'proclaim' },
+        { text: '愿我们主耶稣基督的恩常与你们众人同在！', ref: '帖撒罗尼迦后书 3:18', hold: 5, who: 'jason', how: 'calm',
+          gest: [['mother', 'nod', 0.86], ['sec', 'nod', 0.9], ['mourn', 'nod', 0.93]] },
       ],
       apply(c) {
         T(c, [
@@ -1711,6 +1876,10 @@
             pose('jason', 'stand');
             sfx(b, 'bell', { soft: true });
           }],
+          // 主是信实的：众人点头
+          [2, () => stir(others(), 'nod', { share: 0.5, spread: 1.4 })],
+          [3.6, () => gest('i3', 'nod')],
+          [4.8, () => gest('child', 'lookaround')],
           // 行善不可丧志：各人安静做工；西公都把一罐水送给忧伤的人
           [6.4, b => {
             W.set('thKeep', 0, b.instant); W.set('thGlory', 0, b.instant);
@@ -1723,7 +1892,11 @@
             hold('i3', 'bundle');
             walk('i3', PORT ? 0.95 : 0.975, { speed: 0.03, pose: 'stand' });
           }],
+          // 西公都双手把水罐递给忧伤的人；孩子弯腰拾起什么，母亲点头
+          [7.4, () => gest('child', 'stoopdown')],
+          [8.8, () => { face('sec', 'mourn'); gest('sec', 'give'); }],
           [9.6, b => { face('mourn', 1); hold('mourn', 'jar'); hold('sec', null); pose('mourn', 'bow'); pose('sec', 'bow'); }],
+          [10.2, () => gest('mother', 'nod')],
           // 平安
           [11.8, b => {
             W.set('thPeace', 1, b.instant);
@@ -1735,13 +1908,20 @@
             if (p) ringAt(b, p[0], p[1], 0.9, [255, 240, 200], 4.2, 2);
             sfx(b, 'harp'); sfx(b, 'bird', { soft: true });
           }],
-          // 恩
+          // 愿赐平安的主……：耶孙举手为众人祝福，众人低头领受
+          [12.2, () => pose('jason', 'bless')],
+          [13, () => stir(others(), 'bowhead', { share: 0.6, spread: 1.4 })],
+          [14.6, () => stir('newc', 'bowhead', { share: 0.7, spread: 1 })],
+          [15.8, () => pose('jason', 'stand')],
+          // 恩：灯下的光漾开，众人先后举手；阿们
           [19.2, b => {
             const p = lampPts()[1];
             ringAt(b, p[0], p[1] - 20, 1.1, [255, 244, 220], 5, 2.2);
             sparkleAt(b, p[0], p[1] - 40, 30, [255, 240, 210], 40);
             sfx(b, 'bell', { soft: true });
           }],
+          ...stagger(['mother', 'mourn', 'sec', 'jason', 'child', 'i1', 'i2'], 'raise', 19.4, 0.2),
+          ...stagger(['mother', 'mourn', 'sec', 'jason', 'child', 'i1', 'i2'], 'stand', 22.6, 0.15),
         ]);
       },
     },

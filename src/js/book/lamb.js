@@ -184,12 +184,18 @@
   function cface(gid, d) {
     for (const m of members(gid)) {
       const dd = d === 1 || d === -1 ? d : (d >= (m.tx != null ? m.tx : m.nx) ? 1 : -1);
+      m._qFace = null;   // 先前排着要转的（众人先后转向）作废：以这一次为准
       if (m.tx != null && !W.replaying) { m.faceEnd = dd; continue; }
       m.faceEnd = null;
       m.facing = dd;
       if (W.replaying) m.fd = dd;
     }
   }
+  // 演技：说话、一次性的手势、众人先后转向 / 先后做同一个手势（重演时人物模块自己略过；attend 立即到位）
+  function say(id, sec, o) { const c = C(); if (c.speak) U.safe('cast.speak', () => c.speak(id, sec, o)); }
+  function gest(id, kind, o) { const c = C(); if (c.gesture) U.safe('cast.gesture', () => c.gesture(id, kind, o)); }
+  function heed(ids, target, o) { const c = C(); if (c.attend) U.safe('cast.attend', () => c.attend(ids, target, o)); }
+  function stir(ids, kind, o) { const c = C(); if (c.react) U.safe('cast.react', () => c.react(ids, kind, o)); }
   function cglow(gid, v) { for (const m of members(gid)) m.glow = v; }
   const PEOPLE = ['folk', 'out'];
   const allPose = p => { for (const g of PEOPLE) cpose(g, p); };
@@ -2226,7 +2232,7 @@
   const V11 = [
     { text: '此后，我听见好像群众在天上大声说：<br>哈利路亚！救恩、荣耀、权能都属乎我们的神！', ref: R + '19:1', hold: 6 },
     { text: '我听见好像群众的声音，众水的声音，大雷的声音，说：<br>哈利路亚！因为主我们的神、全能者作王了。', ref: R + '19:6', hold: 6.5 },
-    { text: '我们要欢喜快乐，将荣耀归给他。因为，羔羊婚娶的时候到了；<br>新妇也自己预备好了，就蒙恩得穿光明洁白的细麻衣。', ref: R + '19:7–8', hold: 7.5 },
+    { text: '我们要欢喜快乐，将荣耀归给他。因为，羔羊婚娶的时候到了；<br>新妇也自己预备好了，就蒙恩得穿光明洁白的细麻衣。', ref: R + '19:7–8', hold: 7.5, talk: [['folk', 0, 0.55, 'proclaim'], ['out', 0.05, 0.55, 'proclaim']] },
     { text: '天使吩咐我说：「你要写上：凡被请赴羔羊之婚筵的有福了！」<br>又对我说：「这是神真实的话。」', ref: R + '19:9', hold: 6.5 },
   ];
   const V12 = [
@@ -2296,12 +2302,21 @@
             W.goTo(0.95, 22, b.instant);
             pose('john', 'gaze'); face('john', 1);
           }],
+          // 声音如雷：众人一惊
           [1.6, b => { sfx(b, 'thunder', { soft: true, far: true }); flashW(b, 0.08); }],
+          [1.8, () => { stir('folk', 'startle', { spread: 1, share: 0.6 }); gest('john', 'startle'); }],
+          // 白马出来：众人的头随着它转过去，约翰手搭凉棚望着
           [s[1] - 0.6, b => ride(b, 1)],
+          [s[1], () => { heed('folk', 0.3, { spread: 1.6 }); pose('john', 'look'); }],
+          [s[1] + 4.8, () => pose('john', 'gaze')],
+          // 红马：从地上夺去太平——众人跪下，有的发抖
           [s[2], b => { sealBreak(b, 2); setL(b, 'lbLambGlow', 0.3); }],
           [s[2] + 0.8, b => { ride(b, 2); cpose('folk', 'kneel'); }],
+          [s[2] + 2.6, () => stir('folk', 'tremble', { spread: 1.6, share: 0.5 })],
           [s[3], b => { sealBreak(b, 3); ride(b, 3); }],
+          // 灰色马，骑马的名字叫作死：众人蹲伏，护着头；约翰也发抖
           [s[3] + 3.4, b => { sealBreak(b, 4); ride(b, 4); }],
+          [s[3] + 4.2, () => { cpose('folk', 'cower'); gest('john', 'tremble'); }],
         ]);
       },
     },
@@ -2318,27 +2333,36 @@
             setL(b, 'lbSouls', 1);
             W.goTo(0.02, 12, b.instant);
             cpose('folk', 'gaze');
+            pose('john', 'gaze');
             sfx(b, 'harp', { soft: true });
           }],
+          // 祭坛底下的灵魂：众人先后转过去望
+          [1.0, () => heed('folk', G('altar')[0], { spread: 2 })],
           [s[1] + 0.8, b => {
             setL(b, 'lbRobes', 1);
             if (!b.instant) { const [ax, ay] = px(G('altar')); sparkleAt(b, ax, ay + 16 * VU(), 30, [250, 250, 255], 26); }
             sfx(b, 'chime');
           }],
+          [s[1] + 1.8, () => { stir('folk', 'nod', { spread: 1.8, share: 0.5 }); gest('john', 'nod'); }],
+          // 第六印：地大震动——众人一惊，跪倒
           [s[2], b => {
             sealBreak(b, 6);
             shake(b, 0.9);
             sfx(b, 'quake');
             setL(b, 'moon', 0);
             setL(b, 'lbSigns', 1);
-            cpose('folk', 'kneel');
-            pose('john', 'kneel');
+            stir('folk', 'startle', { spread: 0.6 });
+            gest('john', 'startle');
           }],
+          [s[2] + 0.6, () => { cpose('folk', 'kneel'); pose('john', 'kneel'); }],
+          [s[2] + 3.0, () => stir('folk', 'tremble', { spread: 1.6, share: 0.6 })],
+          // 星辰坠落：众人蹲伏护着头
           [s[3], b => {
             W.set('gale', 0.65, b.instant);
             run(b, 'lbStarfall');
             sfx(b, 'wind');
           }],
+          [s[3] + 0.8, () => { cpose('folk', 'cower'); pose('john', 'cower'); }],
         ]);
       },
     },
@@ -2351,7 +2375,10 @@
         const s = starts(V3);
         T(c, [
           [0, b => { setL(b, 'lbFour', 1); W.goTo(0.28, 8, b.instant); sfx(b, 'angel', { soft: true }); }],   // 黎明从东方来：7:9 时已亮
+          // 风止住了：众人从蹲伏中跪起，约翰站起来仰望
           [2.6, b => { W.set('gale', 0, b.instant); sfx(b, 'whisper', { soft: true }); }],
+          [3.2, () => { cpose('folk', 'kneel'); pose('john', 'gaze'); }],
+          [5.0, () => stir('folk', 'lookaround', { spread: 2, share: 0.4 })],
           [s[1], b => {
             // 衣裳洗白净，手拿棕树枝，站在宝座和羔羊面前
             whiten('folk', 0.55, '穿白衣的');
@@ -2364,7 +2391,11 @@
             if (!b.instant) { const [tx, ty] = throneAt(); ringAt(b, tx, ty, 0.35, [255, 246, 226], 3.4, 1.5); }
             sfx(b, 'sing');
           }],
+          [s[1] + 0.3, () => gest('john', 'startle')],
+          [s[1] + 2.6, () => stir('folk', 'leap', { spread: 2, share: 0.3 })],
+          // 这些人是从大患难中出来的：约翰点头
           [s[2], b => {
+            gest('john', 'nod');
             setL(b, 'lbLambGlow', 1);
             if (!b.instant) { const [lx, ly] = lambPos(); ringAt(b, lx, ly - 10, 0.35, [255, 232, 190], 3, 1.4); }
             sfx(b, 'bell', { soft: true });
@@ -2374,12 +2405,14 @@
             setL(b, 'lbSpringA', 1);
             sfx(b, 'splash', { soft: true });
           }],
+          [s[3] + 0.6, () => heed('folk', G('spring')[0], { spread: 1.8 })],
           [s[3] + 2.4, b => {
             // 擦去一切的眼泪：泪化作光，散去
             if (!b.instant) { const pts = headsOf('folk').map((h, i) => [h[0], h[1] + 2, i]); trans(b, { type: 'tears', pts, dur: 3.2 }); }
             cpose('folk', 'stand');
             sfx(b, 'harp', { soft: true });
           }],
+          [s[3] + 4.0, () => { stir('folk', 'nod', { spread: 1.8, share: 0.6 }); gest('john', 'sigh'); }],
           [s[3] + 5.2, b => { setL(b, 'lbFour', 0); setL(b, 'lbLambGlow', 0.3); }],
         ]);
       },
@@ -2402,13 +2435,18 @@
             pose('john', 'kneel');
             W.goTo(0.36, 12, b.instant);
           }],
+          // 天上寂静：众人低头，一动不动
+          [2.4, () => { stir('folk', 'bowhead', { spread: 2.4, share: 0.5 }); gest('john', 'bowhead', { dur: 3.2 }); }],
           [s[1], b => { setL(b, 'lbHush', 0); setL(b, 'lbSeven', 1); sfx(b, 'angel'); }],
+          [s[1] + 0.4, () => gest('john', 'startle')],
+          // 众圣徒的祈祷：约翰也合手祷告
           [s[2], b => {
             setL(b, 'lbCenser', 1);
             run(b, 'lbIncense');
             riseFrom(b, ['folk'], px(G('altar')), false);
             sfx(b, 'harp', { soft: true });
           }],
+          [s[2] + 0.4, () => pose('john', 'pray')],
           [s[3], b => {
             // 盛满了坛上的火，倒在地上
             const from = () => { const [ax, ay] = px(G('altar')); return [ax + 14 * VU(), ay - 24 * VU()]; };
@@ -2422,8 +2460,10 @@
             W.set('storm', 0.35, b.instant);
             setL(b, 'lbHost', 0);
             setL(b, 'lbSpringA', 0);
-            cpose('folk', 'kneel');
+            stir('folk', 'startle', { spread: 0.6 });
           }],
+          // 火倒在地上：众人跪倒，约翰蹲伏护着头
+          [s[3] + 1.8, () => { cpose('folk', 'kneel'); pose('john', 'cower'); }],
         ]);
       },
     },
@@ -2436,7 +2476,9 @@
         const s = starts(V5);
         T(c, [
           [0, b => { blow(b, 1); setL(b, 'lbCenser', 0); setL(b, 'lbScrollOpen', 0); setL(b, 'lbScroll', 0); }],
+          [0.4, () => stir('folk', 'startle', { spread: 1, share: 0.4 })],
           [0.7, b => { blow(b, 2); W.set('hail', 0.3, b.instant); }],
+          [1.0, () => cpose('folk', 'cower')],
           [1.4, b => blow(b, 3)],
           [2.1, b => { blow(b, 4); W.set('gloom', 0.25, b.instant); }],
           [2.8, b => { blow(b, 5); W.set('hail', 0, b.instant); }],
@@ -2454,6 +2496,9 @@
             sfx(b, 'quake', { soft: true }); sfx(b, 'fire', { soft: true, far: true });
             cface('folk', G('pit'));
           }],
+          // 坑里冒出烟来：近旁的约翰惊退，众人也往后缩
+          [5.0, () => { pose('john', 'recoil'); face('john', -1); }],
+          [5.6, () => cpose('folk', 'recoil')],
           [s[1], b => {
             setL(b, 'lbMighty', 1);
             setL(b, 'lbSeven', 0);
@@ -2462,10 +2507,14 @@
             W.set('gloom', 0.12, b.instant);
             W.set('storm', 0.1, b.instant);
             sfx(b, 'angel');
-            cface('folk', 0.58); face('john', 1); pose('john', 'gaze');
+            cface('folk', 0.58); face('john', 1); pose('john', 'shield');
           }],
+          // 脸面像日头：约翰以臂遮眼；众人站起来仰望
+          [s[1] + 0.6, () => cpose('folk', 'gaze')],
+          [s[1] + 2.8, () => pose('john', 'gaze')],
           [s[1] + 3.6, b => { sfx(b, 'thunder', { soft: true, far: true }); }],
           [s[2], b => { setL(b, 'lbOath', 1); S.blown = 6; sfx(b, 'trumpet', { soft: true, far: true }); }],
+          [s[2] + 1.0, () => stir('folk', 'nod', { spread: 1.6, share: 0.4 })],
           [s[2] + 3.4, b => { setL(b, 'lbMighty', 0); setL(b, 'lbOath', 0); }],   // 升回天上：第七号之前已去
           [s[3] - 0.8, b => { setL(b, 'lbSeven', 1); setL(b, 'lbHeaven', 1); }],
           [s[3], b => {
@@ -2481,6 +2530,7 @@
             if (!b.instant) { const [tx, ty] = throneAt(); ringAt(b, tx, ty, 0.35, [255, 236, 180], 3.6, 1.5); }
             sfx(b, 'sing'); sfx(b, 'bell');
           }],
+          [s[3] + 3.0, () => gest('john', 'reachup')],
           [s[3] + 4.2, b => { setL(b, 'lbKingdom', 0.3); }],
         ]);
       },
@@ -2499,18 +2549,27 @@
             setL(b, 'lbKingdom', 0.15);
             W.goTo(0.8, 14, b.instant);
             cpose('folk', 'gaze'); pose('john', 'gaze');
-            cface('folk', G('woman')[0]);
+            heed('folk', G('woman')[0], { spread: 2 });
             sfx(b, 'harp'); sfx(b, 'stars', { soft: true });
           }],
+          // 大红龙：众人惊退；尾巴拖拉星辰——一惊，蹲伏
           [s[1], b => { setL(b, 'lbDragon', 1); sfx(b, 'thunder', { soft: true, far: true }); }],
+          [s[1] + 0.6, () => { cpose('folk', 'recoil'); pose('john', 'recoil'); }],
           [s[1] + 2.4, b => { run(b, 'lbSweep'); sfx(b, 'wind'); }],
+          [s[1] + 2.7, () => stir('folk', 'startle', { spread: 0.8, share: 0.7 })],
+          [s[1] + 3.4, () => cpose('folk', 'cower')],
+          // 孩子被提到宝座那里：众人站起来仰望
           [s[2], b => { run(b, 'lbChild'); sfx(b, 'chime'); }],
+          [s[2] + 0.4, () => { cpose('folk', 'gaze'); pose('john', 'gaze'); }],
           [s[2] + 3.4, b => {
             trans(b, { type: 'flare', at: throneAt, r: 34, dur: 2.2 });
             sfx(b, 'bell', { soft: true });
           }],
+          // 妇人逃到旷野：众人转过去望着远山；约翰手搭凉棚
           [s[3], b => { run(b, 'lbFlee'); sfx(b, 'wings'); }],
+          [s[3] + 0.6, () => { heed('folk', G('refuge')[0], { spread: 2 }); pose('john', 'look'); face('john', 1); }],
           [s[3] + 4, b => { setL(b, 'lbRefuge', 1); }],
+          [s[3] + 4.6, () => stir('folk', 'nod', { spread: 1.4, share: 0.5 })],
         ]);
       },
     },
@@ -2527,6 +2586,7 @@
             run(b, 'lbWar');
             W.goTo(0.96, 10, b.instant);
             cface('folk', G('dragon')[0]);
+            pose('john', 'gaze');
             sfx(b, 'angel'); sfx(b, 'wind', { soft: true });
           }],
           [s[1], b => {
@@ -2536,20 +2596,27 @@
             trans(b, { type: 'flare', at: () => { const [x, y] = michaelPt(); return [x, y - 0.07 * W.h]; }, r: 30, dur: 2.2, a: 0.7 });
             sfx(b, 'thunder');
           }],
+          [s[1] + 0.3, () => { stir('folk', 'startle', { spread: 0.8, share: 0.7 }); gest('john', 'startle'); }],
+          // 龙被摔下，落在近旁的海边：约翰惊退，众人跪倒发抖
           [s[1] + 2.7, b => {
             setL(b, 'lbHaze', 1);
             setL(b, 'lbDragon', 0);
             shake(b, 0.55);
             sfx(b, 'collapse', { soft: true });
             cpose('folk', 'kneel');
+            pose('john', 'recoil'); face('john', -1);
           }],
+          [s[1] + 4.4, () => stir('folk', 'tremble', { spread: 1.4, share: 0.5 })],
+          // 救恩、能力、国度都来到了：众人先后举手，有的跳起来
           [s[2], b => {
             trans(b, { type: 'flare', at: throneAt, r: 46, dur: 2.6 });
             if (!b.instant) { const [tx, ty] = throneAt(); ringAt(b, tx, ty, 0.4, [255, 246, 226], 3.2, 1.5); }
-            cpose('folk', 'raise'); pose('john', 'raise');
+            cpose('folk', 'raise'); face('john', 1); pose('john', 'raise');
             sfx(b, 'bell'); sfx(b, 'sing', { soft: true });
           }],
+          [s[2] + 2.0, () => stir('folk', 'leap', { spread: 1.6, share: 0.3 })],
           [s[3], b => { setL(b, 'lbLambGlow', 1); setL(b, 'lbRobes', 1); setL(b, 'lbSouls', 1); sfx(b, 'harp', { soft: true }); }],
+          [s[3] + 1.2, () => stir('folk', 'nod', { spread: 1.6, share: 0.6 })],
           [s[3] + 4.2, b => { setL(b, 'lbMichael', 0); setL(b, 'lbLambGlow', 0.3); cpose('folk', 'stand'); pose('john', 'gaze'); }],
         ]);
       },
@@ -2570,7 +2637,12 @@
             cface('folk', G('beast')[0]); face('john', -1);
             sfx(b, 'wave'); sfx(b, 'thunder', { soft: true, far: true });
           }],
+          // 兽从海中上来：众人惊退
+          [0.8, () => { cpose('folk', 'recoil'); pose('john', 'recoil'); }],
+          [4.0, () => pose('john', 'stand')],
+          // 羔羊站在锡安山：众人转过身去，跟着它的光
           [s[1], b => { run(b, 'lbLambGo'); setL(b, 'lbLambGlow', 0.8); sfx(b, 'bleat', { soft: true }); }],
+          [s[1] + 0.8, () => { heed('folk', G('zion'), { spread: 2.2 }); cpose('folk', 'stand'); }],
           [s[1] + 3.5, b => {
             setL(b, 'lbZion', 1);
             setL(b, 'lbMarks', 1);
@@ -2580,19 +2652,24 @@
             if (!b.instant) { const z = zionGeom().top; ringAt(b, z[0], z[1] - 10, 0.6, [255, 236, 190], 3, 1.6); }
             sfx(b, 'bell', { soft: true });
           }],
+          [s[1] + 4.4, () => { stir('folk', 'reachup', { spread: 1.8, share: 0.4 }); pose('john', 'gaze'); }],
+          // 琴声：众人点头静听
           [s[2], b => {
             if (!b.instant) { const [tx, ty] = throneAt(); for (let i = 0; i < 3; i++) ringAt(b, tx, ty + i * 6, 0.4 + i * 0.25, [255, 236, 200], 3 + i, 1.2); }
             sfx(b, 'harp'); sfx(b, 'sing', { soft: true });
           }],
+          [s[2] + 1.2, () => { stir('folk', 'nod', { spread: 2, share: 0.5 }); gest('john', 'nod'); }],
           [s[2] + 2.4, b => sfx(b, 'lyre', { soft: true })],
+          // 「你要写下」：约翰坐下来写；众人坐下安息
           [s[3], b => {
             setL(b, 'lbRest', 1);
             S.palms = 0;
             cpose('folk', 'sit');
-            pose('john', 'sit');
+            pose('john', 'write');
             setL(b, 'lbLambGlow', 0.4);
             sfx(b, 'harp', { soft: true });
           }],
+          [s[3] + 5.6, () => stir('folk', 'sigh', { spread: 2, share: 0.4 })],
         ]);
       },
     },
@@ -2614,6 +2691,8 @@
             W.goTo(0.4, 12, b.instant);
             sfx(b, 'harp'); sfx(b, 'sing', { soft: true });
           }],
+          // 唱摩西的歌和羔羊的歌：众人随着点头
+          [2.4, () => stir('folk', 'nod', { spread: 2.4, share: 0.5 })],
           [s[1], b => { setL(b, 'lbGlory', 1); S.bowls = 1; setL(b, 'lbSeven', 1); setL(b, 'lbHost', 0.3); sfx(b, 'bell', { soft: true }); }],
           [s[1] + 1.8, b => {
             run(b, 'lbBowls');
@@ -2621,10 +2700,14 @@
             W.set('lbCityLit', 0.7, b.instant);
             sfx(b, 'pour', { soft: true });
           }],
+          [s[1] + 2.6, () => stir('folk', 'tremble', { spread: 1.6, share: 0.4 })],
+          // 「成了！」：大光一闪，约翰以臂遮眼，众人一惊
           [s[2], b => {
             trans(b, { type: 'flare', at: throneAt, r: 60, dur: 2.4, a: 1 });
             flashW(b, 0.35);
             sfx(b, 'thunder');
+            pose('john', 'shield');
+            stir('folk', 'startle', { spread: 0.5 });
           }],
           [s[2] + 1.2, b => {
             if (GS.weather && GS.weather.bolt) { GS.weather.bolt({ x: 0.7 }); GS.weather.bolt({ x: 0.9, front: true }); }
@@ -2632,7 +2715,9 @@
             sfx(b, 'quake');
             cpose('folk', 'kneel'); pose('john', 'kneel');
           }],
+          // 大城裂为三段：众人回头望
           [s[3], b => {
+            heed('folk', G('city')[0] + 0.15, { spread: 1.4 });
             run(b, 'lbSplit');
             if (!b.instant && fx()) { const m = cityModel(); for (const f of [lerp(m.x0, m.x1, 0.36), lerp(m.x0, m.x1, 0.7)]) fx().dust(f * W.w, gY(1, f) - 10 * CS(), 30, [190, 170, 140], 16 * CS(), 'mid'); }
             shake(b, 0.6);
@@ -2666,6 +2751,7 @@
             pose('john', 'gaze');
             sfx(b, 'crowd', { soft: true, far: true });
           }],
+          // 羔羊胜过他们：众人转向锡安山，点头
           [3.6, b => {
             setL(b, 'lbLambGlow', 1);
             setL(b, 'lbKings', 0.15);
@@ -2673,7 +2759,12 @@
             if (!b.instant) { const z = zionGeom().top; ringAt(b, z[0], z[1] - 10, 0.9, [255, 236, 190], 3.4, 1.8); }
             sfx(b, 'bell');
           }],
+          [4.2, () => heed('folk', G('zion'), { spread: 1.6 })],
+          [5.8, () => { stir('folk', 'nod', { spread: 1.6, share: 0.6 }); gest('john', 'nod'); }],
+          // 大权柄的天使，地因他的荣耀发光：约翰遮眼，众人转过去望
           [s[1], b => { setL(b, 'lbAuth', 1); sfx(b, 'angel'); sfx(b, 'shout', { soft: true }); }],
+          [s[1] + 0.3, () => { pose('john', 'shield'); heed('folk', G('auth')[0], { spread: 1.6 }); }],
+          [s[1] + 3.0, () => pose('john', 'gaze')],
           [s[2], b => {
             setL(b, 'lbAuth', 0);
             // 城里的人走出来：提灯的小光从城门沿着城下走到海边
@@ -2687,11 +2778,17 @@
             walkTo('out', to, { speed: 0.03, pose: 'stand' });
             S.out = 1;
           }],
+          // 出城的人走来：众人转过去，招手接他们
+          [s[2] + 3.4, () => { heed('folk', 0.55, { spread: 1.6 }); stir('folk', 'beckon', { spread: 2, share: 0.4 }); }],
+          // 大磨石扔在海里：约翰回头望，众人一惊
           [s[3], b => { setL(b, 'lbStoneAng', 1); run(b, 'lbStone'); sfx(b, 'wind', { soft: true }); }],
+          [s[3] + 0.4, () => face('john', -1)],
           [s[3] + 1.8, b => {
             trans(b, { type: 'splash', at: px(G('stoneB')), dur: 2.4 });
             shake(b, 0.5);
             sfx(b, 'splash', { size: 1 }); sfx(b, 'wave');
+            stir(['folk', 'out'], 'startle', { spread: 0.8, share: 0.6 });
+            gest('john', 'startle');
           }],
           [s[3] + 2.4, b => {
             // 灯光决不能再照耀；大城倾倒，成了荒场，只剩轻烟
@@ -2705,6 +2802,7 @@
             shake(b, 0.5);
             sfx(b, 'collapse');
           }],
+          [s[3] + 3.6, () => stir(['folk', 'out'], 'tremble', { spread: 1.4, share: 0.4 })],
         ]);
       },
     },
@@ -2722,8 +2820,11 @@
             setL(b, 'lbCitySmoke', 0.3);
             setL(b, 'lbLambGlow', 0.6);
             sfx(b, 'sing'); sfx(b, 'angel', { soft: true });
+            pose('john', 'gaze');
           }],
+          [0.6, () => heed(PEOPLE, G('th')[0], { spread: 2 })],
           [1.4, b => nameAt(b, '哈利路亚', PORT ? 0.5 : 0.62, PORT ? 0.52 : 0.42, { hold: 3.4 })],
+          // 全能者作王了：众人先后举手，有的跳起来
           [s[1], b => {
             S.palms = 1;
             for (const g of PEOPLE) cpose(g, 'raise');
@@ -2732,6 +2833,9 @@
             if (!b.instant) { const [tx, ty] = throneAt(); ringAt(b, tx, ty, 0.35, [255, 244, 214], 3.6, 1.5); }
             sfx(b, 'thunder', { soft: true }); sfx(b, 'wave', { soft: true }); sfx(b, 'bell');
           }],
+          [s[1] + 2.4, () => stir(PEOPLE, 'leap', { spread: 2, share: 0.3 })],
+          // 我们要欢喜快乐：张开两臂欢喜踏步
+          [s[2] - 0.2, () => { for (const g of PEOPLE) cpose(g, 'rejoice'); }],
           [s[2], b => {
             // 新妇蒙恩得穿光明洁白的细麻衣
             whiten('folk', 0.45); whiten('out', 0.45, '穿白衣的');
@@ -2740,14 +2844,17 @@
             if (!b.instant) { const z = zionGeom().top; sparkleAt(b, z[0], z[1] + 20, 50, [255, 252, 244], 90); }
             sfx(b, 'chime');
           }],
+          // 「你要写上」：约翰坐下来写；众人坐席
           [s[3], b => {
             setL(b, 'lbTable', 1);
             S.palms = 0;
             for (const g of PEOPLE) cpose(g, 'sit');
-            pose('john', 'sit');
+            pose('john', 'write');
             setL(b, 'lbLambGlow', 1);
             sfx(b, 'bell', { soft: true }); sfx(b, 'harp', { soft: true });
           }],
+          // 「这是神真实的话」
+          [s[3] + 4.6, () => gest('john', 'nod')],
         ]);
       },
     },
@@ -2769,9 +2876,14 @@
             pose('john', 'gaze'); face('john', 1);
             sfx(b, 'angel');
           }],
+          // 白马与骑马的是纯光：约翰以臂遮眼，众人一惊
           [1.6, b => { run(b, 'lbRider'); sfx(b, 'hooves'); }],
+          [2.0, () => { pose('john', 'shield'); stir(PEOPLE, 'startle', { spread: 1, share: 0.5 }); }],
+          [4.8, () => pose('john', 'gaze')],
           [s[1] + 1.2, b => { nameAt(b, '神之道', PORT ? 0.5 : 0.36, PORT ? 0.575 : 0.18, { hold: 3.2 }); sfx(b, 'bell', { soft: true }); }],
+          [s[1] + 2.0, () => stir(PEOPLE, 'bowhead', { spread: 1.6, share: 0.5 })],
           [s[2], b => { run(b, 'lbArmies'); sfx(b, 'hooves', { soft: true }); sfx(b, 'wind', { soft: true }); }],
+          [s[2] + 0.8, () => stir(PEOPLE, 'reachup', { spread: 2, share: 0.3 })],
           [s[2] + 2.2, b => { setL(b, 'lbBeastA', 0); setL(b, 'lbKings', 0); setL(b, 'lbCitySmoke', 0.2); }],
           [s[3], b => {
             nameAt(b, '万王之王', PORT ? 0.5 : 0.36, PORT ? 0.635 : 0.14, { hold: 3.6, rgb: [255, 236, 180] });
@@ -2802,7 +2914,10 @@
             face('john', -1); pose('john', 'stand');
             sfx(b, 'angel', { soft: true });
           }],
+          // 天使捆绑那龙：就在近旁的无底坑边，约翰惊退
           [2.8, b => { run(b, 'lbBind'); sfx(b, 'chains'); }],
+          [3.2, () => pose('john', 'recoil')],
+          [6.4, () => pose('john', 'stand')],
           [s[1], b => { run(b, 'lbBound'); sfx(b, 'chains', { soft: true }); }],
           [s[1] + 3.2, b => {
             setL(b, 'lbSealPit', 1);
@@ -2812,6 +2927,8 @@
             shake(b, 0.3);
             sfx(b, 'seal');
           }],
+          [s[1] + 4.0, () => { stir(PEOPLE, 'nod', { spread: 1.6, share: 0.5 }); gest('john', 'nod'); }],
+          // 几个宝座；他们都复活了：众人仰望
           [s[2], b => {
             setL(b, 'lbThrones', 1);
             run(b, 'lbReign');
@@ -2821,12 +2938,15 @@
             W.goTo(0.37, 13, b.instant);   // 一千年：一日一夜流转
             sfx(b, 'harp');
           }],
+          [s[2] + 0.6, () => { for (const g of PEOPLE) cpose(g, 'gaze'); pose('john', 'gaze'); }],
+          // 有福了，圣洁了：众人先后举手
           [s[3], b => {
             for (const g of PEOPLE) cpose(g, 'raise');
             pose('john', 'raise');
             if (!b.instant) { for (const h of headsOf('folk')) ringAt(b, h[0], h[1], 0.05, [255, 240, 200], 2.2, 1); }
             sfx(b, 'bell'); sfx(b, 'harp', { soft: true });
           }],
+          [s[3] + 2.0, () => stir(PEOPLE, 'leap', { spread: 2, share: 0.25 })],
         ]);
       },
     },
@@ -2851,10 +2971,15 @@
             setL(b, 'lbRefuge', 0);
             setL(b, 'lbThrones', 0.5);
             W.set('clouds', 0, b.instant);
-            for (const g of PEOPLE) { cpose(g, 'stand'); cface(g, G('th')[0]); }
-            pose('john', 'gaze'); face('john', 1);
+            for (const g of PEOPLE) cface(g, G('th')[0]);
+            face('john', 1);
             sfx(b, 'bell'); sfx(b, 'angel', { soft: true });
           }],
+          // 白色的大宝座，天地都逃避：一片白光，众人以臂遮眼
+          [0.4, () => { for (const g of PEOPLE) cpose(g, 'shield'); pose('john', 'shield'); }],
+          [4.2, () => pose('john', 'gaze')],
+          // 死了的人都站在宝座前：众人站着，合手低头
+          [s[1] - 1.2, () => { for (const g of PEOPLE) cpose(g, 'listen'); }],
           [s[1], b => { setL(b, 'lbDead', 1); run(b, 'lbBooks'); sfx(b, 'scroll'); }],
           [s[1] + 2.6, b => {
             setL(b, 'lbLife', 1);
@@ -2862,7 +2987,11 @@
             nameAt(b, '生命册', bp[0] / W.w, bp[1] / W.h + (PORT ? 0.035 : 0.085), { hold: 3.6, rgb: [184, 116, 34] });
             sfx(b, 'chime');
           }],
+          [s[1] + 3.4, () => gest('john', 'nod')],
+          // 海交出其中的死人：约翰回头望海
           [s[2], b => { run(b, 'lbSeaRise'); sfx(b, 'wave', { soft: true }); }],
+          [s[2] + 0.6, () => { face('john', -1); pose('john', 'look'); }],
+          [s[3] - 0.6, () => { face('john', 1); pose('john', 'gaze'); }],
           [s[3], b => {
             // 死亡和阴间被扔在火湖里：只由经文说出——最后一点黑暗消失
             setL(b, 'lbPit', 0);

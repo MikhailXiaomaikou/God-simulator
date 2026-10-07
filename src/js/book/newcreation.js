@@ -208,8 +208,9 @@
     return c.crowd(g, Object.assign({ from: W.replaying ? 'none' : 'fade', v: 0, mill: false }, o));
   }
   function crowdPose(g, p) { const c = C(); if (hasCrowd(g)) c.crowdPose(g, p); }
-  function crowdFace(g, xf) { for (const m of members(g)) { m.facing = m.nx <= xf ? 1 : -1; if (W.replaying) m.fd = m.facing; } }
-  function crowdFaceDir(g, d) { for (const m of members(g)) { m.facing = d; if (W.replaying) m.fd = d; } }
+  // （直接转向时，先前排着要先后转的作废：以这一次为准）
+  function crowdFace(g, xf) { for (const m of members(g)) { m._qFace = null; m.facing = m.nx <= xf ? 1 : -1; if (W.replaying) m.fd = m.facing; } }
+  function crowdFaceDir(g, d) { for (const m of members(g)) { m._qFace = null; m.facing = d; if (W.replaying) m.fd = d; } }
   function crowdRobe(g) { members(g).forEach((m, i) => { m.robe = WHITES[i % WHITES.length].slice(); m.accent = null; }); }
   function crowdGlow(g, v) { for (const m of members(g)) m.glow = v; }
   const FOLK = ['folkA', 'folkB', 'folkC', 'folkD'];
@@ -230,6 +231,13 @@
     const a = au();
     if (a && a.sfx) U.safe('audio.sfx', () => a.sfx(name, o));
   }
+  // 演技：说话、一次性的手势、众人先后转向 / 先后做同一个手势（重演时人物模块自己略过；attend 立即到位）
+  function say(id, sec, o) { const c = C(); if (c.speak) U.safe('cast.speak', () => c.speak(id, sec, o)); }
+  function gest(id, kind, o) { const c = C(); if (c.gesture) U.safe('cast.gesture', () => c.gesture(id, kind, o)); }
+  function heed(ids, target, o) { const c = C(); if (c.attend) U.safe('cast.attend', () => c.attend(ids, target, o)); }
+  function stir(ids, kind, o) { const c = C(); if (c.react) U.safe('cast.react', () => c.react(ids, kind, o)); }
+  // 几个人先后换同一个姿势（各人相差 dt 秒）：返回情节的拍子
+  const lag = (ids, t0, dt, fn) => ids.map((id, i) => [t0 + i * dt, b => fn(id, b, i)]);
   function shake(b, k) { if (!b.instant) W.shake = Math.max(W.shake || 0, k); }
   function flash(b, k) { if (!b.instant) W.flash = Math.max(W.flash || 0, k); }
   function sparkleAt(b, x, y, n, rgb, spread) { if (b.instant || !fx()) return; fx().sparkle(x, y, n || 20, rgb || [255, 240, 206], (spread || 14) * SU(), 'top'); }
@@ -1507,7 +1515,7 @@
   const EMB = ['mother', 'child'];        // 母亲与孩子相拥着：众人举手、站起时不打断她们
   function everyoneFaceOut(xf) {
     for (const id of allPeople()) { const f = fig(id); if (f && EMB.indexOf(id) < 0) face(id, f.nx < xf ? -1 : 1); }
-    for (const g of FOLK) for (const m of members(g)) { m.facing = m.nx < xf ? -1 : 1; if (W.replaying) m.fd = m.facing; }
+    for (const g of FOLK) for (const m of members(g)) { m._qFace = null; m.facing = m.nx < xf ? -1 : 1; if (W.replaying) m.fd = m.facing; }
   }
   function everyoneFace(xf) {
     for (const id of allPeople()) face(id, xf);
@@ -1585,11 +1593,18 @@
             W.goTo(0.34, 16, b.instant);
             pose('john', 'gaze'); face('john', 1);
           }],
+          // 大光一闪：哀哭的人一惊；跪着的抬头向那卷起的天伸手
+          [0.4, () => stir(['mother', 'elder', 'man', 'woman'], 'startle', { spread: 1, share: 0.7 })],
           [1.2, b => { setL('ncSky', 1, b); }],
+          [2.6, () => gest('man', 'reachup', { dur: 3.4 })],
+          [4.4, () => gest('elder', 'lookaround')],
           [5, b => { W.set('bare', 0.2, b.instant); W.set('grass', 0.42, b.instant); W.set('bloom', 0.12, b.instant); }],
-          // 海也不再有了：海平静，自远而近化作光原
+          // 海也不再有了：海平静，自远而近化作光原；约翰转身手搭凉棚望海
           [7.2, b => { setL('ncSea', 1, b); sfx(b, 'wave', { soft: true, far: true }); }],
+          [7.8, () => { face('john', -1); pose('john', 'look'); }],
+          [10.0, () => stir(['mother', 'woman'], 'sigh', { spread: 1.2 })],
           [12.5, b => { W.setPop('fish', 0, null, null, b.instant); W.setPop('whale', 0, null, null, b.instant); GS.book.resync(); }],
+          [13.6, () => { face('john', 1); pose('john', 'gaze'); }],
           [17.6, b => { pose('john', 'stand'); sfx(b, 'harp', { soft: true }); }],
         ]);
       },
@@ -1605,13 +1620,21 @@
         T(c, [
           [0, b => { setL('ncOpen', 1, b); flash(b, 0.3); sfx(b, 'angel'); pose('john', 'gaze'); face('john', 1); }],
           [0.8, b => { setL('ncCity', 1, b); setL('ncVeil', 1, b); sfx(b, 'wind', { soft: true }); }],
+          // 天开了，城自光中降下：跪着的人一惊，伸手；老者转过身来
+          [1.6, () => gest('man', 'startle')],
+          [3.2, () => { face('elder', 1); gest('elder', 'startle'); }],
+          [4.6, () => gest('man', 'reachup', { dur: 3.2 })],
+          // 就如新妇妆饰整齐：约翰举起两手
+          [5.4, () => pose('john', 'lift')],
           [7.4, b => { setL('ncVeil', 0, b); }],
+          [8.4, () => pose('john', 'gaze')],
           // 落在山上
           [9.6, b => {
             shake(b, 0.22); sfx(b, 'seal', { soft: true }); sfx(b, 'harp');
             setL('ncGlow', 0.45, b); setL('ncOpen', 0, b);
             if (!b.instant) { const G = cityG(); sparkleAt(b, G.cx, G.yW - G.Hw * 0.5, 40, [255, 248, 226], 60); ringAt(b, G.cx, G.yW - G.Hw, G.Wc * 0.7, [255, 244, 214], 2.6); }
           }],
+          [9.8, () => stir(['mother', 'woman', 'man'], 'startle', { spread: 0.8, share: 0.7 })],
           [11, b => { pose('john', 'stand'); face('elder', 1); pose('elder', 'stand'); }],
         ]);
       },
@@ -1632,12 +1655,14 @@
           }],
           [0.3, b => { setL('ncTent', 1, b); setL('ncCloud', 1, b); }],
           [3, b => { sfx(b, 'harp', { soft: true }); }],
-          // 哀哭的人抬起头来
+          // 哀哭的人抬起头来：跪着仰面，摊开两手；老者向那云弯腰下拜
           [4.6, b => {
-            pose('mother', 'kneel', { weep: true }); face('mother', 1);
-            pose('elder', 'bow'); face('elder', 1);
-            face('man', -1); pose('woman', 'kneel', { weep: true }); face('woman', -1);
+            pose('mother', 'beg', { weep: true }); face('mother', 1);
+            face('elder', 1);
+            face('man', -1); face('woman', -1);
           }],
+          [5.0, () => pose('woman', 'beg', { weep: true })],
+          [5.4, () => { pose('elder', 'bow'); gest('man', 'reachup', { dur: 3.4 }); }],
           // 他们要作他的子民：万民聚来
           [6.4, b => {
             crowd('folkA', { n: X.nA, x0: X.cA0, x1: X.cA1, layer: 2, pose: 'stand', glow: 0.1, label: '万民' });
@@ -1645,6 +1670,7 @@
             crowdFace('folkA', X.rx); crowdFace('folkB', X.rx);
             sfx(b, 'crowd', { soft: true });
           }],
+          [8.0, () => stir(['folkA', 'folkB'], 'lookaround', { spread: 1.6, share: 0.4 })],
           [10.4, b => { crowdPose('folkA', 'worship'); crowdPose('folkB', 'worship'); pose('john', 'bow'); face('john', 1); }],
           [12, b => { setL('ncBeam', 0.55, b); }],
         ]);
@@ -1661,7 +1687,9 @@
       apply(c) {
         T(c, [
           [0, b => { touch(b, 'mother'); glow('mother', 0.42); sfx(b, 'harp', { soft: true }); }],
+          [0.4, () => gest('mother', 'startle')],
           [1.3, b => { pose('mother', 'stand', { weep: false }); robe('mother', WHITES[0]); face('mother', 1); }],
+          [1.8, () => { pose('john', 'stand'); face('john', 'mother'); }],
           // 母亲的孩子自光中跑来
           [2.4, b => {
             add('child', { label: '孩子', sex: 'f', age: 'child', x: X.childFrom, layer: 2, facing: -1, pose: 'stand', robe: [246, 242, 232], glow: 0.5, v: 0.05, from: b.instant ? 'none' : 'light' });
@@ -1670,19 +1698,25 @@
             sfx(b, 'chime');
           }],
           [3.6, b => { C().embrace('mother', 'child', { run: true, at: X.mother + 0.012 }); }],
+          // 拄杖的老者直起身来，放下杖，向天举手
           [5.2, b => { touch(b, 'elder'); }],
+          [5.6, () => gest('elder', 'startle')],
           [6.2, b => { pose('elder', 'stand'); prop('elder', null); robe('elder', WHITES[1]); glow('elder', 0.38); face('elder', 1); }],
+          [7.0, () => gest('elder', 'reachup')],
           [7.6, b => { touch(b, 'man'); }],
           [8.6, b => { pose('man', 'raise'); robe('man', WHITES[2]); glow('man', 0.36); }],
           [9.6, b => { touch(b, 'woman'); }],
           [10.4, b => { pose('woman', 'stand', { weep: false }); robe('woman', WHITES[3]); glow('woman', 0.36); }],
+          [11.0, () => gest('woman', 'reachup')],
           // 众人都穿上了白衣
           [11.8, b => {
             for (const g of ['folkA', 'folkB']) { crowdPose(g, 'stand'); crowdRobe(g); crowdGlow(g, 0.2); }
             if (!b.instant) for (const g of ['folkA', 'folkB']) for (const m of members(g)) if (m._vis) sparkleAt(b, m._x, m._y - (m._h || 30) * 0.6, 6, [255, 248, 230], 8);
             sfx(b, 'harp');
           }],
-          [13.4, b => { pose('man', 'stand'); face('man', -1); pose('john', 'stand'); }],
+          [12.8, () => { stir(['folkA', 'folkB'], 'nod', { spread: 1.6, share: 0.6 }); stir(['folkA', 'folkB'], 'leap', { spread: 2, share: 0.2 }); }],
+          [13.4, b => { pose('man', 'stand'); face('man', -1); pose('john', 'stand'); face('john', 1); }],
+          [14.6, () => gest('john', 'nod')],
         ]);
       },
     },
@@ -1707,14 +1741,23 @@
             W.set('bloom', 1, b.instant); W.set('bare', 0, b.instant); W.set('life', 1, b.instant);
             if (!b.instant) { ringAt(b, c.x || px, c.y || py, M() * 0.9, [255, 246, 220], 3.2); ringAt(b, px, py, M() * 0.5, [214, 255, 200], 2.6); }
           }],
-          // 飞鸟自东边的天上出来（不在城前）
+          [0.4, () => stir(['elder', 'man', 'woman', 'folkA', 'folkB'], 'startle', { spread: 1, share: 0.5 })],
+          // 飞鸟自东边的天上出来（不在城前）：众人转过去望
           [2.4, b => { W.setPop('bird', PORT ? 10 : 16, W.w * 0.28, W.h * 0.3, b.instant); sfx(b, 'bird'); }],
+          [3.0, () => heed(['elder', 'man', 'woman', 'folkA', 'folkB'], 0.3, { spread: 1.6 })],
+          // 「你要写上」：约翰坐下来写
+          [3.8, () => pose('john', 'write')],
           [4.6, b => {
             const px = cx * W.w, py = W.ridgeBaseY(2, px);
             W.setPop('cattle', PORT ? 3 : 5, px, py, b.instant); W.setPop('beast', PORT ? 2 : 4, px, py, b.instant); W.setPop('creeper', PORT ? 8 : 16, px, py, b.instant);
             sfx(b, 'bleat', { soft: true });
           }],
-          [7, b => { everyonePose('raise', EMB); pose('john', 'gaze'); }],
+          [5.2, () => heed(['elder', 'man', 'woman', 'folkA', 'folkB'], cx, { spread: 1.4 })],
+          // 受造之物得享自由：众人先后举手
+          [7, b => { everyonePose('raise', ['mother', 'child', 'john']); }],
+          [9.6, () => { pose('john', 'stand'); face('john', 1); }],
+          [10.4, () => pose('john', 'gaze')],
+          [11.2, () => stir(['folkA', 'folkB'], 'leap', { spread: 1.6, share: 0.25 })],
           [13.4, b => { everyonePose('stand', EMB); }],
         ]);
         return { x: cx };
@@ -1733,11 +1776,16 @@
           // 「初」与「终」都留到那一环合上之后
           [0, b => { const R = ringG(); nameAt(b, '初', R.cx - R.rx, R.cy, R.size, { hold: 6.2 }); flash(b, 0.2); }],
           [1, b => { const R = ringG(); nameAt(b, '终', R.cx + R.rx, R.cy, R.size, { hold: 5.2 }); }],
+          // 「初」在东，「终」在西：约翰从这头望到那头
+          [1.4, () => gest('john', 'lookaround', { dur: 3.6 })],
           [2.4, b => { setL('ncRing', 1, b); setL('ncRingA', 1, b); sfx(b, 'stars'); }],
+          [3.0, () => stir(['elder', 'man', 'woman', 'folkA', 'folkB'], 'reachup', { spread: 2, share: 0.3 })],
+          [5.4, () => gest('john', 'bowhead')],
           // 都成了：城的荣光更盛
           [7.8, b => { setL('ncGlow', 0.72, b); sfx(b, 'harp'); if (!b.instant) { const G = cityG(); ringAt(b, G.tx, G.ty, G.Wc * 0.8, [255, 240, 200], 2.8); } }],
-          // 我要作他的神，他要作我的儿子
+          // 我要作他的神，他要作我的儿子：众人先后举手
           [9.4, b => { everyonePose('raise', EMB); for (const g of FOLK) crowdGlow(g, 0.26); }],
+          [11.8, () => stir(['folkA', 'folkB'], 'nod', { spread: 1.6, share: 0.5 })],
           [12.6, b => { setL('ncRingA', 0, b); }],
           [15, b => { everyonePose('stand', EMB); }],
         ]);
@@ -1755,11 +1803,18 @@
       apply(c) {
         T(c, [
           [0, b => { setL('ncWall', 1, b); setL('ncGlow', 0.8, b); sfx(b, 'harp'); if (!b.instant) FXL.push({ k: 'sweep', t0: W.t, dur: 3.2 }); pose('john', 'gaze'); face('john', 1); }],
-          // 十二根基，一层一层显出宝石的颜色
+          // 众人先后转向那城
+          [0.8, () => heed(['elder', 'man', 'woman', 'folkA', 'folkB'], X.rx, { spread: 2 })],
+          // 十二根基，一层一层显出宝石的颜色：约翰手搭凉棚细看；老者一层一层指给人看
           [7.8, b => { setL('ncFound', 12, b); }],
+          [8.4, () => pose('john', 'look')],
+          [10.6, () => gest('elder', 'point')],
+          [13.4, () => gest('man', 'nod')],
           // 十二个珍珠门
           [16.2, b => { setL('ncGates', 1, b); sfx(b, 'chime'); if (!b.instant) for (const q of cityG().gates) sparkleAt(b, q.x, q.y - q.h * 0.5, 14, [255, 250, 240], 10); }],
+          [16.6, () => { pose('john', 'gaze'); stir(['folkA', 'folkB'], 'reachup', { spread: 1.8, share: 0.3 }); }],
           [18.6, b => { setL('ncGold', 1, b); if (!b.instant) FXL.push({ k: 'sweep', t0: W.t, dur: 2.6 }); pose('john', 'point'); }],
+          [19.6, () => gest('woman', 'clap')],
           [22.4, b => { pose('john', 'stand'); }],
         ]);
       },
@@ -1778,15 +1833,23 @@
           [0, b => { setL('ncGlow', 0.9, b); sfx(b, 'harp', { soft: true }); }],
           // 不再有黑夜：昼夜之分归于神的荣耀；日头奔走它的路程，落下——光却不减
           [1.4, b => { W.set('dayNight', 0, b.instant); W.set('moon', 0, b.instant); W.set('stars', 0, b.instant); W.goTo(0.8, 12.5, b.instant); }],
-          // 羔羊为城的灯；神的荣耀光照
+          [3.0, () => gest('john', 'lookaround')],
+          // 羔羊为城的灯；神的荣耀光照：众人先后仰望
           [8.6, b => {
             setL('ncLamb', 1, b); setL('ncGlow', 1, b); setL('ncBeam', 0, b); setL('ncShine', 1, b);
             sfx(b, 'bleat', { soft: true, far: true }); sfx(b, 'angel');
             if (!b.instant) { const G = cityG(); ringAt(b, G.tx, G.ty, G.Wc * 0.5, [255, 250, 236], 2.4); sparkleAt(b, G.tx, G.ty, 24, [255, 252, 244], 16); }
           }],
-          // 城门总不关闭；列国在城的光里行走
+          ...lag(['john', 'elder', 'man', 'woman'], 9.0, 0.4, id => pose(id, 'gaze')),
+          [9.4, () => { crowdPose('folkA', 'gaze'); crowdPose('folkB', 'gaze'); }],
+          [11.6, () => stir(['folkA', 'folkB'], 'reachup', { spread: 1.6, share: 0.3 })],
+          // 城门总不关闭；列国在城的光里行走：约翰远望；老者指给人看
           [14.2, b => { setL('ncGateOpen', 1, b); sfx(b, 'gate', { soft: true }); }],
+          [15.0, () => { everyonePose('stand', EMB); }],
           [15.6, b => { setL('ncNations', 1, b); sfx(b, 'crowd', { soft: true, far: true }); }],
+          [16.0, () => pose('john', 'look')],
+          [17.2, () => gest('elder', 'point')],
+          [21.4, () => pose('john', 'stand')],
         ]);
       },
     },
@@ -1803,16 +1866,22 @@
           [0, b => { setL('ncSpring', 1, b); sfx(b, 'water'); if (!b.instant) { const G = cityG(); sparkleAt(b, G.tx, G.ty + G.Wc * 0.1, 20, [210, 246, 255], 10); } }],
           [1, b => { setL('ncRiver', 1, b); sfx(b, 'water', { soft: true }); }],
           // 天使指示约翰
+          [2.0, () => heed(['elder', 'man', 'woman', 'folkA', 'folkB'], X.rx, { spread: 2 })],
+          // 天使指示约翰：他回身一惊；天使对他说话，指着那河
           [7, b => {
             add('angel', { label: '天使', sex: 'm', age: 'adult', x: X.angel, layer: 2, facing: 1, angel: true, glow: 1, v: 0.05, from: b.instant ? 'none' : 'light' });
             S.angel = true;
             pose('angel', 'point'); sfx(b, 'angel');
-            face('john', 1); pose('john', 'gaze');
+            face('john', 'angel'); pose('john', 'stand');
           }],
+          [7.4, () => gest('john', 'startle')],
+          [8.0, () => say('angel', 3.2, { to: 'john' })],
+          [9.8, () => { face('john', 1); pose('john', 'gaze'); }],
           [10.5, b => { everyoneFace(X.rx); }],
-          // 到河边来：母亲与孩子跪在河边
+          // 到河边来：母亲与孩子跪在河边，弯身取水喝
           [12.4, b => { walk('mother', X.drinkM, { speed: 0.03, pose: 'kneel' }); walk('child', X.drinkC, { speed: 0.03, pose: 'kneel' }); face('mother', 1); face('child', -1); sfx(b, 'water', { soft: true }); }],
           [14, b => { pose('angel', 'stand'); pose('john', 'stand'); }],
+          [15.8, () => { gest('mother', 'stoopdown'); gest('child', 'stoopdown'); }],
         ]);
       },
     },
@@ -1828,12 +1897,20 @@
       apply(c) {
         T(c, [
           [0, b => { setL('ncTree', 1, b); sfx(b, 'wind', { soft: true }); }],
+          [1.2, () => { stir(['folkA', 'folkB'], 'startle', { spread: 1.2, share: 0.3 }); pose('john', 'gaze'); }],
+          // 十二样果子：孩子指给母亲看
           [6.4, b => { setL('ncFruit', 1, b); sfx(b, 'harp'); }],
+          [7.0, () => gest('child', 'point')],
+          // 叶子乃为医治万民：落到众人身上，众人伸手去接
           [9.2, b => { setL('ncLeaf', 1, b); leaves(b); sfx(b, 'wind', { soft: true }); }],
-          // 可得权柄能到生命树那里
-          [12.6, b => { walk('elder', X.treeL + 0.018, { speed: 0.025, pose: 'raise' }); face('elder', -1); walk('woman', X.treeR - 0.02, { speed: 0.025, pose: 'raise' }); }],
+          [10.0, () => { stir(['folkA', 'folkB', 'man', 'john'], 'reachup', { spread: 2, share: 0.5 }); }],
+          // 可得权柄能到生命树那里：走到树下，伸手
+          [12.6, b => { walk('elder', X.treeL + 0.018, { speed: 0.025, pose: 'reach' }); face('elder', -1); walk('woman', X.treeR - 0.02, { speed: 0.025, pose: 'reach' }); }],
           [16.6, b => { for (const g of FOLK) crowdGlow(g, 0.3); glow('elder', 0.46); glow('woman', 0.44); if (!b.instant) { for (const id of ['elder', 'woman']) { const h = headOf(id, 1.05); sparkleAt(b, h[0], h[1], 14, [255, 236, 200], 8); } } }],
-          [20.4, b => { pose('elder', 'stand'); pose('woman', 'stand'); }],
+          // 那些洗净自己衣服的有福了
+          [18.2, () => stir(['folkA', 'folkB'], 'nod', { spread: 1.8, share: 0.5 })],
+          [20.4, b => { pose('elder', 'stand'); pose('woman', 'stand'); pose('john', 'stand'); }],
+          [21.2, () => { gest('elder', 'nod'); gest('woman', 'nod'); }],
         ]);
       },
     },
@@ -1854,17 +1931,25 @@
             setL('ncThorn', 0, b);
             if (!b.instant) for (const q of thornPts()) sparkleAt(b, q.x, q.y - q.s * 0.3, 12, [255, 240, 214], 8);
           }],
-          // 他的仆人都要事奉他
-          [2.8, b => { everyonePose('worship', ['child']); pose('child', 'kneel'); pose('angel', 'bow'); }],
-          // 也要见他的面；他的名字必写在他们的额上
+          // 他的仆人都要事奉他：众人先后俯伏
+          [2.8, b => { for (const g of FOLK) crowdPose(g, 'worship'); pose('angel', 'bow'); }],
+          ...lag(['john', 'mother', 'elder', 'man', 'woman'], 2.8, 0.35, id => pose(id, 'worship')),
+          [3.4, () => pose('child', 'kneel')],
+          // 也要见他的面；他的名字必写在他们的额上：众人先后起来，仰面
           [8.2, b => {
-            everyonePose('stand'); pose('angel', 'stand');
+            for (const g of FOLK) crowdPose(g, 'stand');
+            pose('angel', 'stand');
             for (const id of allPeople()) glow(id, id === 'child' ? 0.55 : 0.46);
             for (const g of FOLK) crowdGlow(g, 0.34);
             setL('ncMark', 1, b); sfx(b, 'chime');
           }],
+          ...lag(['john', 'mother', 'elder', 'man', 'woman', 'child'], 8.2, 0.25, id => pose(id, 'stand')),
           [9.4, b => { C().embrace('mother', 'child', { at: X.drinkM + 0.012 }); }],
+          [9.8, () => stir(['folkA', 'folkB', 'elder', 'man', 'woman'], 'nod', { spread: 1.6, share: 0.5 })],
+          // 不再有黑夜：主神要光照他们；他们要作王，直到永永远远
+          [11.0, () => pose('john', 'gaze')],
           [12.5, b => { setL('ncFace', 0.35, b); }],
+          [14.6, () => stir(['folkA', 'folkB'], 'reachup', { spread: 2, share: 0.3 })],
         ]);
       },
     },
@@ -1879,11 +1964,17 @@
       apply(c) {
         T(c, [
           [0, b => { setL('ncStarA', 1, b); setL('ncStar', 1, b); sfx(b, 'stars'); }],
+          // 「看哪，我必快来」：约翰点头；众人先后转向东方升起的星
+          [2.4, () => gest('john', 'nod')],
+          [3.4, () => heed(['elder', 'man', 'woman', 'folkA', 'folkB'], 0.2, { spread: 3 })],
           [7.4, b => { everyoneFaceDir(-1); pose('john', 'gaze'); pose('angel', 'point'); face('angel', -1); }],
+          // 我是明亮的晨星：约翰手搭凉棚远望；众人伸手向那星
           [10.8, b => {
             sfx(b, 'chime'); sfx(b, 'harp', { soft: true });
             if (!b.instant) { const s = starPt(); ringAt(b, s[0], s[1], M() * 0.3, [246, 246, 255], 2.6); sparkleAt(b, s[0], s[1], 26, [246, 248, 255], 18); }
           }],
+          [11.2, () => pose('john', 'look')],
+          [11.6, () => stir(['folkA', 'folkB', 'elder', 'man', 'woman'], 'reachup', { spread: 2, share: 0.4 })],
           [16, b => { pose('john', 'stand'); pose('angel', 'stand'); }],
         ]);
       },
@@ -1893,7 +1984,9 @@
     {
       kind: 'call', utter: '来', cmd: 'invite --all 来  # 愿意的，都可以白白取生命的水喝', ref: '22:17', hold: 1.6,
       verse: [
-        { text: '圣灵和新妇都说：「来！」听见的人也该说：「来！」<br>口渴的人也当来；愿意的，都可以白白取生命的水喝。', ref: '启示录 22:17', hold: 8.5 },
+        // 新妇（众人）说「来！」；听见的人（约翰、老者、圣徒）也说「来！」
+        { text: '圣灵和新妇都说：「来！」听见的人也该说：「来！」<br>口渴的人也当来；愿意的，都可以白白取生命的水喝。', ref: '启示录 22:17', hold: 8.5,
+          talk: [['folkA', 0.02, 0.3, 'proclaim'], ['folkB', 0.04, 0.3, 'proclaim'], ['john', 0.3, 0.56, 'proclaim'], ['elder', 0.32, 0.58, 'proclaim'], ['woman', 0.34, 0.6, 'proclaim']] },
       ],
       apply(c) {
         T(c, [
@@ -1901,8 +1994,11 @@
             setL('ncCall', 1, b); sfx(b, 'harp');
             if (!b.instant) { ringAt(b, c.x || W.w * 0.72, c.y || W.h * 0.55, M() * 0.7, [255, 246, 226], 3); for (const q of cityG().gates) ringAt(b, q.x, q.y - q.h * 0.5, M() * 0.35, [255, 250, 236], 2.6); }
           }],
-          // 听见的人也该说：「来！」
-          [1.4, b => { everyonePose('raise', EMB); everyoneFaceOut(X.rx); }],
+          // 听见的人也该说：「来！」——转向外边，招手
+          [1.4, b => { everyonePose('stand', EMB.concat(['man'])); everyoneFaceOut(X.rx); }],
+          [1.8, () => stir(['folkA', 'folkB'], 'beckon', { spread: 1.2, share: 0.7 })],
+          [3.2, () => { gest('john', 'beckon'); gest('elder', 'beckon'); gest('woman', 'wave'); }],
+          [5.4, () => stir(['folkA', 'folkB'], 'wave', { spread: 1.4, share: 0.4 })],
           // 远处的人成群而来
           // （自右边远处来，走到河的右岸、岭线之前的坡上——不挤在岭上的人中间）
           [3, b => {
@@ -1915,6 +2011,7 @@
           }],
           // 到河边取生命的水
           [7.6, b => { walk('man', X.bankR, { speed: 0.028, pose: 'kneel' }); face('man', -1); }],
+          [9.0, () => gest('man', 'stoopdown')],
           [10, b => {
             for (const id of allPeople()) if (['mother', 'child', 'man'].indexOf(id) < 0) pose(id, 'stand');
             for (const g of ['folkA', 'folkB', 'folkD']) crowdPose(g, 'stand');
@@ -1929,8 +2026,11 @@
     {
       kind: 'promise', utter: '是了，我必快来', cmd: 'await 主耶稣  # 阿们！', ref: '22:20',
       verse: [
-        { text: '证明这事的说：「是了，我必快来！」<br>阿们！主耶稣啊，我愿你来！', ref: '启示录 22:20', hold: 7 },
-        { text: '愿主耶稣的恩惠常与众圣徒同在。阿们！', ref: '启示录 22:21', hold: 9 },
+        // 「是了，我必快来」是主说的（不以人形出现）；「阿们！主耶稣啊，我愿你来！」是约翰与众人一同说的
+        { text: '证明这事的说：「是了，我必快来！」<br>阿们！主耶稣啊，我愿你来！', ref: '启示录 22:20', hold: 7,
+          talk: [['john', 0.56, 1, 'proclaim'], ['folkA', 0.6, 1, 'proclaim'], ['folkB', 0.6, 1, 'proclaim'], ['folkC', 0.62, 1, 'proclaim']] },
+        // 末了一句：约翰为众圣徒祝福
+        { text: '愿主耶稣的恩惠常与众圣徒同在。阿们！', ref: '启示录 22:21', hold: 9, talk: [['john', 0.04, 0.8, 'proclaim']] },
       ],
       apply(c) {
         T(c, [
@@ -1940,15 +2040,26 @@
             //（不论是看完还是恢复存档，都停住：goTo 自 0.8 到 0.8，历时极长；下一次言说或别的幕会照常接管时辰）
             W.goTo(0.8, 1e7);
           }],
-          // 众人转向东方的光，举手：阿们！主耶稣啊，我愿你来！
-          [1.6, b => { everyoneFaceDir(-1); everyonePose('raise'); pose('angel', 'raise'); face('angel', -1); for (const g of FOLK) crowdGlow(g, 0.4); }],
+          // 众人转向东方的光，先后举手：阿们！主耶稣啊，我愿你来！
+          [1.6, b => { everyoneFaceDir(-1); for (const g of FOLK) crowdPose(g, 'raise'); pose('angel', 'raise'); face('angel', -1); for (const g of FOLK) crowdGlow(g, 0.4); }],
+          ...lag(['john', 'elder', 'woman', 'man', 'mother', 'child'], 1.6, 0.3, id => pose(id, 'raise')),
+          [4.2, () => stir(['folkA', 'folkB', 'folkC', 'folkD'], 'leap', { spread: 2, share: 0.25 })],
           [5, b => { sfx(b, 'harp'); }],
+          // 愿主耶稣的恩惠常与众圣徒同在：约翰转向众人，举手祝福
           [8.6, b => {
-            everyonePose('stand'); pose('angel', 'stand');
+            for (const g of FOLK) crowdPose(g, 'stand'); pose('angel', 'stand');
+            for (const id of ['elder', 'woman', 'man']) pose(id, 'stand');
             C().embrace('mother', 'child', { at: X.drinkM + 0.012 });
             for (const id of allPeople()) glow(id, 0.52);
+            face('john', 1); pose('john', 'bless');
           }],
+          [9.6, () => heed(['elder', 'man', 'woman', 'folkA', 'folkB', 'folkC'], 'john', { spread: 1.6 })],
           [12, b => { sfx(b, 'harp', { soft: true }); }],
+          // 阿们！
+          [15.2, () => { stir(['folkA', 'folkB', 'folkC', 'folkD', 'elder', 'man', 'woman', 'angel'], 'nod', { spread: 1, share: 0.8 }); gest('angel', 'bowhead'); }],
+          [16.4, () => pose('john', 'stand')],
+          // 末了，众人又一同转向东方满满的光
+          [16.8, () => { heed(['john', 'elder', 'man', 'woman', 'folkA', 'folkB', 'folkC'], 0.2, { spread: 1.4 }); }],
         ]);
       },
     },

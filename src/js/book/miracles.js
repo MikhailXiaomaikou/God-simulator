@@ -194,6 +194,11 @@
   function crowdPose(gid, p) { const c = C(); if (c && crowdOf(gid)) c.crowdPose(gid, p); }
   function crowdWalk(gid, x0, x1, o) { const c = C(); if (c && crowdOf(gid)) c.crowdWalk(gid, x0, x1, o || {}); }
   function crowdRm(gid, fade) { const c = C(); if (c) c.removeCrowd(gid, { fade: fade !== false }); }
+  // 演技：说话、一次性的手势、众人先后转向某人、众人先后做同一个手势（重演时引擎自己什么也不做；attend 立即到位）
+  function talk(id, sec, o) { const c = C(); if (c && c.speak) c.speak(id, sec, o); }
+  function gest(id, kind, o) { const c = C(); if (c && c.gesture) c.gesture(id, kind, o); }
+  function heed(ids, target, o) { const c = C(); if (c && c.attend) c.attend(ids, target, o); }
+  function stir(ids, kind, o) { const c = C(); if (c && c.react) c.react(ids, kind, o); }
   // 竖屏的地窄：人群少一些
   function crowd(gid, o) {
     const c = C(); if (!c) return;
@@ -1595,7 +1600,7 @@
       kind: 'cmd', utter: '我肯，你洁净了吧！', cmd: 'chmod +clean 长大麻风的  # 我肯', ref: '马可福音 1:41', tint: TINT_1,
       verse: [
         { text: '有一个长大麻风的来求耶稣，向他跪下，说：「你若肯，必能叫我洁净了。」', ref: '马可福音 1:40', hold: 6.5 },
-        { text: '耶稣动了慈心，就伸手摸他，说：「我肯，你洁净了吧！」<br>大麻风即时离开他，他就洁净了。', ref: '马可福音 1:41–42', hold: 7 },
+        { text: '耶稣动了慈心，就伸手摸他，说：「我肯，你洁净了吧！」<br>大麻风即时离开他，他就洁净了。', ref: '马可福音 1:41–42', hold: 7, talk: [['jesus', 0.2, 0.55, 'calm', 'leper']] },
         { text: '那人出去，倒说许多的话，把这件事传扬开了……人从各处都就了他来。', ref: '马可福音 1:45', hold: 6.5 },
       ],
       apply(c) {
@@ -1605,31 +1610,48 @@
             time(0.42, 20, b);
             add('leper', { label: '长大麻风的', sex: 'm', x: X('leperFrom'), v: 0.1, facing: -1, robe: ROBE.leper, accent: [120, 118, 112], hair: 'cloth', beard: true, glow: 0.04 });
             lv('mcLeper', 1, b);
-            walk('leper', X('leperAt'), { speed: 0.052, pose: 'kneel' });
-            crowdFaceX('vil', X('leperAt'));
+            // 快步走来，到了就跪下、仰面摊手：「求耶稣，向他跪下」
+            walk('leper', X('leperAt'), { speed: 0.066, pose: 'beg' });
           }],
+          // 迦百农人先看见他：有人一惊，往后退（长大麻风的人是人都躲着的）
+          [2.2, b => { heed('vil', 'leper', { spread: 1.6 }); }],
           [2.5, b => { face('jesus', 1); DISC.forEach(id => face(id, 1)); walk('peter', X('peter0') - 0.012, { speed: 0.02 }); }],
-          [7.2, b => { pose('leper', 'pray'); }],
-          [8.2, b => { walk('jesus', X('touch'), { speed: 0.02, pose: 'point' }); }],
-          [9.8, b => {
+          [3.4, b => { stir('vil', 'startle', { share: 0.6, spread: 1.4 }); gest('john', 'startle'); }],
+          // 「你若肯，必能叫我洁净了。」
+          [5.6, b => { talk('leper', 2.6, { how: 'plead', to: 'jesus' }); }],
+          // 耶稣动了慈心（垂首望着他），走近，伸手摸他
+          [7.9, b => { gest('jesus', 'bowhead', { dur: 1.6 }); }],
+          [8.6, b => { walk('jesus', X('touch'), { speed: 0.02, pose: 'reach' }); }],
+          [10.8, b => {
             // 洁白的衣，一条灰蓝的腰带（与主的麻衣分得开）；光只在洁净的一刻亮
             add('leper', { robe: ROBE.clean, accent: [104, 128, 162], glow: 0.42, label: '得洁净的人' });
             lv('mcLeper', 0, b);
             addFX(b, { type: 'clean', id: 'leper', dur: 2.4 });
             flashAt(b, 'leper', [255, 250, 238], 40);
+            gest('leper', 'startle');
             sfx(b, 'harp'); sfx(b, 'chime', { soft: true });
           }],
-          [11.4, b => { pose('jesus', 'stand'); pose('leper', 'stand'); glowP('leper', 0.2); walk('leper', X('leperAt') + 0.024, { speed: 0.02 }); }],
-          [12.8, b => { face('leper', -1); pose('leper', 'raise'); }],
+          [11.6, b => { stir(DISC, 'startle', { spread: 0.8 }); stir('vil', 'startle', { share: 0.5 }); }],
+          [12.4, b => { pose('jesus', 'stand'); pose('leper', 'stand'); glowP('leper', 0.2); walk('leper', X('leperAt') + 0.024, { speed: 0.02 }); }],
+          // 他站起来，转向主，张臂欢喜，跳起来
+          [13.8, b => { face('leper', -1); pose('leper', 'rejoice'); gest('peter', 'nod'); }],
+          [14.6, b => { gest('leper', 'leap', { n: 2 }); }],
+          [15.2, b => { gest('jesus', 'nod'); stir(DISC, 'nod', { share: 0.5, spread: 1.6 }); }],
+          // 那人出去，倒说许多的话：跑向从各处来的人，指着主，传扬开了
           [16.4, b => {
-            run('leper', 1.08, {});
+            pose('leper', 'stand');
+            run('leper', 0.87, {});
             crowd('cap', { n: 9, x0: 0.98, x1: 1.12, label: '众人' });
             forward('cap', 0.28, 0.16);
             crowdWalk('cap', X('capIn')[0], X('capIn')[1], { speed: 0.03 });
             crowdWalk('vil', X('vil')[0] + 0.02, X('vil')[1] + 0.03, { speed: 0.02 });
             sfx(b, 'crowd', { soft: true });
           }],
-          [20.5, b => { rm('leper'); crowdFaceX('cap', X('jesus0')); crowdFaceX('vil', X('jesus0')); }],
+          [18.6, b => { face('leper', 1); talk('leper', 3.6, { how: 'proclaim', to: 'cap' }); }],
+          [19.6, b => { heed('cap', 'leper', { spread: 1 }); }],
+          [20.4, b => { face('leper', -1); gest('leper', 'point'); heed('cap', 'jesus', { spread: 1.4 }); heed('vil', 'jesus', { spread: 1.4 }); talk('cap', 2.4, { share: 0.4 }); }],
+          [21.6, b => { walk('leper', 1.08, { speed: 0.066 }); }],
+          [23.2, b => { rm('leper'); crowdFaceX('cap', X('jesus0')); crowdFaceX('vil', X('jesus0')); }],
         ]);
       },
     },
@@ -1639,8 +1661,8 @@
       verse: [
         { text: '耶稣又进了迦百农。人听见他在房子里，<br>就有许多人聚集，甚至连门前都没有空地', ref: '马可福音 2:1–2', hold: 5.5 },
         { text: '有人带着一个瘫子来见耶稣，是用四个人抬来的；<br>因为人多，不得近前，就把耶稣所在的房子，拆了房顶……把瘫子连所躺卧的褥子都缒下来。', ref: '马可福音 2:3–4', hold: 7.5 },
-        { text: '耶稣见他们的信心，就对瘫子说：「小子，你的罪赦了。」', ref: '马可福音 2:5', hold: 5.5 },
-        { text: '「我吩咐你，起来！拿你的褥子回家去吧。」<br>那人就起来，立刻拿着褥子，当众人面前出去了，以致众人都惊奇，归荣耀与神', ref: '马可福音 2:11–12', hold: 8 },
+        { text: '耶稣见他们的信心，就对瘫子说：「小子，你的罪赦了。」', ref: '马可福音 2:5', hold: 5.5, talk: [['jesus', 0.45, 1, 'calm']] },
+        { text: '「我吩咐你，起来！拿你的褥子回家去吧。」<br>那人就起来，立刻拿着褥子，当众人面前出去了，以致众人都惊奇，归荣耀与神', ref: '马可福音 2:11–12', hold: 8, talk: [['jesus', 0, 0.3, 'proclaim']] },
       ],
       apply(c) {
         ring(c, TINT_1);
@@ -1648,8 +1670,9 @@
           [0, b => {
             time(0.45, 12, b);
             rm('leper', true);
-            walk('jesus', X('jesusIn'), { speed: 0.03 });
-            walk('peter', X('houseB') - 0.058, { speed: 0.035 }); walk('john', X('houseB') - 0.075, { speed: 0.035 });
+            // 他在房子里讲道（可 2:2）：到了就讲论起来
+            walk('jesus', X('jesusIn'), { speed: 0.03, pose: 'teach' });
+            walk('peter', X('houseB') - 0.058, { speed: 0.035, pose: 'listen' }); walk('john', X('houseB') - 0.075, { speed: 0.035, pose: 'listen' });
             walk('andrew', X('ajAt')[0], { speed: 0.035 }); walk('james', X('ajAt')[1], { speed: 0.035 });
             crowdWalk('cap', X('crowdR')[0] + 0.03, X('crowdR')[1], { speed: 0.03 });
             crowdWalk('vil', X('crowdL')[0], X('crowdL')[1], { speed: 0.03 });
@@ -1665,6 +1688,12 @@
             const cst = C(); if (cst && cst.attach) cst.attach('para', () => { const P = matPt(); return P ? [P[0], P[1] - 0.02 * H2()] : null; });
             lv('mcMatA', 1, b); W.set('mcMat', 0, true); W.set('mcRoof', 0, true);
           }],
+          // 门徒在门外侧耳听；挤在门前的人都望着屋里的主
+          [0.4, b => { face('peter', 'jesus'); face('john', 'jesus'); }],
+          [2.4, b => { heed(['door', 'door2', 'vil'], 'jesus', { spread: 2.2 }); talk('jesus', 9.6, { how: 'teach' }); }],
+          [4.2, b => { heed('cap', 'jesus', { spread: 2 }); }],
+          // 抬褥子的人来了：门前右边的人回头看他们——挤不进去
+          [7.6, b => { heed('door2', 'b2', { spread: 1 }); stir('door2', 'refuse', { share: 0.5, spread: 1.2 }); }],
           [8.2, b => {
             // 绕到外梯
             const st = stairG(); if (!st) return;
@@ -1687,28 +1716,44 @@
             const spots = [G.x - 1.05 * s, G.x - 0.65 * s, G.x + 0.55 * s, G.x + 0.95 * s];
             BEARERS.forEach((id, i) => { const cst = C(); if (cst && person(id)) { pose(id, 'walk'); cst.fly(id, spots[i] / W.w, ry, { dur: 1.3, pose: 'kneel' }); } });
           }],
+          [10.4, b => { heed('door2', 'jesus', { spread: 1.2 }); }],
+          // 拆通房顶：屋里的人一惊，抬头；主停了讲论，仰望
           [13.6, b => {
             lv('mcRoof', 1, b);
             const G = houseG('houseB'); if (G) dust(b, G.x - 0.1 * H2(), roofY(), 30, [176, 150, 118], 0.4 * H2());
             sfx(b, 'build', { soft: true });
+            const cst = C(); if (cst && cst.hush) cst.hush('jesus');
+            pose('jesus', 'gaze');
+            stir(['door', 'door2', 'peter', 'john'], 'startle', { share: 0.8, spread: 1 });
           }],
           [14.6, b => { lv('mcMat', 1, b); face('jesus', -1); }],
-          [16.2, b => { glowP('para', 0.45); flashAt(b, 'para', [255, 236, 200], 16); sfx(b, 'harp', { soft: true }); }],
-          [22.6, b => {
+          [15.4, b => { pose('jesus', 'stand'); heed(['door', 'door2'], 'para', { spread: 1.2 }); }],
+          // 耶稣见他们的信心：先抬头望一望房顶上的四个人，再对瘫子说
+          [16.4, b => { pose('jesus', 'gaze'); }],
+          [17.6, b => { gest('b1', 'nod'); gest('b3', 'nod'); pose('jesus', 'stand'); }],
+          [19.6, b => { gest('jesus', 'bless'); glowP('para', 0.45); flashAt(b, 'para', [255, 236, 200], 16); sfx(b, 'harp', { soft: true }); }],
+          [20.8, b => { stir(['door', 'door2'], 'startle', { share: 0.5, spread: 1.4 }); }],
+          // 「我吩咐你，起来！」主向他伸手；他起来，弯腰拿起褥子，扛着出去
+          [22.4, b => { pose('jesus', 'reach'); }],
+          [24.4, b => {
             const cst = C(); if (cst && cst.attach) cst.attach('para', null);
             const P = matPt(); if (P) { const p = person('para'); if (p) { p.nx = P[0] / W.w; p.ny = null; } }
-            pose('para', 'stand');
+            pose('para', 'stand'); pose('jesus', 'stand');
             flashAt(b, 'para', [255, 248, 232], 26);
             sfx(b, 'chime');
           }],
-          [24.2, b => { lv('mcMatA', 0, b); const cst = C(); if (cst && cst.prop) cst.prop('para', 'bundle'); }],
-          [25, b => {
+          [25.2, b => { gest('para', 'stoopdown', { dur: 2 }); stir(['door', 'door2', 'peter', 'john', 'andrew', 'james'], 'startle', { spread: 1.4 }); }],
+          [26.2, b => { lv('mcMatA', 0, b); const cst = C(); if (cst && cst.prop) cst.prop('para', 'bundle'); }],
+          // 当众人面前出去了：众人惊奇，举手归荣耀与神；房顶上的四个人欢喜
+          [27, b => {
             walk('para', 1.08, { speed: 0.04 });
-            crowdPose('cap', 'raise'); crowdPose('vil', 'raise'); crowdPose('door', 'raise'); crowdPose('door2', 'raise');
-            BEARERS.forEach(id => pose(id, 'raise'));
+            crowdPose('vil', 'raise'); crowdPose('door', 'raise'); crowdPose('door2', 'raise'); crowdPose('cap', 'rejoice');
+            BEARERS.forEach(id => pose(id, 'rejoice'));
             sfx(b, 'crowd');
           }],
-          [29.5, b => { rm('para'); }],
+          [27.6, b => { talk('cap', 3, { how: 'proclaim', share: 0.5 }); talk('vil', 2.6, { how: 'proclaim', share: 0.5 }); gest('peter', 'clap'); }],
+          [28.6, b => { stir('cap', 'leap', { share: 0.35, spread: 1.6 }); gest('john', 'nod'); }],
+          [30.6, b => { rm('para'); crowdPose('door', 'stand'); crowdPose('door2', 'stand'); }],
         ]);
       },
     },
@@ -1717,7 +1762,7 @@
       kind: 'call', utter: '我们渡到那边去吧', cmd: 'git push origin 那边  # 也有别的船和他同行', ref: '马可福音 4:35', tint: TINT_SEA,
       verse: [
         { text: '他因为人多，就吩咐门徒叫一只小船伺候着，免得众人拥挤他。', ref: '马可福音 3:9', hold: 6 },
-        { text: '当那天晚上，耶稣对门徒说：「我们渡到那边去吧。」<br>门徒离开众人，耶稣仍在船上，他们就把他一同带去；也有别的船和他同行。', ref: '马可福音 4:35–36', hold: 7.5 },
+        { text: '当那天晚上，耶稣对门徒说：「我们渡到那边去吧。」<br>门徒离开众人，耶稣仍在船上，他们就把他一同带去；也有别的船和他同行。', ref: '马可福音 4:35–36', hold: 7.5, talk: [['jesus', 0.1, 0.42, 'calm']] },
         { text: '忽然起了暴风，波浪打入船内，甚至船要满了水。', ref: '马可福音 4:37', hold: 5.5 },
         { text: '耶稣在船尾上，枕着枕头睡觉。门徒叫醒了他，说：<br>「夫子！我们丧命，你不顾吗？」', ref: '马可福音 4:38', hold: 7 },
       ],
@@ -1729,43 +1774,59 @@
             BEARERS.forEach(id => rm(id)); rm('para');
             lv('mcMatA', 0, b);
             crowdRm('door'); crowdRm('door2');
-            walk('jesus', X('boardAt'), { speed: 0.04 });
-            // 门徒等在船头之外（不站进船身里：主上船以后，近侧的船舷画在人之后）
-            DISC.forEach((id, i) => walk(id, X('waitAt') + X('waitDir') * i * 0.014, { speed: 0.04 }));
-            crowdWalk('cap', X('shore')[0] + 0.06, X('shore')[1], { speed: 0.03 });
-            crowdWalk('vil', X('shore')[0], X('shore')[0] + 0.06, { speed: 0.03 });
+            crowdPose('cap', 'stand'); crowdPose('vil', 'stand');
             lv('mcLamp', 1, b);
           }],
-          [4.6, b => { board('jesus', 'stern'); pose('jesus', 'seat'); face('jesus', -1); crowdFaceX('cap', X('moor')[0]); crowdFaceX('vil', X('moor')[0]); }],
-          // 门徒离开众人：一个个跨进船里（走上甲板，再随船）
-          [7.8, b => {
+          // 吩咐门徒叫一只小船伺候着：他指着海湾里的船，彼得点头
+          [0.4, b => { face('jesus', 'peter'); talk('jesus', 2.2, { to: 'peter' }); }],
+          [1.8, b => { face('jesus', 1); gest('jesus', 'point'); }],
+          [2.6, b => { gest('peter', 'nod'); }],
+          [3, b => {
+            walk('jesus', X('boardAt'), { speed: 0.05 });
+            // 门徒等在船头之外（不站进船身里：主上船以后，近侧的船舷画在人之后）
+            DISC.forEach((id, i) => walk(id, X('waitAt') + X('waitDir') * i * 0.014, { speed: 0.05 }));
+            crowdWalk('cap', X('shore')[0] + 0.06, X('shore')[1], { speed: 0.03 });
+            crowdWalk('vil', X('shore')[0], X('shore')[0] + 0.06, { speed: 0.03 });
+          }],
+          [6.4, b => { board('jesus', 'stern'); pose('jesus', 'seat'); face('jesus', -1); crowdFaceX('cap', X('moor')[0]); crowdFaceX('vil', X('moor')[0]); }],
+          // 「我们渡到那边去吧。」门徒离开众人：一个个跨进船里（走上甲板，再随船）
+          [8.4, b => { stir(DISC, 'nod', { share: 0.7, spread: 0.8 }); }],
+          [9.2, b => {
             const slots = [0, 1, 2, 3], cst = C();
             DISC.forEach((id, i) => { if (cst && cst.fly && person(id)) { pose(id, 'walk'); const q = deckPt(slots[i]); cst.fly(id, q[0] / W.w, q[1] / W.h, { dur: 1.0 + i * 0.18, pose: 'stand' }); } });
             toTown(b, false);
           }],
-          [9.2, b => { boardAll(b, [['peter', 0], ['john', 1], ['andrew', 2], ['james', 3]]); DISC.forEach(id => { pose(id, 'stand'); face(id, 1); }); }],
-          [9.8, b => {
+          [10.6, b => { boardAll(b, [['peter', 0], ['john', 1], ['andrew', 2], ['james', 3]]); DISC.forEach(id => { pose(id, 'stand'); face(id, 1); }); }],
+          // 开船：岸上的人挥手送别；也有别的船同行
+          [11, b => {
             lv('mcSail', 1, b); lv('mcFleet', 1, b);
             boatTo('sea', b);
-            crowdPose('cap', 'raise');
+            stir(['cap', 'vil'], 'wave', { share: 0.6, spread: 1.4 });
             sfx(b, 'wave', { soft: true });
           }],
-          [11, b => { crowdRm('cap'); crowdRm('vil'); DISC.forEach(id => pose(id, 'seat')); lv('storm', 0.55, b); lv('clouds', 0.85, b); }],
+          [11.8, b => { gest('john', 'wave'); }],
+          [13, b => { crowdRm('cap'); crowdRm('vil'); DISC.forEach(id => pose(id, 'seat')); lv('storm', 0.55, b); lv('clouds', 0.85, b); }],
+          [14.2, b => { pose('jesus', 'lie'); }],
           [15, b => { W.set('mcRoof', 0, true); }],
-          [13, b => { pose('jesus', 'lie'); }],
-          [15.6, b => {
+          // 忽然起了暴风：帆收了，安得烈、雅各拼命摇橹；彼得站起来撑着，约翰缩着身子
+          [15.8, b => {
             lv('storm', 0.9, b); lv('gale', 0.8, b); lv('rain', 0.32, b); lv('clouds', 1, b); lv('mcStorm', 1, b);
             time(0.03, 9, b);
             lv('mcLamp', 0, b);
             sfx(b, 'thunder'); sfx(b, 'wind');
           }],
-          [16.6, b => { bolt(b, 0.72); }],
-          [17.4, b => { lv('mcSail', 0, b); lv('mcRow', 1, b); sfx(b, 'wave'); }],
-          [18.8, b => { DISC.forEach(id => pose(id, 'raise')); }],
-          [20.2, b => { bolt(b, 0.56, true); sfx(b, 'wave'); }],
-          [23.4, b => { pose('john', 'kneel'); pose('andrew', 'raise'); }],
-          [25.2, b => { pose('peter', 'point'); face('peter', 1); bolt(b, 0.84); }],
+          [16.6, b => { bolt(b, 0.72); stir(DISC, 'startle', { spread: 0.6 }); }],
+          [17.4, b => { lv('mcSail', 0, b); lv('mcRow', 1, b); sfx(b, 'wave'); pose('andrew', 'row'); pose('james', 'row'); }],
+          [18.6, b => { pose('peter', 'stand'); pose('john', 'cower'); }],
+          [20.2, b => { bolt(b, 0.56, true); sfx(b, 'wave'); gest('peter', 'startle'); gest('john', 'tremble', { dur: 3 }); }],
+          [21.6, b => { gest('peter', 'lookaround'); }],
+          // 门徒叫醒了他：彼得转向船尾，伸手推他，跪着求他
+          [23.6, b => { face('peter', 1); bolt(b, 0.84); gest('james', 'tremble'); }],
+          [24.4, b => { gest('peter', 'touch', { dur: 2 }); }],
+          [25.6, b => { pose('peter', 'beg'); talk('peter', 3.6, { how: 'plead' }); }],
           [28.4, b => { sfx(b, 'wave'); }],
+          // 他醒了，坐起来
+          [29.2, b => { pose('jesus', 'sit'); }],
         ]);
       },
     },
@@ -1773,9 +1834,9 @@
     {
       kind: 'cmd', utter: '住了吧！静了吧！', cmd: 'kill -STOP 风 && echo 平静 > 海', ref: '马可福音 4:39', tint: TINT_SEA, hold: 3.2,
       verse: [
-        { text: '耶稣醒了，斥责风，向海说：「住了吧！静了吧！」<br>风就止住，大大地平静了。', ref: '马可福音 4:39', hold: 8 },
-        { text: '耶稣对他们说：「为什么胆怯？你们还没有信心吗？」', ref: '马可福音 4:40', hold: 5.5 },
-        { text: '他们就大大地惧怕，彼此说：<br>「这到底是谁，连风和海也听从他了。」', ref: '马可福音 4:41', hold: 7 },
+        { text: '耶稣醒了，斥责风，向海说：「住了吧！静了吧！」<br>风就止住，大大地平静了。', ref: '马可福音 4:39', hold: 8, talk: [['jesus', 0.2, 0.55, 'proclaim']] },
+        { text: '耶稣对他们说：「为什么胆怯？你们还没有信心吗？」', ref: '马可福音 4:40', hold: 5.5, who: 'jesus', to: 'peter', how: 'calm' },
+        { text: '他们就大大地惧怕，彼此说：<br>「这到底是谁，连风和海也听从他了。」', ref: '马可福音 4:41', hold: 7, talk: [['john', 0.22, 0.6, 'calm', 'andrew'], ['james', 0.5, 0.95, 'calm', 'peter']] },
       ],
       apply(c) {
         T(c, [
@@ -1791,12 +1852,19 @@
             if (!inst(b)) { const f = fpos('jesus'); if (f) safe('mc.calmRing', () => { fx().ring(f.x, f.y - f.h * 0.6, [214, 232, 255], f.h * 5, 2.4, 1.2); fx().sparkle(f.x, f.y - f.h * 0.7, 36, [230, 240, 255], f.h * 0.5, 'air'); }); }
             sfx(b, 'whisper'); sfx(b, 'harp');
           }],
-          [5.2, b => { pose('jesus', 'stand'); DISC.forEach(id => pose(id, 'stand')); }],
-          [9.5, b => { face('jesus', -1); glowP('jesus', 0.48); }],
-          [16.3, b => { pose('john', 'kneel'); }],
-          [17.2, b => { pose('andrew', 'kneel'); pose('james', 'kneel'); }],
-          [18.4, b => { pose('peter', 'bow'); }],
-          [22, b => { glowP('jesus', LOOK().jesus ? LOOK().jesus.glow : 0.32); }],
+          // 风就止住：门徒一惊，停了橹，四下张望——海面如镜
+          [3, b => { stir(DISC, 'startle', { spread: 1 }); pose('andrew', 'seat'); pose('james', 'seat'); }],
+          [5.2, b => { pose('jesus', 'stand'); pose('peter', 'kneel'); pose('john', 'stand'); }],
+          [6, b => { pose('andrew', 'stand'); pose('james', 'stand'); }],
+          [6.6, b => { stir(['john', 'andrew', 'james'], 'lookaround', { share: 0.7, spread: 1.4 }); }],
+          // 「为什么胆怯？你们还没有信心吗？」他们都望着他，低下头来
+          [9, b => { face('jesus', -1); glowP('jesus', 0.48); DISC.forEach(id => face(id, 1)); }],
+          [11.8, b => { stir(DISC, 'bowhead', { share: 0.75, spread: 1.6 }); }],
+          // 他们就大大地惧怕，彼此说……
+          [16.3, b => { stir(DISC, 'tremble', { spread: 1 }); }],
+          [21.6, b => { DISC.forEach(id => face(id, 1)); pose('john', 'kneel'); }],
+          [22.2, b => { pose('andrew', 'kneel'); pose('james', 'kneel'); }],
+          [22.8, b => { gest('peter', 'bowhead'); glowP('jesus', LOOK().jesus ? LOOK().jesus.glow : 0.32); }],
         ]);
       },
     },
@@ -1806,7 +1874,7 @@
       verse: [
         { text: '他们来到海那边格拉森人的地方。<br>耶稣一下船，就有一个被污鬼附着的人从坟茔里出来迎着他。', ref: '马可福音 5:1–2', hold: 7 },
         { text: '那人常住在坟茔里……铁链竟被他挣断了，脚镣也被他弄碎了……<br>他远远地看见耶稣，就跑过去拜他', ref: '马可福音 5:3–6', hold: 7 },
-        { text: '是因耶稣曾吩咐他说：「污鬼啊，从这人身上出来吧！」', ref: '马可福音 5:8', hold: 5.5 },
+        { text: '是因耶稣曾吩咐他说：「污鬼啊，从这人身上出来吧！」', ref: '马可福音 5:8', hold: 5.5, talk: [['jesus', 0.3, 1, 'proclaim', 'demon']] },
         { text: '……看见那被鬼附着的人，就是从前被群鬼所附的，<br>坐着，穿上衣服，心里明白过来', ref: '马可福音 5:15', hold: 7 },
       ],
       apply(c) {
@@ -1824,33 +1892,50 @@
             landAll(b, [X('demonAt') - 0.03, X('demonAt') - 0.06, X('demonAt') - 0.078, X('demonAt') - 0.094, X('demonAt') - 0.11]);
             ['jesus', ...DISC].forEach(id => { pose(id, 'stand'); face(id, 1); });
           }],
+          // 从坟茔里出来：举着两臂，挣着断了的铁链
           [4.6, b => {
             add('demon', { label: '被鬼附的人', sex: 'm', x: X('demonFrom'), facing: -1, robe: ROBE.demon, accent: [48, 44, 42], hair: 'long', beard: true, glow: 0, pose: 'raise' });
             lv('mcShadow', 1, b);
             sfx(b, 'chains', { soft: true });
           }],
-          [8.6, b => { run('demon', X('demonAt') + 0.018, { pose: 'fall' }); sfx(b, 'wind', { soft: true }); }],
-          [11.5, b => { DISC.forEach((id, i) => walk(id, X('demonAt') - 0.075 - i * 0.015, { speed: 0.02 })); }],
-          [17, b => { pose('jesus', 'point'); }],
-          [17.6, b => {
+          [6.2, b => { stir(DISC, 'startle', { share: 0.75, spread: 1 }); gest('demon', 'lookaround'); }],
+          [7, b => { pose('john', 'recoil'); }],
+          [8.8, b => { gest('demon', 'leap', { n: 2 }); sfx(b, 'chains'); }],
+          [9.6, b => { pose('john', 'stand'); heed(DISC, 'demon', { spread: 1 }); }],
+          // 他远远地看见耶稣：手搭凉棚望着，就跑过去拜他
+          [11, b => { pose('demon', 'look'); }],
+          [12.4, b => { run('demon', X('demonAt') + 0.018, { pose: 'fall' }); sfx(b, 'wind', { soft: true }); }],
+          [13, b => { DISC.forEach((id, i) => walk(id, X('demonAt') - 0.075 - i * 0.015, { speed: 0.02 })); }],
+          [13.6, b => { stir(DISC, 'startle', { share: 0.6 }); }],
+          // 「污鬼啊，从这人身上出来吧！」
+          [17.8, b => { pose('jesus', 'point'); }],
+          [18.8, b => {
             lv('mcShadow', 0, b); W.set('mcSmoke', 0, true); lv('mcSmoke', 1, b);
+            gest('demon', 'tremble', { dur: 1.6 });
             sfx(b, 'wind'); sfx(b, 'whisper', { soft: true });
           }],
-          [19, b => { pose('demon', 'lie'); }],
-          [20.8, b => {
+          [19.6, b => { stir(DISC, 'startle', { spread: 0.8 }); }],
+          [20.4, b => { pose('demon', 'lie'); pose('jesus', 'stand'); }],
+          // 黑影没入海中
+          [22.8, b => { if (!inst(b)) { const P = X('sea'); FXL.push({ type: 'ripple', x: P[0] * W.w - 0.02 * W.w, y: P[1] * W.h, s: H2() / 30, t: 0, dur: 2.2 }); } }],
+          // 坐着，穿上衣服，心里明白过来
+          [23.8, b => {
             add('demon', { robe: ROBE.clothed, accent: [214, 204, 180], hair: 'short', glow: 0.38, label: '从前被鬼附的人' });
             pose('demon', 'sit'); face('demon', -1);
             flashAt(b, 'demon', [236, 240, 255], 24);
-            pose('jesus', 'stand');
             sfx(b, 'harp');
           }],
-          [22.4, b => { if (!inst(b)) { const P = X('sea'); FXL.push({ type: 'ripple', x: P[0] * W.w - 0.02 * W.w, y: P[1] * W.h, s: H2() / 30, t: 0, dur: 2.2 }); } }],
-          [23.6, b => {
+          [24.8, b => { gest('jesus', 'bless'); }],
+          [25.4, b => {
             crowd('gera', { n: 7, x0: 1.02, x1: 1.12, label: '格拉森人' });
-            crowdWalk('gera', X('geraFolk')[0], X('geraFolk')[1], { speed: 0.03 });
+            crowdWalk('gera', X('geraFolk')[0], X('geraFolk')[1], { speed: 0.04 });
             sfx(b, 'crowd', { soft: true });
           }],
-          [28, b => { crowdFaceX('gera', X('demonAt')); }],
+          [26.6, b => { gest('demon', 'bowhead', { dur: 2.4 }); walk('peter', X('demonAt') - 0.06, { speed: 0.015 }); }],
+          [28, b => { heed('gera', 'demon', { spread: 1.4 }); }],
+          // 他们来到耶稣那里，看见了，就害怕（可 5:15）
+          [29.6, b => { crowdFaceX('gera', X('demonAt')); stir('gera', 'startle', { share: 0.7, spread: 1.2 }); }],
+          [30.6, b => { stir('gera', 'tremble', { share: 0.4, spread: 0.8 }); }],
         ]);
       },
     },
@@ -1861,7 +1946,7 @@
         { text: '耶稣坐船又渡到那边去，就有许多人到他那里聚集……<br>有一个管会堂的人，名叫睚鲁，来见耶稣，就俯伏在他脚前', ref: '马可福音 5:21–22', hold: 6.5 },
         { text: '有一个女人，患了十二年的血漏……<br>就从后头来，杂在众人中间，摸耶稣的衣裳', ref: '马可福音 5:25–27', hold: 6 },
         { text: '耶稣顿时心里觉得有能力从自己身上出去，<br>就在众人中间转过来，说：「谁摸我的衣裳？」', ref: '马可福音 5:30', hold: 6 },
-        { text: '那女人……来俯伏在耶稣跟前……耶稣对她说：<br>「女儿，你的信救了你，平平安安地回去吧！你的灾病痊愈了。」', ref: '马可福音 5:33–34', hold: 7.5 },
+        { text: '那女人……来俯伏在耶稣跟前……耶稣对她说：<br>「女儿，你的信救了你，平平安安地回去吧！你的灾病痊愈了。」', ref: '马可福音 5:33–34', hold: 7.5, talk: [['jesus', 0.42, 1, 'calm']] },
       ],
       apply(c) {
         ring(c, TINT_W);
@@ -1877,6 +1962,11 @@
             lv('mcGerasa', 0, b); lv('bare', 0.06, b); lv('bloom', 0.75, b); lv('grass', 0.9, b);
           }],
           [3.2, b => { toTown(b, true); rm('demon'); }],
+          // 睚鲁从家里迎着船跑来
+          [3.4, b => {
+            add('jairus', { label: '睚鲁', sex: 'm', x: X('houseA'), facing: 1, robe: ROBE.jairus, accent: [226, 220, 204], beard: true, glow: 0.24, prop: null });
+            walk('jairus', X('landAt') - 0.02, { speed: 0.062, pose: 'fall' });
+          }],
           [5, b => {
             lv('mcSail', 0, b);
             landAll(b, [X('landAt'), X('landAt') + 0.02, X('landAt') + 0.036, X('landAt') + 0.05, X('landAt') + 0.064]);
@@ -1884,33 +1974,45 @@
             crowd('many', { n: 10, x0: X('many')[0] - 0.12, x1: X('many')[0] - 0.02, label: '众人' });
             forward('many', 0.2, 0.2);
             crowdWalk('many', X('many')[0], X('many')[1] - 0.03, { speed: 0.035 });
-            add('jairus', { label: '睚鲁', sex: 'm', x: X('houseA'), facing: 1, robe: ROBE.jairus, accent: [226, 220, 204], beard: true, glow: 0.24, prop: null });
-            walk('jairus', X('landAt') - 0.02, { speed: 0.05, pose: 'fall' });
           }],
-          [8.6, b => {
+          // 他俯伏在主脚前，再三地求他（可 5:23）
+          [8.6, b => { pose('jairus', 'beg'); talk('jairus', 2.6, { how: 'plead', to: 'jesus' }); heed('many', 'jairus', { spread: 1.6 }); }],
+          [11.4, b => { gest('jesus', 'nod'); }],
+          [12, b => { gest('jesus', 'touch', { dur: 1.8 }); }],
+          // 他就和睚鲁同去：众人拥挤着他；那女人从后头来
+          [13, b => {
             pose('jairus', 'stand');
-            walk('jairus', X('walkTo') - 0.02, { speed: 0.028 });
-            walk('jesus', X('walkTo'), { speed: 0.028 });
-            DISC.forEach((id, i) => walk(id, X('walkTo') + 0.015 + i * 0.013, { speed: 0.028 }));
-            crowdWalk('many', X('walkTo') + 0.03, X('walkTo') + 0.14, { speed: 0.028 });
+            walk('jairus', X('walkTo') - 0.02, { speed: 0.03 });
+            walk('jesus', X('walkTo'), { speed: 0.03 });
+            DISC.forEach((id, i) => walk(id, X('walkTo') + 0.015 + i * 0.013, { speed: 0.03 }));
+            crowdWalk('many', X('walkTo') + 0.03, X('walkTo') + 0.14, { speed: 0.03 });
             add('woman', { label: '患血漏的女人', sex: 'f', x: X('womanFrom'), v: 0.12, facing: -1, robe: ROBE.woman, accent: [196, 176, 170], hair: 'veil', glow: 0.06 });
-            walk('woman', X('walkTo') + 0.018, { speed: 0.036, pose: 'kneel' });
+            walk('woman', X('walkTo') + 0.018, { speed: 0.05, pose: 'kneel' });
           }],
-          [14.2, b => {
+          // 摸耶稣的衣裳：一线光自衣裳流到她身上
+          [18.4, b => { gest('woman', 'touch', { dur: 2.2 }); }],
+          [19.2, b => {
             addFX(b, { type: 'thread', from: 'jesus', to: 'woman', dur: 2.6 });
             glowP('woman', 0.42);
             sfx(b, 'chime'); sfx(b, 'harp', { soft: true });
           }],
-          [15.6, b => { face('jesus', 1); crowdPose('many', 'stand'); crowdFaceX('many', X('walkTo')); }],
-          [19.8, b => { pose('woman', 'fall'); }],
-          [23.4, b => { pose('jesus', 'point'); }],
-          [24.6, b => {
+          // 就在众人中间转过来：「谁摸我的衣裳？」
+          [19.8, b => { face('jesus', 1); crowdFaceX('many', X('walkTo')); }],
+          [20.1, b => { talk('jesus', 2, { how: 'calm' }); }],
+          [20.8, b => { stir(DISC, 'lookaround', { share: 0.75, spread: 1.4 }); stir('many', 'lookaround', { share: 0.4, spread: 1.6 }); }],
+          [21.6, b => { gest('jesus', 'lookaround'); gest('woman', 'tremble', { dur: 2.6 }); }],
+          // 那女人恐惧战兢，来俯伏在他跟前，将实情全告诉他（可 5:33）
+          [23, b => { pose('woman', 'fall'); heed(['many', 'jairus'], 'woman', { spread: 1.2 }); }],
+          [24.2, b => { pose('woman', 'beg'); talk('woman', 1.6, { how: 'plead' }); }],
+          [25.6, b => { pose('jesus', 'bless'); }],
+          [28.2, b => {
             pose('woman', 'stand'); pose('jesus', 'stand');
             add('woman', { robe: mix(ROBE.woman, [236, 226, 222], 0.45), glow: 0.5 });
             flashAt(b, 'woman', [255, 236, 210], 22);
             sfx(b, 'harp');
           }],
-          [27.4, b => { walk('woman', 1.08, { speed: 0.03 }); }],
+          [29.2, b => { gest('woman', 'bowhead'); stir(DISC, 'nod', { share: 0.5 }); }],
+          [30.4, b => { walk('woman', 1.08, { speed: 0.03 }); }],
         ]);
       },
     },
@@ -1918,9 +2020,9 @@
     {
       kind: 'cmd', utter: '闺女，我吩咐你起来！', cmd: 'wake 闺女  # 孩子不是死了，是睡着了', ref: '马可福音 5:41', tint: TINT_W,
       verse: [
-        { text: '还说话的时候，有人从管会堂的家里来，说：<br>「你的女儿死了，何必还劳动先生呢？」', ref: '马可福音 5:35', hold: 6 },
-        { text: '耶稣……就对管会堂的说：「不要怕，只要信！」……<br>他们来到管会堂的家里；耶稣看见那里乱嚷，并有人大大地哭泣哀号', ref: '马可福音 5:36–38', hold: 7 },
-        { text: '就拉着孩子的手，对她说：「大利大，古米！」<br>（翻出来就是说：「闺女，我吩咐你起来！」）', ref: '马可福音 5:41', hold: 7 },
+        { text: '还说话的时候，有人从管会堂的家里来，说：<br>「你的女儿死了，何必还劳动先生呢？」', ref: '马可福音 5:35', hold: 6, talk: [['msg1', 0.36, 1, 'plead', 'jairus']] },
+        { text: '耶稣……就对管会堂的说：「不要怕，只要信！」……<br>他们来到管会堂的家里；耶稣看见那里乱嚷，并有人大大地哭泣哀号', ref: '马可福音 5:36–38', hold: 7, talk: [['jesus', 0.04, 0.4, 'calm', 'jairus']] },
+        { text: '就拉着孩子的手，对她说：「大利大，古米！」<br>（翻出来就是说：「闺女，我吩咐你起来！」）', ref: '马可福音 5:41', hold: 7, talk: [['jesus', 0.2, 0.62, 'calm']] },
         { text: '那闺女立时起来走。他们就大大地惊奇；闺女已经十二岁了。', ref: '马可福音 5:42', hold: 6 },
       ],
       apply(c) {
@@ -1930,24 +2032,33 @@
             time(0.47, 20, b);
             rm('woman');
             add('msg1', { label: '报信的人', sex: 'm', x: X('houseA') + 0.01, facing: 1, robe: [112, 100, 88] });
-            run('msg1', X('walkTo') - 0.035, { pose: 'weep' });
+            run('msg1', X('walkTo') - 0.035, { pose: 'stand' });
             lv('mcBed', 1, b);
             add('girl', { label: '闺女', sex: 'f', age: 'child', x: X('bed'), v: X('bedV'), facing: -1, pose: 'lie', robe: ROBE.girl, hair: 'long', glow: 0.1, from: 'fade' });
             add('mother', { label: '孩子的母亲', sex: 'f', x: X('bed') - 0.022, v: X('bedV') * 0.6, facing: 1, pose: 'weep', robe: ROBE.mother, glow: 0.18 });
           }],
-          [3.2, b => { pose('jairus', 'weep'); }],
-          [7.6, b => {
-            face('jesus', -1); pose('jairus', 'stand');
+          [1.2, b => { face('jairus', -1); heed(DISC, 'msg1', { spread: 1 }); }],
+          // 「你的女儿死了……」睚鲁掩面而哭
+          [5.2, b => { gest('msg1', 'sigh'); pose('jairus', 'weep'); }],
+          [6, b => { pose('msg1', 'weep'); stir(DISC, 'bowhead', { share: 0.6, spread: 1.2 }); }],
+          // 「不要怕，只要信！」他按着睚鲁的肩
+          [7.4, b => { face('jesus', -1); }],
+          [8.6, b => { gest('jesus', 'touch', { dur: 2 }); }],
+          [9.2, b => { pose('jairus', 'stand'); }],
+          [9.6, b => {
             walk('jesus', X('bed') + 0.03, { speed: 0.03 });
             walk('jairus', X('bed') + 0.045, { speed: 0.03 });
             walk('peter', X('bed') + 0.06, { speed: 0.03 }); walk('james', X('bed') + 0.074, { speed: 0.03 }); walk('john', X('bed') + 0.088, { speed: 0.03 });
-            walk('msg1', X('walkTo') + 0.05, { speed: 0.03 });
+            pose('msg1', 'stand'); walk('msg1', X('walkTo') + 0.05, { speed: 0.03 });
             crowd('mourn', { n: 4, x0: X('mourn')[0][0], x1: X('mourn')[0][1], label: '哭泣哀号的人', pose: 'weep', mill: false });
             crowd('mourn2', { n: 3, x0: X('mourn')[1][0], x1: X('mourn')[1][1], label: '哭泣哀号的人', pose: 'weep', mill: false });
             forward('mourn2', 0.18, 0.2);
             sfx(b, 'weep', { soft: true });
           }],
+          // 那里乱嚷，大大地哭泣哀号
+          [10.6, b => { talk('mourn', 3.4, { how: 'plead', share: 0.8 }); talk('mourn2', 3, { how: 'plead', share: 0.7 }); }],
           // 耶稣把他们都撵出去：往岸上的坡地走开、隐去（不走进海里）
+          [13.4, b => { gest('jesus', 'wave', { dur: 1.8 }); }],
           [14.4, b => { crowdWalk('mourn', X('mournOut')[0], X('mournOut')[1], { speed: 0.03 }); crowdWalk('mourn2', X('many')[0] + 0.02, X('many')[1], { speed: 0.03 }); }],
           [14.9, b => { crowdRm('mourn'); }],
           // 他跪在孩子身旁（与她同在褥子前），拉着她的手
@@ -1957,21 +2068,27 @@
             face('jesus', -1);
           }],
           [16.9, b => { const cst = C(); if (cst && cst.holdHands) cst.holdHands('jesus', 'girl', true); }],
-          [17.4, b => {
+          // 「大利大，古米！」
+          [19, b => {
             flashAt(b, 'girl', [255, 236, 200], 20);
             glowP('girl', 0.4);
             sfx(b, 'harp');
           }],
-          [18.6, b => { pose('girl', 'sit'); }],
-          [20.6, b => { pose('girl', 'stand'); pose('jesus', 'stand'); lv('mcBed', 0.35, b); }],
-          [21.4, b => {
+          [19.6, b => { pose('girl', 'sit'); gest('mother', 'startle'); }],
+          [20.4, b => { pose('mother', 'stand'); stir(['jairus', 'peter', 'james', 'john'], 'startle', { spread: 1 }); }],
+          [21.4, b => { pose('girl', 'stand'); pose('jesus', 'stand'); lv('mcBed', 0.35, b); }],
+          [22.2, b => {
             const cst = C(); if (cst && cst.holdHands) cst.holdHands('jesus', 'girl', false);
             if (cst && cst.fly && person('jesus')) { pose('jesus', 'walk'); cst.fly('jesus', X('bed') + 0.034, null, { dur: 1.0, pose: 'stand' }); }
             face('jesus', -1);
           }],
-          [22, b => { pose('mother', 'stand'); const cst = C(); if (cst && cst.embrace) cst.embrace('girl', 'mother', { weep: false }); }],
-          [24.2, b => { pose('jairus', 'raise'); pose('peter', 'raise'); pose('john', 'raise'); pose('james', 'raise'); sfx(b, 'chime'); }],
-          [28, b => { pose('peter', 'stand'); pose('john', 'stand'); pose('james', 'stand'); }],
+          // 那闺女立时起来走：投入母亲的怀里；他们就大大地惊奇
+          [23.2, b => { const cst = C(); if (cst && cst.embrace) cst.embrace('girl', 'mother', { weep: false }); }],
+          [24.2, b => { stir(['jairus', 'peter', 'john', 'james'], 'startle', { spread: 0.8 }); }],
+          [25, b => { pose('jairus', 'raise'); pose('john', 'recoil'); pose('peter', 'raise'); pose('james', 'raise'); sfx(b, 'chime'); }],
+          [26.4, b => { pose('john', 'raise'); gest('jesus', 'bless'); }],
+          [28.4, b => { pose('peter', 'stand'); pose('james', 'stand'); }],
+          [29.2, b => { pose('john', 'stand'); pose('jairus', 'lift'); }],
         ]);
       },
     },
@@ -1981,8 +2098,8 @@
       verse: [
         { text: '他们就坐船，暗暗地往旷野地方去。众人……<br>就从各城步行，一同跑到那里，比他们先赶到了。', ref: '马可福音 6:32–33', hold: 7 },
         { text: '耶稣出来，见有许多的人，就怜悯他们，<br>因为他们如同羊没有牧人一般', ref: '马可福音 6:34', hold: 6 },
-        { text: '天已经晚了，门徒进前来……<br>耶稣回答说：「你们给他们吃吧。」', ref: '马可福音 6:35–37', hold: 6.5 },
-        { text: '耶稣说：「你们有多少饼，可以去看看。」<br>他们知道了，就说：「五个饼，两条鱼。」', ref: '马可福音 6:38', hold: 6.5 },
+        { text: '天已经晚了，门徒进前来……<br>耶稣回答说：「你们给他们吃吧。」', ref: '马可福音 6:35–37', hold: 6.5, talk: [['jesus', 0.55, 1, 'calm', 'peter']] },
+        { text: '耶稣说：「你们有多少饼，可以去看看。」<br>他们知道了，就说：「五个饼，两条鱼。」', ref: '马可福音 6:38', hold: 6.5, talk: [['jesus', 0.04, 0.42, 'calm']] },
       ],
       apply(c) {
         ring(c, TINT_B);
@@ -2005,15 +2122,22 @@
             crowdWalk('run', X('rows')[0][0], X('rows')[0][1], { speed: 0.075, run: true });
             sfx(b, 'crowd', { soft: true });
           }],
+          // 船上的人望见岸上跑来的众人
+          [7.6, b => { gest('peter', 'point'); gest('andrew', 'lookaround'); }],
           [10, b => {
             lv('mcSail', 0, b);
             const j = X('feedJ');
             landAll(b, [j, j - 0.02, j - 0.034, j - 0.048, j - 0.062]);
             ['jesus', ...DISC].forEach(id => { pose(id, 'stand'); face(id, 1); });
-            crowdFaceX('run', j); crowdPose('run', 'gaze');
             lv('mcMany', 1, b);
           }],
-          [11.5, b => { pose('jesus', 'point'); }],
+          // 耶稣出来，见有许多的人（手搭凉棚望着他们），就怜悯他们
+          [11.4, b => { pose('jesus', 'look'); }],
+          [12.8, b => { pose('jesus', 'stand'); gest('jesus', 'sigh'); }],
+          // 众人都赶到了，望着他；他开口教训他们许多道理（可 6:34）
+          [13, b => { crowdFaceX('run', X('feedJ')); crowdPose('run', 'listen'); }],
+          [14, b => { pose('jesus', 'teach'); talk('jesus', 2.6, { how: 'teach' }); }],
+          // 天已经晚了，门徒进前来
           [15.8, b => {
             time(0.67, 12, b);
             pose('jesus', 'stand');
@@ -2021,19 +2145,29 @@
             walk('peter', j + 0.016, { speed: 0.02 }); walk('andrew', j - 0.016, { speed: 0.02 });
             face('peter', -1);
           }],
-          [19.2, b => { face('jesus', -1); }],
-          [23.6, b => {
+          [17.7, b => { talk('peter', 1.5, { how: 'plead' }); }],
+          // 「你们给他们吃吧。」他指着众人
+          [19.2, b => { face('jesus', 1); }],
+          [20.6, b => { gest('jesus', 'point'); }],
+          [21.4, b => { gest('peter', 'lookaround'); gest('andrew', 'sigh'); }],
+          // 「你们有多少饼，可以去看看。」安得烈去看；一个孩童带着篮子从众人中间来
+          [23.4, b => { face('jesus', -1); }],
+          [24.8, b => { gest('andrew', 'nod'); }],
+          [25.2, b => {
             const j = X('feedJ');
             add('boy', { label: '孩童', sex: 'm', age: 'child', x: X('rows')[0][0] + 0.06, facing: -1, robe: ROBE.boy, glow: 0.2, pose: 'carry' });
             lv('mcBasket', 1, b); W.set('mcBasketG', 0, true);
             walk('boy', j + 0.03, { speed: 0.03, pose: 'carry' });
             walk('andrew', j + 0.045, { speed: 0.03 });
           }],
-          [27, b => {
-            face('jesus', 1);
+          // 「五个饼，两条鱼。」
+          [27.6, b => { face('andrew', -1); face('jesus', 1); face('peter', 1); }],
+          [28.2, b => { talk('andrew', 1.8, { to: 'jesus' }); }],
+          [28.8, b => {
             if (!inst(b)) { const P = basketPt(); names(b, '五饼二鱼', P[0], P[1] - H2() * 1.6, [255, 226, 160]); }
             sfx(b, 'chime', { soft: true });
           }],
+          [29.4, b => { gest('andrew', 'point'); }],
         ]);
       },
     },
@@ -2041,59 +2175,85 @@
     {
       kind: 'cmd', utter: '你们叫众人坐下', cmd: 'sort 众人 --by 排 && break 饼 | tee 众人', ref: '约翰福音 6:10', tint: TINT_B,
       verse: [
-        { text: '耶稣说：「你们叫众人坐下。」<br>原来那地方的草多，众人就坐下，数目约有五千。', ref: '约翰福音 6:10', hold: 7 },
+        { text: '耶稣说：「你们叫众人坐下。」<br>原来那地方的草多，众人就坐下，数目约有五千。', ref: '约翰福音 6:10', hold: 7, talk: [['jesus', 0, 0.36, 'calm']] },
         { text: '耶稣拿起饼来，祝谢了，就分给那坐着的人；<br>分鱼也是这样，都随着他们所要的。', ref: '约翰福音 6:11', hold: 7 },
-        { text: '他们吃饱了，耶稣对门徒说：<br>「把剩下的零碎收拾起来，免得有糟蹋的。」', ref: '约翰福音 6:12', hold: 6 },
+        { text: '他们吃饱了，耶稣对门徒说：<br>「把剩下的零碎收拾起来，免得有糟蹋的。」', ref: '约翰福音 6:12', hold: 6, talk: [['jesus', 0.3, 1, 'calm']] },
         { text: '他们便将那五个大麦饼的零碎，就是众人吃了剩下的，<br>收拾起来，装满了十二个篮子。', ref: '约翰福音 6:13', hold: 6.5 },
       ],
       apply(c) {
         ring(c, TINT_B);
+        const DIST = ['peter', 'john', 'andrew', 'james'];
         T(c, [
           [0, b => {
             lv('mcBasketG', 1, b);
             pose('boy', 'stand');
-            crowdWalk('run', X('rows')[0][0], X('rows')[0][1], { speed: 0.02, pose: 'sit' });
+            // 山坡上一排一排的人先站着；听见吩咐，一排一排地坐下
             X('rows').slice(1).forEach((r, i) => {
-              crowd('row' + i, { n: 9, x0: r[0], x1: r[1], label: '众人', v: r[2], pose: 'sit', mill: false });
+              crowd('row' + i, { n: 9, x0: r[0], x1: r[1], label: '众人', v: r[2], pose: 'stand', mill: false });
+              crowdFaceX('row' + i, X('feedJ'));
             });
             lv('mcMany', 1, b);
             sfx(b, 'crowd', { soft: true });
           }],
           [2.2, b => { walk('boy', X('feedJ') + 0.05, { speed: 0.02, pose: 'sit' }); }],
-          [8.6, b => {
-            pose('jesus', 'gaze');
+          // 门徒转身向众人，挥手叫他们坐下
+          [2.8, b => { face('peter', 1); face('andrew', 1); gest('peter', 'wave'); }],
+          [3.4, b => { gest('andrew', 'wave'); gest('john', 'beckon'); }],
+          [3.6, b => { crowdWalk('run', X('rows')[0][0], X('rows')[0][1], { speed: 0.02, pose: 'sit' }); }],
+          [4.4, b => { crowdPose('row0', 'sit'); }],
+          [5.2, b => { crowdPose('row1', 'sit'); }],
+          [6, b => { crowdPose('row2', 'sit'); }],
+          // 耶稣拿起饼来（从篮子里），望天祝谢
+          [8.4, b => { gest('jesus', 'stoopdown', { dur: 1.6 }); }],
+          [9.4, b => {
+            const cst = C(); if (cst && cst.prop) cst.prop('jesus', 'loaf');
+            pose('jesus', 'lift');
             addFX(b, { type: 'beam', id: 'jesus', dur: 4.2 });
             sfx(b, 'angel', { soft: true });
           }],
-          [11.4, b => {
-            pose('jesus', 'point');
+          // 擘开饼，递给门徒
+          [11.2, b => { pose('jesus', 'stand'); }],
+          [11.6, b => { gest('jesus', 'break', { dur: 2.2 }); }],
+          [12.8, b => {
+            pose('jesus', 'offer');
             W.set('mcBread', 0, true); lv('mcBread', 1, b);
             lv('mcBasket', 0, b);
-            const rows = X('rows');
-            walk('peter', lerp(rows[1][0], rows[1][1], 0.3), { speed: 0.03, pose: 'carry' });
-            walk('john', lerp(rows[2][0], rows[2][1], 0.55), { speed: 0.03, pose: 'carry' });
-            walk('andrew', lerp(rows[0][0], rows[0][1], 0.75), { speed: 0.03, pose: 'carry' });
-            walk('james', lerp(rows[3][0], rows[3][1], 0.45), { speed: 0.03, pose: 'carry' });
             sfx(b, 'harp');
           }],
-          [13.5, b => { crowdGlow('run', 0.3); }],
-          [15.5, b => { crowdGlow('row0', 0.3); crowdGlow('row1', 0.3); }],
-          [17.5, b => { crowdGlow('row2', 0.3); pose('jesus', 'stand'); }],
-          [18.2, b => {
-            const j = X('feedJ');
-            walk('peter', j + 0.02, { speed: 0.04 }); walk('john', j - 0.02, { speed: 0.04 }); walk('andrew', j - 0.034, { speed: 0.04 }); walk('james', j - 0.048, { speed: 0.04 });
+          // 就分给那坐着的人：门徒捧着饼走到各排之间
+          [13.4, b => {
+            const rows = X('rows'), cst = C();
+            DIST.forEach(id => { if (cst && cst.prop) cst.prop(id, 'loaf'); });
+            walk('peter', lerp(rows[1][0], rows[1][1], 0.3), { speed: 0.045, pose: 'offer' });
+            walk('john', lerp(rows[2][0], rows[2][1], 0.55), { speed: 0.045, pose: 'offer' });
+            walk('andrew', lerp(rows[0][0], rows[0][1], 0.75), { speed: 0.045, pose: 'offer' });
+            walk('james', lerp(rows[3][0], rows[3][1], 0.45), { speed: 0.045, pose: 'offer' });
           }],
-          // 「装满了十二个篮子」：随这一行经文装满，名字随即显出（落在篮子旁的草地与水面上，不压在船上）
+          [14.6, b => { crowdGlow('run', 0.3); stir('run', 'touch', { share: 0.5, spread: 1.6 }); }],
+          [16.4, b => { crowdGlow('row0', 0.3); crowdGlow('row1', 0.3); stir(['row0', 'row1'], 'touch', { share: 0.4, spread: 1.6 }); }],
+          [18.2, b => { crowdGlow('row2', 0.3); stir('row2', 'touch', { share: 0.4, spread: 1.4 }); pose('jesus', 'stand'); const cst = C(); if (cst && cst.prop) cst.prop('jesus', null); }],
+          // 他们吃饱了：众人点头；「把剩下的零碎收拾起来」
+          [18.6, b => { face('jesus', 1); DIST.forEach(id => pose(id, 'stand')); }],
+          [19.6, b => { stir(['run', 'row0', 'row1', 'row2'], 'nod', { share: 0.35, spread: 2 }); }],
+          [21, b => { const cst = C(); DIST.forEach(id => { if (cst && cst.prop) cst.prop(id, null); }); }],
+          // 「装满了十二个篮子」：随这一行经文装满，名字随即显出（落在篮子旁的草地与水上，不压在船上）
           [21.4, b => {
             W.set('mcBaskets', 0, true); lv('mcBaskets', 1, b);
             time(0.73, 10, b);
+            gest('peter', 'stoopdown'); gest('james', 'stoopdown');
             sfx(b, 'harp', { soft: true });
           }],
+          [22.4, b => { gest('john', 'stoopdown'); gest('andrew', 'stoopdown'); }],
           [24.4, b => {
             if (!inst(b)) { const P = basketNamePt(); names(b, '十二个篮子', P[0], P[1], [255, 226, 160]); }
-            ['run', 'row0', 'row1', 'row2'].forEach(g => crowdPose(g, 'sit'));
             sfx(b, 'chime');
           }],
+          [25, b => {
+            const j = X('feedJ');
+            walk('peter', j + 0.02, { speed: 0.06 }); walk('john', j - 0.02, { speed: 0.06 }); walk('andrew', j - 0.034, { speed: 0.06 }); walk('james', j - 0.048, { speed: 0.06 });
+          }],
+          [27, b => { stir(['run', 'row0', 'row1', 'row2'], 'clap', { share: 0.3, spread: 2 }); gest('boy', 'clap'); }],
+          [28.6, b => { gest('jesus', 'bless'); }],
         ]);
       },
     },
@@ -2103,8 +2263,8 @@
       verse: [
         { text: '耶稣随即催门徒上船，先渡到那边去……<br>散了众人以后，他就独自上山去祷告。', ref: '马太福音 14:22–23', hold: 7 },
         { text: '那时船在海中，因风不顺，被浪摇撼。<br>夜里四更天，耶稣在海面上走，往门徒那里去。', ref: '马太福音 14:24–25', hold: 7 },
-        { text: '门徒看见他在海面上走，就惊慌了，说：「是个鬼怪！」便害怕，喊叫起来。', ref: '马太福音 14:26', hold: 6 },
-        { text: '耶稣连忙对他们说：「你们放心，是我，不要怕！」', ref: '马太福音 14:27', hold: 5 },
+        { text: '门徒看见他在海面上走，就惊慌了，说：「是个鬼怪！」便害怕，喊叫起来。', ref: '马太福音 14:26', hold: 6, talk: [['james', 0.3, 0.62, 'proclaim'], ['andrew', 0.36, 0.7, 'proclaim'], ['john', 0.5, 0.9, 'proclaim']] },
+        { text: '耶稣连忙对他们说：「你们放心，是我，不要怕！」', ref: '马太福音 14:27', hold: 5, talk: [['jesus', 0.08, 1, 'calm']] },
       ],
       apply(c) {
         ring(c, [230, 236, 255]);
@@ -2113,22 +2273,35 @@
             time(0.95, 13, b);
             lv('mcBaskets', 0, b); lv('mcMany', 0, b); lv('mcBread', 0, b);
             rm('boy');
-            ['run', 'row0', 'row1', 'row2'].forEach(g => crowdWalk(g, 1.05, 1.25, { speed: 0.03 }));
+            face('jesus', -1);
+          }],
+          // 催门徒上船：他向着门徒说，指着船
+          [0.3, b => { talk('jesus', 2, { to: 'john' }); }],
+          [1.2, b => { gest('jesus', 'point'); }],
+          [1.8, b => {
             const f = X('feed')[0];
             DISC.forEach((id, i) => walk(id, f + 0.03 + i * 0.012, { speed: 0.04 }));
-            walk('jesus', X('mount'), { speed: 0.045, pose: 'kneel' });
+            gest('peter', 'nod');
           }],
-          [3.4, b => { boardAll(b, [['peter', 'stern'], ['john', 1], ['andrew', 2], ['james', 3]]); DISC.forEach(id => { pose(id, 'seat'); face(id, 1); }); }],
+          [3, b => { walk('jesus', X('mount'), { speed: 0.055, pose: 'kneel' }); }],
+          // 散了众人：他转向众人，挥手；众人起来，往各村去
+          [2.4, b => {
+            face('jesus', 1); gest('jesus', 'wave');
+            ['run', 'row0', 'row1', 'row2'].forEach(g => crowdWalk(g, 1.05, 1.25, { speed: 0.03 }));
+          }],
+          [4, b => { boardAll(b, [['peter', 'stern'], ['john', 1], ['andrew', 2], ['james', 3]]); DISC.forEach(id => { pose(id, 'seat'); face(id, 1); }); }],
           // 船往海中去：停在海湾的开阔处（主从右边的岸上走来，离船尾还远）
-          [4, b => { lv('mcSail', 1, b); boatTo('sea2', b); }],
+          [4.4, b => { lv('mcSail', 1, b); boatTo('sea2', b); }],
           [7, b => { ['run', 'row0', 'row1', 'row2'].forEach(g => crowdRm(g)); }],
-          [8.4, b => {
+          // 独自在山上祷告；船在海中，因风不顺，被浪摇撼：安得烈、雅各摇橹
+          [8.8, b => {
             pose('jesus', 'pray'); lv('mcPray', 1, b);
             lv('gale', 0.62, b); lv('storm', 0.25, b); lv('clouds', 0.7, b); lv('mcStorm', 0.55, b); lv('mcSail', 0, b); lv('mcRow', 1, b);
             W.set('mcCalm', 0, true);
             sfx(b, 'wind');
           }],
-          [11.2, b => { time(0.09, 8, b); }],
+          [10.4, b => { pose('andrew', 'row'); pose('james', 'row'); }],
+          [11.2, b => { time(0.09, 8, b); gest('john', 'tremble'); }],
           [12.2, b => { lv('mcPray', 0, b); pose('jesus', 'stand'); walk('jesus', X('walk0')[0] + 0.012, { speed: 0.03 }); }],
           [13.6, b => {
             W.set('mcWalk', 0, true); lv('mcWalk', 1, b);
@@ -2137,9 +2310,16 @@
             glowP('jesus', 0.7);
             sfx(b, 'wave', { soft: true });
           }],
-          [16.8, b => { DISC.forEach(id => pose(id, 'raise')); face('peter', 1); sfx(b, 'crowd', { soft: true }); }],
-          [24.4, b => { pose('jesus', 'stand'); flashAt(b, 'jesus', [236, 240, 255], 20); sfx(b, 'harp'); }],
-          [25.6, b => { DISC.forEach(id => pose(id, 'stand')); }],
+          // 门徒看见他在海面上走，就惊慌了：「是个鬼怪！」
+          [16.8, b => { stir(DISC, 'startle', { spread: 0.8 }); face('peter', 1); sfx(b, 'crowd', { soft: true }); }],
+          [17.4, b => { pose('peter', 'recoil'); pose('james', 'point'); pose('andrew', 'recoil'); pose('john', 'cower'); }],
+          [20.2, b => { gest('peter', 'tremble'); }],
+          // 「你们放心，是我，不要怕！」
+          [23.8, b => { pose('jesus', 'stand'); }],
+          [24.4, b => { flashAt(b, 'jesus', [236, 240, 255], 20); sfx(b, 'harp'); }],
+          [25.8, b => { pose('peter', 'stand'); pose('james', 'stand'); }],
+          [26.4, b => { pose('andrew', 'stand'); }],
+          [27.2, b => { pose('john', 'stand'); gest('peter', 'lookaround'); }],
         ]);
       },
     },
@@ -2147,47 +2327,53 @@
     {
       kind: 'call', utter: '你来吧', cmd: 'walk 彼得 --on 水面  # 你这小信的人哪', ref: '马太福音 14:29', tint: [230, 236, 255],
       verse: [
-        { text: '彼得说：「主，如果是你，请叫我从水面上走到你那里去。」', ref: '马太福音 14:28', hold: 5.5 },
-        { text: '耶稣说：「你来吧。」彼得就从船上下去，在水面上走，要到耶稣那里去；', ref: '马太福音 14:29', hold: 6 },
-        { text: '只因见风甚大，就害怕，将要沉下去，便喊着说：「主啊，救我！」<br>耶稣赶紧伸手拉住他，说：「你这小信的人哪，为什么疑惑呢？」', ref: '马太福音 14:30–31', hold: 8 },
-        { text: '他们上了船，风就住了。<br>在船上的人都拜他，说：「你真是神的儿子了。」', ref: '马太福音 14:32–33', hold: 6.5 },
+        { text: '彼得说：「主，如果是你，请叫我从水面上走到你那里去。」', ref: '马太福音 14:28', hold: 5.5, who: 'peter', to: 'jesus', how: 'plead' },
+        { text: '耶稣说：「你来吧。」彼得就从船上下去，在水面上走，要到耶稣那里去；', ref: '马太福音 14:29', hold: 6, talk: [['jesus', 0.02, 0.24, 'calm']] },
+        { text: '只因见风甚大，就害怕，将要沉下去，便喊着说：「主啊，救我！」<br>耶稣赶紧伸手拉住他，说：「你这小信的人哪，为什么疑惑呢？」', ref: '马太福音 14:30–31', hold: 8, talk: [['jesus', 0.66, 1, 'calm']] },
+        { text: '他们上了船，风就住了。<br>在船上的人都拜他，说：「你真是神的儿子了。」', ref: '马太福音 14:32–33', hold: 6.5, talk: [['john', 0.5, 1, 'calm'], ['andrew', 0.56, 1, 'calm'], ['james', 0.6, 1, 'calm']] },
       ],
       apply(c) {
         ring(c, [230, 236, 255]);
         T(c, [
           [0, b => { pose('peter', 'stand'); face('peter', 1); }],
-          // 「你来吧。」
-          [5.6, b => { pose('jesus', 'point'); face('jesus', -1); }],
-          [6.4, b => {
+          // 「你来吧。」他向彼得招手
+          [6.9, b => { gest('jesus', 'beckon', { dur: 1.8 }); face('jesus', -1); }],
+          [7.6, b => { stir(['john', 'andrew', 'james'], 'startle', { share: 0.7, spread: 1.2 }); }],
+          [8.2, b => {
             delete S.aboard.peter;
             W.set('mcPeter', 0, true); lv('mcPeter', 1, b); W.set('mcSink', 0, true); W.set('mcBack', 0, true);
             attachTo('peter', peterWaterPt);
             pose('peter', 'walk'); face('peter', 1);
           }],
-          [7.8, b => { pose('jesus', 'stand'); }],
-          // 见风甚大
-          [10.6, b => {
+          [9, b => { heed(['john', 'andrew', 'james'], 'peter', { spread: 1 }); }],
+          [12.8, b => { pose('peter', 'stand'); }],
+          // 见风甚大：四下张望，就害怕，将要沉下去，喊着说「主啊，救我！」
+          [14.2, b => {
             lv('gale', 0.85, b); lv('mcStorm', 0.85, b);
             sfx(b, 'wind'); sfx(b, 'wave');
           }],
-          [11, b => { pose('peter', 'stand'); }],
-          [12.2, b => { lv('mcSink', 1, b); pose('peter', 'raise'); face('peter', 1); if (!inst(b)) { const f = fpos('peter'); if (f) FXL.push({ type: 'ripple', x: f.x, y: peterWaterY(), s: f.h / 25, t: 0, dur: 1.6 }); } sfx(b, 'splash', { size: 1.5 }); }],
-          [16.6, b => { W.set('mcReach', 0, true); lv('mcReach', 1, b); pose('jesus', 'walk'); face('jesus', -1); }],
-          // 耶稣赶紧伸手拉住他
-          [18.2, b => {
-            pose('jesus', 'point');
+          [14.6, b => { gest('peter', 'lookaround', { dur: 2 }); }],
+          [15.4, b => { gest('peter', 'tremble', { dur: 1.4 }); }],
+          [16.2, b => { lv('mcSink', 1, b); pose('peter', 'raise'); face('peter', 1); if (!inst(b)) { const f = fpos('peter'); if (f) FXL.push({ type: 'ripple', x: f.x, y: peterWaterY(), s: f.h / 25, t: 0, dur: 1.6 }); } sfx(b, 'splash', { size: 1.5 }); }],
+          [16.4, b => { talk('peter', 1.8, { how: 'proclaim' }); stir(['john', 'andrew', 'james'], 'startle', { spread: 0.6 }); }],
+          [17.2, b => { W.set('mcReach', 0, true); lv('mcReach', 1, b); pose('jesus', 'walk'); face('jesus', -1); }],
+          // 耶稣赶紧伸手拉住他：「你这小信的人哪，为什么疑惑呢？」
+          [18.6, b => {
+            pose('jesus', 'reach');
             const cst = C(); if (cst && cst.holdHands) cst.holdHands('jesus', 'peter', true);
             lv('mcSink', 0, b); pose('peter', 'stand');
             flashAt(b, 'peter', [236, 240, 255], 18);
             sfx(b, 'harp', { soft: true });
           }],
+          [21.6, b => { gest('peter', 'bowhead'); }],
           // 他们一同走回船上（手还拉着）
-          [20.6, b => {
+          [22, b => {
             W.set('mcBack', 0, true); lv('mcBack', 1, b);
             face('peter', -1); face('jesus', -1); pose('peter', 'walk'); pose('jesus', 'walk');
           }],
-          [23.4, b => { const cst = C(); if (cst && cst.holdHands) cst.holdHands('jesus', 'peter', false); }],
-          [23.6, b => {
+          [24.4, b => { const cst = C(); if (cst && cst.holdHands) cst.holdHands('jesus', 'peter', false); }],
+          // 他们上了船，风就住了
+          [24.6, b => {
             board('jesus', 'stern'); board('peter', 0);
             ['mcWalk', 'mcReach', 'mcPeter', 'mcBack', 'mcSink'].forEach(k => W.set(k, 0, true));
             pose('jesus', 'stand'); face('jesus', -1); pose('peter', 'stand');
@@ -2195,8 +2381,10 @@
             time(0.27, 9, b);
             sfx(b, 'whisper', { soft: true });
           }],
-          [25, b => { ['john', 'andrew', 'james'].forEach(id => pose(id, 'kneel')); face('peter', 1); }],
-          [26, b => { pose('peter', 'kneel'); glowP('jesus', 0.4); sfx(b, 'harp'); }],
+          // 在船上的人都拜他：「你真是神的儿子了。」
+          [25.4, b => { ['john', 'andrew', 'james'].forEach(id => { face(id, 1); pose(id, 'kneel'); }); face('peter', 1); }],
+          [26.2, b => { pose('peter', 'worship'); glowP('jesus', 0.4); sfx(b, 'harp'); }],
+          [30.2, b => { ['john', 'andrew', 'james'].forEach(id => pose(id, 'worship')); }],
         ]);
       },
     },
@@ -2207,7 +2395,7 @@
         { text: '耶稣又离了泰尔的境界，经过西顿，就从低加坡里境内来到加利利海。<br>有人带着一个耳聋舌结的人来见耶稣，求他按手在他身上。', ref: '马可福音 7:31–32', hold: 7.5 },
         { text: '耶稣领他离开众人，到一边去……<br>望天叹息，对他说：「以法大！」就是说：「开了吧！」', ref: '马可福音 7:33–34', hold: 7 },
         { text: '他的耳朵就开了，舌结也解了，说话也清楚了。', ref: '马可福音 7:35', hold: 5 },
-        { text: '众人分外希奇，说：「他所做的事都好，<br>他连聋子也叫他们听见，哑巴也叫他们说话。」', ref: '马可福音 7:37', hold: 7 },
+        { text: '众人分外希奇，说：「他所做的事都好，<br>他连聋子也叫他们听见，哑巴也叫他们说话。」', ref: '马可福音 7:37', hold: 7, talk: [['deca', 0.14, 1, 'proclaim'], ['f1', 0.2, 0.7, 'proclaim']] },
       ],
       apply(c) {
         ring(c, [255, 240, 200]);
@@ -2229,24 +2417,48 @@
             lv('mcHush', 1, b);
             walk('deaf', X('deafAt'), { speed: 0.025 }); walk('f1', X('deafAt') + 0.018, { speed: 0.025 });
           }],
-          [9.2, b => {
-            walk('jesus', X('aside') + 0.018, { speed: 0.028 }); walk('deaf', X('aside'), { speed: 0.028 });
+          [3.6, b => { crowdFaceX('deca', X('deafAt') - 0.03); }],
+          // 他听不见：四下张望，不知道众人在说什么
+          [5.4, b => { gest('deaf', 'lookaround'); }],
+          // 带他来的人求主按手在他身上
+          [7.6, b => { talk('f1', 2.4, { how: 'plead', to: 'jesus' }); }],
+          [8.4, b => { gest('f1', 'point'); }],
+          [9.8, b => { gest('jesus', 'nod'); }],
+          // 耶稣拉着他的手，领他离开众人，到一边去
+          [10.4, b => {
+            const cst = C(); if (cst && cst.holdHands) cst.holdHands('jesus', 'deaf', true);
+            walk('jesus', X('aside'), { speed: 0.028 }); walk('deaf', X('aside') + 0.02, { speed: 0.03 });
             DISC.forEach((id, i) => walk(id, X('aside') - 0.04 - i * 0.014, { speed: 0.03 }));
-            face('jesus', -1);
           }],
-          [13, b => { face('jesus', -1); face('deaf', 1); pose('jesus', 'point'); }],
-          [14.4, b => { pose('jesus', 'gaze'); addFX(b, { type: 'beam', id: 'jesus', dur: 3.6 }); sfx(b, 'whisper'); }],
-          [15.8, b => {
+          [11.4, b => { heed('deca', 'jesus', { spread: 1.6 }); }],
+          [13.8, b => {
+            const cst = C(); if (cst && cst.holdHands) cst.holdHands('jesus', 'deaf', false);
+            face('jesus', 1); face('deaf', -1);
+          }],
+          // 用指头探他的耳朵（可 7:33）；望天叹息
+          [14.2, b => { gest('jesus', 'touch', { dur: 1.6 }); }],
+          [15.4, b => { pose('jesus', 'gaze'); addFX(b, { type: 'beam', id: 'jesus', dur: 3.6 }); sfx(b, 'whisper'); }],
+          [15.8, b => { gest('jesus', 'sigh', { dur: 2 }); }],
+          // 「以法大！」
+          [17.4, b => { pose('jesus', 'stand'); talk('jesus', 1.4, { how: 'proclaim', to: 'deaf' }); }],
+          [18, b => {
             lv('mcHush', 0, b);
             addFX(b, { type: 'sound', id: 'deaf', dur: 3.2 }); addFX(b, { type: 'hush', id: 'deaf', dur: 1.4 });
             flashAt(b, 'deaf', [255, 240, 200], 18);
             if (!inst(b)) S.birdAcc = 6;
             W.setPop('bird', 40, W.w * 0.62, W.h * 0.62, inst(b));
+            gest('deaf', 'startle');
             sfx(b, 'harp'); sfx(b, 'bird');
           }],
-          [17.6, b => { pose('jesus', 'stand'); pose('deaf', 'raise'); glowP('deaf', 0.4); sfx(b, 'sing', { soft: true }); }],
-          [20.4, b => { walk('deaf', X('deafAt') + 0.03, { speed: 0.035, pose: 'raise' }); }],
-          [23.8, b => { crowdPose('deca', 'raise'); pose('f1', 'raise'); crowdFaceX('deca', X('deafAt')); sfx(b, 'crowd'); }],
+          // 他的耳朵就开了：侧耳听鸟；舌结也解了，说话也清楚了
+          [19.4, b => { gest('deaf', 'lookaround'); glowP('deaf', 0.4); sfx(b, 'sing', { soft: true }); }],
+          [21, b => { talk('deaf', 2.6, { how: 'proclaim', to: 'jesus' }); stir(DISC, 'startle', { share: 0.7 }); }],
+          [23, b => { pose('deaf', 'rejoice'); }],
+          // 他回到带他来的人那里，二人相拥；众人分外希奇
+          [25, b => { pose('deaf', 'stand'); walk('deaf', X('deafAt') + 0.03, { speed: 0.045 }); heed('deca', 'deaf', { spread: 1.2 }); }],
+          [25.2, b => { stir('deca', 'startle', { share: 0.7, spread: 1 }); }],
+          [26.4, b => { crowdPose('deca', 'raise'); crowdFaceX('deca', X('deafAt')); sfx(b, 'crowd'); }],
+          [28.6, b => { const cst = C(); if (cst && cst.embrace) cst.embrace('deaf', 'f1', { weep: false }); stir(DISC, 'nod', { share: 0.5 }); }],
         ]);
       },
     },
@@ -2256,7 +2468,7 @@
       verse: [
         { text: '他们来到伯赛大，有人带一个瞎子来，求耶稣摸他。', ref: '马可福音 8:22', hold: 5 },
         { text: '耶稣拉着瞎子的手，领他到村外……<br>按手在他身上，问他说：「你看见什么了？」', ref: '马可福音 8:23', hold: 6.5 },
-        { text: '他就抬头一看，说：「我看见人了；他们好像树木，并且行走。」', ref: '马可福音 8:24', hold: 6 },
+        { text: '他就抬头一看，说：「我看见人了；他们好像树木，并且行走。」', ref: '马可福音 8:24', hold: 6, talk: [['blind', 0.22, 1, 'calm']] },
         { text: '随后又按手在他眼睛上，他定睛一看，就复了原，样样都看得清楚了。', ref: '马可福音 8:25', hold: 6.5 },
       ],
       apply(c) {
@@ -2271,29 +2483,42 @@
             DISC.forEach((id, i) => walk(id, X('blindAt') + 0.06 + i * 0.014, { speed: 0.03 }));
           }],
           [2.4, b => { S.town = 'beth'; toTown(b, true); }],
+          // 有人拉着瞎子的手，领他来（他一手拄杖，摸着路走）
           [1.2, b => {
             add('blind', { label: '瞎子', sex: 'm', x: X('blindFrom'), facing: 1, robe: ROBE.blind, beard: true, glow: 0.06, prop: 'staff' });
             add('f2', { label: '带他来的人', sex: 'm', x: X('blindFrom') - 0.018, facing: 1, robe: ROBE.friend, beard: true });
-            walk('blind', X('blindAt'), { speed: 0.022 }); walk('f2', X('blindAt') - 0.018, { speed: 0.022 });
+            walk('blind', X('blindAt'), { speed: 0.03 }); walk('f2', X('blindAt') - 0.018, { speed: 0.03 });
             const cst = C(); if (cst && cst.holdHands) cst.holdHands('blind', 'f2', true);
             crowd('beth', { n: 5, x0: X('houseA') - 0.04, x1: X('houseA') + 0.02, label: '伯赛大人' });
           }],
-          [6.6, b => {
+          [3, b => { heed('beth', 'blind', { spread: 1.6 }); face('jesus', -1); }],
+          // 求耶稣摸他
+          [6, b => { talk('f2', 2, { how: 'plead', to: 'jesus' }); }],
+          // 耶稣拉着瞎子的手，领他到村外
+          [7.4, b => {
             const cst = C(); if (cst && cst.holdHands) { cst.holdHands('blind', 'f2', false); cst.holdHands('jesus', 'blind', true); }
             face('jesus', 1);
-            walk('jesus', X('out') + 0.02, { speed: 0.03 }); walk('blind', X('out'), { speed: 0.03 });
+            walk('jesus', X('out') + 0.02, { speed: 0.04 }); walk('blind', X('out'), { speed: 0.04 });
           }],
-          [11.6, b => {
+          [8.6, b => { gest('f2', 'nod'); heed(['beth', 'f2'], 'jesus', { spread: 1.4 }); }],
+          // 按手在他身上，问他说：「你看见什么了？」
+          [11.4, b => {
             const cst = C(); if (cst && cst.holdHands) cst.holdHands('jesus', 'blind', false);
-            face('jesus', -1); face('blind', 1); pose('jesus', 'point');
+            face('jesus', -1); face('blind', 1); pose('jesus', 'reach');
           }],
-          [12.6, b => {
+          [11.8, b => {
             lv('mcHaze', 1, b);
             flashAt(b, 'blind', [236, 232, 222], 12);
             sfx(b, 'chime', { soft: true });
           }],
-          [14.4, b => { pose('jesus', 'stand'); pose('blind', 'gaze'); DISC.forEach((id, i) => walk(id, X('blindAt') - 0.02 + i * 0.03, { speed: 0.015 })); }],
-          [21.6, b => { pose('jesus', 'point'); pose('blind', 'stand'); }],
+          [12.2, b => { talk('jesus', 1.8, { to: 'blind' }); }],
+          [13.4, b => { pose('jesus', 'stand'); }],
+          // 他就抬头一看（转身望着走动的门徒）：「我看见人了；他们好像树木，并且行走。」
+          [14.4, b => { face('blind', -1); pose('blind', 'gaze'); DISC.forEach((id, i) => walk(id, X('blindAt') - 0.02 + i * 0.03, { speed: 0.015 })); }],
+          [18.4, b => { gest('blind', 'point'); }],
+          // 随后又按手在他眼睛上
+          [20.6, b => { face('blind', 1); pose('blind', 'stand'); }],
+          [21.6, b => { pose('jesus', 'reach'); }],
           [22.4, b => {
             // 颜色自灵此刻所在之处绽放（只是看的样子；重演时直接满目）
             const sp = W.spirit;
@@ -2302,14 +2527,17 @@
             W.set('mcSight', 0, true); lv('mcSight', 1, b); lv('bloom', 1, b);
             flashAt(b, 'blind', [255, 244, 220], 26);
             add('blind', { glow: 0.42, label: '得看见的人', prop: null });
+            gest('blind', 'startle');
             sfx(b, 'harp'); sfx(b, 'bird', { soft: true });
           }],
-          [24, b => { pose('jesus', 'stand'); pose('blind', 'raise'); }],
-          [25.8, b => { lv('mcHaze', 0, b); W.set('mcMute', 0, true); W.set('mcSight', 0, true); }],
-          [26, b => { face('blind', -1); }],
-          [27.2, b => { pose('blind', 'stand'); face('blind', 1); time(0.64, 28, b); }],
-          // 「耶稣打发他回家」：他往家里去；主与门徒往前走（落幕之前，世界还在动）
-          [27.8, b => {
+          // 他定睛一看：样样都看得清楚了——四下张望，张臂欢喜
+          [23.2, b => { pose('jesus', 'stand'); pose('blind', 'gaze'); stir(DISC, 'startle', { share: 0.6 }); }],
+          [24.4, b => { gest('blind', 'lookaround'); }],
+          [25.8, b => { lv('mcHaze', 0, b); W.set('mcMute', 0, true); W.set('mcSight', 0, true); pose('blind', 'rejoice'); }],
+          [26.6, b => { gest('blind', 'leap', { n: 2 }); stir(DISC, 'nod', { share: 0.6 }); }],
+          // 「耶稣打发他回家」：他向主低头，往家里去；主与门徒往前走（落幕之前，世界还在动）
+          [27.4, b => { pose('blind', 'stand'); face('blind', 1); gest('blind', 'bowhead', { dur: 1.4 }); time(0.64, 28, b); }],
+          [28.2, b => {
             walk('blind', 1.1, { speed: 0.024 });
             walk('jesus', X('out') + 0.11, { speed: 0.012 });
             DISC.forEach((id, i) => walk(id, X('out') + 0.08 - i * 0.016, { speed: 0.014 }));

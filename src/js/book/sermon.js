@@ -166,6 +166,11 @@
   function glow(id, v) { if (has(id)) C().glow(id, v); }
   function faceJ(id) { const p = fig(id); if (!p) return; face(id, UX(0) >= (p.tx != null ? p.tx : p.nx) ? 1 : -1); }
   function embrace(a, b, o) { const c = C(); if (c.embrace && has(a) && has(b)) U.safe('cast.embrace', () => c.embrace(a, b, o)); }
+  // 演技：说话、一次性的手势、众人转向、众人先后的反应（重演时自动什么也不做；heed 立即到位）
+  function say(id, sec, o) { const c = C(); if (c.speak) c.speak(id, sec, o); }
+  function gest(id, kind, o) { const c = C(); if (c.gesture) c.gesture(id, kind, o); }
+  function heed(ids, target, o) { const c = C(); if (c.attend) c.attend(ids, target, o); }
+  function stir(ids, kind, o) { const c = C(); if (c.react) c.react(ids, kind, o); }
   function cmembers(gid) { const g = hasCrowd(gid) && C().crowds.get(gid); return g ? g.members : []; }
   function crowd(gid, o) {
     if (hasCrowd(gid)) C().removeCrowd(gid, { fade: false });
@@ -1549,32 +1554,38 @@
       kind: 'bless', utter: '虚心的人有福了！因为天国是他们的', cmd: 'cd ~/山上 && sit --teach  # 天国是他们的', ref: '5:3',
       verse: [
         { text: '耶稣看见这许多的人，就上了山，<br>既已坐下，门徒到他跟前来，<br>他就开口教训他们，说：', ref: '马太福音 5:1–2', hold: 7 },
-        { text: '虚心的人有福了！<br>因为天国是他们的。', ref: '马太福音 5:3', hold: 6 },
+        { text: '虚心的人有福了！<br>因为天国是他们的。', ref: '马太福音 5:3', hold: 6, who: 'jesus', how: 'teach' },
       ],
       apply(c) {
         const st = seats();
         T(c, [
+          // 耶稣看见这许多的人：手搭凉棚望一望山脚的众人，就上了山
           [0, b => {
             W.goTo(0.2425, 20, inst(b));
-            go('jesus', st.jesus[0], st.jesus[1], 'sit', 0.032);
-            face('jesus', -1);
+            pose('jesus', 'look');
             S.up = true;
             sfx(b, 'wind', { soft: true });
           }],
-          [0.9, () => {
+          [0.4, () => { heed(CROWDS, 'jesus', { spread: 1.4 }); }],
+          [1.2, () => {
+            go('jesus', st.jesus[0], st.jesus[1], 'sit', 0.034);
+            face('jesus', -1);
+          }],
+          [1.6, () => {
             go('peter', st.peter[0], st.peter[1], 'sit', 0.03); go('andrew', st.andrew[0], st.andrew[1], 'sit', 0.03);
             go('john', st.john[0], st.john[1], 'sit', 0.028); go('james', st.james[0], st.james[1], 'sit', 0.03);
             for (const id of ['peter', 'andrew']) face(id, 1);
             for (const id of ['john', 'james']) face(id, -1);
           }],
-          [2, b => { cseat('crowdL', st.L, 'sit', 0.03, 0.3); sfx(b, 'crowd', { soft: true }); }],
-          [2.8, () => cseat('crowdR', st.R, 'sit', 0.032, 0.3)],
-          [3.6, () => cseat('crowdF', st.F, 'sit', 0.026, 0.2)],
-          [4.2, () => {
+          [2.4, b => { cseat('crowdL', st.L, 'sit', 0.03, 0.3); sfx(b, 'crowd', { soft: true }); }],
+          [3.2, () => cseat('crowdR', st.R, 'sit', 0.032, 0.3)],
+          [4, () => cseat('crowdF', st.F, 'sit', 0.026, 0.2)],
+          [4.6, () => {
             // 山脚的几个人也在山前坐下（哀恸的人仍站着哭）
             pose('beggar', 'sit'); pose('father', 'sit'); pose('son', 'sit'); pose('giver', 'sit'); pose('comforter', 'sit');
             face('father', 1); face('son', 1); face('giver', 1); face('comforter', -1);
           }],
+          [6, () => { gest('son', 'lookaround'); }],
           [7.4, b => {
             // 他开口：「虚心的人有福了」——一圈温暖的光自他身上漫过山坡
             glow('jesus', 0.42);
@@ -1583,6 +1594,9 @@
           }],
           [8.2, () => { for (const g of CROWDS) cfaceJ(g); }],
           [9.5, () => { for (const g of CROWDS) cglow(g, 0.2); for (const id of DISC.concat(SIDE)) glow(id, 0.22); }],
+          // 虚心的人有福了：穷人抬起头来；众人中有的点头
+          [11.2, () => { gest('beggar', 'reachup', { dur: 2.4 }); }],
+          [12.4, () => { stir(CROWDS, 'nod', { spread: 1.6, share: 0.3 }); gest('peter', 'nod'); }],
         ]);
       },
     },
@@ -1591,9 +1605,9 @@
     {
       kind: 'bless', utter: '清心的人有福了！因为他们必得见神', cmd: 'grep -l 清心 ~/人心 | see --神  # 东方发白', ref: '5:8',
       verse: [
-        { text: '哀恸的人有福了！因为他们必得安慰。<br>温柔的人有福了！因为他们必承受地土。', ref: '马太福音 5:4–5', hold: 7 },
-        { text: '饥渴慕义的人有福了！因为他们必得饱足。<br>怜恤人的人有福了！因为他们必蒙怜恤。<br>清心的人有福了！因为他们必得见神。', ref: '马太福音 5:6–8', hold: 8 },
-        { text: '使人和睦的人有福了！<br>因为他们必称为神的儿子。', ref: '马太福音 5:9', hold: 6.5 },
+        { text: '哀恸的人有福了！因为他们必得安慰。<br>温柔的人有福了！因为他们必承受地土。', ref: '马太福音 5:4–5', hold: 7, who: 'jesus', how: 'teach' },
+        { text: '饥渴慕义的人有福了！因为他们必得饱足。<br>怜恤人的人有福了！因为他们必蒙怜恤。<br>清心的人有福了！因为他们必得见神。', ref: '马太福音 5:6–8', hold: 8, who: 'jesus', how: 'teach' },
+        { text: '使人和睦的人有福了！<br>因为他们必称为神的儿子。', ref: '马太福音 5:9', hold: 6.5, who: 'jesus', how: 'teach' },
       ],
       apply(c) {
         const sp = spots();
@@ -1605,16 +1619,24 @@
           [6.6, () => { pose('mourner', 'sit', { weep: false }); pose('comforter', 'sit'); face('mourner', -1); face('comforter', -1); }],
           // 清心的人必得见神：自上而来的光落在山上
           [7.4, b => { lv('srSee', 1, b); glow('jesus', 0.5); sfx(b, 'angel', { soft: true }); }],
+          // 坐下了，安慰她的还伸手扶着她；她点一点头
+          [7.6, () => { gest('comforter', 'touch', { dur: 2.2 }); }],
           [8, () => { for (const g of CROWDS) cglow(g, 0.24); }],
+          [9, () => { gest('mourner', 'nod'); }],
+          [10.8, () => { stir(CROWDS, 'nod', { spread: 1.4, share: 0.25 }); }],
           [14.2, b => lv('srSee', 0.25, b)],
-          // 使人和睦的人：长者领两个背转的弟兄相见，二人相拥
+          [14.6, () => { stir(CROWDS, 'reachup', { spread: 1.6, share: 0.22 }); }],
+          // 使人和睦的人：长者领两个背转的弟兄相见，劝他们，二人相拥
           [15, () => { go('elder', sp.peace[0] + (port() ? 0.12 : 0.1), sp.peace[1] + 0.1, 'stand', 0.02); }],
           [17.2, () => { face('broA', 1); face('broB', -1); face('elder', -1); }],
+          [17.4, () => { say('elder', 1.2, { to: 'broA', how: 'plead' }); }],
           [18, b => { embrace('broA', 'broB', { at: UX(sp.peace[0]) }); S.peace = true; sfx(b, 'harp', { soft: true }); }],
+          [19.6, () => { gest('elder', 'bless', { dur: 2.2 }); }],
           [21.5, () => {
             pose('broA', 'sit'); pose('broB', 'sit'); pose('elder', 'sit');
             faceJ('broA'); faceJ('broB'); faceJ('elder');
           }],
+          [23.2, () => { stir(DISC, 'nod', { spread: 1, share: 0.75 }); }],
         ]);
       },
     },
@@ -1623,9 +1645,9 @@
     {
       kind: 'name', utter: '你们是世上的光', cmd: 'lamp --on --stand 灯台 --not-under 斗', ref: '5:14',
       verse: [
-        { text: '你们是世上的盐。<br>盐若失了味，怎能叫它再咸呢？', ref: '马太福音 5:13', hold: 5.5 },
-        { text: '你们是世上的光。<br>城造在山上是不能隐藏的。<br>人点灯，不放在斗底下，<br>是放在灯台上，就照亮一家的人。', ref: '马太福音 5:14–15', hold: 8.5 },
-        { text: '你们的光也当这样照在人前，<br>叫他们看见你们的好行为，<br>便将荣耀归给你们在天上的父。', ref: '马太福音 5:16', hold: 7 },
+        { text: '你们是世上的盐。<br>盐若失了味，怎能叫它再咸呢？', ref: '马太福音 5:13', hold: 5.5, who: 'jesus', how: 'teach' },
+        { text: '你们是世上的光。<br>城造在山上是不能隐藏的。<br>人点灯，不放在斗底下，<br>是放在灯台上，就照亮一家的人。', ref: '马太福音 5:14–15', hold: 8.5, who: 'jesus', how: 'teach' },
+        { text: '你们的光也当这样照在人前，<br>叫他们看见你们的好行为，<br>便将荣耀归给你们在天上的父。', ref: '马太福音 5:16', hold: 7, who: 'jesus', how: 'teach' },
       ],
       apply(c) {
         T(c, [
@@ -1634,6 +1656,9 @@
             // 盐：一撮白亮的微光落在众人中间
             if (!inst(b)) for (const u of [-0.3, 0.1, 0.5]) { const q = FP(u, 0.7); sparkAt(b, q[0], q[1] - 10, 14, [245, 248, 255], 22); }
           }],
+          // 你们是世上的盐：他伸手指着坐在跟前的人
+          [1.8, () => { gest('jesus', 'point'); }],
+          [3.6, () => { stir(DISC, 'nod', { spread: 1, share: 0.5 }); }],
           [5.4, b => {
             // 你们是世上的光：山上众人心里的光一齐点亮
             lv('srInner', 1, b); S.lit = true;
@@ -1643,14 +1668,22 @@
             sfx(b, 'fire', { soft: true });
           }],
           [5.9, b => lv('srSpread', 1, b)],
+          // 众人觉出心里亮了：彼此相看
+          [6.4, () => { stir(['crowdL', 'crowdR'], 'lookaround', { spread: 1.6, share: 0.3 }); }],
           [7.2, b => {
             lv('srCity', 1, b);
             if (!inst(b)) { const xf = cityX(); ringAt(b, xf * W.w, gY(0, xf) - 6, [255, 226, 170], 0.14, 2.6, 1.2); }
             sfx(b, 'stars', { soft: true });
           }],
+          // 城造在山上：山前的人回头望那远处山顶上的城
+          [8, () => { heed(['crowdF', 'son'], cityX(), { spread: 1.2 }); }],
+          [8.8, () => { gest('son', 'point'); }],
           [9.6, b => { lv('srLamps', 1, b); sfx(b, 'chime', { soft: true }); }],
+          [11.6, () => { heed(['crowdF', 'son'], 'jesus', { spread: 1.4 }); }],
           [13.8, b => { lv('srFar', 1, b); }],
           [16, b => { if (!inst(b)) { const q = jesusXY(); ringAt(b, q[0], q[1], [255, 226, 170], 1.4, 5.5, 1.2); } }],
+          // 便将荣耀归给你们在天上的父
+          [21.4, () => { stir(CROWDS, 'reachup', { spread: 1.6, share: 0.3 }); gest('john', 'reachup'); }],
         ]);
       },
     },
@@ -1659,19 +1692,25 @@
     {
       kind: 'cmd', utter: '要爱你们的仇敌，为那逼迫你们的祷告', cmd: 'sunrise --for=好人,歹人 && rain --for=义人,不义的人', ref: '5:44',
       verse: [
-        { text: '你们听见有话说：<br>『当爱你的邻舍，恨你的仇敌。』<br>只是我告诉你们，要爱你们的仇敌，<br>为那逼迫你们的祷告。', ref: '马太福音 5:43–44', hold: 8 },
-        { text: '这样就可以作你们天父的儿子；<br>因为他叫日头照好人，也照歹人；<br>降雨给义人，也给不义的人。', ref: '马太福音 5:45', hold: 7.5 },
-        { text: '所以，你们要完全，<br>像你们的天父完全一样。', ref: '马太福音 5:48', hold: 5.5 },
+        { text: '你们听见有话说：<br>『当爱你的邻舍，恨你的仇敌。』<br>只是我告诉你们，要爱你们的仇敌，<br>为那逼迫你们的祷告。', ref: '马太福音 5:43–44', hold: 8, who: 'jesus', how: 'teach' },
+        { text: '这样就可以作你们天父的儿子；<br>因为他叫日头照好人，也照歹人；<br>降雨给义人，也给不义的人。', ref: '马太福音 5:45', hold: 7.5, who: 'jesus', how: 'teach' },
+        { text: '所以，你们要完全，<br>像你们的天父完全一样。', ref: '马太福音 5:48', hold: 5.5, who: 'jesus', how: 'teach' },
       ],
       apply(c) {
         T(c, [
           [0, b => { W.goTo(0.249, 7.5, inst(b)); lv('srDawn', 0, b); lv('srSee', 0, b); }],
+          // 恨你的仇敌——只是我告诉你们，要爱你们的仇敌：相和好的两个弟兄彼此点头；长者低头祷告
+          [3.4, () => { stir(['broA', 'broB'], 'nod', { spread: 0.8 }); }],
+          [5.8, () => { pose('elder', 'pray'); }],
           [7.8, b => {
             // 日头从海上升起，金光自东向西扫过全地
             W.goTo(0.3, 11, inst(b));
             lv('srSun', 1, b); S.sun = true;
             sfx(b, 'harp');
           }],
+          // 众人回头望日出
+          [8.6, () => { heed('crowdL', 0.1, { spread: 1.6 }); stir('crowdR', 'lookaround', { spread: 1.4, share: 0.35 }); }],
+          [11.4, () => { pose('elder', 'sit'); heed('crowdL', 'jesus', { spread: 1.6 }); }],
           [10.5, b => {
             lv('srLamps', 0, b); lv('srInner', 0.25, b); lv('srFar', 0, b); lv('srCity', 0.3, b);
             for (const g of CROWDS) cglow(g, 0.14);
@@ -1691,7 +1730,13 @@
               }
             }
           }],
+          // 太阳雨落在众人身上：有的一惊，有的摊手接雨
+          [12.8, () => { stir(CROWDS, 'startle', { spread: 1.2, share: 0.25 }); }],
+          [14.6, () => { stir(CROWDS, 'reachup', { spread: 1.8, share: 0.3 }); }],
           [19, b => { W.set('rain', 0, inst(b)); W.set('clouds', 0.4, inst(b)); }],
+          // 你们要完全，像你们的天父完全一样
+          [20.6, () => { stir(DISC, 'nod', { spread: 1.2, share: 0.75 }); }],
+          [22, () => { stir(CROWDS, 'bowhead', { spread: 1.6, share: 0.25 }); }],
         ]);
       },
     },
@@ -1700,24 +1745,31 @@
     {
       kind: 'promise', utter: '你父在暗中察看，必然报答你', cmd: 'give --hand=右 --quiet  # 左手不知道', ref: '6:4',
       verse: [
-        { text: '你们要小心，不可将善事行在人的面前，<br>故意叫他们看见，若是这样，<br>就不能得你们天父的赏赐了。', ref: '马太福音 6:1', hold: 7 },
-        { text: '你施舍的时候，<br>不要叫左手知道右手所做的，<br>要叫你施舍的事行在暗中。<br>你父在暗中察看，必然报答你。', ref: '马太福音 6:3–4', hold: 8.5 },
+        { text: '你们要小心，不可将善事行在人的面前，<br>故意叫他们看见，若是这样，<br>就不能得你们天父的赏赐了。', ref: '马太福音 6:1', hold: 7, who: 'jesus', how: 'teach' },
+        { text: '你施舍的时候，<br>不要叫左手知道右手所做的，<br>要叫你施舍的事行在暗中。<br>你父在暗中察看，必然报答你。', ref: '马太福音 6:3–4', hold: 8.5, who: 'jesus', how: 'teach' },
       ],
       apply(c) {
         const sp = spots();
         T(c, [
           [0, b => { W.goTo(0.33, 12, inst(b)); }],
           [0.6, () => { go('giver', sp.beggar[0] + sp.alms, sp.beggar[1] + 0.04, 'kneel', 0.03); face('giver', -1); }],
+          // 不可将善事行在人的面前：她跪在穷人跟前，先回头看一看
+          [4.2, () => { gest('giver', 'lookaround'); }],
+          [5.6, () => { face('beggar', 'giver'); }],
+          // 施舍行在暗中：悄悄把饼递过去
+          [6.8, () => { gest('giver', 'give'); }],
           [7.6, b => {
             S.alms = true;
             pose('giver', 'kneel');
             if (!inst(b)) { const p = fig('beggar'), q = p ? bodyAt(p, 0.3) : null; if (q) sparkAt(b, q[0], q[1], 10, [255, 236, 190], 6); }
             sfx(b, 'coins', { soft: true });
           }],
+          [8.4, () => { gest('beggar', 'bowhead', { dur: 1.6 }); }],
           [9.4, () => { go('giver', sp.giver[0], sp.giver[1], 'sit', 0.03); face('giver', 1); }],
           [10.4, b => { lv('srGive', 1, b); sfx(b, 'stars', { soft: true }); }],
+          // 你父在暗中察看：穷人举起饼来谢恩
           [13.2, () => { pose('beggar', 'raise'); }],
-          [16.4, b => { lv('srGive', 0, b); pose('beggar', 'sit'); }],
+          [16.4, b => { lv('srGive', 0, b); pose('beggar', 'sit'); faceJ('beggar'); }],
         ]);
       },
     },
@@ -1726,9 +1778,9 @@
     {
       kind: 'bless', utter: '我们在天上的父：愿人都尊你的名为圣', cmd: 'pray --to 天上的父 --hallow 名 --no-repeat', ref: '6:9',
       verse: [
-        { text: '所以，你们祷告要这样说：<br>我们在天上的父：<br>愿人都尊你的名为圣。', ref: '马太福音 6:9', hold: 6.5 },
-        { text: '愿你的国降临；<br>愿你的旨意行在地上，如同行在天上。<br>我们日用的饮食，今日赐给我们。', ref: '马太福音 6:10–11', hold: 7.5 },
-        { text: '免我们的债，如同我们免了人的债。<br>不叫我们遇见试探；救我们脱离凶恶。<br>因为国度、权柄、荣耀，全是你的，<br>直到永远。阿们！', ref: '马太福音 6:12–13', hold: 8.5 },
+        { text: '所以，你们祷告要这样说：<br>我们在天上的父：<br>愿人都尊你的名为圣。', ref: '马太福音 6:9', hold: 6.5, who: 'jesus', how: 'teach' },
+        { text: '愿你的国降临；<br>愿你的旨意行在地上，如同行在天上。<br>我们日用的饮食，今日赐给我们。', ref: '马太福音 6:10–11', hold: 7.5, who: 'jesus', how: 'calm' },
+        { text: '免我们的债，如同我们免了人的债。<br>不叫我们遇见试探；救我们脱离凶恶。<br>因为国度、权柄、荣耀，全是你的，<br>直到永远。阿们！', ref: '马太福音 6:12–13', hold: 8.5, who: 'jesus', how: 'calm' },
       ],
       apply(c) {
         T(c, [
@@ -1737,14 +1789,22 @@
           [0.8, () => { for (const id of DISC) pose(id, 'pray'); }],
           [1.6, () => { for (const g of CROWDS) cpose(g, 'pray'); for (const id of SIDE) pose(id, 'pray'); S.prayed = true; }],
           [2.2, b => { lv('srPillar', 1, b); W.set('clouds', 0.26, inst(b)); sfx(b, 'angel', { soft: true }); }],
+          // 我们在天上的父：他仰起脸来
+          [3.6, () => { gest('jesus', 'reachup', { dur: 2.6 }); }],
           [7, b => {
             // 愿你的旨意行在地上，如同行在天上：光自山上漫过全地
             if (!inst(b)) { const q = prayFoot(); ringAt(b, q[0], q[1], [255, 240, 206], 1.6, 6, 2); W.flash = Math.max(W.flash, 0.1); }
             for (const g of CROWDS) cglow(g, 0.22);
           }],
+          // 我们日用的饮食，今日赐给我们：父亲与儿子、穷人低头
+          [13, () => { stir(['father', 'son', 'beggar'], 'bowhead', { spread: 0.8 }); }],
+          // 免我们的债，如同我们免了人的债：相和好的两个弟兄低头
+          [17.4, () => { stir(['broA', 'broB'], 'bowhead', { spread: 0.6 }); }],
           [21, b => { lv('srPillar', 0, b); sfx(b, 'harp', { soft: true }); }],
-          [22, () => { for (const id of DISC) pose(id, 'sit'); for (const g of CROWDS) cpose(g, 'sit'); for (const id of SIDE) pose(id, 'sit'); }],
-          [22.5, b => hint(b, '按住言说时，灵在哪里，飞鸟就从那里飞出', 5)],
+          // 阿们！众人跟着点头，然后坐起来
+          [23.4, () => { stir(CROWDS.concat(DISC, SIDE), 'nod', { spread: 1.4, share: 0.7 }); }],
+          [24.8, () => { for (const id of DISC) pose(id, 'sit'); for (const g of CROWDS) cpose(g, 'sit'); for (const id of SIDE) pose(id, 'sit'); }],
+          [25.4, b => hint(b, '按住言说时，灵在哪里，飞鸟就从那里飞出', 5)],
         ]);
       },
     },
@@ -1753,8 +1813,8 @@
     {
       kind: 'cmd', utter: '你们看那天上的飞鸟', cmd: 'feed --birds --no-sow --no-reap --no-barn', ref: '6:26',
       verse: [
-        { text: '你们看那天上的飞鸟，<br>也不种，也不收，也不积蓄在仓里，<br>你们的天父尚且养活它。<br>你们不比飞鸟贵重得多吗？', ref: '马太福音 6:26', hold: 8.5 },
-        { text: '你们哪一个能用思虑<br>使寿数多加一刻呢？', ref: '马太福音 6:27', hold: 5 },
+        { text: '你们看那天上的飞鸟，<br>也不种，也不收，也不积蓄在仓里，<br>你们的天父尚且养活它。<br>你们不比飞鸟贵重得多吗？', ref: '马太福音 6:26', hold: 8.5, who: 'jesus', how: 'teach' },
+        { text: '你们哪一个能用思虑<br>使寿数多加一刻呢？', ref: '马太福音 6:27', hold: 5, who: 'jesus', how: 'teach' },
       ],
       apply(c) {
         const bx = c.choice && c.choice.bird ? c.choice.bird[0] * W.w : (c.x == null ? W.w * 0.72 : c.x);
@@ -1767,6 +1827,8 @@
             if (!inst(b)) { sparks(bx, Math.min(by, W.h * 0.62), 50, [255, 244, 222], 14); fx().ring(bx, Math.min(by, W.h * 0.62), [255, 244, 222], M() * 0.2, 1.6, 1.2); }
             sfx(b, 'wings'); sfx(b, 'bird');
           }],
+          // 众人回头看飞起来的鸟；孩子站起来指着
+          [0.6, () => { heed(CROWDS, clamp(bx / W.w, 0, 1), { spread: 1.8 }); }],
           [1.2, () => { pose('son', 'point'); const p = fig('son'); face('son', p && bx < p.nx * W.w ? -1 : 1); }],
           [3.5, b => {
             // 天父撒下谷粒养活它们
@@ -1779,8 +1841,14 @@
             }
             sfx(b, 'bird', { soft: true });
           }],
+          // 天父撒下谷粒养活它：有的向天摊开手
+          [4.4, () => { stir(CROWDS, 'reachup', { spread: 1.6, share: 0.2 }); pose('son', 'stand'); gest('son', 'leap', { n: 2 }); }],
           [6, () => { for (const g of ['crowdL', 'crowdR']) cpose(g, 'sit'); }],
-          [9.5, () => { pose('son', 'sit'); faceJ('son'); }],
+          // 你们不比飞鸟贵重得多吗？——众人转回来听他
+          [6.8, () => { heed(CROWDS, 'jesus', { spread: 1.8 }); pose('son', 'sit'); faceJ('son'); }],
+          // 你们哪一个能用思虑使寿数多加一刻呢？
+          [11, () => { gest('father', 'sigh'); }],
+          [12, () => { stir(DISC, 'nod', { spread: 1, share: 0.5 }); }],
           [12.5, b => hint(b, '按住言说时，灵在哪里，百合花就从那里开起', 5)],
         ]);
         return { bird: [clamp(bx / W.w, 0, 1), clamp(by / W.h, 0, 1)] };
@@ -1791,9 +1859,9 @@
     {
       kind: 'cmd', utter: '你想野地里的百合花怎么长起来', cmd: 'bloom 百合花 --no-toil --no-spin > 所罗门.glory', ref: '6:28',
       verse: [
-        { text: '何必为衣裳忧虑呢？<br>你想野地里的百合花怎么长起来；<br>它也不劳苦，也不纺线。', ref: '马太福音 6:28', hold: 7 },
-        { text: '然而我告诉你们，<br>就是所罗门极荣华的时候，<br>他所穿戴的，还不如这花一朵呢！', ref: '马太福音 6:29', hold: 7 },
-        { text: '你们要先求他的国和他的义，<br>这些东西都要加给你们了。', ref: '马太福音 6:33', hold: 6 },
+        { text: '何必为衣裳忧虑呢？<br>你想野地里的百合花怎么长起来；<br>它也不劳苦，也不纺线。', ref: '马太福音 6:28', hold: 7, who: 'jesus', how: 'teach' },
+        { text: '然而我告诉你们，<br>就是所罗门极荣华的时候，<br>他所穿戴的，还不如这花一朵呢！', ref: '马太福音 6:29', hold: 7, who: 'jesus', how: 'teach' },
+        { text: '你们要先求他的国和他的义，<br>这些东西都要加给你们了。', ref: '马太福音 6:33', hold: 6, who: 'jesus', how: 'teach' },
       ],
       apply(c) {
         const o = c.choice && c.choice.lily ? c.choice.lily.slice() : spiritUD(c);
@@ -1805,13 +1873,24 @@
             if (!inst(b)) { const q = FP(o[0], o[1]); ringAt(b, q[0], q[1], [240, 190, 200], 0.5, 3.2, 1.2); sparkAt(b, q[0], q[1], 30, [255, 230, 236], 14, 'near'); }
             sfx(b, 'harp', { soft: true }); sfx(b, 'wind', { soft: true });
           }],
+          // 众人回头看山坡上开出来的百合花
+          [0.8, () => { heed(CROWDS, UX(o[0]), { spread: 1.8 }); }],
+          [3.2, () => { stir(['mourner', 'comforter', 'giver'], 'nod', { spread: 1.2 }); }],
           [7.2, b => {
             lv('srGlory', 1, b);
             if (!inst(b)) { const q = FP(port() ? -0.1 : -0.08, 0.1); sparkAt(b, q[0], q[1] - 20, 24, [255, 244, 214], 10); }
             sfx(b, 'chime', { soft: true });
           }],
+          [7.8, () => { heed(CROWDS, 'jesus', { spread: 1.8 }); }],
+          // 所罗门极荣华的时候……还不如这花一朵呢！
+          [11.4, () => { face('jesus', UX(o[0])); }],
+          [11.8, () => { gest('jesus', 'point'); }],
+          [13.2, () => { stir(CROWDS, 'nod', { spread: 1.6, share: 0.25 }); }],
+          [14.2, () => { face('jesus', -1); }],
           [14.5, b => { W.set('gale', 0.32, inst(b)); sfx(b, 'wind', { soft: true }); }],
           [18.5, b => W.set('gale', 0.2, inst(b))],
+          // 你们要先求他的国和他的义
+          [19, () => { stir(DISC, 'nod', { spread: 1, share: 0.75 }); }],
         ]);
         return { lily: o };
       },
@@ -1821,17 +1900,21 @@
     {
       kind: 'promise', utter: '寻找，就寻见；叩门，就给你们开门', cmd: 'knock && open 门  # 叩门的，就给他开门', ref: '7:7',
       verse: [
-        { text: '你们祈求，就给你们；<br>寻找，就寻见；<br>叩门，就给你们开门。', ref: '马太福音 7:7', hold: 6.5 },
-        { text: '你们中间谁有儿子求饼，反给他石头呢？<br>求鱼，反给他蛇呢？', ref: '马太福音 7:9–10', hold: 6.5 },
-        { text: '你们虽然不好，尚且知道拿好东西给儿女，<br>何况你们在天上的父，<br>岂不更把好东西给求他的人吗？', ref: '马太福音 7:11', hold: 7.5 },
+        { text: '你们祈求，就给你们；<br>寻找，就寻见；<br>叩门，就给你们开门。', ref: '马太福音 7:7', hold: 6.5, who: 'jesus', how: 'teach' },
+        { text: '你们中间谁有儿子求饼，反给他石头呢？<br>求鱼，反给他蛇呢？', ref: '马太福音 7:9–10', hold: 6.5, who: 'jesus', how: 'teach' },
+        { text: '你们虽然不好，尚且知道拿好东西给儿女，<br>何况你们在天上的父，<br>岂不更把好东西给求他的人吗？', ref: '马太福音 7:11', hold: 7.5, who: 'jesus', how: 'teach' },
       ],
       apply(c) {
         // 父亲站在门的左边（乞丐坐在屋右边的石阶旁），面向门叩门；门开了，家主站在门口把饼递给他
         const sp = spots(), kx = () => doorX() + sp.knock[0];
         T(c, [
-          [0, b => { W.goTo(0.5, 14, inst(b)); pose('son', 'raise'); face('son', -1); }],
-          [0.8, () => { go('father', XU(kx()), sp.knock[1], 'point', 0.03); face('father', 1); }],
-          [4.6, b => { pose('father', 'point'); face('father', 1); sfx(b, 'knock'); }],
+          // 儿子向父亲伸手要饼
+          [0, b => { W.goTo(0.5, 14, inst(b)); pose('son', 'reach'); face('son', -1); }],
+          [0.6, () => { face('father', 'son'); gest('father', 'nod'); }],
+          [1.4, () => { go('father', XU(kx()), sp.knock[1], 'knock', 0.03); face('father', 1); }],
+          [2.4, () => { pose('son', 'stand'); }],
+          // 叩门
+          [4.6, b => { pose('father', 'knock'); face('father', 1); sfx(b, 'knock'); }],
           [5.6, b => {
             lv('srDoor', 1, b);
             if (!inst(b)) {
@@ -1847,12 +1930,19 @@
             person('host', { label: '家主', sex: 'm', age: 'elder', robe: [160, 130, 96], facing: -1, pose: 'carry', glow: 0.3, prop: null, x: xf, from: inst(b) ? 'none' : 'fade' }, XU(xf), 1.02);
             S.host = true;
           }],
+          [7.4, () => { say('host', 1, { to: 'father' }); }],
           [8.6, b => { S.bread = 'father'; pose('father', 'carry'); sfx(b, 'harp', { soft: true }); }],
+          [9.2, () => { gest('father', 'bowhead', { dur: 1.4 }); }],
           [10, () => { if (has('host')) C().remove('host', { fade: true }); S.host = false; }],
           [10.4, () => { go('father', sp.son[0] - 0.1, sp.son[1] - 0.04, 'stand', 0.032); face('father', 1); }],
+          // 孩子望见父亲拿着饼回来
+          [12.6, () => { gest('son', 'leap', { n: 2 }); }],
           [15, b => { S.bread = 'son'; pose('son', 'raise'); pose('father', 'stand'); sfx(b, 'laugh', { soft: true }); }],
+          [16, () => { gest('father', 'nod'); }],
           [18.2, () => { pose('son', 'carry'); go('father', sp.father[0], sp.father[1], 'sit', 0.02); faceJ('father'); }],
           [20.5, b => { lv('srDoor', 0.35, b); pose('son', 'sit'); faceJ('son'); }],
+          // 何况你们在天上的父：众人点头
+          [21.4, () => { stir(CROWDS, 'nod', { spread: 1.6, share: 0.3 }); }],
         ]);
       },
     },
@@ -1861,8 +1951,8 @@
     {
       kind: 'cmd', utter: '你们要进窄门', cmd: 'git checkout 窄门 --path=小路  # 找着的人也少', ref: '7:13',
       verse: [
-        { text: '你们要进窄门。<br>因为引到灭亡，那门是宽的，路是大的，<br>进去的人也多；', ref: '马太福音 7:13', hold: 7 },
-        { text: '引到永生，那门是窄的，<br>路是小的，找着的人也少。', ref: '马太福音 7:14', hold: 6.5 },
+        { text: '你们要进窄门。<br>因为引到灭亡，那门是宽的，路是大的，<br>进去的人也多；', ref: '马太福音 7:13', hold: 7, who: 'jesus', how: 'teach' },
+        { text: '引到永生，那门是窄的，<br>路是小的，找着的人也少。', ref: '马太福音 7:14', hold: 6.5, who: 'jesus', how: 'teach' },
       ],
       apply(c) {
         const sp = spots(), st = seats(), P = pathPts();
@@ -1882,13 +1972,21 @@
           }],
           // 三个人（相和好的弟兄与那长者）先到窄门前；「引到永生，那门是窄的」——进了窄门，沿着小路上山坐下
           [0.8, () => { go('elder', sp.gate[0] - 0.04, sp.gate[1] + 0.06, 'stand', 0.03); go('broA', sp.gate[0] - 0.1, sp.gate[1] + 0.1, 'stand', 0.03); go('broB', sp.gate[0] + 0.05, sp.gate[1] + 0.12, 'stand', 0.03); }],
+          // 宽路上的人多：他们回头看了一眼；长者招呼两个弟兄往窄门去
+          [4.4, () => { stir(['broA', 'broB'], 'lookaround', { spread: 0.6 }); }],
+          [5.2, () => { gest('elder', 'beckon', { dur: 1.3 }); }],
           [6.5, b => { lv('srPath', 1, b); sfx(b, 'harp', { soft: true }); }],
+          // 门是窄的：一个一个弯着腰进去
+          [6.6, () => { gest('elder', 'stoopdown', { dur: 1.6 }); }],
           [6.8, () => { go('elder', P[1][0], P[1][1], 'stand', 0.03); }],
+          [7.4, () => { gest('broA', 'stoopdown', { dur: 1.6 }); }],
           [7.6, () => { go('broA', P[1][0], P[1][1] + 0.04, 'stand', 0.03); }],
+          [8.2, () => { gest('broB', 'stoopdown', { dur: 1.6 }); }],
           [8.4, () => { go('broB', P[1][0] + 0.02, P[1][1] + 0.08, 'stand', 0.03); }],
           [8.8, () => { go('elder', st.seek[0][0], st.seek[0][1], 'sit', 0.03); face('elder', 1); }],
           [9.8, () => { go('broA', st.seek[1][0], st.seek[1][1], 'sit', 0.03); face('broA', 1); }],
           [10.8, () => { go('broB', st.seek[2][0], st.seek[2][1], 'sit', 0.03); face('broB', 1); }],
+          [12.4, () => { stir(DISC, 'nod', { spread: 1, share: 0.5 }); }],
           [15, b => { if (hasCrowd('many')) C().removeCrowd('many', { fade: !inst(b) }); lv('srRoad', 0.3, b); }],
         ]);
       },
@@ -1898,8 +1996,8 @@
     {
       kind: 'act', utter: '凡好树都结好果子', cmd: 'find 果子 --tree=好树 | grep -v 荆棘', ref: '7:17',
       verse: [
-        { text: '凭着他们的果子，就可以认出他们来。<br>荆棘上岂能摘葡萄呢？<br>蒺藜里岂能摘无花果呢？', ref: '马太福音 7:16', hold: 7 },
-        { text: '这样，凡好树都结好果子，<br>惟独坏树结坏果子。', ref: '马太福音 7:17', hold: 5.5 },
+        { text: '凭着他们的果子，就可以认出他们来。<br>荆棘上岂能摘葡萄呢？<br>蒺藜里岂能摘无花果呢？', ref: '马太福音 7:16', hold: 7, who: 'jesus', how: 'teach' },
+        { text: '这样，凡好树都结好果子，<br>惟独坏树结坏果子。', ref: '马太福音 7:17', hold: 5.5, who: 'jesus', how: 'teach' },
       ],
       apply(c) {
         const sp = spots();
@@ -1910,10 +2008,15 @@
             if (!inst(b)) { const q = FP(sp.tree[0], sp.tree[1]); sparkAt(b, q[0], q[1] - 40 * LS(2), 30, [220, 255, 200], 22 * LS(2), 'near'); }
             sfx(b, 'harp', { soft: true });
           }],
+          // 荆棘上岂能摘葡萄呢？——右边山坡上的人转过去看那荆棘与好树
+          [2.4, () => { heed('crowdR', UX(sp.tree[0]), { spread: 1.6 }); }],
           [5, b => sfx(b, 'wind', { soft: true })],
+          [6.4, () => { heed('crowdR', 'jesus', { spread: 1.6 }); }],
+          // 凡好树都结好果子：两个妇人去摘无花果
           [8.6, () => { go('comforter', sp.pick2[0], sp.pick2[1], 'raise', 0.03); go('mourner', sp.pick1[0], sp.pick1[1], 'raise', 0.03); face('comforter', -1); face('mourner', 1); }],
-          [14.5, () => { pose('mourner', 'carry'); pose('comforter', 'carry'); }],
-          [17.5, () => { pose('mourner', 'sit'); pose('comforter', 'sit'); faceJ('mourner'); faceJ('comforter'); }],
+          [12.2, () => { pose('mourner', 'carry'); pose('comforter', 'carry'); }],
+          [13, () => { face('mourner', 'comforter'); face('comforter', 'mourner'); gest('mourner', 'nod'); }],
+          [14.6, () => { pose('mourner', 'sit'); pose('comforter', 'sit'); faceJ('mourner'); faceJ('comforter'); }],
         ]);
       },
     },
@@ -1922,8 +2025,8 @@
     {
       kind: 'cmd', utter: '把房子盖在磐石上', cmd: 'build 房子 --on 磐石  # 根基', ref: '7:24',
       verse: [
-        { text: '所以，凡听见我这话就去行的，<br>好比一个聪明人，<br>把房子盖在磐石上；', ref: '马太福音 7:24', hold: 7 },
-        { text: '凡听见我这话不去行的，<br>好比一个无知的人，<br>把房子盖在沙土上；', ref: '马太福音 7:26', hold: 6.5 },
+        { text: '所以，凡听见我这话就去行的，<br>好比一个聪明人，<br>把房子盖在磐石上；', ref: '马太福音 7:24', hold: 7, who: 'jesus', how: 'teach' },
+        { text: '凡听见我这话不去行的，<br>好比一个无知的人，<br>把房子盖在沙土上；', ref: '马太福音 7:26', hold: 6.5, who: 'jesus', how: 'teach' },
       ],
       apply(c) {
         const sp = spots();
@@ -1934,14 +2037,23 @@
             S.built = true;
           }],
           [0.6, b => { lv('srRock', 1, b); sfx(b, 'build'); }],
+          // 聪明人一块一块地放下石头
+          [2.2, () => { gest('wise', 'stoopdown', { dur: 2 }); }],
           [3.5, b => sfx(b, 'build', { soft: true })],
+          [4.8, () => { gest('wise', 'stoopdown', { dur: 2 }); }],
           [6.2, b => sfx(b, 'build', { soft: true })],
           [6.8, b => {
             person('fool', { label: '无知的人', sex: 'm', age: 'adult', robe: [150, 120, 92], facing: -1, pose: 'carry', glow: 0.14, from: inst(b) ? 'none' : 'fade' }, sp.fool0[0], sp.fool0[1]);
           }],
           [7.2, b => { lv('srSand', 1, b); sfx(b, 'build', { soft: true }); }],
+          // 无知的人草草堆起来，四下望一望就算了
+          [8.2, () => { gest('fool', 'stoopdown', { dur: 1.4 }); }],
+          [9.6, () => { gest('fool', 'lookaround'); }],
           [10.6, () => { pose('wise', 'stand'); face('wise', -1); }],
-          [13, () => { pose('fool', 'sit'); face('fool', 1); }],
+          [11.4, () => { gest('wise', 'nod'); }],
+          [12.9, () => { pose('fool', 'stand'); }],
+          [13.6, () => { pose('fool', 'sit'); face('fool', 1); }],
+          [14.6, () => { stir(CROWDS, 'nod', { spread: 1.4, share: 0.25 }); }],
         ]);
       },
     },
@@ -1950,8 +2062,8 @@
     {
       kind: 'judge', utter: '雨淋，水冲，风吹，撞着那房子', cmd: 'storm --test 根基  # 总不倒塌', ref: '7:25',
       verse: [
-        { text: '雨淋，水冲，风吹，撞着那房子，<br>房子总不倒塌，<br>因为根基立在磐石上。', ref: '马太福音 7:25', hold: 7 },
-        { text: '雨淋，水冲，风吹，撞着那房子，<br>房子就倒塌了，并且倒塌得很大。', ref: '马太福音 7:27', hold: 6.5 },
+        { text: '雨淋，水冲，风吹，撞着那房子，<br>房子总不倒塌，<br>因为根基立在磐石上。', ref: '马太福音 7:25', hold: 7, who: 'jesus', how: 'teach' },
+        { text: '雨淋，水冲，风吹，撞着那房子，<br>房子就倒塌了，并且倒塌得很大。', ref: '马太福音 7:27', hold: 6.5, who: 'jesus', how: 'teach' },
         { text: '耶稣讲完了这些话，<br>众人都希奇他的教训；<br>因为他教训他们，正像有权柄的人，<br>不像他们的文士。', ref: '马太福音 7:28–29', hold: 8.5 },
       ],
       apply(c) {
@@ -1964,7 +2076,10 @@
             sfx(b, 'thunder'); sfx(b, 'wind');
           }],
           [1.6, b => { if (!inst(b) && GS.weather && GS.weather.bolt) U.safe('sermon.bolt', () => GS.weather.bolt({ x: W.w * 0.3 })); sfx(b, 'thunder'); }],
+          // 雷声：山上的众人一惊，有的缩起身子
+          [1.9, () => { stir(CROWDS, 'startle', { spread: 0.9, share: 0.35 }); }],
           [2.4, b => { lv('srSurge', 1, b); sfx(b, 'wave'); }],
+          [3, () => { stir(CROWDS, 'tremble', { spread: 1.4, share: 0.25 }); pose('wise', 'shield'); }],
           [4.2, () => { face('wise', 1); }],
           // 无知的人逃到磐石那里（没有人被冲走：倒塌的只是房子）
           [5.4, () => { go('fool', sp.wise0[0] - (port() ? 0.14 : 0.1), sp.wise0[1] + 0.04, 'stand', 0.08); }],
@@ -1977,6 +2092,9 @@
             }
             sfx(b, 'collapse'); sfx(b, 'wave');
           }],
+          // 房子倒塌：无知的人蹲伏在磐石边，抱着头；聪明人放下手来
+          [7.8, () => { pose('fool', 'cower'); face('fool', 1); pose('wise', 'stand'); }],
+          [8.6, () => { gest('fool', 'tremble'); stir(CROWDS, 'startle', { spread: 1, share: 0.3 }); }],
           [9.6, b => { if (!inst(b) && GS.weather && GS.weather.bolt) U.safe('sermon.bolt', () => GS.weather.bolt({ x: W.w * 0.62 })); sfx(b, 'thunder', { far: true }); }],
           [13.4, b => {
             // 雨过天晴：金色的黄昏
@@ -1994,15 +2112,25 @@
             for (const id of SIDE) faceJ(id);
             sfx(b, 'crowd', { soft: true });
           }],
+          // 雨停了：聪明人弯腰扶起无知的人；他望着倒塌的房子，低下头
+          [13.6, () => { face('wise', 'fool'); pose('wise', 'stoop'); }],
+          [14.4, () => { pose('fool', 'stand'); }],
+          [14.8, () => { pose('wise', 'stand'); }],
+          [15.2, () => { gest('fool', 'bowhead', { dur: 2.4 }); }],
+          // 众人都希奇：彼此议论
+          [15.4, () => { say('crowdR', 3.4, { share: 0.5 }); stir('crowdR', 'startle', { spread: 1.2, share: 0.3 }); }],
           [16.5, () => { cpose('crowdF', 'raise'); pose('peter', 'raise'); }],
+          [17.2, () => { stir(['andrew', 'james', 'john'], 'nod', { spread: 0.8 }); say('crowdF', 2.4, { share: 0.4 }); }],
           [19.5, () => { cpose('crowdF', 'stand'); pose('peter', 'stand'); }],
+          [20, () => { gest('jesus', 'bless', { dur: 2.4 }); }],
           [20.5, b => { lv('srLamps', 0.8, b); lv('srCity', 0.7, b); lv('srFar', 1, b); }],
           // 他下山去，门徒跟着
-          [21.5, () => {
+          [22.4, () => {
             S.down = true;
             go('jesus', port() ? -0.34 : -0.36, port() ? 0.6 : 0.56, 'stand', 0.016);
           }],
-          [22.6, () => { go('peter', port() ? -0.2 : -0.24, port() ? 0.44 : 0.4, 'stand', 0.016); go('john', port() ? -0.08 : -0.1, port() ? 0.36 : 0.32, 'stand', 0.016); }],
+          [23.2, () => { go('peter', port() ? -0.2 : -0.24, port() ? 0.44 : 0.4, 'stand', 0.016); go('john', port() ? -0.08 : -0.1, port() ? 0.36 : 0.32, 'stand', 0.016); }],
+          [24, () => { heed(['crowdR', 'crowdF'], 'jesus', { spread: 1.8 }); }],
         ]);
       },
     },

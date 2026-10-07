@@ -172,10 +172,17 @@
     if (o.face) for (const m of members(gid)) { m.facing = m.fd = o.face; }
   }
   function cwalk(gid, x0, x1, o) { const c = C(); if (c.crowdWalk && hasCrowd(gid)) c.crowdWalk(gid, x0, x1, o); }
-  function cpose(gid, p) { const c = C(); if (c.crowdPose && hasCrowd(gid)) c.crowdPose(gid, p); }
+  function cpose(gid, p, o) { const c = C(); if (c.crowdPose && hasCrowd(gid)) c.crowdPose(gid, p, o); }
   function crm(gid, now) { const c = C(); if (hasCrowd(gid)) c.removeCrowd(gid, now ? { fade: false } : undefined); }
   function cglow(gid, v) { for (const m of members(gid)) m.glow = v; }
   function cface(gid, d) { for (const m of members(gid)) { m.facing = d; if (W.replaying) m.fd = d; } }
+  // 演技：说话（人或一群人）、一次性的手势、众人先后转向 / 先后做同一个手势（重演时人物模块自己略过；attend 立即到位）
+  const here = k => has(k) || hasCrowd(k);
+  function say(id, sec, o) { const c = C(); if (c.speak && here(id)) c.speak(id, sec, o); }
+  function gest(id, kind, o) { const c = C(); if (c.gesture && here(id)) c.gesture(id, kind, o); }
+  function hush(id) { const c = C(); if (c.hush && here(id)) c.hush(id); }
+  function heed(ids, target, o) { const c = C(); if (c.attend) c.attend([].concat(ids).filter(here), target, o); }
+  function stir(ids, kind, o) { const c = C(); if (c.react) c.react([].concat(ids).filter(here), kind, o); }
 
   // 旁白以外的声音与闪光（瞬间重演时不放）
   function sfx(b, name, o) {
@@ -2134,8 +2141,8 @@
     {
       kind: 'promise', utter: '但圣灵降临在你们身上，你们就必得着能力', cmd: 'await 圣灵 && witness --to 耶路撒冷,犹太,撒马利亚,地极', ref: '1:8',
       verse: [
-        { text: '他们聚集的时候，问耶稣说：「主啊，你复兴以色列国就在这时候吗？」<br>耶稣对他们说：「父凭着自己的权柄所定的时候、日期，不是你们可以知道的。', ref: '使徒行传 1:6–7', hold: 8.5 },
-        { text: '但圣灵降临在你们身上，你们就必得着能力，<br>并要在耶路撒冷、犹太全地，和撒马利亚，直到地极，作我的见证。」', ref: '使徒行传 1:8', hold: 8.5 },
+        { text: '他们聚集的时候，问耶稣说：「主啊，你复兴以色列国就在这时候吗？」<br>耶稣对他们说：「父凭着自己的权柄所定的时候、日期，不是你们可以知道的。', ref: '使徒行传 1:6–7', hold: 8.5, talk: [['peter', 0.1, 0.44, 'plead', 'jesus'], ['jesus', 0.52, 1, 'teach']] },
+        { text: '但圣灵降临在你们身上，你们就必得着能力，<br>并要在耶路撒冷、犹太全地，和撒马利亚，直到地极，作我的见证。」', ref: '使徒行传 1:8', hold: 8.5, who: 'jesus', how: 'proclaim' },
       ],
       apply(c) {
         T(c, [
@@ -2144,18 +2151,31 @@
             const crew = mountCrew();
             crew.forEach((id, i) => { walk(id, mountAt(crewU(i, crew.length, true)), { speed: 0.012, pose: 'stand' }); face(id, 'jesus'); });
           }],
-          [2.4, () => { pose('peter', 'point'); face('peter', 'jesus'); pose('john', 'gaze'); }],
-          [5.4, () => { pose('peter', 'stand'); pose('jesus', 'point'); face('jesus', 1); }],
+          // 「主啊，你复兴以色列国就在这时候吗？」——彼得问，众人望着他
+          [2.4, () => { pose('peter', 'stand'); face('peter', 'jesus'); }],
+          [3.2, () => { heed(mountCrew().filter(id => id !== 'peter'), 'jesus', { spread: 1 }); }],
+          [3.8, () => { pose('john', 'gaze'); }],
+          // 「父凭着自己的权柄所定的时候、日期，不是你们可以知道的」：他讲论，先向这边，再向那边
+          [4.4, () => { pose('jesus', 'teach'); }],
+          [6.6, () => { face('jesus', 1); }],
+          [7.4, () => { stir(mountCrew(), 'nod', { spread: 1.2, share: 0.4 }); }],
           [9.8, b => {
             pose('jesus', 'raise'); glow('jesus', 0.78); face('jesus', -1);
             W.set('pcReach', 1, b.instant); W.set('pcReachA', 1, b.instant);
             ringOn(b, 'jesus', 0.32, [255, 236, 190]);
             sfx(b, 'harp');
           }],
+          // 名字在哪里聚成，众人就先后转过去望着那里
           [10.6, b => { regionName(b, 0); sfx(b, 'bell', { soft: true }); }],
+          [11, () => { heed(mountCrew(), REGIONS[0][1]()[0], { spread: 0.9 }); }],
           [12.8, b => regionName(b, 1)],
+          [13.2, () => { heed(mountCrew(), REGIONS[1][1]()[0], { spread: 0.9 }); }],
           [15, b => regionName(b, 2)],
+          [15.4, () => { heed(mountCrew(), REGIONS[2][1]()[0], { spread: 0.9 }); }],
           [17.2, b => regionName(b, 3)],
+          // 直到地极：有人手搭凉棚，望向天边的海
+          [17.6, () => { heed(mountCrew(), REGIONS[3][1]()[0], { spread: 0.9 }); }],
+          [18.2, () => { pose('john', 'look'); pose('andrew', 'look'); }],
           [19.6, b => {
             W.set('pcReachA', 0.35, b.instant);
             pose('jesus', 'stand'); glow('jesus', 0.6);
@@ -2170,7 +2190,7 @@
       kind: 'act', utter: '他就被取上升，有一朵云彩把他接去', cmd: 'ascend --into 云彩  # 他还要怎样来', ref: '1:9',
       verse: [
         { text: '说了这话，他们正看的时候，他就被取上升，<br>有一朵云彩把他接去，便看不见他了。', ref: '使徒行传 1:9', hold: 7 },
-        { text: '当他往上去，他们定睛望天的时候，忽然有两个人身穿白衣，站在旁边，说：<br>「加利利人哪，你们为什么站着望天呢？……他还要怎样来。」', ref: '使徒行传 1:10–11', hold: 8 },
+        { text: '当他往上去，他们定睛望天的时候，忽然有两个人身穿白衣，站在旁边，说：<br>「加利利人哪，你们为什么站着望天呢？……他还要怎样来。」', ref: '使徒行传 1:10–11', hold: 8, talk: [['angelA', 0.54, 1, 'proclaim']] },
         { text: '当下，门徒从那里回耶路撒冷去，进了城，就上了所住的一间楼房；……<br>都同心合意地恒切祷告。', ref: '使徒行传 1:12–14', hold: 6.5 },
       ],
       apply(c) {
@@ -2194,6 +2214,9 @@
             fly('jesus', summitX(), yT, { dur: 6, pose: 'raise' });
             sfx(b, 'harp', { soft: true });
           }],
+          // 他们正看的时候：有人向天伸手，有人一惊
+          [3.2, () => { gest('john', 'reachup'); stir(crew.filter(id => id !== 'john'), 'reachup', { spread: 1.6, share: 0.35 }); }],
+          [5.2, () => { gest('peter', 'reachup', { dur: 2.6 }); }],
           // 云彩把他接去，便看不见他了
           [8, b => {
             flashW(b, 0.22);
@@ -2208,11 +2231,14 @@
             onMount('angelA'); onMount('angelB');
             sfx(b, 'angel', { soft: true });
           }],
-          [12.4, () => { pose('angelA', 'point'); pose('angelB', 'point'); }],
-          [15.4, () => {
-            pose('angelA', 'stand'); pose('angelB', 'stand');
-            crew.forEach((id, i) => { pose(id, 'stand'); face(id, i < crew.length / 2 ? -1 : 1); });
-          }],
+          // 门徒一惊，转过来望着他们
+          [9.9, () => { stir(crew, 'startle', { spread: 0.8, share: 0.6 }); }],
+          // 「加利利人哪，你们为什么站着望天呢？」——一个指着他们，一个指向天上（他还要怎样来）
+          [12.4, () => { pose('angelB', 'point'); }],
+          [14.6, () => { gest('angelA', 'reachup'); }],
+          ...crew.map((id, i) => [15.4 + 0.18 * i, () => { pose(id, 'stand'); face(id, i < crew.length / 2 ? -1 : 1); }]),
+          [15.4, () => { pose('angelA', 'stand'); pose('angelB', 'stand'); }],
+          [16.6, () => { stir(crew, 'nod', { spread: 1, share: 0.5 }); }],
           // 门徒回耶路撒冷去
           [17.6, b => {
             rm('angelA'); rm('angelB');
@@ -2242,13 +2268,19 @@
             W.set('pcReachA', 0, b.instant); W.set('pcHeaven', 0, b.instant);
             intoRoom(null, { pose: PRAY, glow: 0.26 });
           }],
-          // 大风
+          // 同心合意地恒切祷告：有人低头，彼得低声祷告
+          [2, () => { stir(roomIds(), 'bowhead', { spread: 1.6, share: 0.4 }); }],
+          [3.4, () => { say('peter', 2.4, { how: 'plead' }); }],
+          // 大风：众人一惊，抬起头来，一个接一个仰望
           [6.3, b => {
             W.set('gale', 0.95, b.instant); W.set('pcWind', 1, b.instant);
             sfx(b, 'wind'); sfx(b, 'whirlwind', { soft: true });
           }],
-          [7.4, () => { for (const id of ['peter', 'john', 'james', 'andrew', 'thomas', 'matthias', 'philip']) pose(id, 'gaze'); }],
+          [6.7, () => { stir(roomIds(), 'startle', { spread: 0.9 }); }],
+          ...['peter', 'john', 'james', 'andrew', 'thomas', 'matthias', 'philip'].map((id, i) => [7.4 + 0.22 * i, () => pose(id, 'gaze')]),
           [8.4, b => { W.set('pcRoom', 0.9, b.instant); flashW(b, 0.18); }],
+          [9.4, () => { stir(['mary', 'magdalene', 'woman1', 'bro1', 'bro2'], 'tremble', { spread: 0.8, share: 0.6 }); }],
+          [10.4, () => { stir(roomIds(), 'reachup', { spread: 1.2, share: 0.3 }); }],
           [11.8, b => { W.set('gale', 0.6, b.instant); W.set('pcWind', 0.55, b.instant); }],
         ]);
       },
@@ -2272,6 +2304,9 @@
             W.set('pcDivide', 1, b.instant);
             sfx(b, 'fire', { soft: true });
           }],
+          // 火分开落下：众人先后一惊，仰起脸来
+          [2.2, () => { stir(roomIds(), 'startle', { spread: 1.4, share: 0.6 }); }],
+          [2.6, () => { pose('mary', 'gaze'); pose('magdalene', 'gaze'); }],
           [4.4, b => {
             W.set('pcFire', 1, b.instant); W.set('pcFlame', 0, b.instant);
             for (const id of roomIds()) glow(id, 0.55);
@@ -2279,6 +2314,9 @@
             sfx(b, 'harp');
             if (!b.instant) { const G = roomG({ x0: X.room0, x1: X.room1 }); ringAt(b, G.cx, lerp(G.yc, G.gb, 0.5), 0.3, [255, 214, 150], 2.6); }
           }],
+          // 火落在头上：有人低头领受，有人向天伸手
+          [5, () => { stir(roomIds(), 'bowhead', { spread: 1.2, share: 0.4 }); }],
+          [5.8, () => { stir(['peter', 'john', 'james', 'andrew'], 'reachup', { spread: 0.8, share: 0.6 }); }],
         ]);
       },
     },
@@ -2289,15 +2327,21 @@
       verse: [
         { text: '他们就都被圣灵充满，<br>按着圣灵所赐的口才说起别国的话来。', ref: '使徒行传 2:4', hold: 6 },
         { text: '那时，有虔诚的犹太人从天下各国来，住在耶路撒冷。<br>这声音一响，众人都来聚集，各人听见门徒用众人的乡谈说话，就甚纳闷；', ref: '使徒行传 2:5–6', hold: 8.5 },
-        { text: '我们帕提亚人、米底亚人、以拦人，和住在美索不达米亚、犹太……<br>克里特和阿拉伯人，都听见他们用我们的乡谈，讲说神的大作为。」', ref: '使徒行传 2:9–11', hold: 8.5 },
+        { text: '我们帕提亚人、米底亚人、以拦人，和住在美索不达米亚、犹太……<br>克里特和阿拉伯人，都听见他们用我们的乡谈，讲说神的大作为。」', ref: '使徒行传 2:9–11', hold: 8.5, talk: [['nParthia', 0, 0.5, 'proclaim'], ['nEgypt', 0.15, 0.7, 'proclaim'], ['nCrete', 0.4, 1, 'proclaim'], ['nArab', 0.6, 1, 'proclaim']] },
       ],
       apply(c) {
         T(c, [
           [0, b => {
-            for (const id of roomIds()) { pose(id, 'raise'); glow(id, 0.62); }
             W.set('gale', 0.1, b.instant); W.set('pcWind', 0, b.instant); W.set('pcRoom', 0.5, b.instant);
             sfx(b, 'sing');
           }],
+          // 说起别国的话来：一个接一个开口，有的举手，有的捧手向天，有的讲论
+          ...Array.from({ length: 17 }, (_, i) => [0.1 + 0.2 * i, () => {
+            const id = roomIds()[i];
+            if (!id) return;
+            pose(id, i % 3 === 0 ? 'raise' : i % 3 === 1 ? 'lift' : 'teach'); glow(id, 0.62);
+            say(id, 9 + (i % 4) * 1.2, { how: 'proclaim' });
+          }]),
           [1.2, b => { W.set('pcTongues', 1, b.instant); if (!b.instant) tong = 'out'; }],
           // 这声音一响，天下各国的人来聚集（话语只飞向已经来到的人）
           [2.6, b => {
@@ -2308,15 +2352,23 @@
             });
             sfx(b, 'crowd');
           }],
-          [13.5, () => { for (const q of nationLayout()) { cpose(q[0], 'gaze'); cface(q[0], -1); } }],
+          // 各国的人来到：先后转向那屋子；一惊、四下张望，彼此议论，就甚纳闷
+          [9, () => { heed(nationLayout().map(q => q[0]), (X.room0 + X.room1) / 2, { spread: 1.4 }); }],
+          [9.6, () => { stir(nationLayout().map(q => q[0]), 'startle', { spread: 1.2, share: 0.5 }); }],
+          [10.6, () => { stir(nationLayout().map(q => q[0]), 'lookaround', { spread: 1.4, share: 0.4 }); }],
+          [12, () => { for (const q of nationLayout()) say(q[0], 3, { how: 'calm' }); }],
+          [13.5, () => { for (const q of nationLayout()) { cpose(q[0], 'gaze'); } heed(nationLayout().map(q => q[0]), (X.room0 + X.room1) / 2, { spread: 0.6 }); }],
           // 众人的乡谈一齐升起，汇成一团光
           [17.1, b => { if (!b.instant) tong = 'up'; }],
+          [18.8, () => { stir(nationLayout().map(q => q[0]), 'nod', { spread: 1.4, share: 0.4 }); }],
           [20.6, b => {
             W.set('pcOne', 1, b.instant);
             if (!b.instant) { const o = onePoint(); ringAt(b, o[0], o[1], 0.35, [255, 236, 190], 2.8); fx().sparkle(o[0], o[1], 40, [255, 240, 204], 22 * SU(), 'top'); }
             sfx(b, 'bell');
           }],
-          [23.4, b => { W.set('pcTongues', 0, b.instant); tong = null; for (const id of roomIds()) pose(id, 'stand'); }],
+          [21.2, () => { stir(nationLayout().map(q => q[0]), 'reachup', { spread: 1.2, share: 0.4 }); }],
+          [23.4, b => { W.set('pcTongues', 0, b.instant); tong = null; }],
+          ...Array.from({ length: 17 }, (_, i) => [23.4 + 0.12 * i, () => { const id = roomIds()[i]; if (id) pose(id, 'stand'); }]),
         ]);
       },
     },
@@ -2325,9 +2377,9 @@
     {
       kind: 'promise', utter: '我要将我的灵浇灌凡有血气的', cmd: 'pour 灵 --to 凡有血气的  # 儿女、少年人、老年人', ref: '2:17',
       verse: [
-        { text: '众人就都惊讶猜疑，彼此说：「这是什么意思呢？」<br>还有人讥诮说：「他们无非是新酒灌满了。」', ref: '使徒行传 2:12–13', hold: 7 },
-        { text: '彼得和十一个使徒站起，高声说：「犹太人和一切住在耶路撒冷的人哪，<br>这件事你们当知道，也当侧耳听我的话。', ref: '使徒行传 2:14', hold: 7 },
-        { text: '这正是先知约珥所说的：神说：在末后的日子，我要将我的灵浇灌凡有血气的。<br>你们的儿女要说预言；你们的少年人要见异象；老年人要做异梦。', ref: '使徒行传 2:16–17', hold: 8.5 },
+        { text: '众人就都惊讶猜疑，彼此说：「这是什么意思呢？」<br>还有人讥诮说：「他们无非是新酒灌满了。」', ref: '使徒行传 2:12–13', hold: 7, talk: [['nParthia', 0.1, 0.46, 'calm'], ['nCrete', 0.14, 0.5, 'calm']] },
+        { text: '彼得和十一个使徒站起，高声说：「犹太人和一切住在耶路撒冷的人哪，<br>这件事你们当知道，也当侧耳听我的话。', ref: '使徒行传 2:14', hold: 7, talk: [['peter', 0.3, 1, 'proclaim']] },
+        { text: '这正是先知约珥所说的：神说：在末后的日子，我要将我的灵浇灌凡有血气的。<br>你们的儿女要说预言；你们的少年人要见异象；老年人要做异梦。', ref: '使徒行传 2:16–17', hold: 8.5, who: 'peter', how: 'proclaim' },
       ],
       apply(c) {
         T(c, [
@@ -2336,15 +2388,20 @@
             for (const q of nationLayout()) cpose(q[0], 'stand');
             sfx(b, 'crowd', { soft: true });
           }],
-          [3.4, () => { const g = PORT ? 'nEgypt' : 'nRome'; cpose(g, 'point'); cface(g, -1); }],
+          // 惊讶猜疑：四下张望，彼此相问
+          [1.2, () => { stir(nationLayout().map(q => q[0]), 'lookaround', { spread: 1.6, share: 0.5 }); }],
+          // 还有人讥诮：指着屋里的人
+          [3.4, () => { const g = PORT ? 'nEgypt' : 'nRome'; cpose(g, 'point'); cface(g, -1); say(g, 3.2, { how: 'proclaim' }); }],
           [7.2, () => { cpose(PORT ? 'nEgypt' : 'nRome', 'stand'); }],
-          // 彼得站起，高声说
+          // 彼得站起，高声说：使徒一个接一个站起来；众人先后转向彼得
           [8.3, b => {
-            for (const id of roomApostles()) { pose(id, 'stand'); face(id, 1); }
-            walk('peter', X.preach, { speed: 0.03, pose: 'point' });
+            walk('peter', X.preach, { speed: 0.03, pose: 'teach' });
             glow('peter', 0.75);
           }],
-          [11, () => { pose('peter', 'point'); face('peter', 1); }],
+          ...Array.from({ length: 12 }, (_, i) => [8.4 + 0.15 * i, () => { const id = roomApostles().filter(q => q !== 'peter')[i]; if (id) { pose(id, 'stand'); face(id, 1); } }]),
+          [9.6, () => { heed(nationLayout().map(q => q[0]), 'peter', { spread: 1.4 }); }],
+          [11, () => { pose('peter', 'teach'); face('peter', 1); }],
+          [13, () => { stir(nationLayout().map(q => q[0]), 'bowhead', { spread: 1.6, share: 0.3 }); }],
           // 神说：我要将我的灵浇灌凡有血气的
           [16.6, b => {
             W.set('pcPour', 1, b.instant);
@@ -2353,6 +2410,9 @@
             sfx(b, 'harp');
             if (!b.instant) for (const q of nationLayout()) { const x = (q[1] + q[2]) / 2 * W.w; fx().sparkle(x, vY((q[1] + q[2]) / 2, q[3]) - PH(2), 14, [255, 236, 190], 30 * SU(), 'top'); }
           }],
+          [18.6, () => { stir(nationLayout().map(q => q[0]), 'reachup', { spread: 1.4, share: 0.35 }); }],
+          // 你们的儿女要说预言……
+          [20.4, () => { pose('peter', 'teach'); }],
           [22.6, b => { W.set('pcPour', 0.3, b.instant); pose('peter', 'point'); }],
         ]);
       },
@@ -2362,8 +2422,8 @@
     {
       kind: 'promise', utter: '凡求告主名的，就必得救', cmd: 'baptize --in 耶稣基督的名 --count 3000', ref: '2:21',
       verse: [
-        { text: '到那时候，凡求告主名的，就必得救。', ref: '使徒行传 2:21', hold: 4.5 },
-        { text: '众人听见这话，觉得扎心……<br>彼得说：「你们各人要悔改，奉耶稣基督的名受洗，叫你们的罪得赦，就必领受所赐的圣灵；', ref: '使徒行传 2:37–38', hold: 8 },
+        { text: '到那时候，凡求告主名的，就必得救。', ref: '使徒行传 2:21', hold: 4.5, who: 'peter', how: 'proclaim' },
+        { text: '众人听见这话，觉得扎心……<br>彼得说：「你们各人要悔改，奉耶稣基督的名受洗，叫你们的罪得赦，就必领受所赐的圣灵；', ref: '使徒行传 2:37–38', hold: 8, talk: [['peter', 0.3, 1, 'proclaim']] },
         { text: '于是领受他话的人就受了洗。那一天，门徒约添了三千人，', ref: '使徒行传 2:41', hold: 6 },
       ],
       apply(c) {
@@ -2373,9 +2433,17 @@
             pose('peter', 'raise'); W.set('pcPour', 0.12, b.instant); ringOn(b, 'peter', 0.25, [255, 236, 190]);
             W.set('pcReach', 0, true);   // 见证之光此刻看不见（pcReachA 为 0）：把前沿收回，好在后面再走一次
           }],
-          // 众人扎心
-          [5.8, b => { for (const q of nationLayout()) cpose(q[0], 'worship'); sfx(b, 'weep', { soft: true }); }],
-          [9.2, () => { pose('peter', 'point'); }],
+          // 众人扎心：有的低头捶胸，有的跪下仰面摊手（「我们当怎样行？」），有的俯伏
+          [5.8, b => {
+            const P = { nParthia: 'beat', nEgypt: 'beg', nRome: 'worship', nCrete: 'beat', nArab: 'beg' };
+            for (const q of nationLayout()) cpose(q[0], P[q[0]] || 'worship');
+            sfx(b, 'weep', { soft: true });
+          }],
+          [7.2, () => { say('nEgypt', 1.8, { how: 'plead' }); }],
+          // 「你们各人要悔改……」
+          [8.4, () => { pose('peter', 'teach'); }],
+          [10.4, () => { pose('peter', 'reach'); }],
+          [12, () => { pose('peter', 'teach'); }],
           // 水池：受洗
           [13.6, b => {
             S.scene = 'pool';
@@ -2385,7 +2453,7 @@
             S.fire = [];
             for (const id of ['mary', 'magdalene', 'woman1', 'bro1', 'bro2']) rm(id);
             for (const q of nationLayout()) cpose(q[0], 'stand');
-            pose('peter', 'point');
+            pose('peter', 'bless');
             // 楼房淡去时，使徒走下来，站到水池的后边
             const aps = roomApostles().filter(id => id !== 'peter');
             aps.forEach((id, i) => {
@@ -2424,7 +2492,10 @@
             [t0 + 6, () => { rm(id); }],
           ];
         }).flat()).concat([
-          [19.5, () => { for (const q of nationLayout().concat(manyLayout())) { cpose(q[0], 'raise'); cglow(q[0], 0.4); } }],
+          // 领受他话的人站定了，先后望着水池；受了洗的人一个个举手；众人也都举起手来
+          [18.4, () => { heed(manyLayout().map(q => q[0]), (X.pool0 + X.pool1) / 2, { spread: 1.4 }); }],
+          [20.6, () => { for (const q of nationLayout().concat(manyLayout())) { cpose(q[0], 'raise'); cglow(q[0], 0.4); } }],
+          [21.6, () => { stir(nationLayout().concat(manyLayout()).map(q => q[0]), 'leap', { spread: 1, share: 0.2 }); }],
         ]));
       },
     },
@@ -2457,36 +2528,48 @@
             intoRoom(null, { pose: 'sit', glow: 0.4 });
             bel().forEach(q => { crowd(q[0], { n: q[4], x0: q[1], x1: q[2], layer: 2, label: '信的人', pose: 'sit', glow: 0.26, v: q[3], mill: false }); });
           }],
+          // 恒心遵守使徒的教训：彼得站起来讲论；擘饼，递过去；祈祷
+          [1.8, () => { pose('peter', 'teach'); say('peter', 3.2, { how: 'teach' }); }],
           [3, b => {
             if (!b.instant && fx()) { const G = roomG({ x0: X.room0, x1: X.room1 }); fx().sparkle(G.cx, lerp(G.gb, G.gf, 0.3), 24, [255, 226, 170], 30 * SU(), 'top'); }
             sfx(b, 'harp', { soft: true });
           }],
+          [3.6, () => { gest('john', 'break'); }],
+          [4.6, () => { gest('mary', 'give'); }],
+          [5.4, () => { pose('peter', 'sit'); }],
+          [6, () => { stir(roomIds(), 'bowhead', { spread: 1.4, share: 0.5 }); }],
         ].concat(Array.from({ length: nG }, (_, i) => {
           const id = 'giver' + i, t0 = 7.4 + 1.5 * i, gx = X.goods + (i - 1) * 0.012;
           return [
             [t0, () => {
               add(id, { label: '信的人', sex: i === 1 ? 'f' : 'm', age: 'adult', x: X.crowd1 + 0.03, facing: -1, robe: [[140, 116, 90], [120, 104, 140], [104, 120, 96]][i % 3], prop: 'bundle', glow: 0.24, v: 0.12, layer: 2 });
               const f = fig(id); if (f) f.v = 0.12;
-              walk(id, gx, { speed: 0.05, pose: 'bow' });
+              walk(id, gx, { speed: 0.05, pose: 'stoop' });
             }],
             [t0 + 4.2, () => { hold(id, null); prop('goods', null, { k: (i + 1) / nG }); pose(id, 'stand'); }],
             [t0 + 5.2, () => { walk(id, X.crowd1 + 0.04, { speed: 0.05 }); }],
             [t0 + 7.4, () => { rm(id); }],
           ];
         }).flat()).concat([
+          [11.6, () => { stir(['bel1', 'bel2', 'bel3'], 'nod', { spread: 1.4, share: 0.35 }); }],
           // 日子一天天过去：早晨、晚上；人一群群加添
-          [15.6, b => { W.goTo(0.3, 4.2, b.instant); W.set('pcLights', 0.75, b.instant); for (const id of roomIds()) pose(id, 'stand'); }],
+          [15.6, b => { W.goTo(0.3, 4.2, b.instant); W.set('pcLights', 0.75, b.instant); }],
+          ...Array.from({ length: 17 }, (_, i) => [15.7 + 0.1 * i, () => { const id = roomIds()[i]; if (id) pose(id, 'stand'); }]),
           [17.2, b => {
             crowd('bel4', { n: PORT ? 2 : 4, x0: 1.03, x1: 1.1, layer: 2, label: '信的人', pose: 'stand', glow: 0.26, v: 0.18 });
             cwalk('bel4', X.crowd0 + 0.02, X.crowd1 - 0.02, { speed: 0.045, pose: 'raise' });
             sfx(b, 'crowd', { soft: true });
           }],
-          [20.2, b => { W.goTo(0.78, 4.2, b.instant); for (const id of roomIds()) pose(id, 'sit'); }],
+          // 赞美神，得众民的喜爱
+          [18.8, () => { say('bel1', 2.6, { how: 'proclaim' }); stir(['bel1', 'bel2', 'bel3'], 'clap', { spread: 1, share: 0.25 }); }],
+          [20.2, b => { W.goTo(0.78, 4.2, b.instant); }],
+          ...Array.from({ length: 17 }, (_, i) => [20.3 + 0.1 * i, () => { const id = roomIds()[i]; if (id) pose(id, 'sit'); }]),
           [21.6, b => {
             crowd('bel5', { n: PORT ? 1 : 3, x0: 1.03, x1: 1.1, layer: 2, label: '信的人', pose: 'stand', glow: 0.26, v: 0.36 });
             cwalk('bel5', X.crowd0 + 0.03, X.crowd1 - 0.03, { speed: 0.05, pose: 'sit' });
             W.set('pcLights', 0.85, b.instant);
           }],
+          [22.6, () => { say('bel3', 2.4, { how: 'calm' }); stir(['bel1', 'bel2'], 'nod', { spread: 1, share: 0.3 }); }],
         ]));
       },
     },
@@ -2496,7 +2579,7 @@
       kind: 'act', utter: '他的脚和踝子骨立刻健壮了', cmd: 'stand && walk && leap  # 美门', ref: '3:7',
       verse: [
         { text: '申初祷告的时候，彼得、约翰上圣殿去。有一个人，生来是瘸腿的，<br>天天被人抬来，放在殿的一个门口（那门名叫美门），要求进殿的人周济。', ref: '使徒行传 3:1–2', hold: 8.5 },
-        { text: '彼得说：「金银我都没有，只把我所有的给你：<br>我奉拿撒勒人耶稣基督的名，叫你起来行走！」', ref: '使徒行传 3:6', hold: 6.5 },
+        { text: '彼得说：「金银我都没有，只把我所有的给你：<br>我奉拿撒勒人耶稣基督的名，叫你起来行走！」', ref: '使徒行传 3:6', hold: 6.5, talk: [['peter', 0.06, 1, 'proclaim', 'lame']], gest: [['peter', 'refuse', 0.14]] },
         { text: '于是拉着他的右手，扶他起来；他的脚和踝子骨立刻健壮了，<br>就跳起来，站着，又行走，同他们进了殿，走着，跳着，赞美神。', ref: '使徒行传 3:7–8', hold: 8 },
       ],
       apply(c) {
@@ -2517,12 +2600,20 @@
             put('john', { x: X.jo - X.walkIn, v: 0, pose: 'stand', facing: 1 });
           }],
           [1.2, () => { walk('peter', X.pe, { speed: 0.022 }); walk('john', X.jo, { speed: 0.022 }); }],
-          [6.6, () => { face('lame', -1); }],
-          // 金银我都没有
-          [9.8, () => { pose('peter', 'point'); face('peter', 1); face('john', 1); }],
+          // 他看见彼得、约翰将要进殿，就跪着仰脸摊手，求他们周济
+          [5.4, () => { pose('lame', 'beg'); }],
+          [6.6, () => { face('lame', -1); say('lame', 2.2, { how: 'plead', to: 'peter' }); }],
+          // 彼得、约翰定睛看他：「你看我们！」
+          [8.6, () => { face('peter', 1); face('john', 1); gest('peter', 'beckon'); }],
+          // 金银我都没有（摆手）……他就叹一口气
+          [9.8, () => { pose('peter', 'stand'); face('peter', 1); face('john', 1); }],
+          [11.6, () => { gest('lame', 'sigh'); }],
+          // 「我奉拿撒勒人耶稣基督的名，叫你起来行走！」
+          [12.8, () => { pose('peter', 'point'); }],
           [13.2, () => { face('lame', -1); glow('lame', 0.2); }],
+          [14.2, () => { gest('john', 'nod'); }],
           // 拉着他的右手，扶他起来
-          [17.6, () => { walk('peter', lx() - 0.018 * (PORT ? 1.8 : 1), { speed: 0.02, pose: 'carry' }); }],
+          [17.6, () => { walk('peter', lx() - 0.018 * (PORT ? 1.8 : 1), { speed: 0.02, pose: 'reach' }); }],
           [18.9, b => {
             pose('lame', 'stand'); glow('lame', 0.6);
             if (!b.instant && fx()) { const h = headOf('lame', 0); fx().ring(h[0], h[1] - 4, [255, 240, 204], M() * 0.18, 2, 2); fx().sparkle(h[0], h[1] - 6, 30, [255, 240, 210], 14 * SU(), 'top'); }
@@ -2536,11 +2627,15 @@
           // 同他们进了殿，赞美神
           [22.2, () => {
             pose('peter', 'stand');
-            walk('lame', X.inside, { speed: 0.045, pose: 'raise' });
+            walk('lame', X.inside, { speed: 0.045, pose: 'rejoice' });
             walk('peter', X.inside - (PORT ? 0.07 : 0.035), { speed: 0.03 });
             walk('john', X.inside - (PORT ? 0.12 : 0.058), { speed: 0.03 });
           }],
-          [24.2, b => { cpose('wor', 'gaze'); cface('wor', -1); sfx(b, 'bell', { soft: true }); }],
+          // 走着，跳着，赞美神：殿里的人先后转过来看他，一惊
+          [22.6, () => { say('lame', 4, { how: 'proclaim' }); }],
+          [24.2, b => { cpose('wor', 'gaze'); heed('wor', X.inside, { spread: 1.2 }); sfx(b, 'bell', { soft: true }); }],
+          [25, () => { stir('wor', 'startle', { spread: 1, share: 0.5 }); }],
+          [26.6, () => { gest('lame', 'leap', { n: 2 }); }],
         ]);
       },
     },
@@ -2550,13 +2645,18 @@
       kind: 'act', utter: '除他以外，别无拯救', cmd: 'resolve 名 --only 耶稣  # 天下人间', ref: '4:12',
       verse: [
         { text: '使徒对百姓说话的时候，祭司们和守殿官，并撒都该人忽然来了……<br>于是下手拿住他们；因为天已经晚了，就把他们押到第二天。', ref: '使徒行传 4:1–3', hold: 8 },
-        { text: '第二天，官府、长老，和文士在耶路撒冷聚会……叫使徒站在当中，<br>就问他们说：「你们用什么能力，奉谁的名做这事呢？」', ref: '使徒行传 4:5–7', hold: 7.5 },
-        { text: '那时彼得被圣灵充满，对他们说：……「除他以外，别无拯救；<br>因为在天下人间，没有赐下别的名，我们可以靠着得救。」', ref: '使徒行传 4:8–12', hold: 8 },
+        { text: '第二天，官府、长老，和文士在耶路撒冷聚会……叫使徒站在当中，<br>就问他们说：「你们用什么能力，奉谁的名做这事呢？」', ref: '使徒行传 4:5–7', hold: 7.5, talk: [['hp', 0.6, 1, 'proclaim']], gest: [['hp', 'point', 0.66]] },
+        { text: '那时彼得被圣灵充满，对他们说：……「除他以外，别无拯救；<br>因为在天下人间，没有赐下别的名，我们可以靠着得救。」', ref: '使徒行传 4:8–12', hold: 8, talk: [['peter', 0.14, 1, 'proclaim']] },
       ],
       apply(c) {
         const cx = () => councilX('c'), dd = PORT ? 0.07 : 0.03;
         T(c, [
-          [0, b => { W.goTo(tod(0.74, 0.75), 7, b.instant); pose('peter', 'raise'); face('peter', 1); pose('lame', 'stand'); }],
+          // 使徒对百姓说话的时候
+          [0, b => { W.goTo(tod(0.74, 0.75), 7, b.instant); pose('peter', 'teach'); face('peter', 1); pose('lame', 'stand'); }],
+          [0.4, () => { say('peter', 3.8, { how: 'proclaim' }); }],
+          // 守殿官忽然来了：众人一惊
+          [3.6, () => { stir('wor', 'startle', { spread: 0.8, share: 0.6 }); gest('john', 'startle'); }],
+          [4.4, () => { hush('peter'); pose('peter', 'stand'); }],
           [2, () => {
             add('guardC', { label: '守殿官', sex: 'm', age: 'adult', x: 1.05, facing: -1, robe: [118, 72, 58], accent: [176, 150, 104], prop: 'torch', glow: 0.12, layer: 2, v: 0.02 });
             add('guard1', { label: '守殿官', sex: 'm', age: 'adult', x: 1.08, facing: -1, robe: [104, 68, 56], accent: [176, 150, 104], prop: 'spear', glow: 0.1, layer: 2, v: 0.04 });
@@ -2583,6 +2683,8 @@
             put('lame', { x: 1.1, v: 0.34, pose: 'stand', facing: -1 });
             walk('peter', cx() - dd * 0.2, { speed: 0.035 }); walk('john', cx() - dd * 1.4, { speed: 0.035 }); walk('lame', cx() + dd, { speed: 0.035 });
           }],
+          // 公会的人彼此低声议论
+          [16.6, () => { say('eldB', 1.8, { how: 'calm' }); }],
           // 彼得被圣灵充满：一阵轻风，一道光自天上落在他身上（火焰只在五旬节那一日）
           [18.1, b => {
             S.beam = cx() - dd * 0.2; S.beamV = 0.34; S.beamG = false;
@@ -2599,7 +2701,12 @@
             if (!b.instant) { const h = headOf('peter', 0.6); fx().ring(h[0], h[1], [255, 236, 190], M() * 0.35, 3, 2); }
             sfx(b, 'bell');
           }],
+          // 他们希奇：面面相觑
+          [22.6, () => { stir(['eldA', 'eldB'], 'startle', { spread: 1, share: 0.5 }); }],
+          [23.6, () => { pose('peter', 'teach'); }],
+          [24.8, () => { stir(['eldA', 'eldB'], 'lookaround', { spread: 1.2, share: 0.4 }); gest('hp', 'bowhead'); }],
           [25.2, b => { W.set('pcHeaven', 0.22, b.instant); }],
+          [26, () => { pose('peter', 'stand'); }],
         ]);
       },
     },
@@ -2608,7 +2715,7 @@
     {
       kind: 'act', utter: '聚会的地方震动', cmd: 'shake 聚会的地方 && fill 圣灵  # 放胆', ref: '4:31',
       verse: [
-        { text: '二人既被释放，就到会友那里去……他们听见了，就同心合意地高声向神说：<br>「主啊！你是造天、地、海，和其中万物的，', ref: '使徒行传 4:23–24', hold: 8 },
+        { text: '二人既被释放，就到会友那里去……他们听见了，就同心合意地高声向神说：<br>「主啊！你是造天、地、海，和其中万物的，', ref: '使徒行传 4:23–24', hold: 8, talk: [['james', 0.55, 1, 'proclaim'], ['mary', 0.58, 1, 'plead'], ['andrew', 0.6, 1, 'proclaim'], ['thomas', 0.62, 1, 'proclaim'], ['matthias', 0.6, 1, 'plead']] },
         { text: '祷告完了，聚会的地方震动，<br>他们就都被圣灵充满，放胆讲论神的道。', ref: '使徒行传 4:31', hold: 6.5 },
         { text: '那许多信的人都是一心一意的……<br>使徒大有能力，见证主耶稣复活；众人也都蒙大恩。', ref: '使徒行传 4:32–33', hold: 8 },
       ],
@@ -2628,7 +2735,11 @@
             put('john', { x: X.crowd1 + 0.03, v: sj.v, pose: 'stand', facing: -1 });
             walk('peter', sp.x, { speed: 0.045 }); walk('john', sj.x, { speed: 0.045 });
           }],
-          [5, () => { for (const id of roomIds()) { pose(id, 'raise'); } }],
+          // 二人回来：屋里的人先后转向他们；彼得把所遇的事告诉他们
+          [2.2, () => { heed(roomIds().filter(id => id !== 'peter' && id !== 'john'), X.crowd1, { spread: 1.4 }); }],
+          [3.4, () => { say('peter', 2.6, { how: 'calm' }); }],
+          // 同心合意地高声向神祷告：一个接一个举起手来
+          ...Array.from({ length: 17 }, (_, i) => [5 + 0.15 * i, () => { const id = roomIds()[i]; if (id) pose(id, 'raise'); }]),
           // 聚会的地方震动
           [9.3, b => {
             shake(b, 1.2); flashW(b, 0.35);
@@ -2637,14 +2748,21 @@
             for (const id of roomIds()) glow(id, 0.66);
             if (!b.instant && fx()) for (const id of roomIds()) sparkleOn(b, id, 6, [255, 236, 190], 0.8);
           }],
-          // 放胆讲论神的道
+          [9.6, () => { stir(roomIds(), 'startle', { spread: 0.8, share: 0.7 }); }],
+          [10.8, () => { stir(roomIds(), 'tremble', { spread: 1, share: 0.3 }); }],
+          // 放胆讲论神的道：走到街上，对着百姓讲论
           [12.8, b => {
-            bold.forEach((id, i) => walk(id, X.crowd0 + (i * (PORT ? 0.05 : 0.028)), { speed: 0.04, pose: 'point' }));
+            bold.forEach((id, i) => walk(id, X.crowd0 + (i * (PORT ? 0.05 : 0.028)), { speed: 0.04, pose: 'teach' }));
             crowd('hear', { n: PORT ? 3 : 6, x0: 1.03, x1: 1.12, layer: 2, label: '百姓', pose: 'stand', glow: 0.12, v: 0.22 });
             cwalk('hear', X.crowd0 + (PORT ? 0.07 : 0.1), X.crowd1, { speed: 0.045, pose: 'gaze' });
           }],
+          [13.4, () => { for (const id of roomIds()) if (bold.indexOf(id) < 0) pose(id, 'stand'); }],
+          ...[0, 1, 2, 3].map(i => [15.6 + 0.7 * i, () => { const id = bold[i]; if (id) say(id, 6.5 - 0.7 * i, { how: 'proclaim' }); }]),
           [17.1, b => { W.set('pcLights', 0.9, b.instant); sfx(b, 'harp', { soft: true }); }],
+          // 众人也都蒙大恩
+          [18.8, () => { stir('hear', 'nod', { spread: 1.4, share: 0.5 }); }],
           [20.2, b => { W.set('pcRoom', 0.45, b.instant); cglow('hear', 0.3); }],
+          [21.4, () => { stir('hear', 'reachup', { spread: 1.2, share: 0.3 }); }],
         ]);
       },
     },
@@ -2654,7 +2772,7 @@
       kind: 'act', utter: '但主的使者夜间开了监门，领他们出来', cmd: 'unlock 监门 --at 夜间  # 领他们出来', ref: '5:19',
       verse: [
         { text: '大祭司和他的一切同人，就是撒都该教门的人，都起来，满心忌恨，<br>就下手拿住使徒，收在外监。', ref: '使徒行传 5:17–18', hold: 7 },
-        { text: '但主的使者夜间开了监门，领他们出来，说：<br>「你们去站在殿里，把这生命的道都讲给百姓听。」', ref: '使徒行传 5:19–20', hold: 8.5 },
+        { text: '但主的使者夜间开了监门，领他们出来，说：<br>「你们去站在殿里，把这生命的道都讲给百姓听。」', ref: '使徒行传 5:19–20', hold: 8.5, talk: [['angelP', 0.4, 1, 'proclaim']] },
         { text: '使徒听了这话，天将亮的时候就进殿里去教训人。', ref: '使徒行传 5:21', hold: 5.5 },
       ],
       apply(c) {
@@ -2682,6 +2800,9 @@
             add('pg1', { label: '看守的人', sex: 'm', age: 'adult', x: door() + (PORT ? 0.035 : 0.02), facing: 1, robe: [104, 68, 56], accent: [176, 150, 104], prop: 'torch', glow: 0.14, layer: 2, v: 0.1 });
             add('pg2', { label: '看守的人', sex: 'm', age: 'adult', x: door() + (PORT ? 0.1 : 0.045), facing: 1, robe: [96, 72, 60], accent: [176, 150, 104], prop: 'spear', glow: 0.12, layer: 2, v: 0.06 });
           }],
+          // 夜里的外监：有人低头，有人叹气
+          [4.6, () => { stir(pris(), 'bowhead', { spread: 1.6, share: 0.4 }); }],
+          [6.2, () => { stir(pris(), 'sigh', { spread: 1.2, share: 0.3 }); }],
           // 主的使者
           [8.3, b => {
             S.beam = (X.prison0 + X.prison1) / 2; S.beamV = 0; S.beamG = false;
@@ -2692,10 +2813,12 @@
             const f = fig('angelP'); if (f) f.v = 0.36;
             flashW(b, 0.3); sfx(b, 'angel');
           }],
+          // 光里众人一惊，有人以臂遮眼
+          [8.6, () => { stir(pris(), 'startle', { spread: 0.8, share: 0.7 }); }],
+          [9, () => { pris().slice(0, 3).forEach(id => pose(id, 'shield')); }],
           [10.4, b => {
             prop('prison', null, { open: 1 });
             sfx(b, 'chains'); sfx(b, 'gate', { soft: true });
-            for (const id of pris()) { pose(id, 'stand'); face(id, 1); }
             pose('angelP', 'point');
             // 锁开之处一闪
             if (!b.instant && fx()) {
@@ -2705,11 +2828,14 @@
               transient(b, { type: 'door', x: lx, y0: top, y1: G.gf, dur: 1.6 });
             }
           }],
-          // 使者在前面走，领他们出来
+          // 门开了：众人一个接一个站起来，转向门口
+          ...Array.from({ length: 12 }, (_, i) => [10.5 + 0.12 * i, () => { const id = pris()[i]; if (id) { pose(id, 'stand'); face(id, 1); } }]),
+          // 使者在前面走，领他们出来（一边走，一边吩咐他们）
           [11.6, () => { walk('angelP', PORT ? 0.94 : 0.92, { speed: 0.042 }); }],
           [12.4, () => {
             pris().forEach((id, i) => walk(id, lerp(PORT ? 0.74 : 0.735, PORT ? 0.9 : 0.87, i / (pris().length - 1)) , { speed: 0.028 + 0.002 * (i % 4) }));
           }],
+          [14.8, () => { stir(pris(), 'nod', { spread: 1.2, share: 0.4 }); }],
           [16.4, b => { prop('prison', null, { open: 0 }); W.set('pcHeaven', 0, b.instant); rm('angelP'); sfx(b, 'gate', { soft: true }); }],
           // 天将亮的时候就进殿里去
           [18.1, b => {
@@ -2756,11 +2882,13 @@
               walk(id, sX(i), { speed: 0.04 });
             });
           }],
-          // 使徒祷告了，就按手在他们头上
-          [5.6, () => { for (const id of aps()) pose(id, 'raise'); }],
+          // 大众都喜悦这话：门徒点头
+          [4.4, () => { stir('ch', 'nod', { spread: 1, share: 0.6 }); }],
+          // 使徒祷告了（两手捧着举向天），就按手在他们头上（举手祝福）
+          ...Array.from({ length: 12 }, (_, i) => [5.6 + 0.12 * i, () => { const id = aps()[i]; if (id) pose(id, 'lift'); }]),
           [7.4, b => {
             for (const id of seven()) { pose(id, 'bow'); face(id, id === 'stephen' ? 1 : -1); }
-            aps().forEach((id, i) => { pose(id, 'point'); const t = seven()[Math.min(seven().length - 1, Math.round(i * (seven().length - 1) / Math.max(1, aps().length - 1)))]; face(id, t); transient(b, { type: 'thread', from: id, to: t, dur: 2.4, t: -0.12 * i }); });
+            aps().forEach((id, i) => { pose(id, 'bless'); const t = seven()[Math.min(seven().length - 1, Math.round(i * (seven().length - 1) / Math.max(1, aps().length - 1)))]; face(id, t); transient(b, { type: 'thread', from: id, to: t, dur: 2.4, t: -0.12 * i }); });
             sfx(b, 'harp', { soft: true });
           }],
           [9.2, b => { for (const id of seven()) { glow(id, id === 'stephen' ? 0.5 : 0.4); sparkleOn(b, id, 10, [255, 244, 220], 0.9); } }],
@@ -2769,8 +2897,6 @@
             W.set('pcLights', 1, b.instant);
             // 光自殿向外走：城、中丘、远山一处一处亮起来（白日里也看得见）
             W.set('pcReach', 0.7, b.instant); W.set('pcReachA', 1, b.instant);
-            for (const id of seven()) pose(id, 'stand');
-            for (const id of aps()) pose(id, 'stand');
             // 新来的门徒从两边来
             for (const q of newcomers()) {
               crowd(q[0], { n: q[5], x0: q[1], x1: q[1] + 0.05, layer: 2, label: '新来的门徒', pose: 'stand', glow: 0.24, v: q[4] });
@@ -2779,16 +2905,27 @@
             sfx(b, 'bell'); sfx(b, 'crowd', { soft: true });
             if (!b.instant && fx()) for (let i = 0; i < 9; i++) { const xf = lerp(X.city0, X.city1, (i + 0.5) / 9); fx().sparkle(xf * W.w, gY(1, xf) - 8 * LS(1), 6, [255, 226, 160], 14 * SU(), 'top'); }
           }],
+          // 七个人一个接一个直起身来；使徒放下手
+          ...Array.from({ length: 7 }, (_, i) => [9.9 + 0.2 * i, () => { const id = seven()[i]; if (id) pose(id, 'stand'); }]),
+          ...Array.from({ length: 12 }, (_, i) => [10.1 + 0.1 * i, () => { const id = aps()[i]; if (id) pose(id, 'stand'); }]),
+          [11.4, () => { stir('ch', 'clap', { spread: 1, share: 0.4 }); }],
           [12.4, b => {
             crowd('priests', { n: PORT ? 2 : 3, x0: 1.03, x1: 1.1, layer: 2, label: '祭司', robe: [236, 232, 220], pose: 'stand', glow: 0.2, v: 0.3 });
             cwalk('priests', PORT ? 0.88 : 0.86, PORT ? 0.95 : 0.95, { speed: 0.04, pose: 'pray' });
           }],
-          // 司提反满得恩惠、能力
+          // 也有许多祭司信从了这道：使徒先后转过去望着他们
+          [14, () => { heed(aps(), PORT ? 0.92 : 0.9, { spread: 1.4 }); }],
+          [15.4, () => { stir(['newL', 'newR'], 'nod', { spread: 1.2, share: 0.4 }); }],
+          // 司提反满得恩惠、能力，在民间行了大奇事和神迹：他伸手，近旁的人一惊、欢喜
           [17.6, b => {
             glow('stephen', 0.8); pose('stephen', 'raise');
             sparkleOn(b, 'stephen', 30, [255, 240, 210], 0.6); ringOn(b, 'stephen', 0.2, [255, 240, 210]);
             sfx(b, 'harp');
           }],
+          [19.2, () => { pose('stephen', 'reach'); }],
+          [19.8, () => { stir(['newL'], 'startle', { spread: 0.8, share: 0.6 }); }],
+          [20.8, () => { stir(['newL', 'newR'], 'leap', { spread: 1, share: 0.25 }); }],
+          [21.6, () => { pose('stephen', 'stand'); }],
         ]);
       },
     },
@@ -2798,8 +2935,8 @@
       kind: 'name', utter: '天是我的座位，地是我的脚凳', cmd: 'mount 天 --as 座位 && mount 地 --as 脚凳', ref: '7:49',
       verse: [
         { text: '他们又耸动了百姓、长老，并文士，就忽然来捉拿他，把他带到公会去……<br>在公会里坐着的人都定睛看他，见他的面貌，好像天使的面貌。', ref: '使徒行传 6:12–15', hold: 8 },
-        { text: '司提反说：「诸位父兄请听！当日我们的祖宗亚伯拉罕在美索不达米亚还未住哈兰的时候，<br>荣耀的神向他显现，', ref: '使徒行传 7:2', hold: 7 },
-        { text: '其实，至高者并不住人手所造的，就如先知所言：<br>主说：天是我的座位，地是我的脚凳；你们要为我造何等的殿宇？', ref: '使徒行传 7:48–49', hold: 7.5 },
+        { text: '司提反说：「诸位父兄请听！当日我们的祖宗亚伯拉罕在美索不达米亚还未住哈兰的时候，<br>荣耀的神向他显现，', ref: '使徒行传 7:2', hold: 7, talk: [['stephen', 0.06, 1, 'proclaim']] },
+        { text: '其实，至高者并不住人手所造的，就如先知所言：<br>主说：天是我的座位，地是我的脚凳；你们要为我造何等的殿宇？', ref: '使徒行传 7:48–49', hold: 7.5, who: 'stephen', how: 'proclaim' },
       ],
       apply(c) {
         const cx = () => councilX('c');
@@ -2820,16 +2957,26 @@
             add('wit2', { label: '假见证', sex: 'm', age: 'adult', x: X.gate - 0.01, facing: 1, robe: [84, 70, 58], glow: 0.04, layer: 2, v: 0.2 });
             walk('wit1', cx() - (PORT ? 0.13 : 0.06), { speed: 0.03, pose: 'point' }); walk('wit2', cx() - (PORT ? 0.2 : 0.09), { speed: 0.03 });
           }],
-          // 他的面貌好像天使的面貌
+          // 假见证指着他，高声控告
+          [3.4, () => { say('wit1', 3, { how: 'proclaim' }); }],
+          [5.6, () => { say('wit2', 2.2, { how: 'proclaim' }); gest('wit2', 'point'); }],
+          // 他的面貌好像天使的面貌：坐着的人定睛看他，一惊
           [4.8, b => { W.set('pcAngel', 1, b.instant); glow('stephen', 0.85); face('stephen', 1); sfx(b, 'angel', { soft: true }); }],
-          // 司提反说：荣耀的神向他显现（经上的往事一一显出）
-          [9.3, b => { pose('stephen', 'raise'); pose('wit1', 'stand'); }],
+          [6, () => { stir(['eldA', 'eldB'], 'startle', { spread: 1, share: 0.4 }); gest('hp', 'startle'); }],
+          // 司提反说：「诸位父兄请听！」——荣耀的神向他显现（经上的往事一一显出）
+          [9.3, b => { pose('stephen', 'teach'); pose('wit1', 'stand'); }],
           [9.8, b => { transient(b, { type: 'vision', kind: 'stars', dur: 2.6 }); sfx(b, 'stars'); }],
+          [10.2, () => { gest('stephen', 'reachup'); }],
           [12.2, b => transient(b, { type: 'vision', kind: 'bush', dur: 2.6 })],
+          [13.6, () => { heed(['wit1', 'wit2'], 'stephen', { spread: 0.8 }); }],
           [14.6, b => transient(b, { type: 'vision', kind: 'tent', dur: 2.6 })],
+          [15.4, () => { stir(['eldA', 'eldB'], 'lookaround', { spread: 1.2, share: 0.3 }); }],
           [17, b => transient(b, { type: 'vision', kind: 'temple', dur: 3.4 })],
-          // 天是我的座位，地是我的脚凳
-          [19.2, b => { W.set('pcThrone', 1, b.instant); pose('stephen', 'point'); sfx(b, 'harp'); sfx(b, 'bell', { soft: true }); }],
+          // 天是我的座位（两手举起），地是我的脚凳；你们要为我造何等的殿宇？（指着他们）
+          [19.2, b => { W.set('pcThrone', 1, b.instant); pose('stephen', 'raise'); sfx(b, 'harp'); sfx(b, 'bell', { soft: true }); }],
+          [21.4, () => { pose('stephen', 'teach'); }],
+          [22.6, () => { gest('stephen', 'point'); stir(['eldA', 'eldB'], 'refuse', { spread: 1, share: 0.4 }); }],
+          [23.6, () => { gest('hp', 'refuse'); }],
           [24.2, b => { W.set('pcThrone', 0.4, b.instant); pose('stephen', 'stand'); }],
         ]);
       },
@@ -2839,9 +2986,9 @@
     {
       kind: 'act', utter: '看见神的荣耀，又看见耶稣站在神的右边', cmd: 'open 天  # 人子站在神的右边', ref: '7:55',
       verse: [
-        { text: '但司提反被圣灵充满，定睛望天，看见神的荣耀，又看见耶稣站在神的右边，<br>就说：「我看见天开了，人子站在神的右边。」', ref: '使徒行传 7:55–56', hold: 8.5 },
+        { text: '但司提反被圣灵充满，定睛望天，看见神的荣耀，又看见耶稣站在神的右边，<br>就说：「我看见天开了，人子站在神的右边。」', ref: '使徒行传 7:55–56', hold: 8.5, talk: [['stephen', 0.54, 1, 'proclaim']] },
         { text: '众人大声喊叫，捂着耳朵，齐心拥上前去，把他推到城外……<br>作见证的人把衣裳放在一个少年人名叫扫罗的脚前。', ref: '使徒行传 7:57–58', hold: 7.5 },
-        { text: '……司提反呼吁主说：「求主耶稣接收我的灵魂！」<br>又跪下大声喊着说：「主啊，不要将这罪归于他们！」说了这话，就睡了。', ref: '使徒行传 7:59–60', hold: 8.5 },
+        { text: '……司提反呼吁主说：「求主耶稣接收我的灵魂！」<br>又跪下大声喊着说：「主啊，不要将这罪归于他们！」说了这话，就睡了。', ref: '使徒行传 7:59–60', hold: 8.5, talk: [['stephen', 0.08, 0.42, 'plead'], ['stephen', 0.52, 0.84, 'proclaim']] },
       ],
       apply(c) {
         const acc = () => [X.steph + (PORT ? 0.05 : 0.025), X.saul - (PORT ? 0.02 : 0.012)];
@@ -2855,10 +3002,14 @@
             pose('stephen', 'gaze'); glow('stephen', 0.95);
             sfx(b, 'angel'); sfx(b, 'harp', { soft: true });
           }],
-          // 众人拥上前去，把他推到城外
+          // 定睛望天：坐着的人先后转过来看他，一惊；他向天伸手
+          [2.6, () => { stir(['eldA', 'eldB'], 'startle', { spread: 1.2, share: 0.5 }); }],
+          [7.2, () => { gest('stephen', 'reachup', { dur: 2.6 }); }],
+          // 众人大声喊叫，捂着耳朵，齐心拥上前去，把他推到城外
           [9.8, b => {
             S.scene = 'outside';
-            cpose('eldA', 'stand'); cpose('eldB', 'stand'); pose('hp', 'stand');
+            cpose('eldA', 'shield', { stagger: 0.4 }); cpose('eldB', 'shield', { stagger: 0.4 }); pose('hp', 'stand');
+            say('eldA', 3.4, { how: 'proclaim', share: 0.9 }); say('eldB', 3.4, { how: 'proclaim', share: 0.9 });
             sfx(b, 'crowd'); sfx(b, 'shout', { soft: true });
             W.goTo(tod(0.7, 0.72), 16, b.instant);
           }],
@@ -2875,26 +3026,29 @@
           [14.2, () => {
             add('paul', Object.assign({}, LOOK().paul || { sex: 'm', robe: [128, 96, 72] }, { label: '扫罗', x: X.saul, facing: -1, glow: 0.08, pose: 'stand', layer: 2, v: 0.04 }));
           }],
+          // 作见证的人把衣裳放在扫罗的脚前（弯腰放下）；扫罗点头
           [15.8, b => {
             prop('clothes', 'clothes', { x: X.saul + (PORT ? 0.035 : 0.016), label: '衣裳' });
-            pose('wit1', 'bow'); face('wit1', -1);
-            cface('eldA', -1); cface('eldB', -1);
+            pose('wit1', 'stoop'); face('wit1', -1);
+            heed(['eldA', 'eldB'], X.steph, { spread: 1 });
           }],
-          // 求主耶稣接收我的灵魂；跪下；睡了
+          [16.8, () => { gest('paul', 'nod'); }],
+          // 「求主耶稣接收我的灵魂！」
           [18.6, b => { pose('stephen', 'raise'); pose('wit1', 'stand'); }],
-          [22.6, b => { pose('stephen', 'kneel'); face('stephen', 1); sfx(b, 'weep', { soft: true }); }],
+          // 又跪下大声喊着说：「主啊，不要将这罪归于他们！」——跪着，仰面，两手摊开
+          [22.6, b => { pose('stephen', 'beg'); face('stephen', 1); sfx(b, 'weep', { soft: true }); }],
           [25.4, b => {
             pose('stephen', 'lie'); glow('stephen', 0.32);
             W.set('pcSoul', 1, b.instant); W.set('pcAngel', 0, b.instant);
             sfx(b, 'harp', { soft: true });
           }],
           // 众人散去；天上的光慢慢合上
-          [27.2, b => {
+          [26.4, b => {
             cwalk('eldA', 1.04, 1.12, { speed: 0.04 }); cwalk('eldB', 1.05, 1.13, { speed: 0.04 });
             walk('wit1', 1.08, { speed: 0.04 }); walk('wit2', 1.1, { speed: 0.04 });
             W.set('pcHeaven', 0.22, b.instant);
           }],
-          [30.4, b => {
+          [28.3, b => {
             crm('eldA'); crm('eldB'); rm('wit1'); rm('wit2');
             W.set('pcGlory', 0.3, b.instant);
             face('paul', -1);

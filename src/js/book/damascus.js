@@ -218,6 +218,12 @@
   function crowdWalk(gid, x0, x1, o) { const c = C(); if (c && crowdOf(gid)) c.crowdWalk(gid, x0, x1, o || {}); }
   function crowdRm(gid, fade) { const c = C(); if (c && crowdOf(gid)) c.removeCrowd(gid, { fade: fade !== false }); }
   function crowdGlow(gid, v) { const g = crowdOf(gid); if (g) g.members.forEach(m => { m.glow = v; }); }
+  // 演技：说话（人或一群人）、一次性的手势、众人先后转向 / 先后做同一个手势（重演时人物模块自己略过；attend 立即到位）
+  const here = k => has(k) || !!crowdOf(k);
+  function say(id, sec, o) { const c = C(); if (c && c.speak && here(id)) c.speak(id, sec, o); }
+  function gest(id, kind, o) { const c = C(); if (c && c.gesture && here(id)) c.gesture(id, kind, o); }
+  function heed(ids, target, o) { const c = C(); if (c && c.attend) c.attend([].concat(ids).filter(here), target, o); }
+  function stir(ids, kind, o) { const c = C(); if (c && c.react) c.react([].concat(ids).filter(here), kind, o); }
   // 竖屏的地窄：人群少一些
   function crowd(gid, o) {
     const c = C(); if (!c) return;
@@ -1876,7 +1882,7 @@
     {
       kind: 'cmd', utter: '起来！向南走', cmd: 'cd ~/旷野 --road 迦萨  # 那路是旷野', ref: '8:26', tint: TINT_ROAD,
       verse: [
-        { text: '有主的一个使者对腓利说：「起来！向南走，往那从耶路撒冷下迦萨的路上去。」那路是旷野。', ref: '使徒行传 8:26', hold: 7.2 },
+        { text: '有主的一个使者对腓利说：「起来！向南走，往那从耶路撒冷下迦萨的路上去。」那路是旷野。', ref: '使徒行传 8:26', hold: 7.2, talk: [['angel', 0.16, 0.86, 'proclaim', 'philip']] },
         { text: '腓利就起身去了，不料，有一个衣索匹亚人，是个有大权的太监，在衣索匹亚女王甘大基的手下总管银库，他上耶路撒冷礼拜去了。', ref: '使徒行传 8:27', hold: 8.2 },
         { text: '现在回来，在车上坐着，念先知以赛亚的书。', ref: '使徒行传 8:28', hold: 5.6 },
       ],
@@ -1886,17 +1892,25 @@
           [0, b => {
             add('angel', { label: '主的一个使者', sex: 'm', x: X('angelA'), v: 0.08, facing: -1, angel: true, glow: 1, from: inst(b) ? 'none' : 'light' });
             face('philip', 1); pose('philip', 'gaze');
-            crowdFaceX('samL', X('angelA')); crowdFaceX('samR', X('angelA'));
+            heed(['samL', 'samR'], X('angelA'), { spread: 1.4 });
             sfx(b, 'angel', { soft: true });
           }],
+          // 光里来了一位：众人一惊
+          [0.6, b => { stir(['samL', 'samR'], 'startle', { spread: 1, share: 0.5 }); }],
+          // 「向南走」：使者指着往南的路
           [2.4, b => { pose('angel', 'point'); face('angel', -1); }],
+          // 腓利低头领命，点头
           [4, b => { pose('philip', 'bow'); }],
+          [5.4, b => { gest('philip', 'nod'); }],
           [6.2, b => { pose('philip', 'stand'); }],
+          // 腓利就起身去了：城里的人举手、挥手送他
           [7.2, b => {
             rm('angel');
             walk('philip', X('road0'), { speed: 0.014 });
             crowdPose('samL', 'raise'); crowdPose('samR', 'raise');
           }],
+          [7.6, b => { stir(['samL', 'samR'], 'wave', { spread: 1, share: 0.5 }); }],
+          [8.2, b => { gest('philip', 'wave'); }],
           // 腓利就起身去了：城远了，地成了旷野，一条往南的路
           [8.8, b => {
             lv('dmTown', 0, b); lv('dmRoad', 1, b);
@@ -1916,8 +1930,13 @@
             face('philip', 1);
             sfx(b, 'hooves', { soft: true });
           }],
+          // 远远看见一辆车：腓利手搭凉棚望着
+          [13.6, b => { pose('philip', 'look'); }],
           [15, b => { crowdRm('samL'); crowdRm('samR'); }],
+          [16.6, b => { pose('philip', 'stand'); }],
+          // 在车上坐着，念先知以赛亚的书（念出声来）
           [18.8, b => { lv('dmScroll', 1, b); sfx(b, 'scroll', { soft: true }); }],
+          [19.4, b => { say('eunuch', 4, { how: 'calm' }); }],
           [24.8, b => { snapCar(); }],
         ]);
       },
@@ -1926,8 +1945,8 @@
     {
       kind: 'cmd', utter: '你去！贴近那车走', cmd: 'follow 那车 && cat 以赛亚书 53', ref: '8:29', tint: TINT_ROAD,
       verse: [
-        { text: '圣灵对腓利说：「你去！贴近那车走。」腓利就跑到太监那里，听见他念先知以赛亚的书，便问他说：「你所念的，你明白吗？」', ref: '使徒行传 8:29–30', hold: 7.5 },
-        { text: '他说：「没有人指教我，怎能明白呢？」于是请腓利上车，与他同坐。', ref: '使徒行传 8:31', hold: 6 },
+        { text: '圣灵对腓利说：「你去！贴近那车走。」腓利就跑到太监那里，听见他念先知以赛亚的书，便问他说：「你所念的，你明白吗？」', ref: '使徒行传 8:29–30', hold: 7.5, talk: [['philip', 0.8, 1, 'calm']] },
+        { text: '他说：「没有人指教我，怎能明白呢？」于是请腓利上车，与他同坐。', ref: '使徒行传 8:31', hold: 6, talk: [['eunuch', 0.04, 0.56, 'plead']] },
         { text: '他所念的那段经，说：他像羊被牵到宰杀之地，又像羊羔在剪毛的人手下无声；他也是这样不开口。', ref: '使徒行传 8:32', hold: 7 },
         { text: '腓利就开口从这经上起，对他传讲耶稣。', ref: '使徒行传 8:35', hold: 5 },
       ],
@@ -1939,23 +1958,32 @@
             walk('horse', X('car2'), { speed: 0.012 });
             run('philip', X('car1') - 0.01, { speed: 0.085 });
           }],
+          // 太监一路念着
+          [1.2, b => { say('eunuch', 3.6, { how: 'calm' }); }],
           [2.8, b => { walk('philip', X('car2') + carDx() * (tall() ? 0.9 : 1.3), { speed: 0.0118 }); vTo('philip', 0.08, b); }],
           [8.8, b => { pose('horse', 'stand'); face('philip', -1); }],
+          // 「没有人指教我，怎能明白呢？」——他招手请腓利上车
+          [9.7, b => { gest('eunuch', 'beckon'); }],
           [11.2, b => { snapCar(); }],
           // 于是请腓利上车，与他同坐
           [10.6, b => {
             const cst = C(); if (cst && cst.get('philip')) { pose('philip', 'seat', { stop: true }); face('philip', -1); attach('philip', philipSeat); }
             flashAt(b, 'philip', [255, 240, 210], 12);
           }],
-          // 他像羊被牵到宰杀之地：天上一只光的羊羔
+          // 他像羊被牵到宰杀之地：天上一只光的羊羔（太监念出那段经，腓利静听）
           [16.2, b => { lv('dmLamb', 1, b); sfx(b, 'harp', { soft: true }); }],
+          [16.6, b => { say('eunuch', 5.6, { how: 'calm' }); }],
+          [20.2, b => { gest('philip', 'nod'); }],
           [22, b => { lv('dmLamb', 0.45, b); }],
-          // 对他传讲耶稣
+          // 对他传讲耶稣：腓利讲论，太监听着、点头
           [24.2, b => {
             lv('dmTell', 1, b); lv('dmLamb', 0, b);
             glowP('eunuch', 0.34); glowP('philip', 0.4);
             sfx(b, 'chime', { soft: true });
           }],
+          [24.6, b => { say('philip', 5, { how: 'teach' }); }],
+          [26.8, b => { gest('eunuch', 'nod'); }],
+          [28.6, b => { gest('eunuch', 'bowhead'); }],
         ]);
       },
     },
@@ -1963,7 +1991,7 @@
     {
       kind: 'act', utter: '主的灵把腓利提了去', cmd: 'baptize 太监 && mv 腓利 亚锁都  # 欢欢喜喜地走路', ref: '8:39', tint: [236, 244, 255],
       verse: [
-        { text: '二人正往前走，到了有水的地方，太监说：「看哪，这里有水，我受洗有什么妨碍呢？」', ref: '使徒行传 8:36', hold: 6.6 },
+        { text: '二人正往前走，到了有水的地方，太监说：「看哪，这里有水，我受洗有什么妨碍呢？」', ref: '使徒行传 8:36', hold: 6.6, talk: [['eunuch', 0.34, 1, 'proclaim']], gest: [['eunuch', 'point', 0.38]] },
         { text: '于是吩咐车站住，腓利和太监二人同下水里去，腓利就给他施洗。', ref: '使徒行传 8:38', hold: 6.2 },
         { text: '从水里上来，主的灵把腓利提了去，太监也不再见他了，就欢欢喜喜地走路。', ref: '使徒行传 8:39', hold: 6.6 },
         { text: '后来有人在亚锁都遇见腓利；他走遍那地方，在各城宣传福音，直到凯撒利亚。', ref: '使徒行传 8:40', hold: 5.8 },
@@ -1990,22 +2018,26 @@
             lv('dmScroll', 0, b);
           }],
           [11.8, b => { face('philip', 1); face('eunuch', -1); }],
+          // 腓利就给他施洗：他跪在水里，腓利举手祝福
           [12.4, b => {
-            pose('eunuch', 'kneel'); pose('philip', 'point');
+            pose('eunuch', 'kneel'); pose('philip', 'bless');
             addFX(b, { type: 'dip', id: 'eunuch', dur: 2.2 });
             sfx(b, 'splash');
           }],
           [13.4, b => { flashAt(b, 'eunuch', [220, 236, 255], 26); sfx(b, 'harp', { soft: true }); }],
           [14.8, b => { pose('eunuch', 'stand'); pose('philip', 'stand'); glowP('eunuch', 0.4); }],
-          // 主的灵把腓利提了去
+          // 主的灵把腓利提了去：太监一惊，仰望
           [15.6, b => { lv('dmLift', 1, b); sfx(b, 'wind', { soft: true }); sfx(b, 'angel', { soft: true }); }],
           [16.8, b => {
             fly('philip', X('dipP') + 0.01, tall() ? 0.43 : 0.3, { dur: 3.2, pose: 'raise' });
           }],
+          [17, b => { gest('eunuch', 'startle'); }],
+          [17.6, b => { pose('eunuch', 'gaze'); }],
           [19.2, b => { rm('philip'); lv('dmLift', 0, b); }],
-          [19.8, b => { face('eunuch', 1); }],
-          [20.8, b => { face('eunuch', -1); }],
-          [21.6, b => { pose('eunuch', 'raise'); sfx(b, 'harp'); }],
+          // 太监也不再见他了：四下张望；就欢欢喜喜的
+          [19.8, b => { pose('eunuch', 'stand'); gest('eunuch', 'lookaround'); }],
+          [21.6, b => { pose('eunuch', 'rejoice'); sfx(b, 'harp'); }],
+          [22.4, b => { say('eunuch', 1.8, { how: 'proclaim' }); }],
           // 就欢欢喜喜地走路
           [23.4, b => {
             const car = person('car');
@@ -2044,17 +2076,25 @@
             ['c1', 'c2', 'c3'].forEach((id, i) => walk(id, X('comp')[i], { speed: 0.012 }));
           }],
           ...swapBeats('sky', 'damascus', 0.5),
-          // 忽然从天上发光，四面照着他
+          // 口吐威吓凶杀的话：扫罗一路高声说着，同行的人应和
+          [1.4, b => { say('paul', 3, { how: 'proclaim', to: 'c1' }); }],
+          [4.8, b => { say('c1', 1.8, { how: 'calm' }); gest('c2', 'nod'); }],
+          [6.2, b => { say('paul', 2.2, { how: 'proclaim' }); }],
+          // 忽然从天上发光，四面照着他：以臂遮眼，同行的人有的遮眼、有的蹲伏、有的惊退
           [9.4, b => {
             lv('dmBeam', 1, b); flashW(b, 0.85);
             sfx(b, 'thunder', { far: true, low: true }); sfx(b, 'angel');
-            ['c1', 'c2', 'c3'].forEach(id => pose(id, 'bow'));
+            pose('c1', 'shield'); pose('c2', 'cower'); pose('c3', 'recoil');
+            pose('paul', 'shield');
           }],
           [10.8, b => { pose('paul', 'fall'); }],
           [13, b => { ['c1', 'c2', 'c3'].forEach(id => { pose(id, 'stand'); face(id, X('fall')); }); }],
-          // 听见有声音对他说
+          // 听见有声音对他说：他伏在地上发抖
           [16.8, b => { addFX(b, { type: 'pulse', id: 'paul', dur: 2.4 }); flashW(b, 0.35); sfx(b, 'harp', { soft: true }); }],
+          [17.6, b => { gest('paul', 'tremble'); }],
           [19.5, b => { addFX(b, { type: 'pulse', id: 'paul', dur: 2.4 }); }],
+          [20.4, b => { stir(['c1', 'c2', 'c3'], 'lookaround', { spread: 1, share: 0.7 }); }],
+          [21.6, b => { gest('paul', 'tremble'); }],
           [22.5, b => { lv('dmBeam', 0.8, b); }],
         ]);
       },
@@ -2063,7 +2103,7 @@
     {
       kind: 'name', utter: '我就是你所逼迫的耶稣', cmd: 'whoami  # 我就是你所逼迫的耶稣', ref: '9:5', tint: TINT_LIGHT,
       verse: [
-        { text: '他说：「主啊！你是谁？」主说：「我就是你所逼迫的耶稣。起来！进城去，你所当做的事，必有人告诉你。」', ref: '使徒行传 9:5–6', hold: 7.2 },
+        { text: '他说：「主啊！你是谁？」主说：「我就是你所逼迫的耶稣。起来！进城去，你所当做的事，必有人告诉你。」', ref: '使徒行传 9:5–6', hold: 7.2, talk: [['paul', 0.2, 0.36, 'plead']] },
         { text: '同行的人站在那里，说不出话来，听见声音，却看不见人。', ref: '使徒行传 9:7', hold: 5.4 },
         { text: '扫罗从地上起来，睁开眼睛，竟不能看见什么。有人拉他的手，领他进了大马士革；', ref: '使徒行传 9:8', hold: 6.4 },
         { text: '三日不能看见，也不吃也不喝。', ref: '使徒行传 9:9', hold: 5.4 },
@@ -2072,21 +2112,28 @@
         ring(c, TINT_LIGHT);
         T(c, [
           [0, b => { lv('dmBeam', 1, b); addFX(b, { type: 'pulse', id: 'paul', dur: 2.4 }); flashW(b, 0.3); }],
-          [1.6, b => { pose('paul', 'kneel'); }],
+          // 「主啊！你是谁？」——跪起来，仰面摊手
+          [1.2, b => { pose('paul', 'beg'); }],
+          // 「我就是你所逼迫的耶稣」：他仰望那光
           [3.2, b => { pose('paul', 'gaze'); }],
+          // 「起来！进城去」：他低头领受
           [4.4, b => { pose('paul', 'kneel'); addFX(b, { type: 'pulse', id: 'paul', dur: 2.4 }); sfx(b, 'harp', { soft: true }); }],
+          [5.2, b => { gest('paul', 'bowhead'); }],
           [7, b => { lv('dmBeam', 0, b); }],
-          // 同行的人……看不见人
+          // 同行的人站在那里，说不出话来，听见声音，却看不见人：东张西望，发抖
           [8.6, b => { face('c1', -1); face('c2', 1); }],
+          [9.2, b => { gest('c3', 'tremble'); }],
           [10, b => { face('c1', 1); face('c3', -1); }],
           [11.4, b => { face('c3', 1); face('c2', -1); }],
-          // 他起来，竟不能看见——世界失了颜色
+          [12.2, b => { gest('c1', 'lookaround'); }],
+          // 他起来，竟不能看见——世界失了颜色；两手向前摸索
           [15, b => {
             pose('paul', 'stand'); glowP('paul', 0.04);
             S.bloomId = 'paul'; W.set('dmSight', 0, true); lv('dmBlind', 1, b);
             sfx(b, 'whisper', { soft: true });
           }],
-          [16.4, b => { pose('paul', 'point'); }],
+          [15.6, b => { gest('paul', 'lookaround', { dur: 2.2 }); }],
+          [16.4, b => { pose('paul', 'reach'); }],
           // 有人拉他的手，领他进了大马士革
           ...swapBeats('town', 'damascus', 16.4),
           ...swapBeats('house', 'judas', 16.8),
@@ -2099,14 +2146,16 @@
             walk('c1', hx(0.55, 'judas'), { speed: 0.016 }); walk('paul', hx(0.2, 'judas'), { speed: 0.016 });
             walk('c2', X('fall') + 0.05, { speed: 0.016 }); walk('c3', X('fall') + 0.03, { speed: 0.016 });
           }],
-          // 三日三夜：日头升落，他在屋里跪着
+          // 三日三夜：日头升落，他在屋里跪着；不吃也不喝
           [23.2, b => {
             hands('c1', 'paul', false);
             pose('paul', 'pray'); face('paul', 1);
             ['c1', 'c2', 'c3'].forEach(id => { walk(id, 1.08, { speed: 0.03 }); });
             time(0.3, 2.8, b);
           }],
+          [25, b => { gest('paul', 'bowhead'); }],
           [26.2, b => { time(0.3, 2.4, b); ['c1', 'c2', 'c3'].forEach(id => rm(id)); }],
+          [27.6, b => { gest('paul', 'sigh'); }],
           [28.8, b => { time(0.3, 2.2, b); }],
         ]);
       },
@@ -2115,9 +2164,9 @@
     {
       kind: 'cmd', utter: '你只管去！他是我所拣选的器皿', cmd: 'chmod +sight 扫罗 --by 亚拿尼亚  # 鳞掉下来', ref: '9:15', tint: TINT_SEE, hold: 3.6,
       verse: [
-        { text: '当下，在大马士革有一个门徒，名叫亚拿尼亚。主在异象中对他说：「亚拿尼亚。」他说：「主，我在这里。」', ref: '使徒行传 9:10', hold: 6.4 },
+        { text: '当下，在大马士革有一个门徒，名叫亚拿尼亚。主在异象中对他说：「亚拿尼亚。」他说：「主，我在这里。」', ref: '使徒行传 9:10', hold: 6.4, talk: [['ananias', 0.76, 1, 'calm']] },
         { text: '主对亚拿尼亚说：「你只管去！他是我所拣选的器皿，要在外邦人和君王，并以色列人面前宣扬我的名。」', ref: '使徒行传 9:15', hold: 6.6 },
-        { text: '亚拿尼亚就去了，进入那家，把手按在扫罗身上，说：「兄弟扫罗，在你来的路上向你显现的主，就是耶稣，打发我来，叫你能看见，又被圣灵充满。」', ref: '使徒行传 9:17', hold: 7.8 },
+        { text: '亚拿尼亚就去了，进入那家，把手按在扫罗身上，说：「兄弟扫罗，在你来的路上向你显现的主，就是耶稣，打发我来，叫你能看见，又被圣灵充满。」', ref: '使徒行传 9:17', hold: 7.8, talk: [['ananias', 0.3, 1, 'calm', 'paul']] },
         { text: '扫罗的眼睛上，好像有鳞立刻掉下来，他就能看见。于是起来受了洗；', ref: '使徒行传 9:18', hold: 5.6 },
       ],
       apply(c) {
@@ -2129,17 +2178,23 @@
             lv('dmVision', 1, b);
             sfx(b, 'chime', { soft: true });
           }],
+          // 「亚拿尼亚。」——他抬起头来；「主，我在这里。」——跪下
           [3, b => { pose('ananias', 'gaze'); }],
-          [5, b => { pose('ananias', 'kneel'); }],
+          [4.6, b => { pose('ananias', 'kneel'); }],
+          // 「你只管去！」——听见扫罗的名字，他一惊；随后低头领命
           [7.8, b => { lv('dmVision', 1, b); pose('ananias', 'gaze'); sfx(b, 'harp', { soft: true }); }],
+          [8.8, b => { gest('ananias', 'startle'); }],
           [11.2, b => { pose('ananias', 'bow'); }],
+          [12, b => { gest('ananias', 'nod'); }],
           [12.8, b => {
             lv('dmVision', 0, b);
             pose('ananias', 'stand');
             walk('ananias', hx(0.62, 'judas'), { speed: 0.03 });
           }],
-          [15.8, b => { face('ananias', -1); face('paul', 1); }],
-          [16.6, b => { pose('ananias', 'point'); }],
+          // 进入那家：扫罗跪着，抬起头来
+          [15.8, b => { face('ananias', -1); face('paul', 1); pose('paul', 'kneel'); }],
+          // 把手按在扫罗身上
+          [16.6, b => { pose('ananias', 'reach'); }],
           // 鳞立刻掉下来，他就能看见：颜色自扫罗绽放
           [23.6, b => {
             addFX(b, { type: 'flakes', id: 'paul', dur: 2.4 });
@@ -2149,10 +2204,13 @@
             flashAt(b, 'paul', [255, 244, 220], 30);
             sfx(b, 'harp'); sfx(b, 'bird', { soft: true });
           }],
+          [24.1, b => { gest('paul', 'startle'); }],
           [25, b => { pose('ananias', 'stand'); pose('paul', 'stand'); }],
+          [25.6, b => { gest('paul', 'lookaround', { dur: 1.6 }); }],
           [26.2, b => { pose('paul', 'raise'); }],
-          // 于是起来受了洗
-          [27.8, b => { pose('paul', 'kneel'); propP('ananias', 'jar'); pose('ananias', 'point'); }],
+          // 于是起来受了洗：跪下，亚拿尼亚拿瓦罐把水倒在他头上
+          [27.8, b => { pose('paul', 'kneel'); propP('ananias', 'jar'); pose('ananias', 'stand'); }],
+          [28.2, b => { gest('ananias', 'pour', { dur: 2 }); }],
           [28.4, b => { addFX(b, { type: 'pour', id: 'paul', dur: 1.8 }); sfx(b, 'splash', { soft: true }); }],
           [29.6, b => { lv('dmBlind', 0, b); W.set('dmSight', 1, true); }],
         ]);
@@ -2181,10 +2239,15 @@
             walk('paul', X('preach'), { speed: 0.025 });
             crowd('dam', { n: 6, x0: X('damC')[0], x1: X('damC')[1], label: '大马士革人', v: 0.08, mill: false });
           }],
-          [4.2, b => { rm('ananias'); face('paul', 1); crowdFaceX('dam', X('preach')); pose('paul', 'point'); }],
-          // 在各会堂里宣传耶稣
+          [4.2, b => { rm('ananias'); face('paul', 1); heed('dam', X('preach'), { spread: 1.4 }); pose('paul', 'teach'); }],
+          // 在各会堂里宣传耶稣，说他是神的儿子：凡听见的都惊奇
+          [7.2, b => { say('paul', 5, { how: 'proclaim' }); }],
           [7.4, b => { pose('paul', 'raise'); sfx(b, 'crowd', { soft: true }); }],
+          [8.4, b => { stir('dam', 'startle', { spread: 1.2, share: 0.5 }); }],
+          [9.6, b => { say('dam', 2.4, { how: 'calm', share: 0.5 }); }],
           [10, b => { pose('paul', 'point'); }],
+          // 犹太人商议要杀他：有人摆手不服
+          [11.2, b => { stir('dam', 'refuse', { spread: 1, share: 0.4 }); }],
           // 过了好些日子……昼夜在城门守候
           [12.2, b => {
             time(0.97, 6, b);
@@ -2198,6 +2261,8 @@
             walk('paul', X('win') + 0.004, { speed: 0.03 });
             glowP('paul', 0.4);
           }],
+          // 昼夜在城门守候：守门的人四下张望
+          [15, b => { gest('w1', 'lookaround'); }],
           [16, b => { crowdRm('dam'); }],
           // 门徒就在夜间用筐子把他从城墙上缒下去
           [16.8, b => {
@@ -2210,6 +2275,8 @@
             attach('paul', saulBasket);
           }],
           [18.6, b => { lv('dmBasket', 1, b); sfx(b, 'wind', { soft: true, low: true }); }],
+          [19.6, b => { gest('w2', 'lookaround'); }],
+          [20.4, b => { gest('paul', 'bowhead'); }],
           // 各处的教会都得平安，被建立：天将亮，山上各处的城一盏一盏亮起
           [22.4, b => { time(0.27, 4.5, b); }],
           [22.6, b => { W.set('dmTrail', 0, true); lv('dmTrail', 1, b); sfx(b, 'harp', { soft: true }); }],
@@ -2218,7 +2285,9 @@
             const cst = C(); const p = cst && cst.get('paul'); if (p) { p.nx = X('win') + 0.004; p.ny = null; }
             pose('paul', 'stand', { stop: true });
           }],
-          [24.2, b => {
+          // 落了地，回头望一望城墙，就走了
+          [23.8, b => { face('paul', 1); gest('paul', 'nod'); }],
+          [24.6, b => {
             walk('paul', tall() ? 0.47 : 0.5, { speed: 0.022 });
             lv('dmBasketA', 0, b);
           }],
@@ -2231,9 +2300,9 @@
     {
       kind: 'act', utter: '他就立刻起来了', cmd: 'heal 以尼雅 && wake 大比大  # 约帕', ref: '9:34', tint: [255, 240, 206],
       verse: [
-        { text: '遇见一个人，名叫以尼雅，得了瘫痪，在褥子上躺卧八年。彼得对他说：「以尼雅，耶稣基督医好你了，起来！收拾你的褥子。」他就立刻起来了。', ref: '使徒行传 9:33–34', hold: 7 },
+        { text: '遇见一个人，名叫以尼雅，得了瘫痪，在褥子上躺卧八年。彼得对他说：「以尼雅，耶稣基督医好你了，起来！收拾你的褥子。」他就立刻起来了。', ref: '使徒行传 9:33–34', hold: 7, talk: [['peter', 0.42, 0.88, 'proclaim', 'aeneas']] },
         { text: '在约帕有一个女徒，名叫大比大，翻希腊话就是多加；她广行善事，多施周济。当时，她患病而死……', ref: '使徒行传 9:36–37', hold: 6 },
-        { text: '……众寡妇都站在彼得旁边哭……彼得叫她们都出去，就跪下祷告，转身对着死人说：「大比大，起来！」她就睁开眼睛，见了彼得，便坐起来。', ref: '使徒行传 9:39–40', hold: 7.4 },
+        { text: '……众寡妇都站在彼得旁边哭……彼得叫她们都出去，就跪下祷告，转身对着死人说：「大比大，起来！」她就睁开眼睛，见了彼得，便坐起来。', ref: '使徒行传 9:39–40', hold: 7.4, talk: [['peter', 0.66, 0.8, 'proclaim']] },
         { text: '彼得伸手扶她起来，叫众圣徒和寡妇进去，把多加活活地交给他们。这事传遍了约帕，就有许多人信了主。', ref: '使徒行传 9:41–42', hold: 6.2 },
       ],
       apply(c) {
@@ -2251,14 +2320,16 @@
           }],
           ...swapBeats('sky', 'none', 0),
           ...swapBeats('town', 'joppa', 0.2),
-          [3.4, b => { face('peter', -1); pose('peter', 'point'); }],
+          // 「以尼雅，耶稣基督医好你了，起来！」——彼得向他伸手
+          [3.4, b => { face('peter', -1); pose('peter', 'reach'); }],
           [4.8, b => {
             pose('aeneas', 'stand'); glowP('aeneas', 0.36);
             lv('dmMat', 0, b); propP('aeneas', 'bundle');
             flashAt(b, 'aeneas', [255, 244, 220], 22);
             sfx(b, 'harp');
           }],
-          [6.4, b => { pose('aeneas', 'raise'); pose('peter', 'stand'); }],
+          [5.2, b => { gest('aeneas', 'startle'); }],
+          [6.4, b => { pose('aeneas', 'rejoice'); pose('peter', 'stand'); }],
           [7.4, b => { walk('aeneas', 1.08, { speed: 0.04 }); }],
           // 约帕：大比大的家
           ...swapBeats('house', 'tabitha', 6.8),
@@ -2272,11 +2343,18 @@
           [9.6, b => { rm('aeneas'); }],
           [13.6, b => { walk('peter', hx(1.2, 'tabitha'), { speed: 0.012 }); }],
           [14.8, b => { face('peter', -1); }],
-          // 众寡妇都站在彼得旁边哭，拿多加所做的衣裳给他看
-          [15.2, b => { ['wd1', 'wd2', 'wd3'].forEach(id => { face(id, 1); pose(id, 'carry'); }); }],
+          // 大比大死了：寡妇们哭着，有人叹气
+          [11, b => { gest('wd2', 'sigh'); }],
+          // 众寡妇都站在彼得旁边哭，拿多加所做的衣裳给他看（两手捧出）
+          [15.2, b => { face('wd1', 1); pose('wd1', 'offer'); }],
+          [15.6, b => { face('wd2', 1); pose('wd2', 'offer'); say('wd2', 1.6, { how: 'plead', to: 'peter' }); }],
+          [16, b => { face('wd3', 1); pose('wd3', 'weep'); }],
+          // 彼得叫她们都出去
+          [16.8, b => { gest('peter', 'wave'); }],
           [17.4, b => {
             ['wd1', 'wd2', 'wd3'].forEach((id, i) => walk(id, hx(2.2 + i * 0.45, 'tabitha'), { speed: 0.025 }));
           }],
+          // 就跪下祷告
           [18.2, b => { walk('peter', hx(-0.05, 'tabitha'), { speed: 0.02, pose: 'pray' }); face('peter', -1); }],
           // 「大比大，起来！」
           [21, b => {
@@ -2285,14 +2363,18 @@
             sfx(b, 'harp');
           }],
           [23.4, b => { pose('peter', 'stand'); face('peter', -1); }],
-          [24.2, b => { pose('peter', 'point'); }],
+          // 彼得伸手扶她起来
+          [24.2, b => { pose('peter', 'reach'); }],
           [25.2, b => { pose('tabitha', 'stand'); lv('dmBier', 0, b); }],
+          // 叫众圣徒和寡妇进去：她们欢喜，约帕的人也来了
           [26.2, b => {
             pose('peter', 'stand');
-            ['wd1', 'wd2', 'wd3'].forEach((id, i) => walk(id, hx(0.35 + i * 0.4, 'tabitha'), { speed: 0.025, pose: 'raise' }));
+            ['wd1', 'wd2', 'wd3'].forEach((id, i) => walk(id, hx(0.35 + i * 0.4, 'tabitha'), { speed: 0.025, pose: i === 1 ? 'rejoice' : 'raise' }));
             crowd('jop', { n: 5, x0: X('town')[0] - 0.02, x1: X('town')[0] + 0.12, label: '约帕人', v: 0.06 });
           }],
+          [27.2, b => { gest('peter', 'beckon'); }],
           [28.6, b => { crowdPose('jop', 'raise'); face('tabitha', 1); sfx(b, 'crowd', { soft: true }); }],
+          [29.4, b => { stir('jop', 'clap', { spread: 1, share: 0.4 }); }],
         ]);
       },
     },
@@ -2301,9 +2383,9 @@
       kind: 'call', utter: '哥尼流', cmd: 'call 哥尼流 --at 申初  # 已蒙记念了', ref: '10:3', tint: [255, 244, 222],
       verse: [
         { text: '在凯撒利亚有一个人，名叫哥尼流，是「意大利营」的百夫长。他是个虔诚人，他和全家都敬畏神，多多周济百姓，常常祷告神。', ref: '使徒行传 10:1–2', hold: 7 },
-        { text: '有一天，约在申初，他在异象中明明看见神的一个使者进去，到他那里，说：「哥尼流。」', ref: '使徒行传 10:3', hold: 6 },
-        { text: '哥尼流定睛看他，惊怕说：「主啊，什么事呢？」天使说：「你的祷告和你的周济达到神面前，已蒙记念了。」', ref: '使徒行传 10:4', hold: 7 },
-        { text: '现在你当打发人往约帕去，请那称呼彼得的西门来……就打发他们往约帕去。', ref: '使徒行传 10:5–8', hold: 6 },
+        { text: '有一天，约在申初，他在异象中明明看见神的一个使者进去，到他那里，说：「哥尼流。」', ref: '使徒行传 10:3', hold: 6, talk: [['angel', 0.8, 1, 'calm', 'cornelius']] },
+        { text: '哥尼流定睛看他，惊怕说：「主啊，什么事呢？」天使说：「你的祷告和你的周济达到神面前，已蒙记念了。」', ref: '使徒行传 10:4', hold: 7, talk: [['cornelius', 0.1, 0.32, 'plead'], ['angel', 0.4, 1, 'calm']] },
+        { text: '现在你当打发人往约帕去，请那称呼彼得的西门来……就打发他们往约帕去。', ref: '使徒行传 10:5–8', hold: 6, talk: [['angel', 0, 0.62, 'calm']] },
       ],
       apply(c) {
         ring(c, [255, 244, 222]);
@@ -2322,24 +2404,33 @@
             add('m2', { label: '哥尼流的家人', sex: 'm', x: hx(2.55, 'cornelius'), v: 0.08, facing: -1, robe: ROBE.servant[1], beard: false, glow: 0.12, from: inst(b) ? 'none' : 'fade' });
             add('m3', { label: '虔诚兵', sex: 'm', x: hx(3.05, 'cornelius'), v: 0.04, facing: -1, robe: ROBE.soldier, accent: [190, 160, 100], hair: 'short', beard: false, glow: 0.12, from: inst(b) ? 'none' : 'fade' });
           }],
+          // 常常祷告神
+          [4.6, b => { say('cornelius', 2.6, { how: 'plead' }); }],
           // 神的一个使者进去，到他那里，说：「哥尼流。」
           [8.4, b => {
             add('angel', { label: '神的使者', sex: 'm', x: hx(0.55, 'cornelius'), v: 0.08, facing: -1, angel: true, glow: 1, from: inst(b) ? 'none' : 'light' });
             lv('dmRoom', 1, b);
             sfx(b, 'angel');
           }],
+          // 哥尼流定睛看他
           [10.2, b => { pose('cornelius', 'gaze'); face('cornelius', 1); }],
-          // 惊怕说：「主啊，什么事呢？」
-          [15.4, b => { pose('cornelius', 'bow'); }],
-          [17.2, b => { pose('cornelius', 'kneel'); }],
+          [10.6, b => { gest('cornelius', 'startle'); }],
+          // 惊怕说：「主啊，什么事呢？」——惊退，跪下仰面摊手
+          [15.2, b => { pose('cornelius', 'recoil'); }],
+          [16.2, b => { pose('cornelius', 'beg'); }],
+          // 「你的祷告和你的周济达到神面前，已蒙记念了」：他跪着静听
+          [18.6, b => { pose('cornelius', 'kneel'); }],
           [20, b => { pose('angel', 'point'); face('angel', 1); }],
-          // 打发他们往约帕去
+          [21.6, b => { gest('cornelius', 'bowhead'); }],
+          // 打发他们往约帕去：家人与虔诚兵上前
           [23.6, b => {
             pose('cornelius', 'stand'); face('cornelius', 1);
             walk('m1', hx(1.25, 'cornelius'), { speed: 0.02 }); walk('m2', hx(1.7, 'cornelius'), { speed: 0.02 }); walk('m3', hx(2.2, 'cornelius'), { speed: 0.02 });
           }],
-          [25.4, b => { rm('angel'); lv('dmRoom', 0, b); pose('cornelius', 'point'); }],
-          [26.8, b => { ['m1', 'm2', 'm3'].forEach(id => pose(id, 'bow')); }],
+          // 天使去后，哥尼流把这事都述说给他们听，指着约帕的方向
+          [25.4, b => { rm('angel'); lv('dmRoom', 0, b); pose('cornelius', 'teach'); }],
+          [25.8, b => { say('cornelius', 2.6, { how: 'calm', to: 'm1' }); }],
+          [26.8, b => { ['m1', 'm2', 'm3'].forEach(id => pose(id, 'bow')); pose('cornelius', 'point'); }],
           [28.2, b => {
             pose('cornelius', 'stand');
             ['m1', 'm2', 'm3'].forEach((id, i) => walk(id, 1.08 + i * 0.02, { speed: 0.03 }));
@@ -2353,7 +2444,7 @@
       verse: [
         { text: '彼得约在午正，上房顶去祷告，觉得饿了，想要吃。那家的人正预备饭的时候，彼得魂游象外，', ref: '使徒行传 10:9–10', hold: 6 },
         { text: '看见天开了，有一物降下，好像一块大布，系着四角，缒在地上，里面有地上各样四足的走兽和昆虫，并天上的飞鸟；', ref: '使徒行传 10:11–12', hold: 6.8 },
-        { text: '又有声音向他说：「彼得，起来，宰了吃！」彼得却说：「主啊，这是不可的！凡俗物和不洁净的物，我从来没有吃过。」', ref: '使徒行传 10:13–14', hold: 7 },
+        { text: '又有声音向他说：「彼得，起来，宰了吃！」彼得却说：「主啊，这是不可的！凡俗物和不洁净的物，我从来没有吃过。」', ref: '使徒行传 10:13–14', hold: 7, talk: [['peter', 0.4, 1, 'plead']], gest: [['peter', 'refuse', 0.42]] },
         { text: '第二次有声音向他说：「神所洁净的，你不可当作俗物。」这样一连三次，那物随即收回天上去了。', ref: '使徒行传 10:15–16', hold: 6.6 },
       ],
       apply(c) {
@@ -2376,20 +2467,29 @@
             fly('peter', (G.x + 0.72 * G.u) / W.w, roofY(G) / W.h, { dur: 2.6, pose: 'pray' });
             face('peter', -1);
           }],
-          // 看见天开了，有一物降下
+          // 在房顶上祷告
+          [5.8, b => { say('peter', 1.8, { how: 'plead' }); }],
+          // 看见天开了，有一物降下：他一惊，仰望
           [7.4, b => { lv('dmOpen', 1, b); sfx(b, 'angel', { soft: true }); }],
+          [7.7, b => { gest('peter', 'startle'); }],
           [8.6, b => { lv('dmSheetA', 1, b); W.set('dmSheet', 0, true); lv('dmSheet', 1, b); pose('peter', 'kneel'); sfx(b, 'wings', { soft: true }); }],
-          // 「彼得，起来，宰了吃！」——「主啊，这是不可的！」
+          [11.2, b => { gest('peter', 'reachup', { dur: 2.4 }); }],
+          // 「彼得，起来，宰了吃！」——「主啊，这是不可的！」：他站起来，又惊退，摆手
           [15.4, b => { pose('peter', 'stand'); face('peter', -1); }],
-          [17.2, b => { pose('peter', 'bow'); }],
+          [16.4, b => { pose('peter', 'recoil'); }],
+          [18.1, b => { pose('peter', 'stand'); }],
           [19.2, b => { lv('dmSheet', 0.5, b); }],
           [21, b => { lv('dmSheet', 1, b); pose('peter', 'kneel'); }],
-          // 第二次有声音向他说
+          // 第二次有声音向他说：他低头
           [23.2, b => { lv('dmClean', 1, b); flashW(b, 0.3); sfx(b, 'harp'); }],
+          [24, b => { gest('peter', 'bowhead'); }],
           [24.8, b => { lv('dmSheet', 0.5, b); }],
+          // 这样一连三次
           [26.5, b => { lv('dmSheet', 1, b); }],
-          // 那物随即收回天上去了
+          [27, b => { gest('peter', 'refuse'); }],
+          // 那物随即收回天上去了；他望着，心里猜疑
           [28.2, b => { lv('dmSheet', 0, b); pose('peter', 'gaze'); }],
+          [29.6, b => { gest('peter', 'sigh'); }],
           [30, b => { lv('dmOpen', 0, b); lv('dmSheetA', 0, b); }],
         ]);
       },
@@ -2398,10 +2498,10 @@
     {
       kind: 'cmd', utter: '起来，下去，和他们同往，不要疑惑', cmd: 'cd 凯撒利亚 --with 三个人 --no-doubt', ref: '10:20', tint: TINT_SPIRIT, hold: 3.8,
       verse: [
-        { text: '彼得心里正在猜疑之间……哥尼流所差来的人已经访问到西门的家，站在门外，喊着问：「有称呼彼得的西门住在这里没有？」', ref: '使徒行传 10:17–18', hold: 6.8 },
+        { text: '彼得心里正在猜疑之间……哥尼流所差来的人已经访问到西门的家，站在门外，喊着问：「有称呼彼得的西门住在这里没有？」', ref: '使徒行传 10:17–18', hold: 6.8, talk: [['m1', 0.62, 1, 'proclaim']] },
         { text: '彼得还思想那异象的时候，圣灵向他说：「有三个人来找你。起来，下去，和他们同往，不要疑惑，因为是我差他们来的。」', ref: '使徒行传 10:19–20', hold: 6.8 },
         { text: '次日，起身和他们同去，还有约帕的几个弟兄同着他去；又次日，他们进入凯撒利亚，哥尼流已经请了他的亲属密友等候他们。', ref: '使徒行传 10:23–24', hold: 6.8 },
-        { text: '彼得一进去，哥尼流就迎接他，俯伏在他脚前拜他。彼得却拉他，说：「你起来，我也是人。」', ref: '使徒行传 10:25–26', hold: 5.8 },
+        { text: '彼得一进去，哥尼流就迎接他，俯伏在他脚前拜他。彼得却拉他，说：「你起来，我也是人。」', ref: '使徒行传 10:25–26', hold: 5.8, talk: [['peter', 0.68, 1, 'calm']] },
       ],
       apply(c) {
         ring(c, TINT_SPIRIT);
@@ -2415,10 +2515,13 @@
             add('m3', { label: '哥尼流所差来的人', sex: 'm', x: Math.min(1.09, door + 0.22), v: 0.04, facing: -1, robe: ROBE.soldier, accent: [190, 160, 100], hair: 'short', beard: false, glow: 0.12, from: inst(b) ? 'none' : 'fade' });
             walk('m1', door, { speed: 0.035 }); walk('m2', door + 0.025, { speed: 0.035 }); walk('m3', door + 0.05, { speed: 0.035 });
           }],
-          [4.6, b => { pose('m1', 'point'); sfx(b, 'gate', { soft: true }); }],
-          [6.4, b => { pose('m1', 'stand'); }],
-          // 圣灵向他说
+          // 站在门外叩门，喊着问
+          [4.2, b => { pose('m1', 'knock'); sfx(b, 'gate', { soft: true }); }],
+          [5.4, b => { pose('m1', 'stand'); gest('m2', 'lookaround'); }],
+          // 圣灵向他说：他抬起头来，一惊，点头
           [8.4, b => { pose('peter', 'gaze'); sfx(b, 'wind', { soft: true }); }],
+          [8.8, b => { gest('peter', 'startle'); }],
+          [10.4, b => { gest('peter', 'nod'); }],
           [11.2, b => {
             const G = houseG('simon'), st = stairG(G);
             fly('peter', st.xa / W.w + 0.004, null, { dur: 2.2, pose: 'stand' });
@@ -2428,7 +2531,8 @@
             walk('peter', (st.xa + 0.05 * G.u) / W.w, { speed: 0.02 }); face('peter', 1);
             ['m1', 'm2', 'm3'].forEach(id => face(id, -1));
           }],
-          [14.6, b => { ['m1', 'm2', 'm3'].forEach(id => pose(id, 'bow')); pose('peter', 'point'); }],
+          // 「我就是你们所找的人」：三个人鞠躬
+          [14.6, b => { ['m1', 'm2', 'm3'].forEach(id => pose(id, 'bow')); say('peter', 1.6, { how: 'calm', to: 'm1' }); }],
           // 次日，起身和他们同去
           [16.4, b => {
             pose('peter', 'stand');
@@ -2466,9 +2570,13 @@
             walk('cornelius', hx(P ? 1.5 : -1.6, 'cornelius'), { speed: 0.025, pose: 'fall' });
             crowdFaceX('kin', hx(P ? 2 : -2, 'cornelius'));
           }],
-          [27.4, b => { pose('peter', 'point'); face('peter', 'cornelius'); }],
+          // 亲属密友也都起来望着
+          [25.6, b => { stir('kin', 'startle', { spread: 1, share: 0.4 }); }],
+          // 彼得却拉他（伸手扶他起来）：「你起来，我也是人。」
+          [27, b => { pose('peter', 'reach'); face('peter', 'cornelius'); }],
           [28.2, b => { pose('cornelius', 'stand'); face('cornelius', 'peter'); }],
           [29.2, b => { pose('peter', 'stand'); }],
+          [29.8, b => { gest('cornelius', 'bowhead'); }],
         ]);
       },
     },
@@ -2476,10 +2584,10 @@
     {
       kind: 'act', utter: '圣灵降在一切听道的人身上', cmd: 'sudo pour 圣灵 --on 外邦人  # 与我们一样', ref: '10:44', tint: TINT_SPIRIT, hold: 3.6,
       verse: [
-        { text: '彼得就开口说：「我真看出神是不偏待人。原来，各国中那敬畏主、行义的人都为主所悦纳。」', ref: '使徒行传 10:34–35', hold: 6.4 },
+        { text: '彼得就开口说：「我真看出神是不偏待人。原来，各国中那敬畏主、行义的人都为主所悦纳。」', ref: '使徒行传 10:34–35', hold: 6.4, who: 'peter', how: 'teach' },
         { text: '彼得还说这话的时候，圣灵降在一切听道的人身上。', ref: '使徒行传 10:44', hold: 5.4 },
         { text: '那些奉割礼、和彼得同来的信徒，见圣灵的恩赐也浇在外邦人身上，就都希奇；因听见他们说方言，称赞神为大。', ref: '使徒行传 10:45–46', hold: 7 },
-        { text: '于是彼得说：「这些人既受了圣灵，与我们一样，谁能禁止用水给他们施洗呢？」就吩咐奉耶稣基督的名给他们施洗。', ref: '使徒行传 10:47–48', hold: 7 },
+        { text: '于是彼得说：「这些人既受了圣灵，与我们一样，谁能禁止用水给他们施洗呢？」就吩咐奉耶稣基督的名给他们施洗。', ref: '使徒行传 10:47–48', hold: 7, talk: [['peter', 0.06, 0.64, 'proclaim']] },
       ],
       apply(c) {
         ring(c, TINT_SPIRIT);
@@ -2494,24 +2602,33 @@
             walk('m1', hx(P ? 2.0 : -2.2, 'cornelius'), { speed: 0.02 }); walk('b1', hx(P ? 2.35 : -1.9, 'cornelius'), { speed: 0.02 });
             walk('m2', hx(P ? 3.05 : 2.2, 'cornelius'), { speed: 0.02 }); walk('m3', hx(P ? 3.4 : 2.6, 'cornelius'), { speed: 0.02 }); walk('b2', hx(P ? 2.7 : -2.5, 'cornelius'), { speed: 0.02 });
           }],
-          [2.4, b => { pose('peter', 'point'); face('peter', 1); crowdFaceX('kin', hx(-0.95, 'cornelius')); face('cornelius', -1); }],
-          // 圣灵降在一切听道的人身上：风，头上的火焰
+          // 彼得就开口讲论；众人坐着静听
+          [2.4, b => { pose('peter', 'teach'); face('peter', 1); heed('kin', hx(-0.95, 'cornelius'), { spread: 1.2 }); face('cornelius', -1); }],
+          [5.2, b => { stir('kin', 'nod', { spread: 1.4, share: 0.4 }); }],
+          // 彼得还说这话的时候
+          [7.8, b => { say('peter', 2.6, { how: 'teach' }); }],
+          // 圣灵降在一切听道的人身上：风，头上的火焰；众人一惊，举起手来
           [7.7, b => {
             lv('gale', 0.32, b); lv('dmRoom', 1, b); W.set('dmFlames', 0, true); lv('dmFlames', 1, b);
             sfx(b, 'wind'); sfx(b, 'fire', { soft: true });
           }],
+          [8.2, b => { stir('kin', 'startle', { spread: 1, share: 0.6 }); gest('cornelius', 'startle'); }],
           [9.6, b => { crowdPose('kin', 'raise'); pose('cornelius', 'raise'); crowdGlow('kin', 0.36); glowP('cornelius', 0.4); }],
+          [10.4, b => { pose('peter', 'stand'); gest('peter', 'startle'); }],
           [11.6, b => { lv('gale', 0.1, b); }],
-          // 说方言，称赞神为大
+          // 说方言，称赞神为大；和彼得同来的信徒都希奇
           [14.6, b => {
             addFX(b, { type: 'tongues', dur: 6 });
             ['b1', 'b2', 'm1'].forEach(id => pose(id, 'gaze'));
             sfx(b, 'sing', { soft: true });
           }],
+          [14.9, b => { say('kin', 5.4, { how: 'proclaim' }); say('cornelius', 5, { how: 'proclaim' }); }],
+          [15.4, b => { stir(['b1', 'b2'], 'startle', { spread: 0.8 }); }],
           [18.6, b => { ['b1', 'b2', 'm1'].forEach(id => pose(id, 'raise')); }],
-          // 奉耶稣基督的名给他们施洗
+          // 奉耶稣基督的名给他们施洗：跪下，彼得拿瓦罐倒水
           [22.4, b => { pose('peter', 'stand'); propP('peter', 'jar'); ['b1', 'b2', 'm1'].forEach(id => pose(id, 'stand')); }],
-          [23.4, b => { crowdPose('kin', 'kneel'); pose('cornelius', 'kneel'); pose('peter', 'point'); }],
+          [23.4, b => { crowdPose('kin', 'kneel'); pose('cornelius', 'kneel'); }],
+          [24.4, b => { gest('peter', 'pour', { dur: 2.2 }); }],
           [24.6, b => { addFX(b, { type: 'pour', id: 'cornelius', dur: 2 }); sfx(b, 'splash', { soft: true }); }],
           [26.4, b => { lv('dmFlames', 0.45, b); lv('gale', 0, b); }],
           [28.4, b => { propP('peter', null); pose('peter', 'raise'); }],
@@ -2546,7 +2663,9 @@
             add('cy1', { label: '古利奈人', sex: 'm', x: (X('antA')[1] + X('antB')[0]) / 2, v: 0.02, facing: -1, robe: [118, 110, 132], beard: true, glow: 0.2, from: inst(b) ? 'none' : 'fade' });
             crowdFaceX('ant1', (X('antA')[1] + X('antB')[0]) / 2);
           }],
-          [5.2, b => { pose('cy1', 'point'); }],
+          // 古利奈人向希腊人传讲主耶稣
+          [5.2, b => { pose('cy1', 'teach'); }],
+          [5.6, b => { say('cy1', 6, { how: 'teach' }); }],
           // 主与他们同在，信而归主的人就很多了
           [7.6, b => {
             lv('dmWith', 1, b);
@@ -2554,13 +2673,15 @@
             crowdWalk('ant2', X('antB')[0], X('antB')[1], { speed: 0.035 });
             sfx(b, 'crowd', { soft: true });
           }],
-          [12.4, b => { crowdFaceX('ant2', (X('antA')[1] + X('antB')[0]) / 2); crowdPose('ant1', 'raise'); pose('cy1', 'stand'); }],
+          [12.4, b => { heed('ant2', (X('antA')[1] + X('antB')[0]) / 2, { spread: 1.2 }); crowdPose('ant1', 'raise'); pose('cy1', 'stand'); }],
+          [13.4, b => { stir('ant2', 'nod', { spread: 1.2, share: 0.5 }); }],
           // 巴拿巴去大数找扫罗，带他到安提阿去
           [13, b => {
             add('barnabas', { label: '巴拿巴', sex: 'm', x: 1.06, v: 0.1, facing: -1, robe: ROBE.barnabas, accent: [214, 196, 150], beard: true, glow: 0.3, from: inst(b) ? 'none' : 'fade' });
             walk('barnabas', X('antB')[1] + 0.03, { speed: 0.035 });
           }],
-          [16.4, b => { pose('barnabas', 'raise'); crowdPose('ant1', 'stand'); }],
+          // 巴拿巴劝勉众人，立定心志，恒久靠主
+          [16.4, b => { pose('barnabas', 'bless'); crowdPose('ant1', 'stand'); say('barnabas', 1.4, { how: 'proclaim' }); }],
           [17.6, b => { walk('barnabas', 1.1, { speed: 0.045 }); }],
           [20.8, b => {
             const cst = C(); const bb = cst && cst.get('barnabas'); if (bb) { bb.tx = null; bb.nx = 1.07; }
@@ -2568,13 +2689,17 @@
             addLook('paul', 'paul', { label: '扫罗', x: 1.1, v: 0.12, facing: -1, glow: 0.34, from: inst(b) ? 'none' : 'fade' });
             walk('paul', X('antB')[1] - 0.01, { speed: 0.035 });
           }],
+          // 足有一年的工夫，教训了许多人：扫罗讲论，巴拿巴在旁
+          [22.6, b => { gest('barnabas', 'beckon'); }],
           // 门徒称为「基督徒」
           [23.6, b => {
             crowdPose('ant1', 'raise'); crowdPose('ant2', 'raise');
-            pose('paul', 'point'); face('paul', -1); face('barnabas', -1);
+            pose('paul', 'teach'); face('paul', -1); face('barnabas', -1);
             names(b, '基督徒', ((X('antA')[0] + X('antB')[1]) / 2), X('nameY'), [255, 226, 170]);
             sfx(b, 'angel', { soft: true });
           }],
+          [24, b => { say('paul', 3.6, { how: 'teach' }); }],
+          [25.4, b => { stir(['ant1', 'ant2'], 'clap', { spread: 1.2, share: 0.3 }); }],
           [28, b => { crowdPose('ant1', 'stand'); crowdPose('ant2', 'stand'); pose('paul', 'stand'); }],
         ]);
       },
@@ -2584,9 +2709,9 @@
       kind: 'cmd', utter: '快快起来！', cmd: 'unlock 铁链 铁门 --by 主的使者', ref: '12:7', tint: TINT_NIGHT,
       verse: [
         { text: '于是彼得被囚在监里；教会却为他切切地祷告神。希律将要提他出来的前一夜，彼得被两条铁链锁着，睡在两个兵丁当中……', ref: '使徒行传 12:5–6', hold: 7 },
-        { text: '忽然，有主的一个使者站在旁边，屋里有光照耀，天使拍彼得的肋旁，拍醒了他，说：「快快起来！」那铁链就从他手上脱落下来。', ref: '使徒行传 12:7', hold: 7 },
+        { text: '忽然，有主的一个使者站在旁边，屋里有光照耀，天使拍彼得的肋旁，拍醒了他，说：「快快起来！」那铁链就从他手上脱落下来。', ref: '使徒行传 12:7', hold: 7, talk: [['angel', 0.52, 0.68, 'proclaim', 'peter']] },
         { text: '过了第一层第二层监牢，就来到临街的铁门，那门自己开了。他们出来，走过一条街，天使便离开他去了。', ref: '使徒行传 12:10', hold: 6.4 },
-        { text: '彼得醒悟过来，说：「我现在真知道主差遣他的使者，救我脱离希律的手和犹太百姓一切所盼望的。」', ref: '使徒行传 12:11', hold: 6 },
+        { text: '彼得醒悟过来，说：「我现在真知道主差遣他的使者，救我脱离希律的手和犹太百姓一切所盼望的。」', ref: '使徒行传 12:11', hold: 6, talk: [['peter', 0.12, 1, 'calm']] },
       ],
       apply(c) {
         ring(c, TINT_NIGHT);
@@ -2603,8 +2728,9 @@
           [1.6, b => {
             const k = H2() / W.w * (tall() ? 0.8 : 1);
             addLook('peter', 'peter', { x: pxf('cellX'), v: 0.08, facing: 1, pose: 'lie', glow: 0.5, from: inst(b) ? 'none' : 'fade' });
-            add('g1', { label: '兵丁', sex: 'm', x: pxf('cellX') - 0.8 * k, v: 0.05, facing: 1, robe: ROBE.guard, accent: [170, 150, 110], hair: 'short', beard: true, glow: 0.12, pose: 'sit', from: inst(b) ? 'none' : 'fade' });
-            add('g2', { label: '兵丁', sex: 'm', x: pxf('cellX') + 0.8 * k, v: 0.05, facing: -1, robe: ROBE.guard, accent: [170, 150, 110], hair: 'short', beard: false, glow: 0.12, pose: 'sit', from: inst(b) ? 'none' : 'fade' });
+            // 两个兵丁坐在两边，夜深，打着盹（使者来，他们也不觉得）
+            add('g1', { label: '兵丁', sex: 'm', x: pxf('cellX') - 0.8 * k, v: 0.05, facing: 1, robe: ROBE.guard, accent: [170, 150, 110], hair: 'short', beard: true, glow: 0.12, pose: 'sleep', from: inst(b) ? 'none' : 'fade' });
+            add('g2', { label: '兵丁', sex: 'm', x: pxf('cellX') + 0.8 * k, v: 0.05, facing: -1, robe: ROBE.guard, accent: [170, 150, 110], hair: 'short', beard: false, glow: 0.12, pose: 'sleep', from: inst(b) ? 'none' : 'fade' });
             add('g3', { label: '看守的人', sex: 'm', x: pxf('g3X'), v: 0.04, facing: 1, robe: ROBE.watch, hair: 'short', beard: true, glow: 0.12, pose: 'sit', from: inst(b) ? 'none' : 'fade' });
             add('g4', { label: '看守的人', sex: 'm', x: pxf('g4X'), v: 0.04, facing: 1, robe: ROBE.guard, hair: 'short', beard: true, glow: 0.12, pose: 'sit', from: inst(b) ? 'none' : 'fade' });
           }],
@@ -2614,11 +2740,16 @@
             lv('dmCell', 1, b);
             sfx(b, 'angel');
           }],
-          [9.8, b => { pose('angel', 'point'); }],
-          [10.6, b => { pose('peter', 'sit'); }],
-          // 那铁链就从他手上脱落下来
-          [11.8, b => { lv('dmChainOff', 1, b); sfx(b, 'chains'); pose('angel', 'stand'); }],
-          [12.8, b => { pose('peter', 'stand'); face('peter', 1); }],
+          // 天使弯腰拍彼得的肋旁，拍醒了他
+          [9.6, b => { pose('angel', 'stoop'); }],
+          [10.6, b => { pose('peter', 'sit'); gest('peter', 'startle'); }],
+          // 「快快起来！」那铁链就从他手上脱落下来
+          [11.6, b => { pose('angel', 'point'); }],
+          [11.8, b => { lv('dmChainOff', 1, b); sfx(b, 'chains'); }],
+          [12.8, b => { pose('peter', 'stand'); face('peter', 1); pose('angel', 'stand'); }],
+          // 他以为见了异象：四下张望；看守的人仍旧打盹
+          [13.6, b => { gest('peter', 'lookaround'); }],
+          [14.6, b => { gest('angel', 'beckon'); }],
           // 过了第一层第二层监牢，来到临街的铁门
           [16.4, b => {
             const d = pxf('gateX') - pxf('cellX');
@@ -2644,8 +2775,9 @@
             sfx(b, 'wind', { soft: true });
           }],
           [25, b => { rm('angel'); lv('dmCell', 0, b); }],
-          // 彼得醒悟过来
+          // 彼得醒悟过来：回头望一望，仰望，点头
           [27, b => { face('peter', -1); pose('peter', 'gaze'); }],
+          [28.4, b => { gest('peter', 'nod'); }],
           [29.4, b => { pose('peter', 'stand'); }],
         ]);
       },
@@ -2655,7 +2787,7 @@
       kind: 'act', utter: '神的道日见兴旺，越发广传', cmd: 'broadcast 神的道  # 日见兴旺，越发广传', ref: '12:24', tint: [255, 232, 190], hold: 3.6,
       verse: [
         { text: '想了一想，就往那称呼马可的约翰、他母亲马利亚家去，在那里有好些人聚集祷告。', ref: '使徒行传 12:12', hold: 6 },
-        { text: '彼得敲外门，有一个使女，名叫罗大，出来探听，听得是彼得的声音，就欢喜的顾不得开门，跑进去告诉众人说：「彼得站在门外。」', ref: '使徒行传 12:13–14', hold: 7.2 },
+        { text: '彼得敲外门，有一个使女，名叫罗大，出来探听，听得是彼得的声音，就欢喜的顾不得开门，跑进去告诉众人说：「彼得站在门外。」', ref: '使徒行传 12:13–14', hold: 7.2, talk: [['rhoda', 0.88, 1, 'proclaim']] },
         { text: '彼得不住地敲门。他们开了门，看见他，就甚惊奇。彼得摆手，不要他们作声，就告诉他们主怎样领他出监……', ref: '使徒行传 12:16–17', hold: 6.4 },
         { text: '神的道日见兴旺，越发广传。', ref: '使徒行传 12:24', hold: 6 },
       ],
@@ -2676,37 +2808,50 @@
             crowd('pray', { n: 6, x0: hx(-1.25, 'mary'), x1: hx(0.9, 'mary'), label: '聚集祷告的人', v: 0.06, pose: 'pray', mill: false, glow: 0.2 });
             add('rhoda', { label: '罗大', sex: 'f', x: hx(1.15, 'mary'), v: 0.08, facing: 1, robe: ROBE.rhoda, hair: 'long', glow: 0.24, scale: 0.9, pose: 'kneel', from: inst(b) ? 'none' : 'fade' });
           }],
+          // 在那里有好些人聚集祷告
+          [3.6, b => { say('pray', 3, { how: 'plead', share: 0.5 }); }],
           // 彼得敲外门
-          [7.4, b => { face('peter', -1); pose('peter', 'point'); addFX(b, { type: 'knock', dur: 0.8 }); sfx(b, 'gate', { soft: true }); }],
+          [7.4, b => { face('peter', -1); pose('peter', 'knock'); addFX(b, { type: 'knock', dur: 0.8 }); sfx(b, 'gate', { soft: true }); }],
           [8.3, b => { addFX(b, { type: 'knock', dur: 0.8 }); sfx(b, 'gate', { soft: true }); }],
           [9.2, b => {
             addFX(b, { type: 'knock', dur: 0.8 }); sfx(b, 'gate', { soft: true });
             const Q = gateMG();
             walk('rhoda', (Q.x - 0.45 * Q.u) / W.w, { speed: 0.03 });
           }],
-          // 就欢喜的顾不得开门，跑进去告诉众人
-          [12.6, b => { pose('rhoda', 'raise'); pose('peter', 'stand'); }],
+          // 听得是彼得的声音：一惊；就欢喜的顾不得开门，跑进去告诉众人
+          [11.6, b => { gest('rhoda', 'startle'); }],
+          [12.6, b => { pose('rhoda', 'rejoice'); pose('peter', 'stand'); }],
           [13.6, b => { run('rhoda', hx(0.6, 'mary'), { speed: 0.075 }); sfx(b, 'laugh', { soft: true }); }],
-          [15.4, b => { crowdPose('pray', 'stand'); crowdFaceX('pray', hx(0.6, 'mary')); face('rhoda', -1); pose('rhoda', 'point'); }],
+          // 众人站起来，先后转向她；她指着门外，极力地说；他们却摆手不信
+          [15.4, b => { crowdPose('pray', 'stand'); heed('pray', hx(0.6, 'mary'), { spread: 1 }); face('rhoda', -1); pose('rhoda', 'point'); }],
+          [15.6, b => { say('rhoda', 1.4, { how: 'proclaim' }); }],
+          [16.2, b => { stir('pray', 'refuse', { spread: 0.8, share: 0.4 }); }],
           // 彼得不住地敲门。他们开了门
-          [16.6, b => { pose('peter', 'point'); addFX(b, { type: 'knock', dur: 0.8 }); sfx(b, 'gate', { soft: true }); }],
+          [16.6, b => { pose('peter', 'knock'); addFX(b, { type: 'knock', dur: 0.8 }); sfx(b, 'gate', { soft: true }); }],
           [17.6, b => { lv('dmDoor', 1, b); pose('peter', 'stand'); sfx(b, 'gate'); }],
           [18.4, b => {
             const Q = gateMG();
             crowdWalk('pray', hx(0.9, 'mary'), (Q.x - 0.5 * Q.u) / W.w, { speed: 0.03, pose: 'raise' });
             walk('rhoda', hx(1.35, 'mary'), { speed: 0.03, pose: 'raise' });
           }],
-          [20.2, b => { pose('peter', 'raise'); }],
+          // 看见他，就甚惊奇
+          [18.8, b => { stir('pray', 'startle', { spread: 0.8, share: 0.6 }); }],
+          // 彼得摆手，不要他们作声，就告诉他们主怎样领他出监
+          [20.2, b => { gest('peter', 'wave'); }],
+          [21.4, b => { say('peter', 2.6, { how: 'calm' }); }],
           [22, b => { pose('peter', 'stand'); time(0.29, 9, b); }],
           // 神的道日见兴旺，越发广传：光点亮遍全地
           [23.8, b => {
             W.set('dmLights', 0, true); lv('dmLights', 1, b);
             sfx(b, 'harp'); sfx(b, 'angel', { soft: true });
           }],
+          [24.8, b => { stir('pray', 'reachup', { spread: 1.2, share: 0.4 }); }],
           [26.4, b => {
             const Q = gateMG();
             walk('peter', Math.min(1.08, (Q.x + 3 * Q.u) / W.w), { speed: 0.02 });
           }],
+          // 他往别处去了：众人挥手送他
+          [26.8, b => { stir('pray', 'wave', { spread: 1, share: 0.4 }); }],
         ]);
       },
     },

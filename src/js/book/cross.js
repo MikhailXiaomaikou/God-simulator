@@ -159,7 +159,11 @@
   function crowdWalk(gid, x0, x1, o) { if (hasCrowd(gid)) C().crowdWalk(gid, x0, x1, o); }
   function crowdPose(gid, p) { if (hasCrowd(gid)) C().crowdPose(gid, p); }
   function uncrowd(gid, now) { if (hasCrowd(gid)) C().removeCrowd(gid, now ? { fade: false } : undefined); }
-  function crowdFace(gid, d) { const c = C(); if (!c.crowds || !c.crowds.get) return; const g = c.crowds.get(gid); if (g) g.members.forEach(m => { m.facing = d; if (W.replaying) m.fd = d; }); }
+  function crowdFace(gid, d) { const c = C(); if (!c.crowds || !c.crowds.get) return; const g = c.crowds.get(gid); if (g) g.members.forEach(m => { m._qFace = null; m.facing = d; if (W.replaying) m.fd = d; }); }
+  // 演技（只在看的时候有；重演时引擎自己略过）：说话、一次性的手势、众人先后的反应——本幕一律克制
+  function speak(id, sec, o) { const c = C(); if (c.speak) c.speak(id, sec, o); }
+  function gest(id, kind, o) { const c = C(); if (c.gesture) c.gesture(id, kind, o); }
+  function stir(ids, kind, o) { const c = C(); if (c.react) c.react(ids, kind, o); }
   // 祭司长和长老：几个人（都是男子），一同走、一同喊
   const PRI_ROBES = [[196, 176, 120], [146, 124, 150], [178, 152, 112], [132, 120, 104], [150, 130, 96]];   // 没有近白的：白衣只是耶稣
   const PRI_V = [0.27, 0.35, 0.29, 0.37, 0.31];
@@ -1284,28 +1288,28 @@
   ];
   const V1 = [
     { text: '……他们自己却不进衙门，恐怕染了污秽，<br>不能吃逾越节的筵席。', ref: '约翰福音 18:28', hold: 5.5 },
-    { text: '彼拉多又进了衙门，叫耶稣来，对他说：<br>「你是犹太人的王吗？」', ref: '约翰福音 18:33', hold: 5.5 },
-    { text: '耶稣回答说：「我的国不属这世界；我的国若属这世界，我的臣仆必要争战，<br>使我不至于被交给犹太人。只是我的国不属这世界。」', ref: '约翰福音 18:36', hold: 8 },
+    { text: '彼拉多又进了衙门，叫耶稣来，对他说：<br>「你是犹太人的王吗？」', ref: '约翰福音 18:33', hold: 5.5, talk: [['pilate', 0.55, 1, 'calm', 'jesus']] },
+    { text: '耶稣回答说：「我的国不属这世界；我的国若属这世界，我的臣仆必要争战，<br>使我不至于被交给犹太人。只是我的国不属这世界。」', ref: '约翰福音 18:36', hold: 8, who: 'jesus', to: 'pilate', how: 'calm' },
   ];
   const V2 = [
-    { text: '彼拉多就对他说：「这样，你是王吗？」耶稣回答说：「你说我是王。<br>我为此而生，也为此来到世间，特为给真理作见证。凡属真理的人就听我的话。」', ref: '约翰福音 18:37', hold: 8.5 },
-    { text: '彼拉多说：「真理是什么呢？」说了这话，又出来到犹太人那里，<br>对他们说：「我查不出他有什么罪来。」', ref: '约翰福音 18:38', hold: 7 },
-    { text: '他们又喊着说：「不要这人，要巴拉巴！」<br>这巴拉巴是个强盗。', ref: '约翰福音 18:40', hold: 5.5 },
+    { text: '彼拉多就对他说：「这样，你是王吗？」耶稣回答说：「你说我是王。<br>我为此而生，也为此来到世间，特为给真理作见证。凡属真理的人就听我的话。」', ref: '约翰福音 18:37', hold: 8.5, talk: [['pilate', 0, 0.22, 'calm', 'jesus'], ['jesus', 0.27, 1, 'calm', 'pilate']] },
+    { text: '彼拉多说：「真理是什么呢？」说了这话，又出来到犹太人那里，<br>对他们说：「我查不出他有什么罪来。」', ref: '约翰福音 18:38', hold: 7, talk: [['pilate', 0, 0.26, 'calm', 'jesus'], ['pilate', 0.8, 1, 'proclaim']] },
+    { text: '他们又喊着说：「不要这人，要巴拉巴！」<br>这巴拉巴是个强盗。', ref: '约翰福音 18:40', hold: 5.5, talk: [['people', 0.05, 0.62, 'proclaim']] },
   ];
   const V3 = [
     { text: '当下彼拉多将耶稣鞭打了。<br>兵丁用荆棘编做冠冕戴在他头上，给他穿上紫袍……', ref: '约翰福音 19:1–2', hold: 6.5 },
-    { text: '祭司长和差役看见他，就喊着说：<br>「钉他十字架！钉他十字架！」', ref: '约翰福音 19:6', hold: 5.5 },
-    { text: '彼拉多说：「你不对我说话吗？你岂不知我有权柄释放你，也有权柄把你钉十字架吗？」<br>耶稣回答说：「若不是从上头赐给你的，你就毫无权柄办我……」', ref: '约翰福音 19:10–11', hold: 8.5 },
+    { text: '祭司长和差役看见他，就喊着说：<br>「钉他十字架！钉他十字架！」', ref: '约翰福音 19:6', hold: 5.5, talk: [['people', 0.3, 1, 'proclaim']] },
+    { text: '彼拉多说：「你不对我说话吗？你岂不知我有权柄释放你，也有权柄把你钉十字架吗？」<br>耶稣回答说：「若不是从上头赐给你的，你就毫无权柄办我……」', ref: '约翰福音 19:10–11', hold: 8.5, talk: [['pilate', 0, 0.52, 'proclaim', 'jesus'], ['jesus', 0.56, 1, 'calm', 'pilate']] },
   ];
   const V4 = [
-    { text: '彼拉多见说也无济于事，反要生乱，就拿水在众人面前洗手，<br>说：「流这义人的血，罪不在我，你们承当吧。」', ref: '马太福音 27:24', hold: 7 },
+    { text: '彼拉多见说也无济于事，反要生乱，就拿水在众人面前洗手，<br>说：「流这义人的血，罪不在我，你们承当吧。」', ref: '马太福音 27:24', hold: 7, talk: [['pilate', 0.68, 1, 'proclaim']] },
     { text: '把他们所求的那作乱杀人、下在监里的释放了，<br>把耶稣交给他们，任凭他们的意思行。', ref: '路加福音 23:25', hold: 6.5 },
     { text: '他们就把耶稣带了去。<br>耶稣背着自己的十字架出来……', ref: '约翰福音 19:17', hold: 5.5 },
   ];
   const V5 = [
     { text: '带耶稣去的时候，有一个古利奈人西门，从乡下来；<br>他们就抓住他，把十字架搁在他身上，叫他背着跟随耶稣。', ref: '路加福音 23:26', hold: 7.5 },
     { text: '有许多百姓跟随耶稣，内中有好些妇女；<br>妇女们为他号咷痛哭。', ref: '路加福音 23:27', hold: 5.5 },
-    { text: '耶稣转身对她们说：「耶路撒冷的女子，不要为我哭，<br>当为自己和自己的儿女哭。」', ref: '路加福音 23:28', hold: 6.5 },
+    { text: '耶稣转身对她们说：「耶路撒冷的女子，不要为我哭，<br>当为自己和自己的儿女哭。」', ref: '路加福音 23:28', hold: 6.5, who: 'jesus', to: 'women', how: 'calm' },
   ];
   const V6 = [
     { text: '到了一个地方，名叫「髑髅地」，就在那里把耶稣钉在十字架上，<br>又钉了两个犯人：一个在左边，一个在右边。', ref: '路加福音 23:33', hold: 7.5 },
@@ -1336,7 +1340,7 @@
   ];
   const V12 = [
     { text: '忽然，殿里的幔子从上到下裂为两半，<br>地也震动，磐石也崩裂……', ref: '马太福音 27:51', hold: 6.5 },
-    { text: '百夫长和一同看守耶稣的人看见地震并所经历的事，<br>就极其害怕，说：「这真是神的儿子了！」', ref: '马太福音 27:54', hold: 7 },
+    { text: '百夫长和一同看守耶稣的人看见地震并所经历的事，<br>就极其害怕，说：「这真是神的儿子了！」', ref: '马太福音 27:54', hold: 7, talk: [['centurion', 0.6, 1, 'proclaim']] },
     { text: '聚集观看的众人见了这所成的事都捶着胸回去了。<br>还有一切与耶稣熟识的人，和从加利利跟着他来的妇女们，都远远地站着看这些事。', ref: '路加福音 23:48–49', hold: 8 },
   ];
   // 安葬：先说身体怎样从十字架上取下、安放、封口；末了才是他先前论到这时候的话（约 12:23–24）
@@ -1413,11 +1417,17 @@
         const L = starts(V1);
         T(c, [
           [0, b => { W.goTo(0.32, 10, b.instant); priFace(-1); }],
+          // 他们自己却不进衙门：为首的祭司摆手不进，低声交谈
+          [2.2, () => { gest('pr1', 'refuse'); }],
+          [3.0, () => { speak('pr2', 2.2, { how: 'calm' }); }],
           [L[1] - 0.8, b => {
             add('pilate', { label: '彼拉多', sex: 'm', age: 'adult', x: px('pr'), v: 0.1, facing: 1, robe: ROBE.pilate, accent: ROBE.pilAcc, hair: 'short', beard: false, glow: 0.1, from: from(b) });
             walk('pilate', px('pil'), { speed: 0.012, pose: 'seat' });
           }],
-          [L[1] + 0.6, b => {
+          // 叫耶稣来：坐定，转过来招手；耶稣被带上前
+          [L[1] + 0.8, () => { face('pilate', 'jesus'); }],
+          [L[1] + 1.0, () => { gest('pilate', 'beckon'); }],
+          [L[1] + 1.4, b => {
             walk('jesus', px('jes'), { speed: 0.012 });
             walk('sol1', px('s1'), { speed: 0.012 });
           }],
@@ -1429,6 +1439,7 @@
             sfx(b, 'harp', { soft: true });
           }],
           [L[2] + 6.5, b => { W.set('crBeam', 0, b.instant); glow('jesus', JG); }],
+          [L[2] + 7.2, () => { gest('pilate', 'sigh'); }],
         ]);
       },
     },
@@ -1441,8 +1452,11 @@
         T(c, [
           [0, b => { W.goTo(0.345, 12, b.instant); }],
           [L[0] + 3.5, b => { glow('jesus', 0.6); ringFig(b, 'jesus', [255, 246, 226], 2); sfx(b, 'chime', { soft: true }); }],
-          [L[1] + 1.2, b => { pose('pilate', 'stand'); glow('jesus', JG); }],
-          [L[1] + 2.4, b => { walk('pilate', px('pri0') - 0.01, { speed: 0.014, pose: 'raise' }); face('pilate', 1); }],
+          // 「真理是什么呢？」摆一摆手，起身出去，到犹太人那里
+          [L[1] + 1.0, () => { gest('pilate', 'refuse'); }],
+          [L[1] + 2.0, b => { pose('pilate', 'stand'); glow('jesus', JG); }],
+          [L[1] + 2.4, b => { walk('pilate', px('pri0') - 0.01, { speed: 0.024 }); face('pilate', 1); }],
+          [L[1] + 6.2, () => { stir(priIds(), 'refuse', { share: 0.6, spread: 1 }); }],
           [L[2] - 0.6, b => {
             crowd('people', { n: phone() ? 3 : 5, x0: px('peo0'), x1: px('peo1'), layer: 2, v: 0.5, label: '众人', from: from(b), mill: false });
             crowdFace('people', -1);
@@ -1452,6 +1466,7 @@
             add('barabbas', { label: '巴拉巴', sex: 'm', age: 'adult', x: px('bar'), v: 0.46, facing: 1, robe: ROBE.barabbas, glow: 0.04, pose: 'bow', from: from(b) });
             sfx(b, 'shout'); sfx(b, 'crowd');
           }],
+          [L[2] + 0.6, () => { priIds().forEach(id => speak(id, 3.2, { how: 'proclaim' })); }],
           [L[2] + 4.2, b => { crowdPose('people', 'stand'); priPose('stand'); pose('pilate', 'stand'); }],
         ]);
       },
@@ -1479,8 +1494,11 @@
             walk('sol1', px('s1'), { speed: 0.012 });
           }],
           [L[1] + 1.2, b => { crowdPose('people', 'raise'); priPose('raise'); crowdFace('people', -1); priFace(-1); sfx(b, 'shout'); }],
+          [L[1] + 1.4, () => { priIds().forEach(id => speak(id, 3.6, { how: 'proclaim' })); }],
           [L[1] + 5.2, b => { crowdPose('people', 'stand'); priPose('stand'); }],
-          [L[2] + 0.4, b => { face('pilate', 'jesus'); pose('pilate', 'point'); face('jesus', 'pilate'); }],
+          // 彼拉多对他说：一指；耶稣站着，静静地回答
+          [L[2] + 0.4, b => { face('pilate', 'jesus'); face('jesus', 'pilate'); }],
+          [L[2] + 1.6, () => { gest('pilate', 'point', { dur: 2.6 }); }],
           [L[2] + 4.4, b => {
             W.set('crBeam', 1, b.instant);
             glow('jesus', 0.66);
@@ -1507,22 +1525,32 @@
             walk('pilate', px('basin') - 0.012, { speed: 0.012, pose: 'bow' });
           }],
           // 洗手：水光溅起，一阵又一阵（盆放大了；水光停留更久）
-          [L[0] + 2.4, b => { basinSplash(b, 18); sfx(b, 'splash', { soft: true }); }],
-          [L[0] + 3.6, b => { basinSplash(b, 14); }],
-          [L[0] + 4.8, b => { basinSplash(b, 12); sfx(b, 'splash', { soft: true }); }],
-          [L[0] + 5.6, b => { pose('pilate', 'stand'); face('pilate', 1); }],
+          [L[0] + 2.0, b => { basinSplash(b, 18); sfx(b, 'splash', { soft: true }); }],
+          [L[0] + 3.0, b => { basinSplash(b, 14); }],
+          [L[0] + 4.0, b => { basinSplash(b, 12); sfx(b, 'splash', { soft: true }); }],
+          // 「罪不在我，你们承当吧」：直起身来对众人说，摆手
+          [L[0] + 4.6, b => { pose('pilate', 'stand'); face('pilate', 1); }],
+          [L[0] + 6.2, () => { gest('pilate', 'refuse'); }],
+          // 巴拉巴被释放：他四下看看，走进人群里去了
           [L[1], b => {
-            walk('barabbas', 1.04, { speed: 0.03 });
+            pose('barabbas', 'stand');
             crowdPose('people', 'stand');
             sfx(b, 'crowd', { soft: true });
           }],
+          [L[1] + 0.6, () => { gest('barabbas', 'lookaround', { dur: 2.4 }); }],
+          [L[1] + 3.0, () => { walk('barabbas', 1.04, { speed: 0.045 }); }],
           [L[1] + 2.5, b => { W.set('crBasin', 0, b.instant); walk('pilate', px('pr'), { speed: 0.012 }); }],
-          [L[1] + 5.0, b => { rm('pilate'); rm('barabbas'); }],
+          [L[1] + 5.0, b => { rm('pilate'); }],
+          [L[1] + 6.8, b => { rm('barabbas'); }],
+          // 耶稣背着自己的十字架：先弯下身子担起来，再一步一步往城门外去
           [L[2], b => {
             S.place = 'way'; S.carrier = 'jesus';
             W.set('crCarry', 1, b.instant); W.set('crBear', 0, true);
             face('jesus', -1);
-            walk('jesus', px('out'), { speed: 0.011 });
+            pose('jesus', 'burden');
+          }],
+          [L[2] + 1.6, b => {
+            walk('jesus', px('out'), { speed: 0.011, pose: 'burden' });
             walk('sol1', px('out') + 0.028, { speed: 0.011 });
             walk('sol2', px('out') - 0.03, { speed: 0.011 });
             priWalk(px('out') + 0.075, px('out') + 0.16, { speed: 0.011 });
@@ -1541,19 +1569,25 @@
         T(c, [
           [0, b => {
             W.goTo(0.48, 12, b.instant);
-            walk('jesus', px('way'), { speed: 0.008 });
+            walk('jesus', px('way'), { speed: 0.008, pose: 'burden' });
             add('simon', { label: '古利奈人西门', sex: 'm', age: 'adult', x: px('sim0'), v: 0.18, facing: 1, robe: ROBE.simon, accent: [200, 176, 130], glow: 0.14, from: from(b) });
             walk('simon', px('simT'), { speed: 0.016 });
           }],
+          // 他们就抓住他：兵丁向他招手；西门一惊
+          [2.4, () => { gest('sol1', 'beckon'); }],
+          [3.2, () => { gest('simon', 'startle'); }],
+          // 十字架搁在他身上：西门弯下身子担起来；耶稣直起身来
           [L[0] + 4.2, b => {
             S.carrier = 'simon';
             W.set('crBear', 1, b.instant);
             face('simon', 1);
+            pose('simon', 'burden');
+            pose('jesus', 'stand');
             sfx(b, 'build', { soft: true });
           }],
           [L[0] + 5.4, b => {
             // 西门背着十字架，走到耶稣的后面去（跟随耶稣）
-            walk('simon', px('way') + 0.026, { speed: 0.01 });
+            walk('simon', px('way') + 0.026, { speed: 0.01, pose: 'burden' });
             face('simon', -1);
             follow('sol1', null);
             walk('sol1', px('way') + px('solBack'), { speed: 0.012 });
@@ -1569,6 +1603,8 @@
             glow('jesus', 0.55);
             ringFig(b, 'jesus', [255, 232, 206], 2.2);
           }],
+          // 妇女们听见，先后低下头
+          [L[2] + 3.6, () => { stir('women', 'bowhead', { share: 0.7, spread: 1.6 }); }],
           [L[2] + 5.6, b => { glow('jesus', JG); }],
         ]);
       },
@@ -1622,8 +1658,14 @@
             crossRing(b, [255, 236, 206], 4, 3);
             sfx(b, 'harp');
           }],
+          // 那一片温和的光漫过来：马利亚、约翰低下头
+          [L[2] + 1.6, () => { gest('mary', 'bowhead', { dur: 3 }); }],
+          [L[2] + 2.2, () => { gest('john', 'bowhead', { dur: 3 }); }],
+          // 兵丁就拈阄分他的衣服：跪下来，一个一个地掷
           [L[2] + 4.2, b => { pose('m1', 'kneel'); pose('m3', 'kneel'); sfx(b, 'coins', { soft: true }); }],
+          [L[2] + 5.2, () => { gest('m1', 'cast', { dur: 1.6 }); }],
           [L[2] + 6.0, b => { W.set('crForgive', 0, b.instant); }],
+          [L[2] + 6.4, () => { gest('m3', 'cast', { dur: 1.6 }); }],
         ]);
       },
     },
@@ -1635,12 +1677,18 @@
         const L = starts(V7);
         T(c, [
           [0, b => { W.goTo(0.51, 8, b.instant); }],
+          // 看的人静静站着：两手交握
+          [1.2, () => { pose('mary', 'listen'); pose('magdalene', 'listen'); }],
+          [2.0, () => { crowdPose('galilee', 'listen'); }],
+          // 那一个讥诮：约翰低下头
+          [3.4, () => { gest('john', 'bowhead', { dur: 3 }); }],
           [L[1] + 3.0, b => { W.set('crTurn', 1, b.instant); }],
           [L[2] + 1.2, b => {
             fxAdd({ type: 'thread', to: 'thief', dur: 5 });
             sfx(b, 'harp', { soft: true });
           }],
           [L[2] + 2.8, b => { S.thief = true; W.set('crThief', 1, b.instant); }],
+          [L[2] + 4.0, () => { gest('magdalene', 'bowhead', { dur: 3 }); }],
         ]);
       },
     },
@@ -1665,7 +1713,11 @@
             glow('mary', 0.45);
             sfx(b, 'harp', { soft: true });
           }],
+          // 母亲向十字架上的儿子举起手来
+          [L[1] + 3.4, () => { gest('mary', 'reachup', { dur: 3.2 }); }],
           [L[2] + 1.0, b => { face('john', 'mary'); face('mary', 'john'); pose('mary', 'stand'); pose('john', 'stand'); }],
+          // 「看，你的母亲！」：约翰点头，接她过来
+          [L[2] + 1.6, () => { gest('john', 'nod'); }],
           [L[2] + 2.2, b => {
             S.mother = true;
             hold('john', 'mary', true);
@@ -1691,12 +1743,18 @@
             W.set('clouds', 0.9, b.instant);
             sfx(b, 'wind', { far: true });
           }],
+          // 遍地都黑暗了：看的人四下张望
+          [1.8, () => { gest('centurion', 'lookaround'); stir('people', 'lookaround', { share: 0.4, spread: 1.4 }); }],
+          [2.6, () => { gest('pr2', 'lookaround'); }],
           [3.5, b => { W.setPop('bird', 0, W.w * 0.6, W.h * 0.3, b.instant); if (!b.instant) GS.book.resync(); crowdPose('galilee', 'weep'); }],
+          // 大声喊着：远处的人一惊；有的议论「这个人呼叫以利亚呢」（27:47）
           [L[1] + 0.6, b => {
             W.set('crLife', 0.6, b.instant);
             pose('mary', 'weep', { weep: true });
             sfx(b, 'wind');
           }],
+          [L[1] + 1.0, () => { stir('people', 'startle', { share: 0.5, spread: 0.8 }); gest('john', 'startle'); }],
+          [L[1] + 3.4, () => { speak('people', 3, { how: 'calm', share: 0.4 }); }],
           [L[1] + 5.0, b => { crossRing(b, [200, 206, 230], 3.5, 3); }],
         ]);
       },
@@ -1709,6 +1767,8 @@
         const L = starts(V10);
         T(c, [
           [0, b => { W.goTo(0.63, 6, b.instant); }],
+          // 拿海绒蘸满了醋：先弯腰蘸，再绑在牛膝草上举起
+          [L[1] - 0.6, () => { gest('m2', 'stoopdown', { dur: 1.6 }); }],
           [L[1] + 1.2, b => { pose('m2', 'raise'); W.set('crReed', 1, b.instant); }],
           [L[1] + 5.0, b => { W.set('crReed', 0, b.instant); }],
           [L[1] + 6.2, b => { pose('m2', 'stand'); }],
@@ -1741,7 +1801,10 @@
         T(c, [
           [0.4, b => { W.set('crAbove', 1, b.instant); sfx(b, 'wind', { soft: true, far: true }); }],
           [2.6, b => { W.set('crSpirit', 1, b.instant); W.set('crLife', 0, b.instant); }],
-          [5.2, b => { pose('mary', 'kneel'); pose('john', 'weep', { weep: false }); pose('magdalene', 'kneel'); crowdPose('galilee', 'kneel'); }],
+          // 气就断了：马利亚跪下，抹大拉的马利亚跪下，约翰掩面
+          [5.2, b => { pose('mary', 'kneel'); crowdPose('galilee', 'kneel'); }],
+          [5.8, b => { pose('magdalene', 'kneel'); }],
+          [6.4, b => { pose('john', 'weep', { weep: false }); }],
           [8.6, b => { S.spirit = true; W.set('crAbove', 0, b.instant); sfx(b, 'bell', { soft: true, far: true }); }],
         ]);
       },
@@ -1762,6 +1825,9 @@
             const TG = temGeo(PH(2));
             sparkAt(b, TG.cx, TG.base - TG.dh * 0.8, 24, [255, 236, 190], 10);
           }],
+          // 地震动：众人一惊，兵丁一惊；百夫长往后一退
+          [0.5, () => { stir('people', 'startle', { share: 0.7, spread: 0.7 }); stir(priIds(), 'startle', { spread: 0.7 }); gest('m2', 'startle'); }],
+          [0.8, () => { gest('centurion', 'startle'); gest('magdalene', 'tremble'); }],
           [1.6, b => {
             W.set('crCrack', 1, b.instant);
             if (!b.instant) W.shake = Math.max(W.shake, 0.7);
@@ -1769,13 +1835,19 @@
             const T0 = tombGeo();
             dustAt(b, T0.cx, T0.g - T0.H * 0.5, 18, [196, 180, 150], 16);
           }],
+          [2.0, () => { pose('centurion', 'recoil'); }],
           [2.6, b => { W.goTo(0.66, 14, b.instant); W.set('gloom', 0.26, b.instant); W.set('storm', 0.32, b.instant); W.set('clouds', 0.6, b.instant); }],
+          // 极其害怕：百夫长发抖，跪下（说「这真是神的儿子了」）；一同看守的兵丁也都跪下
+          [L[1] + 0.8, () => { gest('centurion', 'tremble'); }],
           [L[1] + 2.0, b => {
             pose('centurion', 'kneel');
             pose('m1', 'kneel'); pose('m3', 'kneel');
             ringFig(b, 'centurion', [255, 236, 200], 2);
           }],
-          [L[2] + 0.5, b => {
+          [L[1] + 2.6, () => { pose('m2', 'kneel'); }],
+          // 众人都捶着胸回去了
+          [L[2] + 0.2, () => { stir('people', 'beat', { share: 0.8, spread: 1 }); }],
+          [L[2] + 1.6, b => {
             crowdWalk('people', 1.02, 1.12, { speed: 0.016 });
             priWalk(1.0, 1.1, { speed: 0.016 });
             sfx(b, 'weep', { soft: true, far: true });
@@ -1817,6 +1889,7 @@
             const T0 = tombGeo();
             if (!b.instant) fxAdd({ type: 'pulse', x: T0.dx - 0.3 * T0.ph, y: fieldY(T0.dx / W.w, 0.2), r: T0.ph * 1.2, dur: 2.4 });
           }],
+          [3.0, () => { gest('magdalene', 'sigh', { dur: 3 }); }],
           // 「求耶稣的身体；彼拉多就吩咐给他」：身体从十字架上取下；约瑟与尼哥德慕在各各他脚下，抬着裹好的细麻布
           [L[0] + 3.4, b => { W.set('crBodies', 0, b.instant); }],
           [L[0] + 4.6, b => {
@@ -1832,6 +1905,7 @@
             toDoor('nico', px('nicApp'), d() + 0.037);
           }],
           [L[1] + 5.9, b => { S.bundle = 'laid'; W.set('crBundle', 0, b.instant); pose('joseph', 'bow'); pose('nico', 'bow'); }],
+          // 把大石头滚到墓门口：约瑟两手推着，一步一步
           [L[1] + 7.1, b => {
             S.stone = true;
             W.set('crStone', 1, b.instant);
@@ -1839,6 +1913,8 @@
             pose('nico', 'stand');
             sfx(b, 'collapse', { soft: true });
           }],
+          [L[1] + 7.3, () => { gest('joseph', 'give', { dur: 3.4 }); }],
+          [L[1] + 8.0, () => { gest('nico', 'bowhead', { dur: 3 }); gest('magdalene', 'bowhead', { dur: 3 }); }],
           // 「一粒麦子不落在地里死了……若是死了，就结出许多子粒来」：封了的坟墓前，园子里的金光一粒一粒多起来
           [L[2] + 1.0, b => {
             W.set('crSow', 1, b.instant);
@@ -1846,6 +1922,7 @@
             if (!b.instant) fxAdd({ type: 'pulse', x: T0.dx, y: fieldY(T0.dx / W.w, 0.2), r: T0.ph * 2, dur: 3 });
             sfx(b, 'harp', { soft: true });
           }],
+          [L[2] + 0.4, () => { gest('joseph', 'bowhead'); }],
           [L[2] + 1.6, b => { walk('joseph', 1.04, { speed: 0.02 }); walk('nico', 1.05, { speed: 0.02 }); }],
           [L[2] + 5.0, b => { const T0 = tombGeo(); if (!b.instant) fxAdd({ type: 'pulse', x: T0.dx - 0.6 * T0.ph, y: fieldY(T0.dx / W.w, 0.3), r: T0.ph * 2.4, dur: 3 }); }],
         ]);
@@ -1867,6 +1944,7 @@
             walk('omary', px('omSit'), { speed: 0.01, pose: 'sit' });
             face('magdalene', 1); face('omary', 1);
           }],
+          [2.6, () => { gest('omary', 'bowhead', { dur: 3 }); }],
           // 话一出口：殿里裂开的幔子后，至圣所的光轻轻一亮
           [0.5, b => {
             W.set('crHoly', 1.15, b.instant);
@@ -1890,12 +1968,14 @@
             walk('guard2', d + (1.55 * ph * BK()) / W.w, { speed: 0.012 });
           }],
           [L[2], b => { rm('magdalene'); rm('omary'); }],
+          // 封了石头：看守的兵走到墓前，伸手按一按封条，然后转身把守
           [L[2] + 2.4, b => {
             S.sealed = true;
             W.set('crSeal', 1, b.instant);
             sfx(b, 'seal');
-            face('guard1', 1); face('guard2', 1);
           }],
+          [L[2] + 3.0, () => { gest('guard1', 'touch'); }],
+          [L[2] + 4.8, () => { face('guard1', 1); face('guard2', 1); }],
           // 「你们拆毁这殿，我三日内要再建立起来……但耶稣这话是以他的身体为殿」：一道弧光从裂开的幔子落到封了的石头上
           [L[3] + 0.6, b => {
             if (!b.instant) fxAdd({ type: 'arc', dur: 6.5 });

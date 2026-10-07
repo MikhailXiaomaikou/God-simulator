@@ -167,6 +167,11 @@
   const attach = (id, fn) => { const c = C(); if (c.attach && fig(id)) c.attach(id, fn || null); };
   const ride = (id, m) => { const c = C(); if (c.ride && fig(id)) c.ride(id, m); };
   const follow = (id, o, dx) => { const c = C(); if (c.follow && fig(id)) c.follow(id, o, dx); };
+  // 演技（只在看的时候有；重演时引擎自己略过，或立即到位）：说话、一次性的手势、众人转向、众人先后的反应
+  function speak(id, sec, o) { const c = C(); if (c.speak) c.speak(id, sec, o); }
+  function gest(id, kind, o) { const c = C(); if (c.gesture) c.gesture(id, kind, o); }
+  function heed(ids, target, o) { const c = C(); if (c.attend) c.attend(ids, target, o); }
+  function stir(ids, kind, o) { const c = C(); if (c.react) c.react(ids, kind, o); }
   function animal(id, o) {
     const c = C();
     if (!c || !c.animal) return null;
@@ -189,6 +194,7 @@
   function cface(gid, d) {
     for (const m of cmembers(gid)) {
       const dd = d === 1 || d === -1 ? d : (d >= (m.tx != null ? m.tx : m.nx) ? 1 : -1);
+      m._qFace = null;      // 先前 heed() 排下、尚未转过去的，作废（免得它迟一步又转回去）
       if (m.tx != null && !W.replaying) { m.faceEnd = dd; continue; }
       m.faceEnd = null;
       m.facing = dd;
@@ -2000,11 +2006,12 @@
     {
       kind: 'ask', utter: '你们说我是谁？', cmd: 'whoami --asked-by 门徒  # 你是基督，是永生神的儿子', ref: '16:15', tint: [240, 232, 214],
       verse: [
-        { text: '耶稣到了凯撒利亚‧腓立比的境内，就问门徒说：<br>「人说我人子是谁？」', ref: '马太福音 16:13', hold: 6 },
-        { text: '他们说：「有人说是施洗的约翰；有人说是以利亚；<br>又有人说是耶利米或是先知里的一位。」', ref: '马太福音 16:14', hold: 6.5 },
-        { text: '耶稣说：「你们说我是谁？」<br>西门‧彼得回答说：「你是基督，是永生神的儿子。」', ref: '马太福音 16:15–16', hold: 7.5 },
+        { text: '耶稣到了凯撒利亚‧腓立比的境内，就问门徒说：<br>「人说我人子是谁？」', ref: '马太福音 16:13', hold: 6, talk: [['jesus', 0.3, 1, 'calm', 'disc']] },
+        { text: '他们说：「有人说是施洗的约翰；有人说是以利亚；<br>又有人说是耶利米或是先知里的一位。」', ref: '马太福音 16:14', hold: 6.5, talk: [['james', 0, 0.36, 'calm', 'jesus'], ['disc', 0.3, 0.7], ['john', 0.64, 1, 'calm', 'jesus']] },
+        { text: '耶稣说：「你们说我是谁？」<br>西门‧彼得回答说：「你是基督，是永生神的儿子。」', ref: '马太福音 16:15–16', hold: 7.5, talk: [['jesus', 0, 0.3, 'calm', 'peter'], ['peter', 0.38, 1, 'proclaim', 'jesus']] },
       ],
       apply(c) {
+        // 经文各行的开始：0 · 7.3 · 15.1（共 23.9 秒）
         T(c, [
           [0, b => {
             W.goTo(0.38, 6, b.instant);
@@ -2013,15 +2020,19 @@
             cface('disc', -1);
             for (const id of THREE) face(id, -1);
           }],
-          [1.2, () => { pose('james', 'point'); cface('disc', 1); }],
-          // 人的猜测：天上淡淡的名字，一个一个散去
+          // 一路走着，耶稣站住问话：门徒都转过来听；约翰两手交握静听
+          [1.2, () => { heed('disc', 'jesus', { spread: 1.4 }); pose('john', 'listen'); }],
+          [4.4, () => { stir('disc', 'lookaround', { share: 0.45, spread: 1.6 }); gest('peter', 'bowhead'); }],
+          // 人的猜测：天上淡淡的名字，一个一个散去（雅各先说，众人七嘴八舌，约翰末了）
           [7.4, b => {
             const gy = tall() ? 0.36 : 0.2;
             glyphs(b, '施洗的约翰', [214, 206, 190], { x: tall() ? 0.6 : 0.64, y: gy, hold: 3, quiet: true });
             sfx(b, 'crowd', { soft: true, far: true });
+            gest('james', 'point');
           }],
-          [9, b => { glyphs(b, '以利亚', [214, 206, 190], { x: tall() ? 0.42 : 0.86, y: tall() ? 0.45 : 0.3, hold: 3, quiet: true }); }],
+          [9, b => { glyphs(b, '以利亚', [214, 206, 190], { x: tall() ? 0.42 : 0.86, y: tall() ? 0.45 : 0.3, hold: 3, quiet: true }); stir('disc', 'nod', { share: 0.4 }); }],
           [10.6, b => { glyphs(b, '耶利米', [214, 206, 190], { x: tall() ? 0.72 : 0.72, y: tall() ? 0.53 : 0.38, hold: 3, quiet: true }); pose('james', 'stand'); cface('disc', -1); }],
+          [13.2, () => { pose('john', 'stand'); gest('jesus', 'nod'); }],
           // 彼得回答：他走到耶稣面前跪下；一道光自上而下落在耶稣身上
           [15, () => { walk('peter', X('j1') + 0.028, { speed: 0.03, pose: 'kneel' }); }],
           [17.2, b => {
@@ -2029,7 +2040,11 @@
             face('jesus', 1);
             sfx(b, 'harp', { soft: true });
           }],
-          [20.5, () => { cpose('disc', 'kneel'); }],
+          // 光落下：众门徒先后一惊，然后跪下；雅各、约翰站着，低下头
+          [17.8, () => { stir('disc', 'startle', { share: 0.5, spread: 0.9 }); gest('james', 'startle'); }],
+          [20.5, () => { cpose('disc', 'kneel'); gest('john', 'bowhead'); }],
+          [21.4, () => { gest('james', 'bowhead'); }],
+          [22.9, () => { gest('jesus', 'nod'); }],
           [23, b => { W.set('glReveal', 0.25, b.instant); }],
         ]);
       },
@@ -2039,30 +2054,41 @@
     {
       kind: 'promise', utter: '我要把我的教会建造在这磐石上', cmd: 'build 教会 --on 磐石  # 阴间的权柄不能胜过他', ref: '16:18', tint: [255, 226, 168],
       verse: [
-        { text: '耶稣对他说：「西门‧巴‧约拿，你是有福的！<br>因为这不是属血肉的指示你的，乃是我在天上的父指示的。', ref: '马太福音 16:17', hold: 7 },
-        { text: '我还告诉你，你是彼得，我要把我的教会建造在这磐石上；<br>阴间的权柄不能胜过他。」', ref: '马太福音 16:18', hold: 7 },
-        { text: '于是耶稣对门徒说：「若有人要跟从我，<br>就当舍己，背起他的十字架来跟从我。」', ref: '马太福音 16:24', hold: 6.5 },
+        { text: '耶稣对他说：「西门‧巴‧约拿，你是有福的！<br>因为这不是属血肉的指示你的，乃是我在天上的父指示的。', ref: '马太福音 16:17', hold: 7, who: 'jesus', to: 'peter', how: 'calm' },
+        { text: '我还告诉你，你是彼得，我要把我的教会建造在这磐石上；<br>阴间的权柄不能胜过他。」', ref: '马太福音 16:18', hold: 7, who: 'jesus', to: 'peter', how: 'proclaim' },
+        { text: '于是耶稣对门徒说：「若有人要跟从我，<br>就当舍己，背起他的十字架来跟从我。」', ref: '马太福音 16:24', hold: 6.5, who: 'jesus', to: 'disc', how: 'teach' },
       ],
       apply(c) {
+        // 经文各行的开始：0 · 8.3 · 16.6（共 24.4 秒）
         T(c, [
           [0, b => {
             W.goTo(0.44, 10, b.instant);
             W.set('glReveal', 0, b.instant);
             pose('peter', 'stand'); cpose('disc', 'stand');
           }],
-          [2, () => { walk('peter', X('rock') + 0.035, { speed: 0.025 }); }],
-          [5, () => { face('peter', 1); walk('jesus', X('rock') + 0.07, { speed: 0.02 }); }],
-          // 磐石发光，洞口的阴影退去
+          // 「你是有福的」：耶稣举手为他祝福，彼得低下头
+          [1.0, () => { gest('jesus', 'bless'); }],
+          [1.8, () => { gest('peter', 'bowhead'); }],
+          [3.2, () => { walk('peter', X('rock') + 0.035, { speed: 0.025 }); }],
+          [5, () => { walk('jesus', X('rock') + 0.07, { speed: 0.02 }); }],
+          [6.9, () => { face('peter', 1); }],
+          // 「这磐石」：耶稣一指；磐石发光，洞口的阴影退去；彼得回头看那磐石
           [8.3, b => {
             W.set('glRockLit', 1, b.instant); W.set('glGrotto', 0, b.instant);
             if (!b.instant) { const G = rockGeo(); flash(b, { type: 'flash', x: G.cx, y: G.base[0][1] - G.h * 0.5, r: G.w * 1.1, a: 0.6, dur: 2.4 }); }
             sfx(b, 'build', { soft: true }); sfx(b, 'harp');
+            gest('jesus', 'point', { dur: 2.6 });
           }],
+          [8.9, () => { stir('disc', 'startle', { share: 0.4, spread: 0.8 }); gest('john', 'startle'); }],
+          [9.4, () => { face('peter', -1); }],
           // 光沿着地流向远方，一处一处点亮
           [10.5, b => { W.set('glChurchA', 1, b.instant); W.set('glChurch', 1, b.instant); sfx(b, 'stars', { soft: true }); }],
-          [16.6, () => { face('jesus', 1); cwalk('disc', X('rock') + 0.1, X('c11') - 0.04, { speed: 0.02 }); walk('john', X('rock') + 0.13, { speed: 0.02 }); walk('james', X('rock') + 0.16, { speed: 0.02 }); }],
+          [13.2, () => { face('peter', 1); pose('peter', 'listen'); }],
+          [16.6, () => { face('jesus', 1); pose('jesus', 'teach'); cwalk('disc', X('rock') + 0.1, X('c11') - 0.04, { speed: 0.02 }); walk('john', X('rock') + 0.13, { speed: 0.02 }); walk('james', X('rock') + 0.16, { speed: 0.02 }); }],
           [20, () => { cface('disc', -1); face('john', -1); face('james', -1); }],
+          [21.2, () => { stir('disc', 'nod', { share: 0.45, spread: 1.6 }); gest('james', 'nod'); }],
           [22.5, b => { W.set('glChurchA', 0, b.instant); W.set('glRockLit', 0.35, b.instant); }],
+          [23.4, () => { pose('jesus', 'stand'); pose('peter', 'stand'); gest('john', 'bowhead'); }],
         ]);
       },
     },
@@ -2073,9 +2099,10 @@
       verse: [
         { text: '过了六天，耶稣带着彼得、雅各，和雅各的兄弟约翰，暗暗地上了高山，<br>就在他们面前变了形象，脸面明亮如日头，衣裳洁白如光。', ref: '马太福音 17:1–2', hold: 9 },
         { text: '忽然，有摩西、以利亚向他们显现，同耶稣说话。', ref: '马太福音 17:3', hold: 5.5 },
-        { text: '彼得对耶稣说：「主啊，我们在这里真好！<br>你若愿意，我就在这里搭三座棚，一座为你，一座为摩西，一座为以利亚。」', ref: '马太福音 17:4', hold: 7.5 },
+        { text: '彼得对耶稣说：「主啊，我们在这里真好！<br>你若愿意，我就在这里搭三座棚，一座为你，一座为摩西，一座为以利亚。」', ref: '马太福音 17:4', hold: 7.5, who: 'peter', to: 'jesus', how: 'proclaim' },
       ],
       apply(c) {
+        // 经文各行的开始：0 · 10.3 · 17.1（共 25.9 秒）
         T(c, [
           [0, b => {
             W.goTo(0.745, 7, b.instant);
@@ -2100,14 +2127,29 @@
             if (!b.instant) { const p = figPt('jesus', 0.55); if (p) { flash(b, { type: 'flash', x: p[0], y: p[1], r: PH(2) * 5, a: 0.9, dur: 2.6, spr: 'white' }); ringAt(b, p[0], p[1], [255, 255, 250], M() * 0.18, 2.6); } }
             sfx(b, 'angel');
           }],
+          // 光太亮：三个门徒先后以臂遮眼，过一会儿才放下手来看
+          [8.5, () => { pose('peter', 'shield'); }],
+          [8.8, () => { pose('john', 'shield'); }],
+          [9.2, () => { pose('james', 'shield'); }],
           [11.2, b => {
             add('moses', { label: '摩西', angel: true, x: uX(X('moU')), layer: 2, facing: 1, glow: 0.9, from: 'light', prop: null });
             add('elijah', { label: '以利亚', angel: true, x: uX(X('elU')), layer: 2, facing: -1, glow: 0.9, from: 'light', prop: null });
             onMount('moses'); onMount('elijah');
             sfx(b, 'harp', { soft: true });
           }],
+          [12, () => { pose('peter', 'stand'); pose('john', 'stand'); }],
+          [12.5, () => { pose('james', 'stand'); gest('peter', 'startle'); }],
+          // 同耶稣说话：摩西先说，耶稣转向以利亚，以利亚回答
+          [12.6, () => { speak('moses', 2.4, { to: 'jesus' }); }],
+          [13.4, () => { gest('john', 'startle'); }],
           [14, () => { face('jesus', 1); }],
-          [18.5, () => { pose('peter', 'raise'); }],
+          [14.2, () => { speak('jesus', 1.6, { to: 'elijah' }); gest('james', 'tremble'); }],
+          [15.4, () => { speak('elijah', 1.8, { to: 'jesus' }); }],
+          // 彼得说话的时候，耶稣转过来听他（太 17:4）；彼得两手捧出，像要动手去搭棚
+          [17, () => { face('jesus', -1); }],
+          [18.3, () => { pose('peter', 'offer'); }],
+          [20.6, () => { gest('john', 'tremble'); }],
+          [21.8, () => { pose('peter', 'stand'); gest('peter', 'point'); }],
           [23, () => { pose('peter', 'kneel'); pose('james', 'kneel'); pose('john', 'kneel'); }],
         ]);
       },
@@ -2121,6 +2163,7 @@
         { text: '门徒听见，就俯伏在地，极其害怕。', ref: '马太福音 17:6', hold: 5.5 },
       ],
       apply(c) {
+        // 经文各行的开始：0 · 10.3（共 17.1 秒）。云里的声音是父的：不标说话的人
         T(c, [
           [0, b => {
             W.goTo(0.805, 9, b.instant);
@@ -2134,12 +2177,23 @@
             if (!b.instant) { const cc = cloudC(); flash(b, { type: 'flash', x: cc[0], y: cc[1], r: M() * 0.4, a: 0.6, dur: 3.5, spr: 'white' }); }
             sfx(b, 'angel');
           }],
+          // 声音从云彩里出来：三个门徒先后一惊；摩西、以利亚低头；耶稣仰望
+          [2.6, () => { gest('peter', 'startle'); pose('moses', 'bow'); }],
+          [2.9, () => { gest('john', 'startle'); pose('elijah', 'bow'); }],
+          [3.2, () => { gest('james', 'startle'); pose('jesus', 'gaze'); }],
+          [5.6, () => { gest('peter', 'tremble', { dur: 3 }); }],
+          [6.4, () => { gest('james', 'tremble', { dur: 3 }); gest('john', 'tremble', { dur: 3 }); }],
+          [9.4, () => { pose('jesus', 'stand'); }],
           [10.4, b => {
             // 只有山上的三个门徒俯伏（其余的在山脚下坐着等候）
-            for (const id of THREE) pose(id, 'fall');
+            pose('peter', 'fall');
             sfx(b, 'quake', { soft: true, far: true });
           }],
-          [13, b => { W.set('glVoice', 0.3, b.instant); }],
+          [10.8, () => { pose('john', 'fall'); }],
+          [11.2, () => { pose('james', 'fall'); }],
+          // 俯伏在地，极其害怕
+          [12.6, () => { gest('peter', 'tremble', { dur: 3.4 }); gest('john', 'tremble', { dur: 3.4 }); }],
+          [13, b => { W.set('glVoice', 0.3, b.instant); gest('james', 'tremble', { dur: 3.2 }); }],
         ]);
       },
     },
@@ -2148,27 +2202,39 @@
     {
       kind: 'cmd', utter: '起来，不要害怕！', cmd: 'touch 门徒 && stand --fear 0', ref: '17:7', tint: [255, 242, 214],
       verse: [
-        { text: '耶稣进前来，摸他们，说：「起来，不要害怕！」', ref: '马太福音 17:7', hold: 5.5 },
+        { text: '耶稣进前来，摸他们，说：「起来，不要害怕！」', ref: '马太福音 17:7', hold: 5.5, talk: [['jesus', 0.42, 1, 'calm']] },
         { text: '他们举目不见一人，只见耶稣在那里。', ref: '马太福音 17:8', hold: 5.5 },
-        { text: '下山的时候，耶稣吩咐他们说：<br>「人子还没有从死里复活，你们不要将所看见的告诉人。」', ref: '马太福音 17:9', hold: 7 },
+        { text: '下山的时候，耶稣吩咐他们说：<br>「人子还没有从死里复活，你们不要将所看见的告诉人。」', ref: '马太福音 17:9', hold: 7, talk: [['jesus', 0.3, 1, 'calm']] },
       ],
       apply(c) {
+        // 经文各行的开始：0 · 6.8 · 13.6（共 21.9 秒）
         T(c, [
           [0, b => {
             face('jesus', -1);
-            walk('jesus', uX(-0.3), { speed: 0.02 });
+            // 进前来：走到俯伏的彼得头前（他脸伏于地、头朝着耶稣；不踩在他身上）
+            walk('jesus', uX(-0.1), { speed: 0.02 });
             W.set('glVoice', 0, b.instant);
           }],
+          // 摸他们：弯下腰去，伸手摸那俯伏在地的
+          [1.9, () => { pose('jesus', 'stoop'); }],
           [2.4, b => {
-            for (const id of THREE) pose(id, 'stand');
+            pose('peter', 'stand');
             cpose('disc', 'sit');
             sfx(b, 'harp', { soft: true });
           }],
+          [2.9, () => { pose('john', 'stand'); }],
+          [3.3, () => { pose('james', 'stand'); }],
+          [3.8, () => { pose('jesus', 'stand'); }],
           [4.2, b => {
             W.set('glCloud', 0, b.instant);
             rm('moses'); rm('elijah');
             for (const id of THREE) face(id, 1);
           }],
+          // 举目四望：不见一人，只见耶稣
+          [6.9, () => { gest('peter', 'lookaround'); }],
+          [7.3, () => { gest('john', 'lookaround'); }],
+          [7.7, () => { gest('james', 'lookaround'); }],
+          [11.4, () => { pose('peter', 'listen'); pose('john', 'listen'); }],
           [7.4, b => {
             S.trans = false;
             W.set('glTrans', 0, b.instant);
@@ -2190,6 +2256,9 @@
             face('jesus', -1); face('peter', 1); face('james', 1); face('john', -1);
             cface('disc', 1);
           }],
+          // 「不要将所看见的告诉人」：三个门徒点头答应
+          [20.9, () => { gest('peter', 'nod'); }],
+          [21.3, () => { gest('john', 'nod'); gest('james', 'nod'); }],
         ]);
       },
     },
@@ -2198,10 +2267,11 @@
     {
       kind: 'cmd', utter: '不是到七次，乃是到七十个七次', cmd: 'forgive --times $((70 * 7))  # 不是到七次', ref: '18:22', tint: [255, 222, 160],
       verse: [
-        { text: '那时，彼得进前来，对耶稣说：<br>「主啊，我弟兄得罪我，我当饶恕他几次呢？到七次可以吗？」', ref: '马太福音 18:21', hold: 7.5 },
-        { text: '耶稣说：「我对你说，不是到七次，乃是到七十个七次。」', ref: '马太福音 18:22', hold: 6.5 },
+        { text: '那时，彼得进前来，对耶稣说：<br>「主啊，我弟兄得罪我，我当饶恕他几次呢？到七次可以吗？」', ref: '马太福音 18:21', hold: 7.5, talk: [['peter', 0.28, 1, 'plead', 'jesus']] },
+        { text: '耶稣说：「我对你说，不是到七次，乃是到七十个七次。」', ref: '马太福音 18:22', hold: 6.5, who: 'jesus', to: 'peter', how: 'teach' },
       ],
       apply(c) {
+        // 经文各行的开始：0 · 8.8（共 16.6 秒）
         T(c, [
           [0, b => {
             W.goTo(0.785, 7, b.instant);
@@ -2212,19 +2282,24 @@
             nightGlow(true); glow('jesus', 0.5);
           }],
           [1.2, () => { walk('peter', X('j5') - 0.03, { speed: 0.02 }); face('john', -1); }],
+          [2.6, () => { face('peter', 1); pose('jesus', 'listen'); }],
+          // 「到七次」：天上七盏小光；彼得一指
           [4.6, b => {
-            face('peter', 1); pose('peter', 'point');
             W.set('glSevenA', 1, b.instant); W.set('glSeven', 1, b.instant);
             sfx(b, 'bell', { soft: true });
           }],
+          [4.9, () => { gest('peter', 'point', { dur: 2.6 }); }],
+          [6.2, () => { gest('john', 'nod'); }],
           [8.8, b => {
-            pose('peter', 'stand');
+            pose('jesus', 'stand');
             W.set('glSeventy', 1, b.instant);
             sfx(b, 'stars'); sfx(b, 'harp', { soft: true });
           }],
+          // 七十个七次：光散满全地和天空——彼得一惊，众人先后仰望
+          [10.2, () => { gest('peter', 'startle'); stir('disc', 'startle', { share: 0.35 }); }],
           [12, () => { pose('peter', 'gaze'); cpose('disc', 'gaze'); pose('john', 'gaze'); pose('james', 'gaze'); }],
-          [15.8, () => { pose('jesus', 'raise'); }],
-          [18.5, () => { pose('jesus', 'stand'); }],
+          // 耶稣向天伸手：数不尽的饶恕
+          [13.2, () => { gest('jesus', 'reachup', { dur: 3.2 }); }],
         ]);
       },
     },
@@ -2234,11 +2309,12 @@
       kind: 'call', utter: '让小孩子到我这里来，不要禁止他们', cmd: 'chmod +x 小孩子 && allow --to 耶稣  # 不要禁止他们', ref: '路加福音 18:16', tint: [255, 230, 190],
       verse: [
         { text: '有人抱着自己的婴孩来见耶稣，要他摸他们；<br>门徒看见就责备那些人。', ref: '路加福音 18:15', hold: 6 },
-        { text: '耶稣却叫他们来，说：「让小孩子到我这里来，不要禁止他们，<br>因为在神国的正是这样的人。」', ref: '路加福音 18:16', hold: 7 },
-        { text: '「我实在告诉你们，凡要承受神国的，<br>若不像小孩子，断不能进去。」', ref: '路加福音 18:17', hold: 5.5 },
-        { text: '有一个人来见耶稣，说：<br>「夫子，我该做什么善事才能得永生？」', ref: '马太福音 19:16', hold: 5 },
+        { text: '耶稣却叫他们来，说：「让小孩子到我这里来，不要禁止他们，<br>因为在神国的正是这样的人。」', ref: '路加福音 18:16', hold: 7, talk: [['jesus', 0.12, 1, 'proclaim', 'kids']] },
+        { text: '「我实在告诉你们，凡要承受神国的，<br>若不像小孩子，断不能进去。」', ref: '路加福音 18:17', hold: 5.5, who: 'jesus', to: 'disc', how: 'teach' },
+        { text: '有一个人来见耶稣，说：<br>「夫子，我该做什么善事才能得永生？」', ref: '马太福音 19:16', hold: 5, talk: [['rich', 0.36, 1, 'plead', 'jesus']] },
       ],
       apply(c) {
+        // 经文各行的开始：0 · 7.3 · 15.6 · 22.4（共 28.7 秒）
         T(c, [
           [0, b => {
             // 夜很快过去（不在黑里久留）
@@ -2264,12 +2340,14 @@
             face('jesus', -1);
             sfx(b, 'laugh', { soft: true });
           }],
-          [5.2, () => { face('peter', -1); face('james', -1); pose('peter', 'point'); pose('james', 'point'); cface('disc', -1); }],
-          // 耶稣叫他们来：门徒让开，孩子们跑到他跟前
+          // 门徒责备那些人：彼得、雅各转过去摆手拦阻，抱孩子的人低下头
+          [5.2, () => { face('peter', -1); face('james', -1); cface('disc', -1); }],
+          [5.5, () => { gest('peter', 'refuse', { dur: 2.4 }); speak('peter', 2.2, { how: 'proclaim' }); }],
+          [6.0, () => { gest('james', 'refuse'); stir('moms', 'bowhead', { spread: 0.8 }); }],
+          // 耶稣叫他们来：招手；门徒让开，孩子们跑到他跟前
+          [7.6, () => { gest('jesus', 'beckon', { dur: 2.4 }); }],
           [8.2, b => {
-            pose('peter', 'stand'); pose('james', 'stand');
             walk('peter', X('j7') + 0.058, { speed: 0.03 }); walk('james', X('j7') + 0.08, { speed: 0.03 });
-            pose('jesus', 'raise');
             sfx(b, 'harp', { soft: true });
           }],
           [9.6, b => {
@@ -2278,15 +2356,21 @@
             cface('disc', 1);
             sfx(b, 'laugh');
           }],
+          // 孩子们到了跟前：有的欢喜跳起来；耶稣举手为他们祝福
+          [11.6, () => { stir('kids', 'leap', { share: 0.6, spread: 1.4 }); }],
           [12.6, b => {
             cface('kids', X('j7')); cface('moms', X('j7'));
             W.set('glKids', 1, b.instant);
             cglow('kids', 0.55);
-            pose('jesus', 'raise');
+            pose('jesus', 'bless');
             sparkleOn(b, 'kids', 6, [255, 226, 170]);
             face('peter', -1); face('james', -1);
           }],
-          [16.5, () => { cpose('kids', 'sit'); pose('jesus', 'stand'); }],
+          // 摸他们（按手）：放下祝福的手，伸手摸近前的孩子
+          [15.1, () => { pose('jesus', 'stand'); }],
+          [15.7, () => { gest('jesus', 'touch'); stir('moms', 'bowhead', { spread: 1.2 }); }],
+          [16.5, () => { cpose('kids', 'sit'); }],
+          [18.6, () => { stir('disc', 'nod', { share: 0.45, spread: 1.5 }); gest('peter', 'bowhead'); }],
           // 一个富足的少年人牵着驮满财物的骆驼来，跪在耶稣面前（太 19:16）
           [17.2, b => {
             add('rich', { label: '少年人', sex: 'm', age: 'adult', x: 1.04, layer: 2, facing: -1, robe: [118, 72, 108], accent: [226, 190, 110], hair: 'cloth', beard: false, glow: 0.18, v: 0.52, prop: null });
@@ -2304,12 +2388,13 @@
     {
       kind: 'cmd', utter: '可去变卖你所有的，分给穷人', cmd: 'sell --all | give 穷人 && follow 耶稣  # 财宝在天上', ref: '19:21', tint: [255, 226, 150],
       verse: [
-        { text: '耶稣说：「你若愿意作完全人，可去变卖你所有的，分给穷人，<br>就必有财宝在天上；你还要来跟从我。」', ref: '马太福音 19:21', hold: 7 },
+        { text: '耶稣说：「你若愿意作完全人，可去变卖你所有的，分给穷人，<br>就必有财宝在天上；你还要来跟从我。」', ref: '马太福音 19:21', hold: 7, who: 'jesus', to: 'rich', how: 'calm' },
         { text: '那少年人听见这话，就忧忧愁愁地走了，因为他的产业很多。', ref: '马太福音 19:22', hold: 5.5 },
-        { text: '耶稣对门徒说：「我实在告诉你们，财主进天国是难的。<br>我又告诉你们，骆驼穿过针的眼，比财主进神的国还容易呢！」', ref: '马太福音 19:23–24', hold: 8 },
-        { text: '耶稣看着他们，说：「在人这是不能的，在神凡事都能。」', ref: '马太福音 19:26', hold: 5.5 },
+        { text: '耶稣对门徒说：「我实在告诉你们，财主进天国是难的。<br>我又告诉你们，骆驼穿过针的眼，比财主进神的国还容易呢！」', ref: '马太福音 19:23–24', hold: 8, who: 'jesus', to: 'disc', how: 'teach' },
+        { text: '耶稣看着他们，说：「在人这是不能的，在神凡事都能。」', ref: '马太福音 19:26', hold: 5.5, talk: [['jesus', 0.12, 1, 'calm', 'peter']] },
       ],
       apply(c) {
+        // 经文各行的开始：0 · 8.3 · 15.1 · 24.4（共 31.2 秒）
         T(c, [
           [0, b => {
             W.goTo(0.48, 8, b.instant);
@@ -2328,34 +2413,46 @@
             add('poor2', { label: '穷人', sex: 'f', age: 'adult', x: X('poor2'), layer: 2, facing: 1, robe: POOR[1], glow: 0.12, v: 0.5, prop: null, pose: 'sit' });
             void b;
           }],
-          // 就必有财宝在天上
+          // 就必有财宝在天上：耶稣转过去，一指那坐着的穷人
           [4.6, b => {
             W.set('glTreasure', 1, b.instant);
-            pose('jesus', 'point'); face('jesus', -1);
+            face('jesus', -1);
             sfx(b, 'stars', { soft: true });
           }],
-          [7.4, () => { pose('jesus', 'stand'); face('jesus', 1); pose('rich', 'stand'); }],
+          [4.8, () => { gest('jesus', 'point', { dur: 2.4 }); }],
+          [5.6, () => { gest('rich', 'bowhead', { dur: 2.2 }); }],
+          // 「你还要来跟从我」：转回来，向他招手
+          [7.4, () => { face('jesus', 1); pose('rich', 'stand'); }],
+          [7.8, () => { gest('jesus', 'beckon'); }],
           // 他忧忧愁愁地牵着骆驼走了（走出画面）；天上的光淡下去
-          [8.6, b => {
+          [8.6, () => { gest('rich', 'sigh', { dur: 3 }); }],
+          [9.6, b => {
             face('rich', 1);
             walk('camel', 1.16, { speed: 0.022 });
             walk('rich', 1.1, { speed: 0.025 });
             W.set('glTreasure', 0.3, b.instant);
             sfx(b, 'camel', { soft: true, far: true });
           }],
+          // 耶稣看着他走（可 10:21：就爱他），叹一口气
+          [11.4, () => { gest('jesus', 'sigh', { dur: 3 }); }],
           // 耶稣对门徒说：骆驼穿过针的眼……
           [15.4, () => {
-            face('jesus', -1); pose('jesus', 'point');
+            face('jesus', -1); pose('jesus', 'teach');
             cface('disc', 1); face('peter', -1); face('james', -1); face('john', -1);
           }],
-          [19.5, () => { pose('jesus', 'stand'); cpose('disc', 'gaze'); pose('peter', 'gaze'); }],
-          // 在神凡事都能
+          // 门徒希奇得很（19:25）：先后一惊，彼此看看
+          [19.6, () => { stir('disc', 'startle', { share: 0.55, spread: 1 }); gest('peter', 'startle'); }],
+          [21.2, () => { stir('disc', 'lookaround', { share: 0.4, spread: 1.2 }); gest('john', 'lookaround'); }],
+          [23.4, () => { pose('jesus', 'stand'); pose('peter', 'listen'); }],
+          // 在神凡事都能：耶稣转向彼得，末了向天伸手
           [24.2, b => {
             face('jesus', 1);
             W.set('glTreasure', 0.75, b.instant);
             sfx(b, 'harp', { soft: true });
           }],
+          [27.2, () => { gest('jesus', 'reachup', { dur: 3 }); }],
           [27.5, () => { rm('rich'); rm('camel'); cpose('disc', 'stand'); pose('peter', 'stand'); }],
+          [29.4, () => { stir('disc', 'nod', { share: 0.4 }); gest('peter', 'nod'); }],
         ]);
       },
     },
@@ -2365,10 +2462,11 @@
       kind: 'call', utter: '看哪，我们上耶路撒冷去', cmd: 'cd ~/耶路撒冷  # 第三日他要复活', ref: '20:18', tint: [255, 222, 170],
       verse: [
         { text: '耶稣上耶路撒冷去的时候，在路上把十二个门徒带到一边，对他们说：', ref: '马太福音 20:17', hold: 5.5 },
-        { text: '「看哪，我们上耶路撒冷去，人子要被交给祭司长和文士。他们要定他死罪，<br>又交给外邦人，将他戏弄，鞭打，钉在十字架上；第三日他要复活。」', ref: '马太福音 20:18–19', hold: 9 },
-        { text: '「正如人子来，不是要受人的服事，乃是要服事人，<br>并且要舍命，作多人的赎价。」', ref: '马太福音 20:28', hold: 6.5 },
+        { text: '「看哪，我们上耶路撒冷去，人子要被交给祭司长和文士。他们要定他死罪，<br>又交给外邦人，将他戏弄，鞭打，钉在十字架上；第三日他要复活。」', ref: '马太福音 20:18–19', hold: 9, who: 'jesus', to: 'disc', how: 'teach' },
+        { text: '「正如人子来，不是要受人的服事，乃是要服事人，<br>并且要舍命，作多人的赎价。」', ref: '马太福音 20:28', hold: 6.5, who: 'jesus', how: 'teach' },
       ],
       apply(c) {
+        // 经文各行的开始：0 · 6.8 · 17.1（共 24.9 秒）
         T(c, [
           [0, b => {
             W.goTo(0.61, 9, b.instant);
@@ -2381,7 +2479,8 @@
             face('jesus', -1);
             sfx(b, 'wind', { soft: true });
           }],
-          // 带到一边：门徒围到他身边
+          // 带到一边：耶稣招手，门徒围到他身边
+          [0.6, () => { gest('jesus', 'beckon'); }],
           [1.5, () => {
             walk('peter', X('p9'), { speed: 0.03 }); walk('james', X('ja9'), { speed: 0.03 }); walk('john', X('jn9'), { speed: 0.03 });
             walk('jesus', X('j9'), { speed: 0.02 });
@@ -2389,10 +2488,15 @@
           }],
           [6.5, b => { W.set('glFar', 1, b.instant); }],
           [9, () => { face('jesus', -1); for (const id of THREE) face(id, 1); cface('disc', 1); }],
+          // 「要定他死罪……钉在十字架上」：门徒听着，先后低下头；彼得一惊
+          [10.8, () => { pose('john', 'listen'); stir('disc', 'bowhead', { share: 0.5, spread: 1.6 }); }],
+          [12.6, () => { gest('peter', 'startle'); }],
+          [13.6, () => { gest('james', 'sigh'); }],
           // 门徒默然：彼得、约翰低头；众门徒望着远处的耶路撒冷
-          [15.2, () => { pose('john', 'bow'); pose('peter', 'bow'); cface('disc', 1); cpose('disc', 'gaze'); }],
+          [15.2, () => { gest('john', 'bowhead', { dur: 3 }); pose('peter', 'listen'); cface('disc', 1); cpose('disc', 'gaze'); }],
           [18.5, () => { for (const id of THREE) pose(id, 'stand'); cpose('disc', 'stand'); face('jesus', 1); }],
           [20.6, () => { for (const id of THREE) face(id, 1); cface('disc', 1); pose('jesus', 'gaze'); }],
+          [22, () => { gest('john', 'nod'); stir('disc', 'nod', { share: 0.35 }); }],
           [23.5, () => { pose('jesus', 'stand'); }],
         ]);
       },
@@ -2403,10 +2507,11 @@
       kind: 'call', utter: '撒该，快下来！今天我必住在你家里', cmd: 'call 撒该 --from 桑树 --today', ref: '路加福音 19:5', tint: [255, 228, 170],
       verse: [
         { text: '有一个人名叫撒该，作税吏长，是个财主。……只因人多，他的身量又矮，所以不得看见，<br>就跑到前头，爬上桑树，要看耶稣，因为耶稣必从那里经过。', ref: '路加福音 19:2–4', hold: 9 },
-        { text: '耶稣到了那里，抬头一看，对他说：<br>「撒该，快下来！今天我必住在你家里。」', ref: '路加福音 19:5', hold: 6.5 },
+        { text: '耶稣到了那里，抬头一看，对他说：<br>「撒该，快下来！今天我必住在你家里。」', ref: '路加福音 19:5', hold: 6.5, talk: [['jesus', 0.36, 1, 'proclaim', 'zac']] },
         { text: '他就急忙下来，欢欢喜喜地接待耶稣。', ref: '路加福音 19:6', hold: 5 },
       ],
       apply(c) {
+        // 经文各行的开始：0 · 10.3 · 18.1（共 24.4 秒）
         T(c, [
           [0, b => {
             W.goTo(0.66, 8, b.instant);
@@ -2418,7 +2523,10 @@
             avoid([0.36, 1]);
             sfx(b, 'crowd', { soft: true });
           }],
-          [2.2, () => { face('zac', -1); pose('zac', 'gaze'); }],
+          // 人多，他的身量又矮：踮脚跳了两下，手搭凉棚也看不见
+          [1.2, () => { speak('jericho', 5, { share: 0.4 }); }],
+          [1.6, () => { face('zac', -1); gest('zac', 'leap', { n: 2 }); }],
+          [2.4, () => { pose('zac', 'look'); }],
           [3.8, () => { walk('zac', X('syc') - 0.012, { run: true, speed: 0.07 }); }],
           [5.6, b => {
             attach('zac', zacPt);
@@ -2433,9 +2541,12 @@
           }],
           [10.4, b => {
             face('jesus', 1); pose('jesus', 'gaze');
-            cface('jericho', X('syc'));
+            heed('jericho', X('syc'), { spread: 1.6 });
             sfx(b, 'harp', { soft: true });
           }],
+          // 「快下来！」：招手叫他
+          [13.2, () => { gest('jesus', 'beckon', { dur: 2.4 }); }],
+          [13.8, () => { stir('jericho', 'startle', { share: 0.4, spread: 1 }); }],
           // 他急忙下来
           [16.4, b => {
             W.set('glClimb', 0, b.instant);
@@ -2446,10 +2557,14 @@
           [18, b => {
             attach('zac', null);
             place('zac', X('syc') - 0.012);
-            pose('zac', 'raise'); face('zac', -1);
+            pose('zac', 'rejoice'); face('zac', -1);
             ringOn(b, 'zac', [255, 226, 170], M() * 0.08);
             sfx(b, 'laugh', { soft: true });
           }],
+          // 欢欢喜喜地接待：耶稣点头；撒该招手请他到家里去
+          [18.6, () => { gest('jesus', 'nod'); }],
+          [19.6, () => { pose('zac', 'stand'); }],
+          [19.9, () => { gest('zac', 'beckon', { dur: 2 }); }],
           [20.5, b => {
             pose('zac', 'stand');
             walk('zac', X('z11'), { speed: 0.028 }); walk('jesus', X('j11'), { speed: 0.028 });
@@ -2466,11 +2581,12 @@
     {
       kind: 'bless', utter: '今天救恩到了这家', cmd: 'salvation --arrive 这家 --today  # 寻找、拯救失丧的人', ref: '路加福音 19:9', tint: [255, 222, 150],
       verse: [
-        { text: '众人看见，都私下议论说：「他竟到罪人家里去住宿。」', ref: '路加福音 19:7', hold: 5.5 },
-        { text: '撒该站着对主说：「主啊，我把所有的一半给穷人；<br>我若讹诈了谁，就还他四倍。」', ref: '路加福音 19:8', hold: 7 },
-        { text: '耶稣说：「今天救恩到了这家，因为他也是亚伯拉罕的子孙。<br>人子来，为要寻找、拯救失丧的人。」', ref: '路加福音 19:9–10', hold: 8 },
+        { text: '众人看见，都私下议论说：「他竟到罪人家里去住宿。」', ref: '路加福音 19:7', hold: 5.5, talk: [['jericho', 0.2, 1, 'calm']] },
+        { text: '撒该站着对主说：「主啊，我把所有的一半给穷人；<br>我若讹诈了谁，就还他四倍。」', ref: '路加福音 19:8', hold: 7, who: 'zac', to: 'jesus', how: 'proclaim' },
+        { text: '耶稣说：「今天救恩到了这家，因为他也是亚伯拉罕的子孙。<br>人子来，为要寻找、拯救失丧的人。」', ref: '路加福音 19:9–10', hold: 8, who: 'jesus', to: 'zac', how: 'proclaim' },
       ],
       apply(c) {
+        // 经文各行的开始：0 · 6.8 · 15.1（共 24.4 秒）
         T(c, [
           [0, b => {
             W.goTo(0.775, 11, b.instant);
@@ -2482,7 +2598,11 @@
             cwalk('disc', X('j11') - 0.37, X('j11') - 0.27, { speed: 0.02 });
           }],
           [2, b => { cface('jericho', 1); W.set('glHouse', 0.35, b.instant); sfx(b, 'crowd', { soft: true, far: true }); }],
-          [6.8, () => { face('zac', 1); face('jesus', -1); pose('zac', 'raise'); }],
+          // 私下议论：有的摇头摆手
+          [3.4, () => { stir('jericho', 'refuse', { share: 0.35, spread: 1.6 }); }],
+          // 撒该站着对主说：两手捧出，像把所有的都献上
+          [6.6, () => { face('zac', 1); face('jesus', -1); }],
+          [7.6, () => { pose('zac', 'offer'); }],
           [8.6, b => {
             add('pb1', { label: '穷人', sex: 'm', age: 'elder', x: X('pb1') - 0.1, layer: 2, facing: 1, robe: POOR[2], glow: 0.14, v: 0.44, prop: 'staff' });
             add('pb2', { label: '穷人', sex: 'f', age: 'adult', x: X('pb2') - 0.11, layer: 2, facing: 1, robe: POOR[1], glow: 0.14, v: 0.52, prop: null });
@@ -2497,8 +2617,10 @@
             }
             sfx(b, 'coins', { soft: true });
           }],
-          [13.5, () => { pose('pb1', 'raise'); pose('pb2', 'raise'); glow('pb1', 0.35); glow('pb2', 0.35); }],
-          // 救恩到了这家：他的家满了光
+          [11.6, () => { gest('zac', 'give'); }],
+          // 穷人得了：欢欢喜喜
+          [13.5, () => { pose('pb1', 'rejoice'); pose('pb2', 'rejoice'); glow('pb1', 0.35); glow('pb2', 0.35); }],
+          // 救恩到了这家：他的家满了光；耶稣举手为他祝福，撒该低头
           [15, b => {
             face('zac', 1);
             W.set('glHouse', 1, b.instant);
@@ -2507,7 +2629,11 @@
             sfx(b, 'harp'); sfx(b, 'bell', { soft: true });
           }],
           [9.5, () => { crm('jericho'); }],
+          [16.8, () => { gest('jesus', 'bless'); }],
+          [17.6, () => { gest('zac', 'bowhead', { dur: 3 }); }],
           [18, () => { pose('pb1', 'stand'); pose('pb2', 'stand'); face('pb1', 1); face('pb2', 1); }],
+          [19.2, () => { gest('pb1', 'nod'); }],
+          [21.6, () => { gest('zac', 'nod'); }],
         ]);
       },
     },
@@ -2518,10 +2644,11 @@
       verse: [
         { text: '这事成就是要应验先知的话，说：<br>要对锡安的居民说：看哪，你的王来到你这里，<br>是温柔的，又骑着驴，就是骑着驴驹子。', ref: '马太福音 21:4–5', hold: 8 },
         { text: '牵了驴和驴驹来，把自己的衣服搭在上面，耶稣就骑上。<br>众人多半把衣服铺在路上；还有人砍下树枝来铺在路上。', ref: '马太福音 21:7–8', hold: 7.5 },
-        { text: '前行后随的众人喊着说：和散那归于大卫的子孙！<br>奉主名来的是应当称颂的！高高在上和散那！', ref: '马太福音 21:9', hold: 6.5 },
-        { text: '耶稣既进了耶路撒冷，合城都惊动了，说：「这是谁？」', ref: '马太福音 21:10', hold: 4.5 },
+        { text: '前行后随的众人喊着说：和散那归于大卫的子孙！<br>奉主名来的是应当称颂的！高高在上和散那！', ref: '马太福音 21:9', hold: 6.5, who: ['hosanna', 'disc'], how: 'proclaim' },
+        { text: '耶稣既进了耶路撒冷，合城都惊动了，说：「这是谁？」', ref: '马太福音 21:10', hold: 4.5, talk: [['hosanna', 0.4, 1, 'calm']] },
       ],
       apply(c) {
+        // 经文各行的开始：0 · 9.3 · 18.1 · 25.9（共 31.7 秒）
         T(c, [
           [0, b => {
             W.goTo(0.34, 9, b.instant);
@@ -2549,7 +2676,9 @@
             avoid([0.3, 1]);
             void b;
           }],
-          // 牵来驴和驴驹；衣服搭在上面，耶稣骑上
+          // 牵来驴和驴驹；门徒把自己的衣服搭在上面，耶稣骑上
+          [9.4, () => { gest('john', 'give'); }],
+          [9.8, () => { gest('peter', 'give'); }],
           [10.1, b => {
             face('jesus', 1);
             place('colt', X('colt0')); face('colt', 1);
@@ -2565,10 +2694,15 @@
             W.set('glCloaks', 1, b.instant);
             sfx(b, 'crowd');
           }],
-          [13.3, b => { W.set('glBranches', 1, b.instant); cface('hosanna', X('colt0')); }],
+          // 众人把衣服和树枝铺在路上：先后弯下腰去
+          [12.2, () => { stir('hosanna', 'stoopdown', { share: 0.55, spread: 1.6 }); }],
+          [13.3, b => { W.set('glBranches', 1, b.instant); heed('hosanna', X('colt0'), { spread: 1.4 }); }],
           [18.9, b => { cpose('hosanna', 'raise'); sfx(b, 'shout'); sfx(b, 'sing', { soft: true }); }],
           [23.4, () => { cpose('hosanna', 'stand'); cface('hosanna', 1); }],
-          [25.9, b => { cpose('hosanna', 'raise'); sfx(b, 'shout', { soft: true }); }],
+          // 合城都惊动了：先后一惊，转过来看他，彼此问「这是谁？」；又举起树枝来
+          [26, () => { stir('hosanna', 'startle', { share: 0.6, spread: 1 }); }],
+          [27.6, () => { heed('hosanna', X('gate') - 0.025, { spread: 1.2 }); }],
+          [29.6, b => { cpose('hosanna', 'raise'); sfx(b, 'shout', { soft: true }); }],
           // 到了城门：跟随的人各站定（不再跟着走）
           [29.2, () => {
             const G = X('gate') - 0.025;
@@ -2583,10 +2717,11 @@
       kind: 'judge', utter: '我的殿必称为祷告的殿', cmd: 'rm -r 买卖 --from 殿 && pray  # 瞎子、瘸子都得了医治', ref: '21:13', tint: [255, 236, 200],
       verse: [
         { text: '耶稣进了神的殿，赶出殿里一切做买卖的人，<br>推倒兑换银钱之人的桌子，和卖鸽子之人的凳子，', ref: '马太福音 21:12', hold: 7 },
-        { text: '对他们说：「经上记着说：我的殿必称为祷告的殿，<br>你们倒使它成为贼窝了。」', ref: '马太福音 21:13', hold: 6.5 },
+        { text: '对他们说：「经上记着说：我的殿必称为祷告的殿，<br>你们倒使它成为贼窝了。」', ref: '马太福音 21:13', hold: 6.5, who: 'jesus', to: 'traders', how: 'proclaim' },
         { text: '在殿里有瞎子、瘸子到耶稣跟前，他就治好了他们。', ref: '马太福音 21:14', hold: 5.5 },
       ],
       apply(c) {
+        // 经文各行的开始：0 · 8.3 · 16.1（共 22.9 秒）
         T(c, [
           [0, b => {
             W.goTo(0.47, 8, b.instant);
@@ -2609,7 +2744,8 @@
             sfx(b, 'coins', { soft: true }); sfx(b, 'dove', { soft: true });
           }],
           [2.2, () => { walk('jesus', X('j13'), { speed: 0.03 }); }],
-          // 推倒桌子和凳子：钱散落，鸽子飞上天，做买卖的人散去
+          // 推倒桌子和凳子：一把掀翻；钱散落，鸽子飞上天，做买卖的人一惊、散去
+          [4.3, () => { gest('jesus', 'cast', { dur: 1.6 }); }],
           [4.8, b => {
             W.set('glTumble', 1, b.instant);
             S.tables = 'down';
@@ -2617,15 +2753,18 @@
             if (!b.instant && fx()) { for (const xf of X('tables')) fx().sparkle(xf * W.w, vY(xf, 0.1) - PH(2) * 0.3, 14, [255, 222, 140], 14 * SU(), 'air'); }
             sfx(b, 'collapse', { soft: true }); sfx(b, 'coins'); sfx(b, 'wings');
           }],
-          [6.2, () => { cwalk('traders', 0.97, 1.08, { speed: 0.05 }); }],
+          [4.9, () => { stir('traders', 'startle', { spread: 0.5 }); stir('disc', 'startle', { share: 0.4, spread: 0.8 }); gest('john', 'startle'); }],
+          [6.2, () => { cwalk('traders', 0.97, 1.08, { speed: 0.07 }); }],
           [9, b => {
             face('jesus', 1); pose('jesus', 'point');
             if (!b.instant) { const G = tgeo(); flash(b, { type: 'flash', x: G.x, y: G.y - G.fh * 0.6, r: G.fh * 1.6, a: 0.45, dur: 3 }); }
             sfx(b, 'harp', { soft: true });
           }],
           [12.5, () => { crm('traders'); pose('jesus', 'stand'); face('jesus', -1); }],
-          // 瞎子、瘸子到他跟前，他就治好了他们
-          [16, () => { walk('blind', X('j13') - 0.04, { speed: 0.02 }); pose('lame', 'kneel'); face('jesus', -1); }],
+          // 瞎子、瘸子到他跟前：瞎子摸索着走近，跪下求；瘸子坐着仰面摊手
+          [16, () => { walk('blind', X('j13') - 0.04, { speed: 0.02, pose: 'beg' }); pose('lame', 'beg'); face('jesus', -1); }],
+          // 他就治好了他们：伸手摸瞎子的眼睛
+          [17.6, () => { pose('jesus', 'reach'); }],
           [18.4, b => {
             S.healed = true;
             add('blind', { robe: [150, 112, 82], accent: [214, 186, 140], glow: 0.35 });
@@ -2634,7 +2773,12 @@
             if (!b.instant) { flash(b, { type: 'bloom', P: () => figPt('blind', 0.8), r: PH(2) * 3, dur: 2.6 }); ringOn(b, 'lame', [255, 236, 200], M() * 0.07); }
             sfx(b, 'harp');
           }],
-          [20, () => { pose('lame', 'raise'); pose('blind', 'raise'); C().prop && C().prop('blind', null); }],
+          [18.8, () => { pose('blind', 'stand'); }],
+          [19.3, () => { pose('jesus', 'stand'); gest('blind', 'startle'); }],
+          // 看见了，站起来了：欢喜，跳起来
+          [20, () => { pose('lame', 'rejoice'); pose('blind', 'rejoice'); C().prop && C().prop('blind', null); }],
+          [20.4, () => { gest('lame', 'leap', { n: 3 }); }],
+          [21.2, () => { stir('disc', 'nod', { share: 0.4 }); gest('peter', 'nod'); }],
         ]);
       },
     },
@@ -2644,10 +2788,11 @@
       kind: 'bless', utter: '这穷寡妇投入库里的，比众人所投的更多', cmd: 'echo $((2 * 小钱)) > 银库  # 比众人所投的更多', ref: '马可福音 12:43', tint: [255, 226, 160],
       verse: [
         { text: '耶稣对银库坐着，看众人怎样投钱入库。有好些财主往里投了若干的钱。<br>有一个穷寡妇来，往里投了两个小钱，就是一个大钱。', ref: '马可福音 12:41–42', hold: 9 },
-        { text: '耶稣叫门徒来，说：「我实在告诉你们，<br>这穷寡妇投入库里的，比众人所投的更多。', ref: '马可福音 12:43', hold: 6.5 },
-        { text: '因为，他们都是自己有余，拿出来投在里头；<br>但这寡妇是自己不足，把她一切养生的都投上了。」', ref: '马可福音 12:44', hold: 7 },
+        { text: '耶稣叫门徒来，说：「我实在告诉你们，<br>这穷寡妇投入库里的，比众人所投的更多。', ref: '马可福音 12:43', hold: 6.5, talk: [['jesus', 0.3, 1, 'teach', 'disc']] },
+        { text: '因为，他们都是自己有余，拿出来投在里头；<br>但这寡妇是自己不足，把她一切养生的都投上了。」', ref: '马可福音 12:44', hold: 7, who: 'jesus', how: 'teach' },
       ],
       apply(c) {
+        // 经文各行的开始：0 · 10.3 · 18.1（共 26.4 秒）
         T(c, [
           [0, b => {
             W.goTo(0.745, 14, b.instant);
@@ -2662,19 +2807,25 @@
             cface('givers', -1);
           }],
           [2.4, b => { cwalk('givers', X('chest') + 0.025, X('chest') + 0.06, { speed: 0.02 }); void b; }],
+          // 财主往里投钱：一个一个伸手投下
+          [3.9, () => { stir('givers', 'give', { spread: 1.4 }); }],
           [4.2, b => {
             if (!b.instant && fx()) { const m = chestMouth(); fx().sparkle(m[0], m[1], 18, [255, 214, 120], 10 * SU(), 'air'); }
             sfx(b, 'coins');
           }],
           [3, () => {
             add('widow', { label: '穷寡妇', sex: 'f', age: 'elder', x: X('widow0'), layer: 2, facing: -1, robe: [84, 82, 84], accent: [150, 146, 140], hair: 'veil', glow: 0.22, v: 0.14, prop: null });
-            walk('widow', X('chest') + 0.022, { speed: 0.022, pose: 'bow' });
+            walk('widow', X('chest') + 0.022, { speed: 0.022 });
           }],
           [5.6, b => {
             if (!b.instant && fx()) { const m = chestMouth(); fx().sparkle(m[0], m[1], 14, [255, 214, 120], 10 * SU(), 'air'); }
             sfx(b, 'coins', { soft: true });
             cwalk('givers', 0.99, 1.1, { speed: 0.03 });
           }],
+          // 耶稣坐着看：微微点头
+          [7.4, () => { gest('jesus', 'nod'); }],
+          // 她两手捧出那两个小钱，投进去，低头退下
+          [9.0, () => { pose('widow', 'offer'); }],
           // 两个小钱：两点小小的光
           [9.6, b => {
             S.mites = 2;
@@ -2682,17 +2833,25 @@
             if (!b.instant) { const m = chestMouth(); flash(b, { type: 'flash', x: m[0], y: m[1], r: PH(2) * 1.4, a: 0.8, dur: 2 }); }
             sfx(b, 'bell', { soft: true });
           }],
+          [10.4, () => { pose('widow', 'bow'); face('jesus', -1); }],
+          // 叫门徒来：招手；门徒近前来
+          [10.7, () => { gest('jesus', 'beckon'); }],
           [11.2, b => {
             crm('givers');
             pose('jesus', 'stand');
-            pose('widow', 'stand');
             walk('peter', X('j14') + 0.03, { speed: 0.025 }); walk('john', X('j14') + 0.055, { speed: 0.025 });
             cwalk('disc', X('j14') - 0.13, X('j14') - 0.02, { speed: 0.025 });
             face('jesus', -1);
           }],
+          [12.6, () => { pose('widow', 'stand'); }],
+          // 「这穷寡妇」：转过去指着她
           [14.5, b => { face('jesus', 1); pose('jesus', 'point'); W.set('glLamps', 1, b.instant); sfx(b, 'harp', { soft: true }); }],
+          [15.6, () => { gest('peter', 'startle'); }],
           [18.5, () => { pose('jesus', 'stand'); walk('widow', 1.06, { speed: 0.01 }); cface('disc', 1); face('peter', 1); face('john', 1); }],
+          [20.4, () => { stir('disc', 'nod', { share: 0.45, spread: 1.5 }); }],
+          [21.6, () => { gest('john', 'nod'); pose('jesus', 'teach'); }],
           [24.5, () => { rm('widow'); }],
+          [25.2, () => { pose('jesus', 'stand'); gest('peter', 'bowhead'); }],
         ]);
       },
     },

@@ -154,6 +154,13 @@
   function hold(id, p) { const c = C(); if (c.prop && has(id)) U.safe('cast.prop', () => c.prop(id, p || null)); }
   function hands(a, b, on) { const c = C(); if (c.holdHands && has(a) && has(b)) U.safe('cast.hands', () => c.holdHands(a, b, on)); }
   function embrace(a, b, o) { const c = C(); if (c.embrace && has(a) && has(b)) U.safe('cast.embrace', () => c.embrace(a, b, o)); else { pose(a, 'stand'); pose(b, 'stand'); } }
+  // 演技：说话、一次性的手势、众人先后转向 / 先后做同一个手势（重演时人物模块自己略过；attend 立即到位）
+  function say(id, sec, o) { const c = C(); if (c.speak) U.safe('cast.speak', () => c.speak(id, sec, o)); }
+  function gest(id, kind, o) { const c = C(); if (c.gesture) U.safe('cast.gesture', () => c.gesture(id, kind, o)); }
+  function heed(ids, target, o) { const c = C(); if (c.attend) U.safe('cast.attend', () => c.attend(ids, target, o)); }
+  function stir(ids, kind, o) { const c = C(); if (c.react) U.safe('cast.react', () => c.react(ids, kind, o)); }
+  // 几个人先后换同一个姿势（各人相差 dt 秒）：返回情节的拍子
+  const lag = (ids, t0, dt, fn) => ids.map((id, i) => [t0 + i * dt, b => fn(id, b, i)]);
   function sfx(b, name, o) { if (b && b.instant) return; const a = au(); if (a && a.sfx) U.safe('audio.sfx', () => a.sfx(name, o)); }
   function flashW(b, k) { if (!b.instant) W.flash = Math.max(W.flash || 0, k); }
   function avoid(...rs) { W.beastAvoid = rs.map(r => [clamp(Math.min(r[0], r[1]), 0, 1), clamp(Math.max(r[0], r[1]), 0, 1)]); }
@@ -1266,8 +1273,9 @@
     {
       kind: 'act', utter: '神就是光，在他毫无黑暗', cmd: 'light --everywhere  # darkness: 0', ref: '1:5',
       verse: [
-        { text: '神就是光，在他毫无黑暗。<br>这是我们从主所听见、又报给你们的信息。', ref: '约翰一书 1:5', hold: 7.5 },
-        { text: '我们若在光明中行，如同神在光明中，就彼此相交，<br>他儿子耶稣的血也洗净我们一切的罪。', ref: '约翰一书 1:7', hold: 7.5 },
+        // 书信的话由作长老的约翰说出：先是对着光，后对着走进光里来的人
+        { text: '神就是光，在他毫无黑暗。<br>这是我们从主所听见、又报给你们的信息。', ref: '约翰一书 1:5', hold: 7.5, talk: [['john', 0.46, 1, 'proclaim']] },
+        { text: '我们若在光明中行，如同神在光明中，就彼此相交，<br>他儿子耶稣的血也洗净我们一切的罪。', ref: '约翰一书 1:7', hold: 7.5, who: 'john', how: 'teach' },
       ],
       apply(c) {
         T(c, [
@@ -1280,9 +1288,11 @@
             flashW(b, 0.25);
           }],
           [1.4, b => { pose('john', 'gaze'); const { x, y } = tableG(); sparkleAt(b, x, y - PH() * 0.4, 24, [255, 240, 210], 16); }],
+          [2.6, () => gest('john', 'bowhead')],
           // 两家的门开了，人走进光里
           [3.6, b => {
             W.set('glLamp', 0, b.instant);
+            pose('john', 'stand');
             person('gaius', 'gHouse', { facing: 1, v: 0.02 });
             person('youth', 'gHouse', { facing: 1, v: 0.06 });
             person('father', 'fHouse', { facing: -1, v: 0.02 });
@@ -1292,16 +1302,22 @@
             W.setPop('bird', 12, W.w * 0.62, W.h * 0.3, b.instant);
             sfx(b, 'gate', { soft: true });
           }],
-          // 彼此相交
+          // 走进光里的人一个一个抬头望那光
+          [4.6, () => { gest('youth', 'lookaround'); gest('mother', 'reachup'); }],
+          [5.8, () => { gest('gaius', 'reachup'); gest('father', 'nod'); }],
+          // 彼此相交：约翰转向众人讲论
           [9.6, b => {
             for (const id of ['gaius', 'youth', 'father', 'mother']) { pose(id, 'stand'); face(id, X.table); }
-            face('john', -1); pose('john', 'raise');
+            face('john', -1); pose('john', 'teach');
             W.set('glRing', 0.6, b.instant); W.set('glRingR', 0.3, b.instant);
             W.set('glPillar', 0.25, b.instant);
             sfx(b, 'bird', { soft: true });
           }],
           [11.4, b => { hands('gaius', 'youth'); hands('father', 'mother'); glowAll(0.3); const { x, y } = tableG(); ringAt(b, x, y, 0.12, [255, 230, 190], 2.2, 1.4); }],
-          [14.2, b => { pose('john', 'stand'); W.set('glPillar', 0, b.instant); }],
+          [12.2, () => { stir(['gaius', 'youth', 'father', 'mother'], 'nod', { spread: 1.6, share: 0.75 }); }],
+          // 耶稣的血也洗净我们一切的罪：约翰举手为他们祝福
+          [13.0, () => gest('john', 'bless')],
+          [15.2, b => { pose('john', 'stand'); W.set('glPillar', 0, b.instant); }],
         ]);
       },
     },
@@ -1312,7 +1328,7 @@
       verse: [
         { text: '我们若说自己无罪，便是自欺，真理不在我们心里了。', ref: '约翰一书 1:8', hold: 5.5 },
         { text: '我们若认自己的罪，神是信实的，是公义的，<br>必要赦免我们的罪，洗净我们一切的不义。', ref: '约翰一书 1:9', hold: 8 },
-        { text: '我小子们哪……若有人犯罪，在父那里我们有一位中保，<br>就是那义者耶稣基督。', ref: '约翰一书 2:1', hold: 7 },
+        { text: '我小子们哪……若有人犯罪，在父那里我们有一位中保，<br>就是那义者耶稣基督。', ref: '约翰一书 2:1', hold: 7, talk: [['john', 0, 0.62, 'calm', 'forgiven']] },
       ],
       apply(c) {
         T(c, [
@@ -1324,14 +1340,22 @@
             sfx(b, 'weep', { soft: true });
           }],
           [2.2, b => { for (const id of ['gaius', 'youth', 'father', 'mother', 'john']) face(id, X.sinK); }],
+          [2.8, () => stir(['gaius', 'father', 'mother'], 'sigh', { spread: 1.4, share: 0.7 })],
           [4.2, b => pose('forgiven', 'kneel', { weep: true })],
-          // 神是信实的：光如水浇下
+          // 认罪：先捶胸，再仰面摊手求告（他自己说出来）
+          [5.0, () => gest('forgiven', 'beat', { dur: 2.2 })],
           [6.9, b => {
+            pose('forgiven', 'beg', { weep: true });
+            say('forgiven', 3.2, { how: 'plead' });
+          }],
+          // 神是信实的：光如水浇下
+          [7.3, b => {
             trans(b, { type: 'beam', id: 'forgiven', w: PH() * 1.3, dur: 5.2 });
             trans(b, { type: 'wash', id: 'forgiven', dur: 4.2, t: -0.8 });
             go('john', 'johnK', { speed: 0.042 });
             sfx(b, 'pour', { soft: true });
           }],
+          [7.9, () => stir(['gaius', 'youth', 'father', 'mother'], 'startle', { spread: 0.8, share: 0.5 })],
           [9.4, b => {
             S.washed = 1;
             add('forgiven', { robe: LINEN, accent: [214, 206, 190], label: '蒙赦免的人', glow: 0.42 });
@@ -1340,9 +1364,15 @@
             sparkleOn(b, 'forgiven', 26, [240, 246, 255], 0.5);
             sfx(b, 'harp');
           }],
-          // 老约翰扶他起来
-          [12.6, b => { face('john', 'forgiven'); face('forgiven', 'john'); pose('forgiven', 'stand'); hands('john', 'forgiven'); }],
+          // 洗净了：他向天举起两手；众人点头
+          [10.2, () => gest('forgiven', 'reachup')],
+          [10.8, () => stir(['gaius', 'youth', 'father', 'mother'], 'nod', { spread: 1.6, share: 0.7 })],
+          // 老约翰走到他跟前，伸手拉他起来
+          [11.6, b => { face('john', 'forgiven'); pose('john', 'reach'); }],
+          [12.6, b => { face('forgiven', 'john'); pose('john', 'stand'); pose('forgiven', 'stand'); hands('john', 'forgiven'); }],
+          [14.0, () => gest('forgiven', 'bowhead')],
           [15.2, b => { hands('john', 'forgiven', false); face('forgiven', X.forgiven); }],
+          [17.6, () => gest('forgiven', 'nod')],
           // 在父那里我们有一位中保，就是那义者耶稣基督：一点光自上头降下，走在他前头，引他进到圈里（约翰只走在旁边）
           [16.2, b => {
             trans(b, { type: 'guide', id: 'forgiven', dest: 'forgiven', dur: 6.4 });
@@ -1363,23 +1393,26 @@
     {
       kind: 'act', utter: '黑暗渐渐过去，真光已经照耀', cmd: 'while (darkness.passing) light.shine()', ref: '2:8',
       verse: [
-        { text: '人若说自己在光明中，却恨他的弟兄，他到如今还是在黑暗里。', ref: '约翰一书 2:9', hold: 6 },
+        { text: '人若说自己在光明中，却恨他的弟兄，他到如今还是在黑暗里。', ref: '约翰一书 2:9', hold: 6, talk: [['john', 0.3, 1, 'calm']] },
         { text: '爱弟兄的，就是住在光明中，在他并没有绊跌的缘由。', ref: '约翰一书 2:10', hold: 5.5 },
-        { text: '再者，我写给你们的，是一条新命令……<br>因为黑暗渐渐过去，真光已经照耀。', ref: '约翰一书 2:8', hold: 7 },
+        { text: '再者，我写给你们的，是一条新命令……<br>因为黑暗渐渐过去，真光已经照耀。', ref: '约翰一书 2:8', hold: 7, who: 'john', how: 'teach' },
       ],
       apply(c) {
         T(c, [
-          // 少年人背转身走开：一团冷暗的影裹住他
+          // 少年人对他的哥哥摆手不认，背转身走开：一团冷暗的影裹住他
           [0, b => {
             W.goTo(0.37, 14, b.instant);
-            face('youth', 1);
-            go('youth', 'youthOut', { speed: 0.052 });
+            face('youth', 'forgiven');
             W.set('glShade', 1, b.instant);
             glow('youth', 0);
             face('forgiven', 'youth');
             sfx(b, 'whisper', { soft: true });
           }],
-          [5.6, b => { pose('youth', 'bow'); face('youth', 1); }],
+          [0.2, () => gest('youth', 'refuse')],
+          [1.2, b => { face('youth', 1); go('youth', 'youthOut', { speed: 0.052 }); }],
+          [1.8, () => heed(['gaius', 'father', 'mother', 'john'], X.youthOut, { spread: 1.6 })],
+          [3.4, () => gest('forgiven', 'sigh')],
+          [6.0, b => { pose('youth', 'bow'); face('youth', 1); }],
           // 爱弟兄的：他的哥哥跑去抱住他
           [7.6, b => {
             face('youth', -1); pose('youth', 'stand');
@@ -1389,6 +1422,10 @@
           }],
           [10.4, b => { W.set('glShade', 0, b.instant); sfx(b, 'harp'); }],
           [12.2, b => { glow('youth', 0.34); ringOn(b, 'youth', 0.12, [255, 234, 196], 0.55); }],
+          // 松开手：少年人低下头，哥哥伸手按着他
+          [12.8, b => { pose('forgiven', 'stand'); pose('youth', 'stand'); face('forgiven', 'youth'); face('youth', 'forgiven'); }],
+          [13.0, () => gest('youth', 'bowhead')],
+          [13.4, () => gest('forgiven', 'touch')],
           // 真光已经照耀：二人一同回来，众人身上都亮了
           [14.6, b => {
             go('forgiven', 'forgiven', { speed: 0.036 }); go('youth', 'youth', { speed: 0.034 });
@@ -1397,7 +1434,8 @@
             glowAll(0.34);
             sfx(b, 'bell', { soft: true });
           }],
-          [21, b => { faceTable(['forgiven', 'youth']); }],
+          [16.0, () => { gest('gaius', 'beckon'); stir(['father', 'mother'], 'nod', { spread: 1.2 }); }],
+          [21, b => { faceTable(['forgiven', 'youth', 'gaius', 'father', 'mother']); face('john', -1); }],
         ]);
       },
     },
@@ -1406,8 +1444,8 @@
     {
       kind: 'act', utter: '你看父赐给我们是何等的慈爱', cmd: 'adopt --as 神的儿女 --by 父', ref: '3:1',
       verse: [
-        { text: '你看父赐给我们是何等的慈爱，使我们得称为神的儿女；<br>我们也真是他的儿女。', ref: '约翰一书 3:1', hold: 7.5 },
-        { text: '亲爱的弟兄啊，我们现在是神的儿女，将来如何，还未显明；<br>但我们知道，主若显现，我们必要像他，因为必得见他的真体。', ref: '约翰一书 3:2', hold: 9 },
+        { text: '你看父赐给我们是何等的慈爱，使我们得称为神的儿女；<br>我们也真是他的儿女。', ref: '约翰一书 3:1', hold: 7.5, talk: [['john', 0.3, 1, 'calm', 'child1']] },
+        { text: '亲爱的弟兄啊，我们现在是神的儿女，将来如何，还未显明；<br>但我们知道，主若显现，我们必要像他，因为必得见他的真体。', ref: '约翰一书 3:2', hold: 9, who: 'john', how: 'teach' },
       ],
       apply(c) {
         T(c, [
@@ -1421,21 +1459,27 @@
             face('mother', X.child1);
             sfx(b, 'laugh', { soft: true });
           }],
+          // 老约翰招手叫孩子们到跟前来
+          [0.6, () => gest('john', 'beckon')],
           // 上头的光落在孩子们身上
           [3.4, b => {
             trans(b, { type: 'beam', xf: (X.child1 + X.child2) / 2, y: groundV(X.child1, 0.2), w: PH() * 2.6, dur: 6.5 });
             glow('child1', 0.46); glow('child2', 0.46);
             sfx(b, 'harp');
           }],
+          [4.0, () => gest('child1', 'reachup')],
           [4.6, b => nameAt(b, '神的儿女', X.table, PORT ? 0.52 : 0.46, { hold: 3.8, rgb: [255, 232, 196] })],
-          // 主若显现，我们必要像他：众人抬头，身上更亮
-          [9.6, b => {
-            for (const id of ['gaius', 'youth', 'father', 'mother', 'forgiven']) pose(id, 'gaze');
-            pose('child1', 'raise'); pose('child2', 'raise');
+          [5.2, () => { gest('child2', 'clap'); gest('mother', 'nod'); }],
+          [6.6, () => gest('john', 'bless')],
+          // 主若显现，我们必要像他：众人一个一个抬头，身上更亮
+          ...lag(['gaius', 'mother', 'youth', 'father', 'forgiven'], 9.6, 0.45, id => pose(id, 'gaze')),
+          [9.8, b => {
             glowAll(0.4);
             W.set('glRingR', 0.62, b.instant); W.set('glRing', 0.8, b.instant);
             const { x, y } = tableG(); ringAt(b, x, y - PH() * 0.3, 0.14, [255, 236, 204], 2.6, 1.6);
           }],
+          [10.6, () => { pose('child1', 'raise'); pose('child2', 'raise'); }],
+          [13.2, () => stir(['gaius', 'youth', 'father', 'mother', 'forgiven'], 'nod', { spread: 1.6, share: 0.6 })],
           [15.2, b => {
             for (const id of ['gaius', 'youth', 'father', 'mother', 'forgiven']) pose(id, 'stand');
             pose('child1', 'kneel'); pose('child2', 'sit');
@@ -1449,35 +1493,46 @@
     {
       kind: 'act', utter: '主为我们舍命，我们从此就知道何为爱', cmd: 'love --in-deed --in-truth  # not just words', ref: '3:16',
       verse: [
-        { text: '主为我们舍命，我们从此就知道何为爱；我们也当为弟兄舍命。', ref: '约翰一书 3:16', hold: 6.5 },
-        { text: '凡有世上财物的，看见弟兄穷乏，却塞住怜恤的心，<br>爱神的心怎能存在他里面呢？', ref: '约翰一书 3:17', hold: 7 },
-        { text: '小子们哪，我们相爱，不要只在言语和舌头上，<br>总要在行为和诚实上。', ref: '约翰一书 3:18', hold: 6.5 },
+        { text: '主为我们舍命，我们从此就知道何为爱；我们也当为弟兄舍命。', ref: '约翰一书 3:16', hold: 6.5, talk: [['john', 0.2, 1, 'calm']] },
+        { text: '凡有世上财物的，看见弟兄穷乏，却塞住怜恤的心，<br>爱神的心怎能存在他里面呢？', ref: '约翰一书 3:17', hold: 7, who: 'john', how: 'teach' },
+        { text: '小子们哪，我们相爱，不要只在言语和舌头上，<br>总要在行为和诚实上。', ref: '约翰一书 3:18', hold: 6.5, who: 'john', how: 'teach' },
       ],
       apply(c) {
         T(c, [
-          // 远山上的十字架，光在它背后
+          // 远山上的十字架，光在它背后：众人一个一个望过去，低下头
           [0, b => {
             W.set('glCross', 1, b.instant);
             W.goTo(0.5, 14, b.instant);
             for (const id of ['gaius', 'youth', 'father', 'mother', 'forgiven', 'john']) face(id, X.cross);
-            pose('father', 'bow'); pose('mother', 'bow');
             sfx(b, 'bell', { soft: true });
           }],
+          ...lag(['father', 'mother'], 0.6, 0.5, id => pose(id, 'bow')),
+          [1.4, () => { gest('gaius', 'bowhead', { dur: 3.4 }); gest('youth', 'bowhead', { dur: 3 }); }],
+          [1.8, () => pose('forgiven', 'kneel')],
           [2, b => { person('poor', 'poorA', { facing: -1, glow: 0.1, pose: 'sit' }); }],
-          [6.6, b => { W.set('glCross', 0.3, b.instant); pose('father', 'stand'); pose('mother', 'stand'); faceTable(['gaius', 'youth', 'father', 'mother', 'forgiven']); face('john', -1); }],
-          // 看见弟兄穷乏：该犹拿着饼走去
+          [4.4, () => gest('poor', 'sigh')],
+          [6.6, b => { W.set('glCross', 0.3, b.instant); pose('father', 'stand'); pose('mother', 'stand'); pose('forgiven', 'stand'); faceTable(['gaius', 'youth', 'father', 'mother', 'forgiven']); face('john', -1); }],
+          // 看见弟兄穷乏：该犹拿着饼走去；众人望着他
           [8, b => {
             face('gaius', X.poorA); hold('gaius', 'bundle');
             go('gaius', 'gaiusP', { speed: 0.062 });
           }],
+          [8.6, () => heed(['youth', 'father', 'mother', 'forgiven'], X.gaiusP, { spread: 1.8 })],
+          // 穷乏的弟兄仰面摊手；该犹弯下身递给他
+          [9.8, () => pose('poor', 'beg')],
+          [11.2, b => { face('gaius', 1); face('poor', -1); gest('gaius', 'give'); }],
           [13.4, b => {
             S.gave = 1;
             hold('gaius', null); hold('poor', 'bundle');
             add('poor', { robe: CLOAK, accent: [206, 180, 140], glow: 0.36 });
-            pose('poor', 'stand'); face('gaius', 1); face('poor', -1);
+            face('gaius', 1); face('poor', -1);
+            pose('gaius', 'reach');
             sparkleOn(b, 'poor', 22, [255, 232, 190], 0.55);
             sfx(b, 'harp');
           }],
+          // 该犹拉他起来
+          [14.4, b => { pose('poor', 'stand'); pose('gaius', 'stand'); }],
+          [15.2, () => gest('poor', 'bowhead')],
           // 总要在行为和诚实上：领他回来
           [16.6, b => {
             go('poor', 'poor', { speed: 0.03 }); go('gaius', 'gaius', { speed: 0.052 });
@@ -1485,7 +1540,8 @@
             W.set('glCross', 0, b.instant);
             hands('gaius', 'poor', false);
           }],
-          [22, b => { faceTable(['poor', 'gaius']); }],
+          [19.4, () => stir(['youth', 'father', 'mother', 'forgiven'], 'nod', { spread: 1.6, share: 0.7 })],
+          [22, b => { faceTable(['poor', 'gaius', 'youth', 'father', 'mother', 'forgiven']); }],
         ]);
       },
     },
@@ -1494,23 +1550,29 @@
     {
       kind: 'act', utter: '神就是爱', cmd: 'echo $GOD  # => 爱', ref: '4:8',
       verse: [
-        { text: '亲爱的弟兄啊，我们应当彼此相爱，因为爱是从神来的。<br>凡有爱心的，都是由神而生，并且认识神。', ref: '约翰一书 4:7', hold: 7.5 },
-        { text: '没有爱心的，就不认识神，因为神就是爱。', ref: '约翰一书 4:8', hold: 5.5 },
-        { text: '神差他独生子到世间来，使我们藉着他得生，<br>神爱我们的心在此就显明了。', ref: '约翰一书 4:9', hold: 7.5 },
+        { text: '亲爱的弟兄啊，我们应当彼此相爱，因为爱是从神来的。<br>凡有爱心的，都是由神而生，并且认识神。', ref: '约翰一书 4:7', hold: 7.5, talk: [['john', 0.24, 1, 'teach']] },
+        { text: '没有爱心的，就不认识神，因为神就是爱。', ref: '约翰一书 4:8', hold: 5.5, who: 'john', how: 'proclaim' },
+        { text: '神差他独生子到世间来，使我们藉着他得生，<br>神爱我们的心在此就显明了。', ref: '约翰一书 4:9', hold: 7.5, talk: [['john', 0, 0.5, 'calm']] },
       ],
       apply(c) {
         T(c, [
           // 爱席：众人围着矮桌坐下；穷乏的弟兄把饼放在桌上
           [0, b => {
             W.goTo(0.66, 9, b.instant);   // 午后金黄的光：日头低在右边，不在「爱」字后头
-            hold('poor', null);
             W.set('glFeast', 1, b.instant);
-            for (const id of ['john', 'gaius', 'father', 'mother', 'forgiven', 'poor', 'child2']) pose(id, 'sit');
-            pose('youth', 'kneel'); pose('child1', 'kneel');
             faceTable(['gaius', 'youth', 'father', 'mother', 'forgiven', 'poor', 'child1', 'child2']); face('john', -1);
+            pose('john', 'sit');
             sfx(b, 'chime', { soft: true });
           }],
-          // 神就是爱：那一圈光大放光明，天上聚成一个「爱」字
+          [0.2, () => gest('poor', 'give')],
+          [1.4, () => hold('poor', null)],
+          // 众人先后坐下
+          ...lag(['gaius', 'mother', 'father', 'forgiven', 'child2', 'poor'], 0.6, 0.45, id => pose(id, 'sit')),
+          [1.2, () => { pose('youth', 'kneel'); pose('child1', 'kneel'); }],
+          // 老约翰为饼祝福
+          [5.8, () => gest('john', 'bless')],
+          [6.6, () => stir(['gaius', 'mother', 'father', 'forgiven', 'poor'], 'bowhead', { spread: 1.2, share: 0.6 })],
+          // 神就是爱：那一圈光大放光明，天上聚成一个「爱」字；众人仰面
           [9.2, b => {
             W.set('glLove', 1, b.instant); W.set('glRing', 1, b.instant); W.set('glRingR', 0.82, b.instant);
             nameAt(b, '爱', X.table, PORT ? 0.5 : 0.42, { size: PORT ? 0.2 * W.w : 88 * SU(), hold: 4.6, rgb: [255, 168, 120] });
@@ -1518,8 +1580,11 @@
             trans(b, { type: 'beam', xf: X.table, y: y - 4, w: M() * (PORT ? 0.3 : 0.2), dur: 6 });
             sfx(b, 'bell');
           }],
-          // 神差他独生子到世间来：一点光自天顶降下
+          [9.8, () => stir(['gaius', 'mother', 'father', 'forgiven', 'poor', 'youth'], 'reachup', { spread: 1.8, share: 0.6 })],
+          [10.6, () => { gest('child1', 'clap'); gest('child2', 'reachup'); }],
+          // 神差他独生子到世间来：一点光自天顶降下；众人低头
           [16, b => { W.set('glDescent', 1, b.instant); sfx(b, 'harp'); }],
+          [17.0, () => stir(['gaius', 'mother', 'father', 'forgiven', 'poor', 'youth'], 'bowhead', { spread: 2, share: 0.8 })],
           [21, b => {
             W.set('glDescent', 0, true);
             const { x, y } = tableG();
@@ -1530,6 +1595,7 @@
             ringAt(b, x, y - PH(), 0.16, [255, 240, 214], 2.6, 1.6);
             sfx(b, 'harp');
           }],
+          [21.8, () => stir(present(), 'nod', { spread: 1.6, share: 0.5 })],
         ]);
       },
     },
@@ -1538,8 +1604,8 @@
     {
       kind: 'act', utter: '爱里没有惧怕', cmd: 'fear.castOut(love.perfect)', ref: '4:18',
       verse: [
-        { text: '神爱我们的心，我们也知道也信。神就是爱；<br>住在爱里面的，就是住在神里面，神也住在他里面。', ref: '约翰一书 4:16', hold: 8 },
-        { text: '爱里没有惧怕；爱既完全，就把惧怕除去。<br>因为惧怕里含着刑罚，惧怕的人在爱里未得完全。', ref: '约翰一书 4:18', hold: 8 },
+        { text: '神爱我们的心，我们也知道也信。神就是爱；<br>住在爱里面的，就是住在神里面，神也住在他里面。', ref: '约翰一书 4:16', hold: 8, talk: [['john', 0, 0.4, 'calm']] },
+        { text: '爱里没有惧怕；爱既完全，就把惧怕除去。<br>因为惧怕里含着刑罚，惧怕的人在爱里未得完全。', ref: '约翰一书 4:18', hold: 8, who: 'john', how: 'proclaim' },
       ],
       apply(c) {
         T(c, [
@@ -1551,26 +1617,33 @@
             W.set('glFear', 1, b.instant);
             sfx(b, 'wind');
           }],
+          // 孩子们先一惊，众人都望向海上
+          [1.8, () => { stir(['child1', 'child2'], 'startle', { spread: 0.5 }); heed(['gaius', 'youth', 'father', 'forgiven', 'poor'], 0.3, { spread: 1.4 }); }],
+          // 惧怕：孩子们蹲下护着头，母亲跪在孩子旁边伸手按着她；大人们缩着身子
           [3.4, b => {
-            pose('child1', 'kneel', { weep: true }); pose('child2', 'kneel', { weep: true });
+            pose('child1', 'cower'); pose('child2', 'cower');
             pose('mother', 'kneel'); face('mother', X.child1);
-            for (const id of ['gaius', 'youth', 'father', 'forgiven', 'poor']) { pose(id, 'bow'); face(id, -1); }
+            for (const id of ['gaius', 'youth', 'father', 'forgiven', 'poor']) face(id, -1);
             W.set('glLove', 0.35, b.instant); W.set('glRing', 0.55, b.instant);
             sfx(b, 'whisper', { soft: true });
           }],
+          ...lag(['gaius', 'father', 'youth', 'forgiven', 'poor'], 3.6, 0.4, (id, b, i) => pose(id, i < 2 ? 'recoil' : 'bow')),
+          [4.6, () => gest('mother', 'touch')],
+          [5.2, () => stir(['youth', 'poor', 'forgiven'], 'tremble', { spread: 1.2, share: 0.7 })],
           [6.8, b => { pose('john', 'stand'); face('john', -1); }],
-          // 爱既完全，就把惧怕除去
+          // 爱既完全，就把惧怕除去：约翰举手，众人一个一个站直，转回桌前
           [9.8, b => {
-            pose('john', 'raise');
-            for (const id of ['gaius', 'youth', 'father', 'mother', 'forgiven', 'poor']) { pose(id, 'stand'); face(id, X.table); }
-            pose('child1', 'stand', { weep: false }); pose('child2', 'stand', { weep: false });
+            pose('john', 'bless');
             W.set('glCast', 1, b.instant);
             W.set('glLove', 1, b.instant); W.set('glRing', 1, b.instant);
             W.set('gale', 0, b.instant); W.set('clouds', 0.35, b.instant);
             sfx(b, 'harp'); sfx(b, 'bell', { soft: true });
           }],
-          [11.2, b => { hands('gaius', 'youth'); hands('father', 'mother'); hands('forgiven', 'poor'); glowAll(0.4); }],
-          [13.8, b => { W.set('glFear', 0, true); W.set('glCast', 0, true); pose('john', 'stand'); }],
+          ...lag(['gaius', 'father', 'mother', 'youth', 'forgiven', 'poor'], 10.0, 0.3, id => { pose(id, 'stand'); face(id, X.table); }),
+          [10.6, () => { pose('child1', 'stand', { weep: false }); pose('child2', 'stand', { weep: false }); }],
+          [11.8, b => { hands('gaius', 'youth'); hands('father', 'mother'); hands('forgiven', 'poor'); glowAll(0.4); }],
+          [12.6, () => { stir(['gaius', 'youth', 'father', 'mother', 'forgiven', 'poor'], 'nod', { spread: 1.4, share: 0.6 }); gest('child1', 'leap', { n: 2 }); }],
+          [14.6, b => { W.set('glFear', 0, true); W.set('glCast', 0, true); pose('john', 'stand'); }],
         ]);
       },
     },
@@ -1579,9 +1652,9 @@
     {
       kind: 'act', utter: '我们爱，因为神先爱我们', cmd: 'for (p of 众人) p.lamp = prev.lamp  # 神先', ref: '4:19',
       verse: [
-        { text: '不是我们爱神，乃是神爱我们，<br>差他的儿子为我们的罪作了挽回祭，这就是爱了。', ref: '约翰一书 4:10', hold: 7.5 },
-        { text: '我们爱，因为神先爱我们。', ref: '约翰一书 4:19', hold: 4.5 },
-        { text: '爱神的，也当爱弟兄，这是我们从神所受的命令。', ref: '约翰一书 4:21', hold: 5.5 },
+        { text: '不是我们爱神，乃是神爱我们，<br>差他的儿子为我们的罪作了挽回祭，这就是爱了。', ref: '约翰一书 4:10', hold: 7.5, talk: [['john', 0.52, 1, 'calm']] },
+        { text: '我们爱，因为神先爱我们。', ref: '约翰一书 4:19', hold: 4.5, who: 'john', how: 'calm' },
+        { text: '爱神的，也当爱弟兄，这是我们从神所受的命令。', ref: '约翰一书 4:21', hold: 5.5, who: 'john', how: 'teach' },
       ],
       apply(c) {
         T(c, [
@@ -1592,24 +1665,33 @@
             for (const id of present()) if (!KIDS[id]) pose(id, 'stand');
             pose('child1', 'sit'); pose('child2', 'sit');
           }],
-          // 神先爱我们：一道光先落在约翰手中
-          [1.6, b => { trans(b, { type: 'beam', id: 'john', w: PH() * 1.1, dur: 4 }); pose('john', 'gaze'); sfx(b, 'harp'); }],
+          // 神先爱我们：一道光先落在约翰手中——他两手捧着接住
+          [1.6, b => { trans(b, { type: 'beam', id: 'john', w: PH() * 1.1, dur: 4 }); pose('john', 'offer'); sfx(b, 'harp'); }],
+          [2.2, () => heed(['gaius', 'mother', 'youth', 'father', 'forgiven', 'poor', 'child1', 'child2'], 'john', { spread: 1.6 })],
           [3.4, b => { hold('john', 'torch'); pose('john', 'stand'); glow('john', 0.42); sparkleOn(b, 'john', 16, [255, 214, 150], 1.05); sfx(b, 'fire', { soft: true }); }],
-          // 火一个传一个
+          // 约翰转向该犹，把火递过去
+          [7.6, () => face('john', 'gaius')],
+          [8.6, () => gest('john', 'give')],
+          // 火一个传一个：接着的点一点头，再转过去递给下一个
           ...['gaius', 'mother', 'youth', 'father', 'forgiven', 'poor'].map((id, i, arr) => [9.4 + i * 0.75, b => {
             const prev = i ? arr[i - 1] : 'john';
             trans(b, { type: 'pass', from: prev, to: id, dur: 0.8 });
             hold(id, 'torch'); glow(id, 0.4);
+            gest(id, 'nod');
             if (i % 2 === 0) sfx(b, 'chime', { soft: true });
           }]),
-          // 爱弟兄：灯举起来，城中的窗一扇扇亮起
+          // 爱弟兄：灯一支一支举起来，城中的窗一扇扇亮起
+          ...lag(['john', 'gaius', 'mother', 'youth', 'father', 'forgiven', 'poor'], 14.8, 0.3, id => pose(id, 'raise')),
           [14.8, b => {
-            for (const id of ['john', 'gaius', 'mother', 'youth', 'father', 'forgiven', 'poor']) pose(id, 'raise');
             W.set('glCity', 1, b.instant);
             glow('child1', 0.4); glow('child2', 0.4);
             sfx(b, 'harp');
           }],
-          [19, b => { for (const id of ['john', 'gaius', 'mother', 'youth', 'father', 'forgiven', 'poor']) pose(id, 'stand'); }],
+          [16.2, () => { gest('child1', 'clap'); gest('child2', 'clap'); }],
+          [19, b => {
+            for (const id of ['john', 'gaius', 'mother', 'youth', 'father', 'forgiven', 'poor']) pose(id, 'stand');
+            faceTable(['gaius', 'mother', 'youth', 'father', 'forgiven', 'poor', 'child1', 'child2']); face('john', -1);
+          }],
         ]);
       },
     },
@@ -1618,27 +1700,29 @@
     {
       kind: 'promise', utter: '我们若照他的旨意求什么，他就听我们', cmd: 'pray --according-to 他的旨意 && await 听', ref: '5:14',
       verse: [
-        { text: '因为凡从神生的，就胜过世界；<br>使我们胜了世界的，就是我们的信心。', ref: '约翰一书 5:4', hold: 6.5 },
+        { text: '因为凡从神生的，就胜过世界；<br>使我们胜了世界的，就是我们的信心。', ref: '约翰一书 5:4', hold: 6.5, talk: [['john', 0, 0.55, 'calm']] },
         { text: '这见证就是神赐给我们永生；这永生也是在他儿子里面。<br>人有了神的儿子就有生命，没有神的儿子就没有生命。', ref: '约翰一书 5:11–12', hold: 8.5 },
-        { text: '我们若照他的旨意求什么，他就听我们，<br>这是我们向他所存坦然无惧的心。', ref: '约翰一书 5:14', hold: 7 },
+        { text: '我们若照他的旨意求什么，他就听我们，<br>这是我们向他所存坦然无惧的心。', ref: '约翰一书 5:14', hold: 7, who: 'john', how: 'calm' },
       ],
       apply(c) {
+        const holders = () => ['john', 'gaius', 'mother', 'youth', 'father', 'forgiven', 'poor'].filter(id => has(id));
         T(c, [
-          // 夜：灯放在脚前，众人跪下祷告
+          // 夜：各人弯腰把灯放在脚前，一个一个跪下祷告
           [0, b => {
             W.goTo(0.9, 12, b.instant);
             W.set('glFeast', 0, b.instant);
-            const holders = ['john', 'gaius', 'mother', 'youth', 'father', 'forgiven', 'poor'].filter(id => has(id));
-            for (const id of holders) { hold(id, null); if (S.lamps.indexOf(id) < 0) S.lamps.push(id); }
+            for (const id of holders()) { hold(id, null); if (S.lamps.indexOf(id) < 0) S.lamps.push(id); }
             W.set('glLamps', 1, b.instant);
-            for (const id of holders) pose(id, 'pray');
-            pose('child1', 'kneel'); pose('child2', 'kneel');
+            stir(holders(), 'stoopdown', { spread: 1 });
             faceTable(['gaius', 'youth', 'father', 'mother', 'forgiven', 'poor', 'child1', 'child2']); face('john', -1);
             sfx(b, 'whisper', { soft: true });
           }],
+          ...lag(['john', 'gaius', 'mother', 'father', 'youth', 'forgiven', 'poor'], 3.4, 0.35, id => pose(id, 'pray')),
+          [3.6, () => { pose('child1', 'kneel'); pose('child2', 'kneel'); }],
           [2.2, b => { W.set('glPray', 1, b.instant); sfx(b, 'stars', { soft: true }); }],
-          // 永生：各人心里的光不再暗
+          // 永生：各人心里的光不再暗；众人低头
           [8.6, b => { glowAll(0.48); const G = ringG(); ringAt(b, G.cx, G.cy - PH() * 0.5, 0.14, [255, 236, 200], 2.6, 1.4); }],
+          [9.6, () => stir(holders(), 'bowhead', { spread: 2.4, share: 0.6 })],
           // 人有了神的儿子就有生命：脚前的灯一齐亮起，一缕缕光自桌上进到各人心里
           [12.4, b => {
             trans(b, { type: 'flare', dur: 2.8, stagger: 0.035 });
@@ -1647,13 +1731,17 @@
             present().forEach((id, i) => trans(b, { type: 'stream', from, to: id, t: -i * 0.15, dur: 2.4, seed: i + 3 }));
             sfx(b, 'chime', { soft: true });
           }],
-          // 他就听我们：应允如光雨落下
+          [13.2, () => { gest('child1', 'reachup'); gest('child2', 'reachup'); }],
+          // 他就听我们：应允如光雨落下；众人仰面摊手，一个一个接着
           [18, b => {
             W.set('glAnswer', 1, b.instant);
             W.set('glRing', 1, b.instant); W.set('glLove', 1, b.instant);
             sfx(b, 'stars'); sfx(b, 'harp');
           }],
+          ...lag(['gaius', 'mother', 'youth', 'father', 'forgiven', 'poor'], 18.6, 0.4, id => pose(id, 'beg')),
+          [19.2, () => { gest('child1', 'clap'); gest('child2', 'reachup'); }],
           [23.4, b => { W.set('glAnswer', 0.25, b.instant); }],
+          ...lag(['gaius', 'mother', 'youth', 'father', 'forgiven', 'poor'], 23.6, 0.3, id => pose(id, 'pray')),
         ]);
       },
     },
@@ -1664,39 +1752,51 @@
       verse: [
         { text: '作长老的写信给蒙拣选的太太和她的儿女，就是我诚心所爱的……', ref: '约翰二书 1:1', hold: 6 },
         { text: '我见你的儿女，有照我们从父所受之命令遵行真理的，就甚欢喜。', ref: '约翰二书 1:4', hold: 6 },
-        { text: '我们若照他的命令行，这就是爱。<br>你们从起初所听见当行的，就是这命令。', ref: '约翰二书 1:6', hold: 6.5 },
+        { text: '我们若照他的命令行，这就是爱。<br>你们从起初所听见当行的，就是这命令。', ref: '约翰二书 1:6', hold: 6.5, talk: [['john', 0, 0.85, 'calm', 'lady']] },
       ],
       apply(c) {
         T(c, [
-          // 蒙拣选的太太和她的女儿提着灯从路上来，身后一路光的脚踪
+          // 蒙拣选的太太和她的女儿提着灯从路上来，身后一路光的脚踪；老约翰坐着写信
           [0, b => {
             W.goTo(0.95, 12, b.instant);
             W.set('glPray', 0, true); W.set('glAnswer', 0, b.instant);
-            for (const id of ['gaius', 'youth', 'father', 'mother', 'forgiven', 'poor', 'child1', 'child2']) pose(id, 'sit');
-            pose('john', 'sit');
             person('lady', 'ladyA', { facing: -1, prop: 'torch', glow: 0.38 });
             person('kid', 'kidA', { facing: -1, glow: 0.36 });
             go('lady', 'ladyM', { speed: 0.036 }); go('kid', 'kidM', { speed: 0.034 });
             W.set('glPath', 1, b.instant);
           }],
-          // 老约翰迎上去
+          ...lag(['gaius', 'mother', 'youth', 'father', 'forgiven', 'poor', 'child1', 'child2'], 0, 0.3, id => pose(id, 'sit')),
+          [0.4, () => pose('john', 'write')],
+          // 圈里的人望见路上的灯
+          [3.2, () => heed(['gaius', 'father', 'mother', 'youth', 'forgiven', 'poor'], X.ladyM, { spread: 1.8 })],
+          [4.4, () => { gest('child1', 'point'); gest('child2', 'lookaround'); }],
+          // 老约翰放下笔，站起来迎上去，远远地招手
+          [6.2, () => pose('john', 'stand')],
           [7.6, b => { go('john', 'embL', { speed: 0.03 }); face('lady', -1); }],
+          [8.4, () => gest('john', 'wave')],
+          [9.2, () => { gest('kid', 'leap', { n: 2 }); gest('lady', 'bowhead'); }],
           [11, b => {
             embrace('john', 'lady', { at: X.embL + (PORT ? 0.01 : 0.008) });
             for (const id of ['child1', 'child2']) { pose(id, 'stand'); face(id, 1); }
             sfx(b, 'harp');
           }],
-          // 照他的命令行：众人一同进到圈里
+          [11.6, () => gest('child2', 'wave')],
+          // 我见你的儿女……就甚欢喜：放开手，老约翰转向她的女儿，为她祝福
+          [12.6, b => { pose('john', 'stand'); pose('lady', 'stand'); face('john', 'kid'); face('kid', 'john'); }],
+          [13.0, () => gest('john', 'bless')],
+          [13.8, () => gest('kid', 'nod')],
+          // 照他的命令行：众人一同进到圈里，一面走一面说
           [14.8, b => {
             go('lady', 'lady', { speed: 0.03 }); go('kid', 'kid', { speed: 0.03 }); go('john', 'john', { speed: 0.03 });
             W.set('glRingR', 0.92, b.instant);
             ringOn(b, 'lady', 0.14, [255, 232, 190], 0.5);
           }],
+          [16.2, () => stir(['gaius', 'father', 'mother', 'youth', 'forgiven', 'poor'], 'nod', { spread: 1.6, share: 0.6 })],
           [19.2, b => {
             hold('lady', null); if (S.lamps.indexOf('lady') < 0) S.lamps.push('lady');
             pose('lady', 'sit'); pose('kid', 'sit'); pose('john', 'sit');
             pose('child1', 'sit'); pose('child2', 'sit');
-            faceTable(['lady', 'kid', 'child1', 'child2']); face('john', -1);
+            faceTable(['lady', 'kid', 'child1', 'child2', 'gaius', 'father', 'mother', 'youth', 'forgiven', 'poor']); face('john', -1);
             W.set('glPath', 0.45, b.instant);
           }],
         ]);
@@ -1708,19 +1808,21 @@
       kind: 'act', utter: '行善的属乎神', cmd: 'open --door && welcome 客旅 --for 主的名', ref: '约翰三书 1:11',
       verse: [
         { text: '作长老的写信给亲爱的该犹，就是我诚心所爱的。', ref: '约翰三书 1:1', hold: 4.5 },
-        { text: '我听见我的儿女们按真理而行，我的喜乐就没有比这个大的。', ref: '约翰三书 1:4', hold: 5.5 },
-        { text: '亲爱的兄弟啊，凡你向作客旅之弟兄所行的都是忠心的。', ref: '约翰三书 1:5', hold: 5 },
-        { text: '亲爱的兄弟啊，不要效法恶，只要效法善。<br>行善的属乎神；行恶的未曾见过神。', ref: '约翰三书 1:11', hold: 6.5 },
+        { text: '我听见我的儿女们按真理而行，我的喜乐就没有比这个大的。', ref: '约翰三书 1:4', hold: 5.5, talk: [['john', 0, 0.6, 'calm', 'gaius']] },
+        { text: '亲爱的兄弟啊，凡你向作客旅之弟兄所行的都是忠心的。', ref: '约翰三书 1:5', hold: 5, who: 'john', how: 'calm' },
+        { text: '亲爱的兄弟啊，不要效法恶，只要效法善。<br>行善的属乎神；行恶的未曾见过神。', ref: '约翰三书 1:11', hold: 6.5, who: 'john', how: 'teach' },
       ],
       apply(c) {
         T(c, [
-          // 子夜，一只船靠岸
+          // 子夜，一只船靠岸；老约翰在灯下写信
           [0, b => {
             W.goTo(0.02, 10, b.instant);
             W.set('glBoat', 1, b.instant);
             W.set('glPath', 0.2, b.instant);
             sfx(b, 'oars', { soft: true });
           }],
+          [0.4, () => pose('john', 'write')],
+          [4.6, () => pose('john', 'sit')],
           // 两个作客旅的弟兄一前一后下了船，上坡来
           [4.8, b => {
             person('trav1', 'travA', { facing: 1, glow: 0.34 });
@@ -1730,18 +1832,22 @@
             person('trav2', 'trav2A', { facing: 1, glow: 0.34 });
             go('trav2', 'trav2D', { speed: 0.03 });
           }],
-          // 叩门；该犹开门
+          [8.2, () => gest('gaius', 'nod')],
+          // 叩门；该犹起身去开门
           [9.4, b => {
             sfx(b, 'knock');
-            face('trav1', 1);
+            face('trav1', 1); gest('trav1', 'knock');
             pose('gaius', 'stand'); go('gaius', 'gaiusD', { speed: 0.04 });
           }],
+          [10.4, () => gest('trav2', 'lookaround')],
           [11, b => { W.set('glDoor', 1, b.instant); sfx(b, 'gate', { soft: true }); }],
+          [11.6, () => gest('gaius', 'beckon')],
           // 凡你向作客旅之弟兄所行的都是忠心的：接待，打水洗脚
           [12.8, b => {
             embrace('gaius', 'trav1', { at: X.embT });
             hold('trav2', null);
           }],
+          [13.6, () => gest('trav2', 'bowhead')],
           // 客旅坐在开着的门前的门槛上（门里的暖光照着他们），该犹提着水跪在他们脚前
           [15.0, b => {
             go('trav1', 'trav1W', { speed: 0.032, pose: 'sit' }); go('trav2', 'trav2W', { speed: 0.032, pose: 'sit' });
@@ -1750,23 +1856,27 @@
           [17, b => {
             for (const id of ['trav1', 'trav2']) { pose(id, 'sit'); face(id, -1); }
             pose('gaius', 'kneel'); face('gaius', 1);
+            gest('gaius', 'pour');
             trans(b, { type: 'shimmer', x: (X.gaiusW + (skip('trav2') ? X.trav1W : X.trav2W)) / 2, v: V.gaiusW, dur: 3.2 });
             sparkleAt(b, ((X.gaiusW + (skip('trav2') ? X.trav1W : X.trav2W)) / 2) * W.w, groundV((X.gaiusW + X.trav1W) / 2, V.gaiusW) - 4, 14, [230, 242, 255], 8);
             sfx(b, 'pour', { soft: true });
           }],
+          // 放下水罐，俯身洗他们的脚
+          [18.4, () => { hold('gaius', null); pose('gaius', 'wash'); }],
           // 行善的属乎神：光落在他们身上，一同进到圈里
           [19.4, b => {
             S.guests = 1;
             trans(b, { type: 'beam', id: 'gaius', w: PH() * 2.2, dur: 5 });
             glow('gaius', 0.46); glow('trav1', 0.42); glow('trav2', 0.42);
-            hold('gaius', null); pose('gaius', 'stand');
             sparkleOn(b, 'gaius', 20, [255, 236, 196], 0.6);
             sfx(b, 'harp');
           }],
+          [20.4, () => { hold('gaius', null); pose('gaius', 'stand'); gest('trav1', 'bless'); }],
           [21.6, b => {
             go('trav1', 'trav1', { speed: 0.032 }); go('trav2', 'trav2', { speed: 0.03 }); go('gaius', 'gaius', { speed: 0.034 });
             W.set('glRingR', 1, b.instant);
           }],
+          [23.2, () => stir(['father', 'mother', 'youth', 'forgiven', 'poor', 'lady'], 'nod', { spread: 1.8, share: 0.5 })],
           [25.2, b => {
             for (const id of ['trav1', 'trav2', 'gaius']) { pose(id, 'sit'); face(id, X.table); if (!skip(id) && S.lamps.indexOf(id) < 0) S.lamps.push(id); }
             hold('trav1', null);
@@ -1795,6 +1905,9 @@
             W.set('glBoat', 0, b.instant);   // 船趁风暴未到驶回海上
             sfx(b, 'wind'); sfx(b, 'wave', { soft: true });
           }],
+          // 风暴里孩子们蹲下护着头，众人一惊
+          [0.6, () => stir(['gaius', 'father', 'mother', 'forgiven', 'poor', 'lady', 'trav1', 'trav2'], 'startle', { spread: 1, share: 0.5 })],
+          [1.2, () => { pose('child1', 'cower'); pose('child2', 'cower'); pose('kid', 'cower'); }],
           // 少年人起了疑心，拿着自己的灯走开，走向海边
           [2, b => {
             S.carry = 'youth';
@@ -1802,7 +1915,8 @@
             go('youth', 'doubt', { speed: 0.036, pose: 'carry' });
             glow('youth', 0.34);
           }],
-          // 雷声中，他手里的灯扑闪几下，灭了
+          [3.0, () => heed(['forgiven', 'gaius', 'mother'], X.doubt, { spread: 1.4 })],
+          // 雷声中，他手里的灯扑闪几下，灭了；他一惊，在黑暗里发抖、四下张望
           [5.2, b => {
             if (!b.instant && GS.weather && GS.weather.bolt) U.safe('weather.bolt', () => GS.weather.bolt({ x: W.w * 0.2, near: false }));
             sfx(b, 'thunder');
@@ -1811,14 +1925,18 @@
             glow('youth', 0.32);
             face('youth', -1);
           }],
-          // 在圣灵里祷告，保守自己常在神的爱中
+          [5.5, () => gest('youth', 'startle')],
+          [7.4, () => gest('youth', 'tremble', { dur: 2.8 })],
+          // 在圣灵里祷告，保守自己常在神的爱中：众人一个一个跪下祷告，老约翰出声祷告
+          ...lag(['john', 'mother', 'gaius', 'father', 'forgiven', 'poor', 'lady', 'trav1', 'trav2'], 8.6, 0.3, id => { if (grown().indexOf(id) >= 0) pose(id, 'pray'); }),
           [8.6, b => {
-            for (const id of grown()) if (id !== 'youth') pose(id, 'pray');
-            for (const id of ['child1', 'child2', 'kid']) pose(id, 'kneel');
             W.set('glKeep', 1, b.instant);
             W.set('glRing', 1, b.instant);
             sfx(b, 'harp');
           }],
+          [9.4, () => { for (const id of ['child1', 'child2', 'kid']) pose(id, 'kneel'); say('john', 6, { how: 'plead' }); }],
+          [10.6, () => gest('youth', 'lookaround')],
+          [14.6, () => { face('youth', 1); gest('youth', 'bowhead'); }],
           // 有些人存疑心，你们要怜悯他们：哥哥和该犹去把他领回来
           [18.6, b => {
             pose('forgiven', 'stand'); pose('gaius', 'stand');
@@ -1826,6 +1944,8 @@
             setV('forgiven', V.embD); setV('youth', V.embD);
             go('gaius', 'fetch', { speed: 0.07 });
           }],
+          [20.4, () => say('forgiven', 2.4, { to: 'youth', how: 'plead' })],
+          [20.9, () => gest('gaius', 'beckon')],
           [21.8, b => {
             S.fetched = 1;
             go('youth', 'youth', { speed: 0.046, pose: 'carry' }); go('forgiven', 'forgiven', { speed: 0.042 }); go('gaius', 'gaius', { speed: 0.052 });
@@ -1840,6 +1960,7 @@
             S.out = S.out.filter(id => id !== 'youth');
             const p = carriedFlame('youth'); if (p) sparkleAt(b, p[0], p[1], 14, [255, 214, 150], 8);
             sfx(b, 'chime', { soft: true });
+            gest('youth', 'nod');
           }],
           [26.9, b => {
             S.carry = null;
@@ -1854,19 +1975,26 @@
       kind: 'bless', utter: '那能保守你们不失脚', cmd: 'glory --forever && echo 阿们', ref: '犹大书 1:24',
       verse: [
         { text: '那能保守你们不失脚、叫你们无瑕无疵、欢欢喜喜站在他荣耀之前的<br>我们的救主独一的神，', ref: '犹大书 1:24', hold: 8.5 },
-        { text: '愿荣耀、威严、能力、权柄，因我们的主耶稣基督归与他，<br>从万古以前并现今，直到永永远远。阿们！', ref: '犹大书 1:25', hold: 9.5 },
+        { text: '愿荣耀、威严、能力、权柄，因我们的主耶稣基督归与他，<br>从万古以前并现今，直到永永远远。阿们！', ref: '犹大书 1:25', hold: 9.5, who: ['john', 'city'], how: 'proclaim' },
       ],
       apply(c) {
         T(c, [
-          // 风停了，天亮了：众人站起来
+          // 风停了，天亮了：众人一个一个站起来
           [0, b => {
             W.goTo(0.3, 14, b.instant);
             W.set('gale', 0, b.instant); W.set('storm', 0, b.instant); W.set('clouds', 0.3, b.instant);
             W.set('glWander', 0, b.instant); W.set('glKeep', 0.3, b.instant);
-            for (const id of present()) { pose(id, 'stand'); face(id, X.table); }
+            for (const id of present()) face(id, X.table);
             face('john', -1);
             sfx(b, 'harp');
           }],
+          ...lag(ALL, 0.2, 0.22, id => pose(id, 'stand')),
+          // 荣光临到时众人仰望；孩子们欢欢喜喜（犹 1:24）
+          ...lag(['john', 'gaius', 'father', 'mother', 'forgiven', 'youth', 'poor', 'lady', 'trav1', 'trav2'], 4.0, 0.3, id => pose(id, 'gaze')),
+          [5.6, () => { for (const id of ['child1', 'child2', 'kid']) pose(id, 'rejoice'); }],
+          // 城里信的人来了：父老招手，众人转过去迎接
+          [6.8, () => { heed(['father', 'mother', 'lady', 'poor'], X.poor + 0.1, { spread: 1.2 }); gest('father', 'beckon'); }],
+          [9.0, () => heed(['father', 'mother', 'lady', 'poor'], X.table, { spread: 0.8 })],
           // 荣光临到，那一圈光铺满全地
           [3.4, b => {
             W.set('glGlory', 1, b.instant);
@@ -1888,12 +2016,15 @@
             }
             sfx(b, 'crowd', { soft: true });
           }],
-          // 愿荣耀、威严、能力、权柄……归与他
+          // 愿荣耀、威严、能力、权柄……归与他：众人先后举起手来，孩子们仍旧欢喜踏步
           [10.2, b => {
-            for (const id of present()) pose(id, KIDS[id] ? 'gaze' : 'raise');
             const c2 = C(); if (c2 && c2.crowdPose) c2.crowdPose('city', 'raise');
             sfx(b, 'sing', { soft: true });
           }],
+          ...lag(['john', 'gaius', 'father', 'mother', 'forgiven', 'youth', 'poor', 'lady', 'trav1', 'trav2'], 10.0, 0.25, id => pose(id, 'raise')),
+          [10.4, () => { for (const id of ['child1', 'child2', 'kid']) pose(id, 'rejoice'); }],
+          // 阿们！
+          [17.8, () => { stir(present(), 'nod', { spread: 0.8, share: 0.8 }); stir('city', 'nod', { spread: 0.8 }); }],
           ...['荣耀', '威严', '能力', '权柄'].map((w, i) => [10.4 + i * 1.1, b => {
             const P = PORT ? [[0.3, 0.42], [0.7, 0.42], [0.3, 0.5], [0.7, 0.5]] : [[0.55, 0.4], [0.67, 0.33], [0.79, 0.4], [0.91, 0.33]];
             nameAt(b, w, P[i][0], P[i][1], { hold: 3.6, rgb: [255, 236, 196] });
